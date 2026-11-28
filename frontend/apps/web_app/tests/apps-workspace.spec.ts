@@ -3,7 +3,7 @@
 export {};
 import type { Page } from '@playwright/test';
 import { assertGuestHeaderControlsSeparated } from './helpers/header-layout';
-import { assertWorkspaceNavigationItems } from './helpers/workspace-navigation';
+import { assertWorkspaceNavigationItems, selectCompactWorkspace } from './helpers/workspace-navigation';
 import { ALL_EXAMPLE_CHATS } from '../../../packages/ui/src/demo_chats/exampleChatData';
 const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, submitPasswordAndHandleOtp } = require('./helpers/chat-test-helpers');
@@ -351,7 +351,7 @@ test.describe('Apps workspace', () => {
     await page.setViewportSize({width:390,height:844});
     await page.goto(getE2EDebugUrl('/#apps'),{waitUntil:'domcontentloaded'});
     await expect(page.getByTestId('apps-workspace-home')).toBeVisible({timeout:30000});
-    await expect(page.getByTestId('workspace-mobile-select')).toHaveValue('/#apps');
+    await expect(page.getByTestId('workspace-mobile-select')).toHaveAttribute('data-active-workspace', '/#apps');
     await page.getByTestId('apps-app-card').filter({hasText:/Health/i}).first().click();await expect.poll(()=>appHash(page)).toBe('#apps/health');
     await expect(requestComposer(page)).toBeVisible();await expect(page.getByTestId('apps-skill-form')).toHaveCount(0);
     await expect(page.getByTestId('apps-sidebar-toggle')).toHaveCount(0);const sidebarToggle=page.getByTestId('global-header').getByTestId('sidebar-toggle');await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toBeVisible();await sidebarToggle.click();await expect(page.getByTestId('apps-sidebar')).toHaveCount(0);
@@ -444,10 +444,10 @@ test.describe('Apps workspace', () => {
       await assertGuestHeaderControlsSeparated(page, true);
       const appsUrl = page.url();
       await login.click();
-      const signupLayer = page.locator('.apps-auth-layer');
+      const signupLayer = page.getByTestId('login-wrapper');
       await expect(signupLayer).toBeVisible();
       // The signup icon artwork must not intercept the phone close control.
-      await signupLayer.getByRole('button', { name: 'Close', exact: true }).click();
+      await signupLayer.getByRole('button', { name: 'Demo', exact: true }).click();
       await expect(signupLayer).toHaveCount(0);
       expect(page.url()).toBe(appsUrl);
     }
@@ -495,7 +495,7 @@ test.describe('Apps workspace', () => {
     await query.fill('gpt 6 astra');
     await page.evaluate(() => { (window as Window & { appsLoginDocument?: string }).appsLoginDocument = 'same-document'; });
     await page.getByTestId('header-login-signup-btn').click();
-    await expect(page.locator('.apps-auth-layer')).toBeVisible();
+    await expect(page.getByTestId('login-wrapper')).toBeVisible();
     await page.getByTestId('tab-login').click();
     await page.getByTestId('login-email-input').fill(credentials.email);
     if (!await page.locator('#stayLoggedIn').isChecked()) {
@@ -507,7 +507,7 @@ test.describe('Apps workspace', () => {
     await page.getByTestId('login-password-input').fill(credentials.password);
     await submitPasswordAndHandleOtp(page, credentials.otpKey);
     await expect(page.locator('.apps-route')).toHaveAttribute('data-authenticated', 'true');
-    await expect(page.locator('.apps-auth-layer')).toHaveCount(0);
+    await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
     await expect(page.getByTestId('header-login-signup-btn')).toBeHidden();
     expect(page.url()).toBe(initialUrl);
     expect(await page.evaluate(() => (window as Window & { appsLoginDocument?: string }).appsLoginDocument)).toBe('same-document');
@@ -539,23 +539,23 @@ test.describe('Apps workspace', () => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1000 });
       if (width === 1440) await page.getByTestId('apps-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/#apps');
+      else await selectCompactWorkspace(page, '/#apps');
       await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) {
         await assertWorkspaceNavigationItems(page, 'desktop', [
-          'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'tasks-nav-link', 'workflows-nav-link',
+          'chats-nav-link', 'apps-nav-link', 'projects-nav-link', 'workflows-nav-link', 'tasks-nav-link',
         ]);
       } else {
         await assertWorkspaceNavigationItems(page, 'mobile', [
-          '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+          '/', '/#apps', '/#projects', '/#workflows', '/#tasks',
         ]);
       }
       await page.getByTestId('apps-app-card').filter({ hasText: /Web/i }).first().click();
       await expect(requestComposer(page)).toBeVisible({ timeout: 30000 });
       await assertProfileInHeader(page);
       if (width === 1440) await page.getByTestId('chats-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      else await selectCompactWorkspace(page, '/');
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
       await expect(page.locator('.ProseMirror')).toBeVisible({ timeout: 30000 });
@@ -641,7 +641,7 @@ test.describe('Apps workspace', () => {
       page.on('pageerror', recordError);
       await page.getByTestId('icon-button-close').click();
       if (width === 1440) await page.getByTestId('chats-nav-link').click();
-      else await page.getByTestId('workspace-mobile-select').selectOption('/');
+      else await selectCompactWorkspace(page, '/');
       await expect(page.getByTestId('apps-workspace')).toHaveCount(0);
       await page.evaluate(() => {
         (window as Window & { appsSettingsRestoreTimers?: () => void }).appsSettingsRestoreTimers?.();
@@ -688,8 +688,8 @@ test.describe('Apps workspace', () => {
     page.on('request',(request:any)=>{if(request.method()==='POST'&&/\/v1\/(?:anonymous\/)?apps\/web\/skills\/search$/.test(new URL(request.url()).pathname))providerPosts++;});
     await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});const form=requestComposer(page);await expect(form).toBeVisible({timeout:30000});
     await form.getByTestId('apps-request-textarea').fill('Find accessible museums');await form.getByTestId('apps-request-submit').click();
-    await expect(page.locator('.apps-auth-layer')).toBeVisible();expect(providerPosts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
-    await page.locator('.apps-auth-layer').getByRole('button',{name:'Close',exact:true}).click();await expect(page.locator('.apps-auth-layer')).toHaveCount(0);
+    await expect(page.getByTestId('login-wrapper')).toBeVisible();expect(providerPosts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
+    await page.getByTestId('login-wrapper').getByRole('button',{name:'Demo',exact:true}).click();await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
   });
   // contract-test: supporting surface=gui.web assertions=apps.anonymous.cli-equivalent-gate
   test('eligible interpreted skill shows Signup when its request quote denies the budget',async({page}:{page:any})=>{
@@ -699,7 +699,7 @@ test.describe('Apps workspace', () => {
     await page.goto(getE2EDebugUrl('/#apps/web/search'),{waitUntil:'domcontentloaded'});const form=requestComposer(page);await expect(form).toBeVisible({timeout:30000});
     await form.getByTestId('apps-request-textarea').fill('accessible museums in Berlin');const quote=page.waitForResponse((response:any)=>response.url().endsWith('/v1/anonymous/apps/web/skills/search/availability')&&response.request().method()==='POST');
     await form.getByTestId('apps-request-submit').click();expect((await quote).request().postDataJSON().query).toBe('accessible museums in Berlin');
-    await expect(page.locator('.apps-auth-layer')).toBeVisible();expect(posts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
+    await expect(page.getByTestId('login-wrapper')).toBeVisible();expect(posts).toBe(0);await expect(page.getByTestId('apps-result-fullscreen')).toHaveCount(0);
   });
   // contract-test: supporting surface=gui.web assertions=apps.library.embeds-account-paginated
   test('Personal app libraries request bounded pages and reset when the app changes',async({page}:{page:any})=>{

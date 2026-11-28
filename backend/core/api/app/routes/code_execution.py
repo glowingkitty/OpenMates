@@ -26,6 +26,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSo
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from redis.exceptions import WatchError
+
+from backend.apps.code.run_cancellation import code_run_cancel_key
 from backend.shared.python_utils.catalog_unit_prices import skill_price, whole_credits
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
@@ -1429,33 +1432,59 @@ async def get_code_run_status(
     return data
 
 
+async def request_owned_code_run_cancellation(
+    *, execution_id: str, user_id: str, cache_service: CacheService,
+) -> str | None:
+    """Request a single owned run to stop while preserving any terminal result."""
+    client = await cache_service.client
+    if client is None:
+        return None
+    key = _execution_key(execution_id)
+    cancel_key = code_run_cancel_key(execution_id)
+    owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+
+    for _ in range(3):
+        async with client.pipeline(transaction=True) as pipe:
+            try:
+                await pipe.watch(key, cancel_key)
+                raw = await pipe.get(key)
+                data = json.loads(raw) if raw else None
+                if (not isinstance(data, dict) or data.get("execution_id") != execution_id
+                        or data.get("user_id_hash") != owner_hash):
+                    return None
+                if data.get("status") in TERMINAL_RUN_STATUSES:
+                    return data["status"]
+                if await pipe.get(cancel_key):
+                    return "cancelling"
+
+                now = time.time()
+                update = {"status": "cancelling", "cancel_requested": True, "updated_at": now}
+                data.update(update, cancel_requested_at=now)
+                pipe.multi()
+                pipe.set(key, json.dumps(data), ex=EXECUTION_TTL_SECONDS)
+                pipe.set(cancel_key, "1", ex=EXECUTION_TTL_SECONDS)
+                await pipe.execute()
+            except WatchError:
+                continue
+        await cache_service.publish_event(
+            _stream_channel(execution_id), {"type": "code_run_update", "payload": update},
+        )
+        return "cancelling"
+    raise RuntimeError("Code Run stop could not be confirmed")
+
+
 @router.post("/{execution_id}/cancel", response_model=CodeRunCancelResponse)
 async def cancel_code_run(
     execution_id: str,
     current_user: User = Depends(get_current_user_or_api_key),
     cache_service: CacheService = Depends(get_cache_service),
 ) -> CodeRunCancelResponse:
-    client = await cache_service.client
-    key = _execution_key(execution_id)
-    raw = await client.get(key)
-    if not raw:
-        raise HTTPException(status_code=404, detail="Code run not found or expired")
-    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
-    expected_user_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
-    if data.get("user_id_hash") != expected_user_hash:
-        raise HTTPException(status_code=404, detail="Code run not found or expired")
-
-    if data.get("status") in TERMINAL_RUN_STATUSES:
-        return CodeRunCancelResponse(execution_id=execution_id, status=str(data.get("status")))
-
-    now = time.time()
-    data.update({"cancel_requested": True, "cancel_requested_at": now, "status": "cancelling", "updated_at": now})
-    await client.set(key, json.dumps(data), ex=EXECUTION_TTL_SECONDS)
-    await cache_service.publish_event(
-        _stream_channel(execution_id),
-        {"type": "code_run_update", "payload": {"status": "cancelling", "cancel_requested": True, "updated_at": now}},
+    result = await request_owned_code_run_cancellation(
+        execution_id=execution_id, user_id=current_user.id, cache_service=cache_service,
     )
-    return CodeRunCancelResponse(execution_id=execution_id, status="cancelling")
+    if result is None:
+        raise HTTPException(status_code=404, detail="Code run not found or expired")
+    return CodeRunCancelResponse(execution_id=execution_id, status=result)
 
 
 @router.websocket("/{execution_id}/stream")

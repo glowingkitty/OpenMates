@@ -1,4 +1,5 @@
 # backend/tests/test_vault_token_handoff.py
+# contract-test-file: infrastructure
 #
 # Regression tests for Vault api.token handoff safety. The API startup script
 # must not accept a stale token file just because Vault itself is unsealed and
@@ -11,6 +12,30 @@
 from unittest.mock import AsyncMock, MagicMock, mock_open, patch
 
 import pytest
+
+
+def test_vault_handoff_assigns_only_runtime_files_without_relaxing_modes(tmp_path):
+    from core.vault.setup.vault_setup.initialization import VaultInitializer
+
+    handoff_dir = tmp_path / "vault"
+    handoff_dir.mkdir(mode=0o700)
+    paths = [handoff_dir / name for name in ("api.token", "unseal.key", "token.ready", "root.token")]
+    for path in paths:
+        path.touch(mode=0o600)
+
+    initializer = VaultInitializer(MagicMock())
+    initializer.api_token_file = str(paths[0])
+    initializer.unseal_key_file = str(paths[1])
+
+    with patch("os.chown") as chown:
+        initializer.prepare_api_handoff()
+
+    assert chown.call_count == 4
+    chown.assert_any_call(str(handoff_dir), -1, 1000)
+    for path in paths[:3]:
+        chown.assert_any_call(str(path), 1000, 1000, follow_symlinks=False)
+    assert handoff_dir.stat().st_mode & 0o777 == 0o710
+    assert all(path.stat().st_mode & 0o777 == 0o600 for path in paths)
 
 
 @pytest.mark.asyncio

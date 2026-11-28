@@ -10,10 +10,12 @@
   import type { UserTaskViewModel } from '../../services/userTaskService';
   import type { UserPlanViewModel } from '../../services/userPlanService';
   import { inProgressPlanData } from '../embeds/plans/planEmbedFixtures';
+  import type { ChatFileRow } from './chatSettingsFiles';
+  import { EMBROIDERY_FORMATS } from '../embeds/design/embroideryDesign';
   import type { Chat } from '../../types/chat';
   import { getExampleChatFileReferences, getExampleChatUsageEntries } from '../../demo_chats';
-  let { tab = 'plan', shared = false, example = false, anonymous = false, exampleChatId = 'example-gigantic-airplanes' }: {
-    tab?: ChatSettingsTab; shared?: boolean; example?: boolean; anonymous?: boolean; exampleChatId?: string;
+  let { tab = 'plan', shared = false, example = false, anonymous = false, embroidery = false, exampleChatId = 'example-gigantic-airplanes' }: {
+    tab?: ChatSettingsTab; shared?: boolean; example?: boolean; anonymous?: boolean; embroidery?: boolean; exampleChatId?: string;
   } = $props();
   let chat = $derived({
     chat_id: example ? exampleChatId : anonymous ? 'anonymous-preview-chat-settings' : 'preview-chat-settings', title: 'Launch preparation',
@@ -33,7 +35,20 @@
       checks: inProgressPlanData.checks, revisionId: 'rev-2', revisionNumber: 2,
     },
   };
-  let previewFiles = $derived(example ? getExampleChatFileReferences(chat.chat_id) : []);
+  const machineFiles: ChatFileRow[] = EMBROIDERY_FORMATS.map((format) => ({
+    embedId: 'preview-embroidery',
+    contentRef: `embed:preview-embroidery:${format}`,
+    title: `fox-patch.${format}`,
+    subtitle: format.toUpperCase(),
+    type: 'design-embroidery',
+    nodeType: 'design-embroidery',
+    iconName: 'embroidery',
+    createdAt: 0,
+    updatedAt: 0,
+    metadata: format.toUpperCase(),
+    readBlob: async () => new Blob(['Preview fixture']),
+  }));
+  let previewFiles = $derived(embroidery ? machineFiles : example ? getExampleChatFileReferences(chat.chat_id) : []);
 </script>
 <div class="chat-settings-preview">
   <ChatSettingsHeader title="Launch preparation" {credits} breadcrumbLabel="Chats" onBack={() => {}} />

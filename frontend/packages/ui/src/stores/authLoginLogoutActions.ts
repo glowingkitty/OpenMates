@@ -78,6 +78,21 @@ import { loginResultForVerdict, resumeDebugSessionRust, rustLoginVerdict } from 
 // fires background server-logout → user logs in via passkey → background IIFE
 // sends POST /auth/logout with the *new* session's cookies → new session destroyed.
 let loginSessionGeneration = 0;
+const loginGenerationObservers = new Set<() => void>();
+
+function advanceLoginSessionGeneration(): number {
+  const generation = ++loginSessionGeneration;
+  for (const invalidate of [...loginGenerationObservers]) {
+    try { invalidate(); } catch { /* Continue the login boundary and other invalidations. */ }
+  }
+  return generation;
+}
+
+/** Observers only revoke work started by an earlier auth generation. */
+export function observeLoginSessionGeneration(invalidate: () => void): () => void {
+  loginGenerationObservers.add(invalidate);
+  return () => { loginGenerationObservers.delete(invalidate); };
+}
 
 /**
  * Increments the login session generation counter.
@@ -91,7 +106,7 @@ let loginSessionGeneration = 0;
  * cookie deletion that would otherwise destroy the freshly-established session.
  */
 export function bumpLoginSessionGeneration(): void {
-  loginSessionGeneration++;
+  advanceLoginSessionGeneration();
   console.debug(
     `[AuthStore] Bumped loginSessionGeneration to ${loginSessionGeneration} (external login path)`,
   );
@@ -361,7 +376,7 @@ export async function login(
         // Any in-flight background logout IIFE from a previous forced-logout will see
         // the bumped counter and skip destructive operations (server logout fetch,
         // cookie deletion) that would otherwise invalidate this new session.
-        loginSessionGeneration++;
+        advanceLoginSessionGeneration();
         console.debug(
           `[AuthStore] Login success — bumped loginSessionGeneration to ${loginSessionGeneration}`,
         );
@@ -585,7 +600,7 @@ export async function login(
 export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
   // Invalidate older session checks before any await, then capture this logout's
   // generation so its server revocation still runs unless a newer login wins.
-  const logoutGeneration = ++loginSessionGeneration;
+  const logoutGeneration = advanceLoginSessionGeneration();
   clearCachedImages();
   clearCachedAudio();
   const downloadPurge = purgeConnectedProjectDownloadStaging().catch((error) => {

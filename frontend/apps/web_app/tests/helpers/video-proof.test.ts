@@ -105,3 +105,20 @@ test('refuses to attach when declared checkpoints or assertions were not reached
 
 	await assert.rejects(runtime.attach(), /welcome\.shell\.visible/);
 });
+
+test('a test that covers only some checkpoints attaches without the others', async () => {
+	const attached: string[] = [];
+	const runtime = createVideoProofRuntime(definition(), {
+		now: () => 1000,
+		device: 'web-laptop',
+		attach: async (name: string) => { attached.push(name); },
+		checkpoints: ['some-later-checkpoint']
+	});
+
+	await runtime.attach();
+	assert.ok(attached.includes('openmates-proof-timeline'));
+	const scoped = createVideoProofRuntime(definition(), {
+		now: () => 1000, device: 'web-laptop', attach: async () => undefined, checkpoints: ['welcome-visible']
+	});
+	await assert.rejects(scoped.attach(), /welcome\.shell\.visible/);
+});

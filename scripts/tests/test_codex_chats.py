@@ -1,0 +1,246 @@
+"""Codex chat registry, launch command, transcript mirror and usage reading (TASK-4476)."""
+
+import json
+import os
+import sys
+from pathlib import Path
+from subprocess import CompletedProcess
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import codex_chats  # noqa: E402
+
+THREAD = "99999999-2222-4333-8444-555555555555"
+
+
+@pytest.fixture
+def home(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CODEX_CHATS_DIR", str(tmp_path / "chats"))
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex"))
+    return tmp_path
+
+
+def _rollout(home, items):
+    path = home / "codex" / "sessions" / "2026" / "11" / "23" / f"rollout-2026-11-23T10-00-00-{THREAD}.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(i) + "\n" for i in items))
+    return path
+
+
+# contract-test: tooling
+def test_models_astra_only_when_named():
+    assert codex_chats.check_model("codex", False) == "gpt-6.2-sol"
+    assert codex_chats.check_model("Astra", True) == "gpt-6.2-astra"
+    with pytest.raises(codex_chats.CodexChatError):
+        codex_chats.check_model("gpt-6.2-astra", False)
+
+
+# contract-test: tooling
+def test_launch_command_fixes_model_effort_and_identity(home):
+    record = codex_chats.new_record("Fix a typo", "gpt-6.2-sol", "medium", "/repo", False)
+    command = codex_chats.tab_command(record, "do it")
+    assert f"OPENMATES_CHAT_ID={record['chat_id']}" in command and f"CLAUDE_CODE_SESSION_ID={record['chat_id']}" in command
+    assert 'model_reasoning_effort="medium"' in command and "features.hooks=true" in command
+    assert command[-1] == "do it" and command[command.index("--model") + 1] == "gpt-6.2-sol"
+    resumed = codex_chats.tab_command(record, "next", resume_thread=THREAD, images=("/tmp/screen shot.png",))
+    assert resumed[resumed.index("resume") + 1] == THREAD
+    assert resumed[-3:] == ["--image=/tmp/screen shot.png", "--", "next"]
+
+
+# contract-test: tooling
+def test_mirror_writes_claude_records_and_usage_reads_rate_limits(home):
+    record = codex_chats.new_record("Fix a typo", "gpt-6.2-sol", "medium", "/repo", False)
+    record["thread_id"] = THREAD
+    codex_chats.save(record)
+    _rollout(home, [
+        {"timestamp": "2026-11-23T10:00:01Z", "type": "event_msg", "payload": {"type": "user_message", "message": "Fix it"}},
+        {"timestamp": "2026-11-23T10:00:02Z", "type": "response_item",
+         "payload": {"type": "function_call", "name": "shell", "arguments": "{\"command\": [\"ls\"]}", "call_id": "c1"}},
+        {"timestamp": "2026-11-23T10:00:03Z", "type": "event_msg", "payload": {"type": "agent_message", "message": "Done."}},
+        {"timestamp": "2026-11-23T10:00:04Z", "type": "event_msg", "payload": {"type": "token_count", "rate_limits": {
+            "primary": {"used_percent": 20.0, "window_minutes": 300, "resets_in_seconds": 600},
+            "secondary": {"used_percent": 35.5, "window_minutes": 10080, "resets_at": 1764000000}}}},
+    ])
+    rows = [json.loads(line) for line in codex_chats.mirror(record["chat_id"]).read_text().splitlines()]
+    assert rows[0]["customTitle"] == "Fix a typo"
+    assert rows[0]["sessionId"] == record["chat_id"] and rows[0]["type"] == "custom-title"
+    assert [r["type"] for r in rows[1:]] == ["user", "assistant", "assistant"]
+    assert rows[2]["message"]["content"][0]["name"] == "Bash" and rows[3]["message"]["model"] == "codex:gpt-6.2-sol"
+    usage = codex_chats.usage()
+    assert usage["weekly"]["remaining_percent"] == 64.5 and usage["five_hour"]["remaining_percent"] == 80.0
+    assert codex_chats.transcripts() == {record["chat_id"]: codex_chats.transcript_path(record["chat_id"])}
+
+
+# contract-test: tooling
+def test_usage_without_readings_says_so(home):
+    assert codex_chats.usage()["known"] is False
+
+
+# contract-test: tooling
+def test_mirror_keeps_app_server_images_on_the_user_message(home):
+    record = codex_chats.new_record("Read screenshot", "gpt-6.2-sol", "medium", "/repo", False)
+    record["thread_id"] = THREAD
+    codex_chats.save(record)
+    source = _rollout(home, [
+        {"type": "response_item", "payload": {"type": "message", "role": "user", "content": [
+            {"type": "input_text", "text": "<image name=[Image #1]>"},
+            {"type": "input_image", "image_url": "data:image/png;base64,AA=="},
+            {"type": "input_text", "text": "</image>"},
+            {"type": "input_text", "text": "What do you see?"},
+        ]}},
+        {"type": "event_msg", "payload": {"type": "user_message", "message": "What do you see?"}},
+        {"type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [
+            {"type": "output_text", "text": "A screenshot."},
+        ]}},
+    ])
+    # The rollout timestamp matches, but the old format omitted the image.
+    mirrored = codex_chats.transcript_path(record["chat_id"])
+    mirrored.parent.mkdir(parents=True)
+    mirrored.write_text('{"type":"custom-title"}\n')
+    stamp = source.stat().st_mtime_ns
+    os.utime(mirrored, ns=(stamp, stamp))
+    assert codex_chats.mirror(record["chat_id"]) == mirrored
+    rows = [json.loads(line) for line in mirrored.read_text().splitlines()]
+    assert [row["type"] for row in rows] == ["custom-title", "user", "assistant"]
+    assert rows[1]["uuid"]
+    assert rows[1]["message"]["content"] == [
+        {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "AA=="}},
+        {"type": "text", "text": "What do you see?"},
+    ]
+    assert mirrored.stat().st_mode & 0o077 == 0
+
+
+# contract-test: tooling
+def test_send_targets_the_running_chats_pane(monkeypatch):
+    monkeypatch.setattr(codex_chats, "live", lambda: {THREAD: {"pid": 123}})
+    env = {"OPENMATES_CHAT_ID": THREAD, "ZELLIJ_SESSION_NAME": "project", "ZELLIJ_PANE_ID": "7"}
+    monkeypatch.setattr(codex_chats, "_proc_env", lambda pid: dict(env))
+    calls = []
+
+    def run(*args):
+        calls.append(args)
+        return CompletedProcess(args, 0)
+
+    assert codex_chats.type_into(THREAD, "hello\nagain", zellij=run) == "ok"
+    assert calls == [
+        ("write-chars", "--pane-id", "terminal_7", "hello again"),
+        ("write", "--pane-id", "terminal_7", "13"),
+    ]
+    env["OPENMATES_CHAT_ID"] = "another-chat"
+    assert codex_chats.type_into(THREAD, "hello", zellij=run) == "its terminal pane could not be confirmed"
+    assert len(calls) == 2
+    env["OPENMATES_CHAT_ID"] = THREAD
+    calls.clear()
+    assert codex_chats.type_into(THREAD, "read image", zellij=run, images=("/tmp/screen shot.png",)) == "ok"
+    action, flag, pane, *payload = calls[1]
+    assert (action, flag, pane) == ("write", "--pane-id", "terminal_7")
+    assert bytes(map(int, payload)) == b"\x1b[200~/tmp/screen shot.png\x1b[201~"
+    assert calls[-1] == ("write", "--pane-id", "terminal_7", "13")
+
+
+# contract-test: tooling
+def test_reap_stops_only_done_or_asking_idle_chats(home, monkeypatch):
+    ids = {}
+    for name in ("done", "asks", "busy", "waits"):
+        record = codex_chats.new_record(name, "gpt-6.2-sol", "medium", "/repo", False)
+        codex_chats.save(record)
+        ids[name] = record["chat_id"]
+    monkeypatch.setattr(codex_chats, "live", lambda: {cid: {"pid": n} for n, cid in enumerate(ids.values(), 100)})
+    monkeypatch.setattr(codex_chats, "last_times", lambda cid: (1000.0, 900.0))
+    markers = {ids["done"]: {"kind": "✅", "ts": 950}, ids["asks"]: {"kind": "❓", "ts": 950},
+               ids["waits"]: {"kind": "✅", "ts": 950}}
+    killed = []
+    stopped = codex_chats.reap(lambda cid, _at: markers.get(cid, {}), 3, {ids["waits"]}, now=2000.0,
+                               signal_fn=lambda pid, sig: killed.append(pid))
+    assert sorted(e["chat_id"] for e in stopped) == sorted([ids["done"], ids["asks"]]) and len(killed) == 2
+    assert codex_chats.reap(lambda cid, _at: markers.get(cid, {}), 3, set(), now=1050.0, act=False) == []
+
+
+# contract-test: tooling
+def test_exhausted_codex_windows_end_when_the_limit_resets():
+    from datetime import datetime, timezone
+
+    reading = {"five_hour": {"used_percent": 100, "resets_at": "2026-11-23T18:00:00+00:00"},
+               "weekly": {"used_percent": 80, "resets_at": "2026-11-30T18:00:00+00:00"}}
+    before = datetime(2026, 11, 23, 17, tzinfo=timezone.utc)
+    after = datetime(2026, 11, 23, 19, tzinfo=timezone.utc)
+    assert codex_chats.exhausted_windows(reading, before) == ["five_hour:2026-11-23T18:00:00+00:00"]
+    assert codex_chats.exhausted_windows(reading, after) == []
+
+
+# contract-test: tooling
+def test_slot_identity_excludes_the_codex_app_server(monkeypatch):
+    for args, expected in (
+        (b"/bin/codex\0--cd\0/repo\0prompt\0", True),
+        (b"/bin/codex\0app-server\0--cd\0/repo\0", False),
+        (b"/bin/codex\0exec\0prompt\0", False),
+    ):
+        monkeypatch.setattr(Path, "read_bytes", lambda _: args)
+        assert codex_chats._is_codex_process(100) is expected
+
+
+# contract-test: tooling
+def test_idle_waiting_codex_frees_slot_but_ready_active_and_held_chats_keep_it(home, monkeypatch):
+    ids = {name: codex_chats.new_record(name, "gpt-6.2-sol", "medium", "/repo", False)["chat_id"]
+           for name in ("parked", "ready", "working", "held")}
+    monkeypatch.setattr(codex_chats, "live", lambda: {cid: {"pid": n} for n, cid in enumerate(ids.values(), 100)})
+    monkeypatch.setattr(codex_chats, "turn_activity",
+                        lambda cid: (1000.0, "working" if cid == ids["working"] else "idle"))
+    monkeypatch.setattr(codex_chats, "last_times", lambda cid: (1000.0, 900.0))
+    calls = []
+    stopped = codex_chats.reap(lambda *_: {}, 3, set(ids.values()), now=2000.0,
+                               can_suspend=lambda cid, _: cid != ids["held"], ready={ids["ready"]},
+                               signal_fn=lambda pid, sig: calls.append(pid))
+    assert [entry["chat_id"] for entry in stopped] == [ids["parked"]]
+    assert calls == [100]
+
+
+# contract-test: tooling
+def test_reap_stops_usage_refused_and_long_idle_chats_with_reopen_hints(home, monkeypatch):
+    """2026-11-27: 11 Codex chats whose turns Codex refused for its usage limit pushed nothing and
+    held admission slots for hours; nothing ever woke them."""
+    ids = {name: codex_chats.new_record(name, "gpt-6.2-sol", "medium", "/repo", False)["chat_id"]
+           for name in ("refused", "idle_long", "idle_short", "working", "refused_held")}
+    monkeypatch.setattr(codex_chats, "live", lambda: {cid: {"pid": n} for n, cid in enumerate(ids.values(), 100)})
+    ends = {ids["refused"]: (1000.0, "idle", "usage_limit_exceeded"), ids["idle_long"]: (1000.0, "idle", ""),
+            ids["idle_short"]: (4000.0, "idle", ""), ids["working"]: (1000.0, "working", ""),
+            ids["refused_held"]: (1000.0, "idle", "usage_limit_exceeded")}
+    monkeypatch.setattr(codex_chats, "turn_end", lambda cid: ends[cid])
+    monkeypatch.setattr(codex_chats, "last_times", lambda cid: (ends[cid][0], 900.0))
+    stopped = codex_chats.reap(lambda *_: {}, 3, set(), now=5000.0, act=False,
+                               can_suspend=lambda cid, _: cid != ids["refused_held"],
+                               idle_suspend_minutes=60, reset_at=lambda: 9999.0)
+    by_id = {entry["chat_id"]: entry for entry in stopped}
+    assert set(by_id) == {ids["refused"], ids["idle_long"]}
+    assert by_id[ids["refused"]]["reopen_at"] == 9999.0
+    assert by_id[ids["idle_long"]]["unfinished"] is True
+    # Without the lifecycle's can_suspend (old callers) nothing new is stopped.
+    assert codex_chats.reap(lambda *_: {}, 3, set(), now=5000.0, act=False) == []
+
+
+# contract-test: tooling
+def test_turn_end_reads_the_refusal_and_usage_skips_windowless_readings(home):
+    record = codex_chats.new_record("t", "gpt-6.2-sol", "medium", "/repo", False)
+    record["thread_id"] = THREAD
+    codex_chats.save(record)
+    weekly = {"used_percent": 100.0, "window_minutes": 10080, "resets_at": 1796299689}
+    _rollout(home, [
+        {"timestamp": "2026-11-27T10:41:54.699Z", "type": "event_msg", "payload": {"type": "task_started"}},
+        {"timestamp": "2026-11-27T10:41:55.754Z", "type": "event_msg",
+         "payload": {"type": "token_count", "rate_limits": {"limit_id": "codex", "primary": weekly}}},
+        {"timestamp": "2026-11-27T10:41:55.760Z", "type": "event_msg",
+         "payload": {"type": "token_count", "rate_limits": {"limit_id": "premium", "primary": None}}},
+        {"timestamp": "2026-11-27T10:41:55.762Z", "type": "event_msg",
+         "payload": {"type": "task_complete", "last_agent_message": None,
+                     "error": {"message": "usage limit", "codex_error_info": "usage_limit_exceeded"}}},
+    ])
+    assert codex_chats.turn_end(record["chat_id"])[1:] == ("idle", "usage_limit_exceeded")
+    assert codex_chats.turn_activity(record["chat_id"])[1] == "idle"
+    from datetime import datetime, timezone
+
+    reading, before = codex_chats.usage(), datetime(2026, 11, 27, 13, tzinfo=timezone.utc)
+    assert reading["weekly"]["used_percent"] == 100.0
+    assert codex_chats.exhausted_windows(reading, before) == ["weekly:2026-12-03T12:08:09+00:00"]
+    assert codex_chats.usage_reset_at(reading, before) == 1796299689.0
+    assert codex_chats.usage_reset_at(reading, datetime(2026, 12, 4, tzinfo=timezone.utc)) is None

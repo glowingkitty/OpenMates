@@ -65,6 +65,20 @@ export async function rustBuildEncryptedConnectedAccountRow(
 	return row as unknown as EncryptedConnectedAccountCreateInput;
 }
 
+/** Merged permissions, directory hint and capabilities plaintexts of adding an app to an existing row. */
+export async function rustMergeConnectedAccountUpdate(input: {
+	existingPermissions: string;
+	newPermissions: string;
+	existingHint?: string;
+	newHint: string;
+	existingCapabilities?: string;
+	newCapabilities: string;
+}): Promise<{ permissions: string; hint: string; capabilities: string }> {
+	const merged = await settingsCall('mergeUpdate', { input: JSON.stringify(input) });
+	if (merged.kind === 'error') throw failure(merged);
+	return { permissions: merged.permissions, hint: merged.hint, capabilities: merged.capabilities };
+}
+
 export async function rustBuildConnectedAccountCliImportCommand(
 	params: { row: EncryptedConnectedAccountRow; passcode: string },
 	decrypt: DecryptConnectedAccountField,

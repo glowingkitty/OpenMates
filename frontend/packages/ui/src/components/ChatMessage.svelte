@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { openGuestAccountEntry } from '../utils/guestAccountEntry';
     import { vibrateDevice } from '../services/eventSounds';
   import type { SvelteComponent } from 'svelte';
   import { onMount, untrack } from 'svelte';
@@ -27,7 +28,7 @@
   import MessageHighlightOverlay from './MessageHighlightOverlay.svelte';
   import HighlightCommentPopover from './HighlightCommentPopover.svelte';
   import MessageSelectionToolbar from './MessageSelectionToolbar.svelte';
-  import { captureHighlightAnchor } from '../utils/messageHighlights';
+  import { captureHighlightAnchor, isNodeSelectionRange } from '../utils/messageHighlights';
   import { selectHighlightsForMessage, myHighlightIdsStore } from '../stores/messageHighlightsStore';
   import {
     sendAddMessageHighlightImpl,
@@ -152,7 +153,9 @@
     model_name = undefined,
     server_region = undefined,
     isTransientResponse = false,
+    deferVoiceCallIdentity = false,
     assistantTurnActive = undefined,
+    onStopIndependentReply = undefined,
     status = undefined,
     messageParts = [],
     appCards = undefined,
@@ -195,7 +198,9 @@
     model_name?: string;
     server_region?: string | null;
     isTransientResponse?: boolean;
+    deferVoiceCallIdentity?: boolean;
     assistantTurnActive?: boolean;
+    onStopIndependentReply?: () => void;
     status?: MessageStatus;
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
@@ -864,7 +869,8 @@
       _toolbarHideTimer = null;
     }
     const range = sel.getRangeAt(0);
-    if (!messageBodyElement.contains(range.commonAncestorContainer)) {
+    // A clicked embed card is a node selection, not selected text.
+    if (!messageBodyElement.contains(range.commonAncestorContainer) || isNodeSelectionRange(range)) {
       selectionToolbarVisible = false;
       return;
     }
@@ -1215,7 +1221,7 @@
 
   function openAnonymousSignup(event: MouseEvent): void {
     event.preventDefault();
-    window.dispatchEvent(new CustomEvent('openSignupInterface'));
+    openGuestAccountEntry();
   }
 
   let anonymousFeatureNotice = $derived(role === 'system' && isAnonymousFeatureNotice(systemRawContent()));
@@ -1341,6 +1347,7 @@
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
   // A category that names no mate (missing, retired or unknown) is shown with the OpenMates identity.
   let isOpenMatesIdentity = $derived(role === 'assistant' && !knownMateCategory(category));
+  const awaitingCallMate = $derived(deferVoiceCallIdentity && isOpenMatesIdentity && !category && !sender_name);
   let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
   let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
   let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
@@ -3448,7 +3455,7 @@
   </div>
 {:else}
 <div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:remote-human={isRemoteHuman} class:mobile-stacked={(effectiveRole === 'assistant' || isRemoteHuman) && shouldStackMobile} data-testid={isRemoteHuman ? 'remote-human-message' : undefined}>
-  {#if effectiveRole === 'assistant'}
+  {#if effectiveRole === 'assistant' && !awaitingCallMate}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
     {#if importedProvider}
       <div
@@ -3529,7 +3536,7 @@
         </button>
       {/if}
 
-      {#if role === 'assistant'}
+      {#if role === 'assistant' && (!awaitingCallMate || isTransientResponse)}
         <div class="assistant-identity-row" class:transient={isTransientResponse} data-testid="assistant-identity-row">
           {#if isMateClickable}
             <button
@@ -3538,7 +3545,7 @@
               data-testid="chat-mate-name"
               onclick={openMateSettings}
             >{assistantDisplayName}</button>
-          {:else}
+          {:else if !awaitingCallMate}
             <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
           {/if}
           {#if isTransientResponse}
@@ -3848,6 +3855,10 @@
           <div class="assistant-response-status" data-testid="assistant-response-status" role="status">
             <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
             {responseStatus}
+            {#if onStopIndependentReply}
+              <button type="button" class="assistant-stop-button"
+                onclick={onStopIndependentReply} data-testid="independent-reply-stop">{$text('common.stop')}</button>
+            {/if}
           </div>
         {/if}
       </div>
@@ -4096,6 +4107,16 @@
     mask: none;
     clip-path: polygon(100% 0, 100% 100%, 0 50%);
   }
+  /* Stacked (mobile) layout: the avatar sits above the bubble, so the tail is an
+     upward triangle on the bubble's top edge, overlapping it by 3px to stay attached. */
+  .chat-message.assistant.mobile-stacked .mate-message-content.assistant-response-bubble::before {
+    transform: none;
+    inset-inline-start: 5.5px; /* centred under the 25px avatar: 12.5px - width / 2 */
+    top: -7px;
+    width: 14px;
+    height: 10px;
+    clip-path: polygon(0 100%, 100% 100%, 50% 0);
+  }
   .assistant-response-active::after {
     content: '';
     position: absolute;
@@ -4280,7 +4301,8 @@
     font-weight: 600;
   }
 
-  .sub-chat-stop-button {
+  .sub-chat-stop-button,
+  .assistant-stop-button {
     border: 0;
     border-radius: var(--radius-full);
     padding: var(--spacing-4) var(--spacing-8);

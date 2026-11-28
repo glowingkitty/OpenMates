@@ -62,6 +62,11 @@ lifecycle:
     then: It does not become a finished actionable event, offer calendar export, or show raw JSON as the completed answer.
 
 groups:
+  - id: use-one-search-result-group
+    assertion_ids: [authored-results.creation.relevant-and-independent, authored-results.groups.same-response-and-reuse]
+    given: Alice dictates a question about upcoming open source conferences in Europe and Events Search returns FOSDEM.
+    when: The assistant writes the answer and tries to add a separate FOSDEM 2027 card for the same event.
+    then: The reply shows the original Events Search group once and its FOSDEM card opens the original event details.
   - id: new-and-existing-items-in-one-answer
     given: Alice asks to compare a researched event, an uploaded apartment listing, and a travel card already present in the chat.
     when: The assistant authors the new items and groups all three in the same answer.

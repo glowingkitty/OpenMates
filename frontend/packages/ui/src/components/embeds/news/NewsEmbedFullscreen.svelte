@@ -408,6 +408,7 @@
   {/snippet}
 
 <ResultEmbedFullscreen
+  article
   media={imageUrl && !imageError ? imageMedia : undefined}
   appId="news"
   skillId="article"

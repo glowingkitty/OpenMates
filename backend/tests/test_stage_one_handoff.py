@@ -1,5 +1,6 @@
 """Reserved routing lane encryption and stale-turn contracts."""
 # contract-test-file: infrastructure
+import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 import json
@@ -84,6 +85,88 @@ async def test_expiry_revocation_missing_ciphertext_and_invalid_plaintext_fall_b
     assert await handoff.load_stage_one(**args) is None
     monkeypatch.setattr(handoff, "routing_admission_is_current", AsyncMock(return_value=False))
     assert await handoff.load_stage_one(**args) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("authorized", [True, False])
+async def test_snapshot_reads_overlap_only_after_verified_authority(context, monkeypatch, authorized):
+    cache, request, encryption = context
+    ref = await handoff.store_stage_one(
+        cache=cache, encryption=encryption, request=request, task_id="task", fingerprint="digest",
+        routing={"early_decisions": {"category": "coding"}}, typing_started=True,
+    )
+    encryption.decrypt_with_user_key.return_value = encryption.encrypt_with_user_key.call_args.args[0]
+    proof_started = asyncio.Event()
+    give_proof = asyncio.Event()
+    lookup_started = {name: asyncio.Event() for name in ("key", "ciphertext")}
+    release = asyncio.Event()
+
+    async def proof(*_args):
+        proof_started.set()
+        await give_proof.wait()
+        return authorized
+
+    def lookup(name, value):
+        async def read(_identity):
+            lookup_started[name].set()
+            await release.wait()
+            return value
+        return read
+
+    monkeypatch.setattr(handoff, "routing_admission_is_current", proof)
+    monkeypatch.setattr(cache, "get_user_vault_key_id", lookup("key", "vault-key"))
+    monkeypatch.setattr(cache, "get", lookup("ciphertext", "vault:v1:ciphertext"))
+    pending = asyncio.create_task(handoff.load_stage_one(
+        cache=cache, encryption=encryption, request=request, directus=None,
+        task_id="task", fingerprint="digest", reference=ref,
+    ))
+    try:
+        await asyncio.wait_for(proof_started.wait(), 1)
+        assert not any(event.is_set() for event in lookup_started.values())
+        give_proof.set()
+        if not authorized:
+            assert await asyncio.wait_for(pending, 1) is None
+            assert not any(event.is_set() for event in lookup_started.values())
+            encryption.decrypt_with_user_key.assert_not_awaited()
+            return
+        await asyncio.wait_for(asyncio.gather(*(event.wait() for event in lookup_started.values())), 1)
+        encryption.decrypt_with_user_key.assert_not_awaited()
+        release.set()
+        result = await asyncio.wait_for(pending, 1)
+        assert result["typing_started"] is True
+        encryption.decrypt_with_user_key.assert_awaited_once_with("vault:v1:ciphertext", "vault-key")
+    finally:
+        pending.cancel()
+        await asyncio.gather(pending, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failing_read", ["key", "ciphertext"])
+async def test_snapshot_read_failure_cancels_and_drains_the_peer(context, monkeypatch, failing_read):
+    cache, request, encryption = context
+    entered = asyncio.Event()
+    cancelled = asyncio.Event()
+
+    async def blocked(_identity):
+        entered.set()
+        try:
+            await asyncio.Future()
+        finally:
+            cancelled.set()
+
+    async def failing(_identity):
+        await entered.wait()
+        raise RuntimeError("read unavailable")
+
+    key_lookup, ciphertext_lookup = (failing, blocked) if failing_read == "key" else (blocked, failing)
+    monkeypatch.setattr(cache, "get_user_vault_key_id", key_lookup)
+    monkeypatch.setattr(cache, "get", ciphertext_lookup)
+    assert await asyncio.wait_for(handoff.load_stage_one(
+        cache=cache, encryption=encryption, request=request, directus=None,
+        task_id="task", fingerprint="fingerprint", reference="x" * 43,
+    ), 1) is None
+    assert cancelled.is_set()
+    encryption.decrypt_with_user_key.assert_not_awaited()
 
 
 @pytest.mark.asyncio

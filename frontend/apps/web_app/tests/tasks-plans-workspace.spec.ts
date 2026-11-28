@@ -1,3 +1,4 @@
+import { selectCompactWorkspace } from './helpers/workspace-navigation';
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 export {};
 
@@ -273,7 +274,7 @@ test.describe('Plans on the global Tasks board', () => {
 				for (const width of [1512, 390]) {
 					await page.setViewportSize({ width, height: 844 });
 					const navigate = async (href: string) => {
-						if (width === 390) await page.getByTestId('workspace-mobile-select').selectOption(href);
+						if (width === 390) await selectCompactWorkspace(page, href);
 						else await page.getByTestId(href === '/#projects' ? 'projects-nav-link' : 'tasks-nav-link').click();
 					};
 

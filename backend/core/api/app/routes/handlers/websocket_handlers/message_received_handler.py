@@ -27,6 +27,11 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema, ModelRoutingRestrictions
+from backend.shared.python_utils.active_input_authority import admit_fixed_active_input_reply
+from backend.shared.python_utils.explicit_chat_stop import explicit_stop_label
+from backend.shared.python_utils.independent_chat_reply import (
+    independent_reply_is_active, release_independent_reply, reserve_independent_reply, supports_parallel_chat_turns,
+)
 from backend.shared.python_utils.learning_mode import build_learning_mode_context
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import enqueue_chat_turn
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import server_client_capabilities
@@ -38,6 +43,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.finished_turn_resen
     send_origin_chat_message_confirmed as _send_origin_chat_message_confirmed,
 )
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.active_chat_input import (
+    ActiveInput, ActiveWork, decide_active_chat_input, linked_sub_chat_work, paused_code_work,
+    preserve_active_work, active_work_reply,
+)
 from backend.core.api.app.services.team_chat_ai_service import extract_team_ai_context, normalize_team_ai_inference_request, parse_team_message_transport, should_trigger_team_ai
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
@@ -835,6 +844,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
 
         recovery_enqueue_result: dict[str, Any] | None = None
+        inference_request = None
         protocol_epoch = 0
         chat_metadata_from_db: Optional[Dict[str, Any]] = None
         fast_projection = None
@@ -1400,12 +1410,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.info(f"[FORK] Fork message {message_id} cached for AI context in chat {chat_id}. No AI pipeline triggered.")
             return  # Early exit — skip suggestion deletion, draft deletion, broadcast, AI
 
-        # Fence later client-executed tool continuations to this accepted user
-        # turn. A newer message replaces this value before it starts inference.
-        # A follow-up that arrives while a run is active waits in the queue: it
-        # becomes the latest turn only when it is dispatched, so the running
-        # turn's focus or skill continuation is not discarded as superseded
-        # (feature.chat-queued-followups admission.synced).
+        # Update latest-turn authority only after acquiring foreground. A paused
+        # code checkpoint may still belong to the preceding user turn.
         latest_turn_deferred = False
         if role == "user":
             from backend.apps.ai.tasks.async_skill_continuation import (
@@ -1424,12 +1430,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 latest_turn_deferred = True
                 await cache_service.set(
                     queued_turn_pending_key(user_id, chat_id, message_id), QUEUED_TURN_PENDING,
-                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-                )
-            else:
-                await cache_service.set(
-                    async_skill_latest_user_turn_key(user_id, chat_id),
-                    message_id,
                     ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
                 )
 
@@ -1720,6 +1720,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 try:
                     embed_id = embed_data.get("embed_id")
                     embed_type = embed_data.get("type")  # Decrypted type from client
+                    if embed_type == "design-document":
+                        # The explicitly selected scene travels only in the bounded private details frame.
+                        continue
                     embed_content = embed_data.get("content")  # TOON-encoded string
                     embed_status = embed_data.get("status", "finished")
                     embed_text_preview = embed_data.get("text_preview")
@@ -2785,6 +2788,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         from backend.shared.python_utils.chat_orchestration_interpretation import reset_streak
         from backend.shared.python_utils.chat_orchestration_safety import record_message_origin
         creator_chat_id_for_ai = None
+        turn_origin_is_user = False
         try:
             # Turn origin gates cross-chat writes; only real user input ends the automatic streak.
             turn_origin = await record_message_origin(
@@ -2792,7 +2796,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 message_id=str(message_payload_from_client.get("message_id")),
                 job_id=client_orchestration_job_id(payload, message_payload_from_client),
             )
-            if turn_origin["origin"] == "user":
+            turn_origin_is_user = turn_origin["origin"] == "user"
+            if turn_origin_is_user:
                 await reset_streak(cache_service=cache_service, user_id=user_id, chat_id=chat_id)
             creator_chat_id_for_ai = await classify_chat_message(
                 cache_service=cache_service, encryption_service=encryption_service, user_id=user_id,
@@ -2896,15 +2901,163 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
-        # 4. Check if there's an active AI task for this chat
-        # If so, queue the message instead of starting a new task
+        # This shared typed/dictation/call boundary follows scope, content
+        # commitment, and authenticated call checks on the original request.
         active_task_id = await cache_service.get_active_ai_task(chat_id)
+        if recovery_enqueue_result:
+            admitted_task_id = recovery_enqueue_result["inference_task_id"]
+            # Only the transaction that first enqueued this exact delivery can
+            # reserve its independent slot, and it has not reached that step yet.
+            freshly_enqueued = (recovery_enqueue_result.get("state") == "ENQUEUED"
+                                and recovery_enqueue_result.get("newly_enqueued") is True)
+            independent_delivery = (
+                not freshly_enqueued and active_task_id != admitted_task_id
+                and await independent_reply_is_active(
+                    cache_service, user_id=user_id, chat_id=chat_id, task_id=admitted_task_id,
+                )
+            )
+            if (active_task_id == admitted_task_id or recovery_enqueue_result.get("state") == "RUNNING"
+                    or independent_delivery):
+                # Exact retry of the admitted turn. It cannot become a new
+                # follow-up behind its own task or acquire another outbox.
+                if independent_delivery and not supports_parallel_chat_turns(websocket):
+                    return  # Durable discovery serves this single-stream reconnect.
+                await manager.send_personal_message(
+                    {"type": "ai_task_initiated", "payload": {
+                        "chat_id": chat_id, "user_message_id": message_id,
+                        "ai_task_id": admitted_task_id, "task_id": admitted_task_id,
+                        **({"independent_reply": True} if independent_delivery else {}),
+                        "status": "processing_started",
+                    }}, user_id, device_fingerprint_hash,
+                )
+                return
+        active_input = ActiveInput()
+        route_active_input = (
+            turn_origin_is_user and role == "user" and isinstance(content_plain, str)
+            and not is_team_chat and not is_incognito and chat_metadata_from_db is not None
+            and fast_projection is None
+        )
+        paused_work = []
+        linked_work = None
+        # Browser dictation uses normal text admission. A live call has a
+        # separate speech owner and must opt in when that presentation is ready.
+        parallel_turns_capable = supports_parallel_chat_turns(websocket) and (not voice_mode or voice_delivery.state_cues)
+        stop_reply = None
+        if (route_active_input and recovery_enqueue_result and not db_parent_id
+                and payload.get("queue_mode") not in {"steer", "follow_up"}
+                and parallel_turns_capable
+                and explicit_stop_label(content_plain) is not None):
+            from backend.core.api.app.routes.handlers.websocket_handlers.natural_chat_stop import resolve_natural_chat_stop
+
+            stop = await resolve_natural_chat_stop(
+                request=ai_request_payload, cache=cache_service, directus=directus_service, manager=manager,
+                device_hash=device_fingerprint_hash, newly_enqueued=recovery_enqueue_result.get("newly_enqueued") is True,
+            )
+            if stop.prior_request_pending:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {
+                        "code": "stop_request_unconfirmed", "message": "I can’t confirm the earlier stop request yet.",
+                        "chat_id": chat_id, "message_id": message_id, "retryable": True,
+                    }}, user_id, device_fingerprint_hash,
+                )
+                return
+            if stop.reply:
+                stop_reply = ai_request_payload.active_input_reply = stop.reply
+                active_task_id = await cache_service.get_active_ai_task(chat_id)
+        if route_active_input:
+            if not stop_reply and payload.get("queue_mode") not in {"steer", "follow_up"} and prior_latest_user_turn != message_id:
+                paused_work, linked_work = await asyncio.gather(
+                    paused_code_work(cache_service, user_id=user_id, chat_id=chat_id),
+                    linked_sub_chat_work(
+                        cache_service, user_id=user_id, user_hash=ai_request_payload.user_id_hash, chat_id=chat_id,
+                    ),
+                )
+                waiting = paused_work + ([linked_work] if linked_work else [])
+                foreground = []
+                if active_task_id and not any(active_task_id in (work.task_id, work.source_task_id)
+                                              for work in waiting):
+                    foreground = [ActiveWork(
+                        task_id=active_task_id, turn_id=prior_latest_user_turn,
+                        artifact=await cache_service.get_active_artifact_steer_target(
+                            chat_id, active_task_id, user_id,
+                        ),
+                    )]
+                if foreground or waiting:
+                    app = websocket.scope.get("app")
+                    active_input = await decide_active_chat_input(
+                        content=content_plain, message_history=message_history_for_ai,
+                        candidates=foreground + waiting, message_id=message_id,
+                        heard_boundary=ai_request_payload.voice_heard_boundary,
+                        secrets_manager=getattr(getattr(app, "state", None), "secrets_manager", None),
+                        include_completed_context=bool(foreground and parallel_turns_capable),
+                    )
+                # A worker may have armed its checkpoint before it releases
+                # foreground. Give this exact handoff a short chance to settle.
+                if paused_work and active_input.intent in {"independent", "status", "dependent", "clarify"}:
+                    paused_deliveries = {work.source_task_id for work in paused_work}
+                    for delay in (0.0, 0.02, 0.04):
+                        if active_task_id is None or active_task_id not in paused_deliveries:
+                            break
+                        await asyncio.sleep(delay)
+                        active_task_id = await cache_service.get_active_ai_task(chat_id)
+            else:
+                paused_work = await paused_code_work(cache_service, user_id=user_id, chat_id=chat_id)
+
+        target = active_input.target
+        parked_steer = bool(
+            active_input.intent == "steer" and target and target.batch_id and recovery_enqueue_result
+            and await cache_service.get_active_artifact_steer_target(chat_id, target.task_id, user_id)
+        )
+        if parked_steer:
+            ai_request_payload.queue_mode = "steer"
+            ai_request_payload.active_input_steer_task_id = target.task_id
+            ai_request_payload.active_input_steer_batch_id = target.batch_id
+        elif active_input.intent == "steer" and target and not target.batch_id:
+            # Recheck the live producer and its exact artifact before this
+            # queued revision can be marked as a steer.
+            if active_task_id == target.task_id and await cache_service.get_active_artifact_steer_target(
+                chat_id, target.task_id, user_id,
+            ):
+                ai_request_payload.queue_mode = "steer"
+            # If completion won, ordinary gated dispatch can edit the same
+            # committed artifact through this server-selected producer identity.
+            ai_request_payload.active_input_steer_task_id = target.task_id
+        elif target and target.linked_sub_chat and active_input.intent in {"status", "dependent"}:
+            current_linked = await linked_sub_chat_work(
+                cache_service, user_id=user_id, user_hash=ai_request_payload.user_id_hash, chat_id=chat_id,
+            )
+            if current_linked and (current_linked.task_id, current_linked.turn_id) != (target.task_id, target.turn_id):
+                current_linked = None
+            ai_request_payload.active_input_reply = active_work_reply(active_input.intent, current_linked)
+        elif active_input.intent == "clarify" or (
+            active_input.intent == "defer" and (paused_work or linked_work) and not active_task_id
+        ):
+            ai_request_payload.active_input_reply = active_work_reply("clarify")
+
         stale_legacy_queue = (
             active_task_id is None and not is_incognito
             and await cache_service.has_queued_messages(chat_id)
+            and not (paused_work and await cache_service.queue_waits_for_parked_steer(chat_id, user_id))
         )
         fresh_task_claim_id = None
-        if not stale_legacy_queue and active_task_id is None:
+        independent_claim = False
+        if (active_task_id and active_input.standalone_answer and recovery_enqueue_result
+                and recovery_enqueue_result.get("newly_enqueued") is True
+                and isinstance(prior_latest_user_turn, str)
+                and not _has_image_upload_embed and not payload.get("encrypted_embeds")
+                and parallel_turns_capable):
+            ai_request_payload.active_input_parallel_source = active_task_id
+            ai_request_payload.active_input_parallel_source_message = prior_latest_user_turn
+            try:
+                independent_claim = bool(await reserve_independent_reply(cache_service, ai_request_payload))
+            except Exception:
+                logger.warning("Independent reply reservation unavailable", exc_info=True)
+            if independent_claim:
+                fresh_task_claim_id = recovery_enqueue_result["inference_task_id"]
+            else:
+                ai_request_payload.active_input_parallel_source = None
+                ai_request_payload.active_input_parallel_source_message = None
+        if not parked_steer and not stale_legacy_queue and active_task_id is None:
             candidate_id = (str(uuid.uuid4()) if is_incognito else
                             (recovery_enqueue_result or {}).get("inference_task_id") or hashlib.sha256(
                                 f"{user_id}:{chat_id}:{message_id}".encode()
@@ -2926,18 +3079,24 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
         
-        if active_task_id or stale_legacy_queue:
-            # There's an active task - queue this message instead
-            logger.info(f"Active AI task {active_task_id} exists for chat {chat_id}. Queueing message {message_id}.")
+        if not independent_claim and (parked_steer or active_task_id or stale_legacy_queue):
+            # Queue under the current foreground or under a verified parked batch.
+            logger.info("Queueing message %s for chat %s behind %s",
+                        message_id, chat_id, target.task_id if parked_steer else active_task_id)
             
             # Private references are API-memory only; durable queue metadata holds an opaque handle.
             from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
             from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            if ai_request_payload.active_input_reply and recovery_enqueue_result:
+                await admit_fixed_active_input_reply(cache_service, ai_request_payload)
             queued_payload = ai_request_payload.model_dump()
             if recovery_enqueue_result:
                 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
-                queued_payload["recovery_inference_request"] = inference_request
-                queued_payload["recovery_inference_commitment"] = build_inference_commitment(inference_request)
+                committed_request = inference_request if inference_request is not None else _recovery_inference_request(
+                    payload, manager, user_id, device_fingerprint_hash,
+                )
+                queued_payload["recovery_inference_request"] = committed_request
+                queued_payload["recovery_inference_commitment"] = build_inference_commitment(committed_request)
                 queued_payload["recovery_outbox_id"] = recovery_enqueue_result["outbox_id"]
             try:
                 queued_payload = await seal_private_context_payload(queued_payload, request_id=message_id, ensure_turn_binding=True)
@@ -2948,18 +3107,39 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             queued_success = await cache_service.queue_message(
                 chat_id=chat_id,
                 message_data=queued_payload,
-                expected_active_task_id=active_task_id,
+                expected_active_task_id=None if parked_steer else active_task_id,
+                **({"expected_paused_turn_id": target.turn_id} if parked_steer else {}),
             )
+            if parked_steer and not queued_success:
+                # The checkpoint may have completed while we prepared the
+                # exact queued request. A different run cannot consume it.
+                parked_steer = False
+                ai_request_payload.queue_mode = "follow_up"
+                ai_request_payload.active_input_steer_batch_id = None
+                queued_payload.update(queue_mode="follow_up", active_input_steer_batch_id=None)
+                active_task_id = await cache_service.get_active_ai_task(chat_id)
+                if active_task_id:
+                    queued_success = await cache_service.queue_message(
+                        chat_id=chat_id, message_data=queued_payload,
+                        expected_active_task_id=active_task_id,
+                    )
             if not queued_success and active_task_id:
                 current_active_id = await cache_service.get_active_ai_task(chat_id)
                 if current_active_id and current_active_id != active_task_id:
+                    # A new foreground is never the inferred steer target.
+                    if ai_request_payload.active_input_steer_task_id:
+                        ai_request_payload.queue_mode = "follow_up"
+                        queued_payload["queue_mode"] = "follow_up"
                     queued_success = await cache_service.queue_message(
                         chat_id=chat_id, message_data=queued_payload,
                         expected_active_task_id=current_active_id,
                     )
                     if queued_success:
                         active_task_id = current_active_id
-                elif current_active_id is None and not await cache_service.has_queued_messages(chat_id):
+                elif current_active_id is None and (
+                    not await cache_service.has_queued_messages(chat_id)
+                    or (paused_work and await cache_service.queue_waits_for_parked_steer(chat_id, user_id))
+                ):
                     # The previous run completed between observation and append.
                     # This user turn owns a fresh admission instead of an orphaned queue row.
                     active_task_id = None
@@ -3027,8 +3207,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     queued_notice = {
                         "chat_id": chat_id,
                         "user_message_id": message_id,
-                        "active_task_id": active_task_id,
-                        "task_id": active_task_id,
+                        "active_task_id": target.task_id if parked_steer else active_task_id,
+                        "task_id": target.task_id if parked_steer else active_task_id,
                         "queue_mode": ai_request_payload.queue_mode,
                         "queue_revision": ai_request_payload.queue_revision,
                         "message": "Message queued",
@@ -3058,7 +3238,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.info("Message %s queued for chat %s behind task %s (durable=%s)",
                             message_id, chat_id, active_task_id, durable_pending)
                 try:
-                    if not is_incognito:
+                    if not is_incognito and not parked_steer:
                         from backend.apps.ai.tasks.ask_skill_task import resume_legacy_queued_handoff
                         resumed_task_id = await resume_legacy_queued_handoff(
                             cache_service=cache_service,
@@ -3129,14 +3309,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
                 return
             fresh_task_claim_id = candidate_id
-        if role == "user" and latest_turn_deferred:
-            # The run observed at admission finished before this turn was queued;
-            # it starts now, so it is the latest turn from here on.
-            await cache_service.set(
-                async_skill_latest_user_turn_key(user_id, chat_id), message_id,
-                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-            )
-            await cache_service.delete(queued_turn_pending_key(user_id, chat_id, message_id))
         if is_incognito:
             ai_request_payload.volatile_dispatch_task_id = fresh_task_claim_id
         if not is_incognito and protocol_epoch == 0:
@@ -3197,15 +3369,46 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ai_call_start = time.time()
         broker_invoked = False
         try:
-            request_payload = ai_request_payload.model_dump()
             if voice_mode:
                 # The call may end during durable admission/context preparation.
                 await admit_voice_call_turn(
                     cache_service, message=message_payload_from_client, websocket_scope=websocket.scope,
                     user_id=user_id, chat_id=chat_id, message_id=message_id,
                 )
+            if role == "user" and not independent_claim:
+                if route_active_input:
+                    # Re-read after acquiring foreground. A checkpoint can have
+                    # been armed while the decision or history lookup ran.
+                    paused_work = await paused_code_work(
+                        cache_service, user_id=user_id, chat_id=chat_id, include_artifacts=False,
+                    )
+                    current_pause = None
+                    for work in paused_work:
+                        if await preserve_active_work(
+                            cache_service, user_id=user_id, chat_id=chat_id, work=work,
+                        ):
+                            if target and target.batch_id == work.batch_id and target.turn_id == work.turn_id:
+                                current_pause = work
+                    if target and target.batch_id:
+                        if active_input.intent in {"status", "dependent"}:
+                            ai_request_payload.active_input_reply = active_work_reply(active_input.intent, current_pause)
+                        elif active_input.intent == "steer":
+                            if current_pause:
+                                ai_request_payload.active_input_steer_task_id = None
+                                ai_request_payload.active_input_reply = active_work_reply("steer_unavailable")
+                            else:
+                                ai_request_payload.active_input_steer_task_id = target.task_id
+                await cache_service.set(
+                    async_skill_latest_user_turn_key(user_id, chat_id), message_id,
+                    ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+                )
+            if role == "user" and latest_turn_deferred:
+                await cache_service.delete(queued_turn_pending_key(user_id, chat_id, message_id))
+            request_payload = ai_request_payload.model_dump()
             logger.debug(f"Dispatching ai.ask in-process for chat {chat_id}, message {message_id}")
             if recovery_enqueue_result:
+                if ai_request_payload.active_input_reply:
+                    await admit_fixed_active_input_reply(cache_service, ai_request_payload)
                 release = await directus_service.chat.release_inference_outbox(
                     payload["preflight_id"], recovery_enqueue_result["inference_task_id"],
                     recovery_enqueue_result["outbox_id"], user_id,
@@ -3213,14 +3416,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 if release.get("status") not in ("released", "already_released"):
                     raise RuntimeError("Durable inference outbox is unavailable")
 
+            if is_team_chat or is_incognito:
+                from backend.shared.python_utils.ai_task_cancellation import record_cancellation_scope
+
+                session_nonce = manager.get_volatile_session_nonce(
+                    user_id, device_fingerprint_hash,
+                ) if is_incognito else None
+                if session_nonce or not is_incognito:
+                    await record_cancellation_scope(
+                        cache_service, chat_id=chat_id, task_id=fresh_task_claim_id,
+                        user_id=user_id, team_id=team_id, session_nonce=session_nonce,
+                    )
             if is_incognito:
                 from backend.shared.python_utils.volatile_embed_authority import (
                     AuthenticatedVolatileAI, active_authenticated_volatile_ai,
                 )
                 from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
-                session_nonce = manager.get_volatile_session_nonce(
-                    user_id, device_fingerprint_hash,
-                )
                 if not session_nonce:
                     raise RequiredRecoveryOutputError("Incognito live session is unavailable")
                 volatile_token = active_authenticated_volatile_ai.set(AuthenticatedVolatileAI(
@@ -3238,10 +3449,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 finally:
                     active_authenticated_volatile_ai.reset(volatile_token)
             else:
-                broker_invoked = True
-                response_data = await get_global_registry().dispatch_skill(
-                    "ai", "ask", request_payload,
-                )
+                from backend.shared.python_utils.active_input_authority import authorize_active_input_dispatch
+
+                with authorize_active_input_dispatch(user_id, chat_id, message_id):
+                    broker_invoked = True
+                    response_data = await get_global_registry().dispatch_skill(
+                        "ai", "ask", request_payload,
+                    )
             ai_task_id = response_data.get("task_id") if isinstance(response_data, dict) else None
             ai_call_time = time.time() - ai_call_start
             logger.info(
@@ -3284,6 +3498,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             "chat_id": chat_id,
                             "user_message_id": message_id,
                             "ai_task_id": ai_task_id,
+                            **({"task_id": ai_task_id, "independent_reply": True} if independent_claim else {}),
                             "status": "processing_started"
                         }
                     },
@@ -3318,7 +3533,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 raise RuntimeError(f"AI dispatcher returned no task_id. Response: {response_data}")
 
         except Exception as e_ai_task:
-            if fresh_task_claim_id:
+            if independent_claim and not broker_invoked:
+                await release_independent_reply(
+                    cache_service, user_id=user_id, chat_id=chat_id, task_id=fresh_task_claim_id,
+                )
+            elif fresh_task_claim_id and not independent_claim:
                 await _settle_failed_first_claim(
                     cache_service=cache_service, directus_service=directus_service,
                     manager=manager, chat_id=chat_id, task_id=fresh_task_claim_id,
@@ -3330,7 +3549,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 getattr(e_ai_task, "status_code", None) == 409
             )
             expected_recovery_task_id = (recovery_enqueue_result or {}).get("inference_task_id")
-            if recovery_enqueue_result and ai_task_id != expected_recovery_task_id:
+            if (recovery_enqueue_result and ai_task_id != expected_recovery_task_id
+                    and not (independent_claim and broker_invoked)):
                 try:
                     await ChatRecoveryService(directus_service).execute(
                         "mark_inference_failed",

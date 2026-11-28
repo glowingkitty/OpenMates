@@ -145,6 +145,26 @@ embed_diffs:
       nullable: true
       note: "Plaintext, non-content: what the user did for a user-made version: edit, enhance, restore or crop. Null for assistant versions."
 
+    version_kind:
+      type: string
+      nullable: true
+      note: "Plaintext, non-content timeline kind: session, assistant, restore, named or commit. Null on rows written before the timeline; readers derive it from revision_origin/revision_action."
+
+    encrypted_version_name:
+      type: textfield
+      nullable: true
+      note: "[Encrypted] User-given name of a named version, sealed client-side with the embed key. Never readable by the server."
+
+    contributors:
+      type: json
+      nullable: true
+      note: "Plaintext, non-content: list of {user_hash: SHA-256 hex of the contributing user id} and/or {mate_name: assistant name}. Never plaintext user ids."
+
+    compacted_at:
+      type: integer
+      nullable: true
+      note: "UTC seconds when the metadata-only compaction job hid this unnamed session version behind a later one of the same day. Ciphertext is never deleted."
+
   # Compound index for efficient timeline queries
   indexes:
     - fields: [embed_id, version_number]

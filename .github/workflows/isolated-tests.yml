@@ -93,18 +93,45 @@ on:
         type: string
         required: false
         default: ''
+      personal_devtest_surface:
+        description: Private read-only benchmark surface (terminal, web, or web-local for a paired runner build)
+        type: string
+        default: ''
+      personal_devtest_evidence_recipient:
+        description: Base64-encoded public PEM certificate for private benchmark evidence
+        type: string
+        default: ''
 permissions:
   actions: read
   contents: read
   packages: read
 jobs:
+  personal-devtest:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev' && inputs.personal_devtest_surface != ''
+    uses: ./.github/workflows/personal-devtest.yml
+    with:
+      surface: ${{ inputs.personal_devtest_surface == 'web-local' && 'web' || inputs.personal_devtest_surface }}
+      local_build: ${{ inputs.personal_devtest_surface == 'web-local' }}
+      evidence_recipient: ${{ inputs.personal_devtest_evidence_recipient }}
+      checkout_ref: ${{ inputs.checkout_ref }}
+      source_commit: ${{ inputs.source_commit }}
+      candidate_tree: ${{ inputs.candidate_tree }}
+      candidate_owner: ${{ inputs.candidate_owner }}
+      candidate_patch_sha256: ${{ inputs.candidate_patch_sha256 }}
+    secrets:
+      OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+      OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+      OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
   test:
-    if: github.event_name == 'workflow_dispatch' && !startsWith(inputs.mode, 'apple-')
+    if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && !startsWith(inputs.mode, 'apple-')
     runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || inputs.runner_label != '' && fromJSON(format('["openmates-e2b","{0}"]', inputs.runner_label)) || (inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && fromJSON('["ubuntu-24.04-arm"]') || fromJSON('["ubuntu-24.04"]') }}
-    # Real-inference specs (one per job, real-inference-* names; TASK-5616) run in
-    # the protected environment whose dev-only provider keys exist only for the
-    # dev branch. Every other job runs without an environment and gets no keys.
-    environment: ${{ inputs.mode == 'e2e' && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference' || '' }}
+    # Each exact Codex proof uses its dedicated dev-only credential set.
+    # Every other real-inference job retains the existing protected environment.
+    environment: >-
+      ${{ inputs.mode == 'e2e' &&
+          ((inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]') && 'codex-web-voice' ||
+           (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && 'codex-real-inference' ||
+           !contains(inputs.specs_json, '"real-inference-web-voice-processing.spec.ts"') && startsWith(inputs.specs_json, '["real-inference-') && 'real-inference') || '' }}
     timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 120 || (inputs.mode == 'sdk-conformance' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 120 || (startsWith(inputs.specs_json, '["rust-core-') || startsWith(inputs.specs_json, '["web-rust-core-') || startsWith(inputs.specs_json, '["real-inference-') || inputs.web_rust_core == 'true') && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
@@ -114,13 +141,19 @@ jobs:
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
-      CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
+      # Protected Codex consumers run this workflow's tooling. The
+      # earlier producer harness is used only to verify its prepared bundle.
+      CI_HARNESS_COMMIT: >-
+        ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]' || inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]') &&
+            github.sha || inputs.harness_commit || github.sha }}
       CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_PREPARED_RUN_ID: ${{ inputs.prepared_run_id }}
       CI_RUNTIME_SEED: ${{ inputs.runtime_seed }}
       CI_CAPACITY_CONFIGURATION: ${{ inputs.capacity_configuration }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
       CI_CASE_TITLE: ${{ inputs.case_title }}
+      CI_CODEX_REAL_INFERENCE: ${{ inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]') && '1' || '' }}
+      CI_CODEX_WEB_VOICE: ${{ inputs.mode == 'e2e' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]' && '1' || '' }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
       PLAYWRIGHT_BROWSER_NAME: ${{ contains(inputs.specs_json, 'example-chat-ipad-multitab.spec.ts') && 'webkit' || 'chromium' }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
@@ -222,12 +255,31 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         timeout-minutes: ${{ (inputs.mode == 'sdk-conformance' || inputs.mode == 'sdk-lockfiles' || inputs.mode == 'rust-wasm' || inputs.mode == 'rust-native-dev' || inputs.mode == 'rust-check') && 15 || 360 }}
         with:
-          ref: ${{ inputs.harness_commit || github.sha }}
+          ref: ${{ env.CI_HARNESS_COMMIT }}
           path: tooling
           sparse-checkout: |
             scripts
             .github/workflows
+            .github/requirements
           persist-credentials: false
+      - name: Require the dev workflow's own harness for scoped real inference
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: tooling
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          test "$(/usr/bin/git --no-replace-objects rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Authorize scoped real-inference source
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: tooling
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          SCOPED_SUBJECT: ${{ inputs.source_commit }}
+          SCOPED_APPROVED_SOURCES: ${{ vars.SCOPED_INFERENCE_REVIEWED_SOURCES }}
+        run: |
+          set -o pipefail
+          /usr/bin/git --no-replace-objects cat-file blob "$GITHUB_SHA:scripts/ci_scoped_inference_guard.py" |
+            /usr/bin/python3 -I -S -B - authorize
       - name: Require private preparation transport ticket
         if: >-
           inputs.mode == 'prepare' ||
@@ -419,6 +471,8 @@ jobs:
       - name: Verify and restore prepared web and CLI bytes
         id: artifacts
         if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        env:
+          CI_PREPARATION_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
         run: |
           python3 ../tooling/scripts/ci_artifacts.py restore \
             --source "$BUILD_COMMIT_SHA" \
@@ -428,7 +482,7 @@ jobs:
             --include-native-cli "${CI_NATIVE_PREPARED:-false}" \
             ${{ inputs.web_rust_core == 'true' && contains(inputs.ci_speedups, 'prepared-rust-core') && '--include-web-rust-core true' || '' }} \
             --expected-key "${{ inputs.preparation_key }}" \
-            --harness-commit "$CI_HARNESS_COMMIT" \
+            --harness-commit "$CI_PREPARATION_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
       - name: Download exact private backend runtime seed
         if: >-
@@ -650,6 +704,11 @@ jobs:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
+          # The Docker adapter config omits the version name. Keep the client
+          # bundle's public version tied to the source verified at checkout.
+          cat >> frontend/apps/web_app/svelte.config.js <<'SVELTEKIT_VERSION'
+          config.kit.version = { ...config.kit.version, name: process.env.BUILD_COMMIT_SHA };
+          SVELTEKIT_VERSION
           node frontend/apps/web_app/scripts/process-docs.js
           case "$CI_TEST_MODE:$CI_SPECS_JSON" in
             'e2e:["web-essential-startup-performance.spec.ts"]')
@@ -849,10 +908,15 @@ jobs:
           python3 ../tooling/scripts/ci_preparation_transport.py upload
           --directory test-results/ci-preparation
       - name: Start isolated backend
-        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: >-
+          (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
+          !(inputs.mode == 'e2e' &&
+            (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' ||
+             inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]')) &&
+          !contains(inputs.specs_json, '"real-inference-web-voice-processing.spec.ts"')
         env:
-          # Only this step and the diagnostics step see the dev-only keys; they
-          # pass by name into the run's throwaway Vault (empty outside real-inference).
+          # The existing dev-only key set still passes by name into its
+          # disposable Vault. Ordinary jobs resolve these to empty values.
           OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY: ${{ secrets.OPENMATES_REAL_GOOGLE_AI_STUDIO_API_KEY }}
           OPENMATES_REAL_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_REAL_MISTRAL_AI_API_KEY }}
           OPENMATES_REAL_BRAVE_API_KEY: ${{ secrets.OPENMATES_REAL_BRAVE_API_KEY }}
@@ -860,6 +924,55 @@ jobs:
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
+      - name: Recreate trusted scoped tooling
+        id: scoped_tooling
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: tooling
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          SCOPED_SUBJECT: ${{ inputs.source_commit }}
+          SCOPED_APPROVED_SOURCES: ${{ vars.SCOPED_INFERENCE_REVIEWED_SOURCES }}
+        run: |
+          set -o pipefail
+          /usr/bin/git --no-replace-objects cat-file blob "$GITHUB_SHA:scripts/ci_scoped_inference_guard.py" |
+            /usr/bin/python3 -I -S -B - materialize
+      - name: Start isolated terminal real-inference backend
+        if: inputs.mode == 'e2e' && (inputs.specs_json == '["real-inference-tui-chat-processing.spec.ts"]' || inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]')
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_TEST_MODE: e2e
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+          CI_CODEX_REAL_INFERENCE: '1'
+          OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY }}
+          OPENMATES_CODEX_REAL_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_REAL_TYPESAFE_API_KEY }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' seed
+      - name: Start isolated signed-in web voice backend
+        if: inputs.mode == 'e2e' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_TEST_MODE: e2e
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+          CI_CODEX_WEB_VOICE: '1'
+          OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_MISTRAL_AI_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_MISTRAL_AI_API_KEY }}
+          OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY: ${{ secrets.OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY }}
+        run: |
+          test "$GITHUB_REF" = 'refs/heads/dev'
+          test "$CI_HARNESS_COMMIT" = "$GITHUB_SHA"
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' seed
+      - name: Start and verify scoped Codex backend without provider environment
+        if: env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: |
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' start
+          exec /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' verify
       - name: Start and verify backend diagnostic stack
         if: inputs.mode == 'backend-probe'
         timeout-minutes: 4
@@ -876,7 +989,10 @@ jobs:
         working-directory: subject/frontend/apps/web_app
         run: |
           version="$(npx playwright --version | awk '{print $NF}')"
-          echo "key=playwright-browsers-${RUNNER_OS}-${RUNNER_ARCH}-${PLAYWRIGHT_BROWSER_NAME}-${version}" >> "$GITHUB_OUTPUT"
+          # actions/cache stores paths relative to the workspace: GitHub-hosted and E2B runners
+          # have different homes, so a cache is only shared between runners with the same layout.
+          layout="$(printf '%s|%s' "$HOME" "$GITHUB_WORKSPACE" | sha256sum | cut -c1-12)"
+          echo "key=playwright-browsers-${RUNNER_ENVIRONMENT}-${layout}-${RUNNER_OS}-${RUNNER_ARCH}-${PLAYWRIGHT_BROWSER_NAME}-${version}" >> "$GITHUB_OUTPUT"
       - name: Restore Playwright browser cache
         id: pwcache
         if: steps.pwkey.outputs.key != ''
@@ -908,9 +1024,8 @@ jobs:
             # browser-cache speedup: browser download only on a cache miss, OS
             # dependencies and recorder packages in one apt update + install.
             step_start=$SECONDS
-            if [[ "$BROWSER_CACHE_HIT" != 'true' ]]; then
-              npx playwright install "$PLAYWRIGHT_BROWSER_NAME"
-            fi
+            # Always run: a no-op when the restored browser is complete, a download when it is not.
+            npx playwright install "$PLAYWRIGHT_BROWSER_NAME"
             echo "Pre-test timing: browser download (cache hit: ${BROWSER_CACHE_HIT:-no}) $((SECONDS - step_start))s"
             step_start=$SECONDS
             playwright_packages="$(npx playwright install-deps --dry-run "$PLAYWRIGHT_BROWSER_NAME" 2>&1 | grep -o 'apt-get install[^"]*' | head -1 | sed 's/^apt-get install//' | tr ' ' '\n' | grep -E '^[a-z0-9][a-z0-9.+:-]*$' | tr '\n' ' ' || true)"
@@ -1126,6 +1241,31 @@ jobs:
           else
             python3 ../tooling/scripts/ci_run_tests.py
           fi
+      - name: Verify approved scoped proof files
+        id: scoped_proof
+        if: success() && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' proof
+      - name: Validate scoped terminal recipe progress
+        id: scoped_recipe_progress
+        if: always() && steps.scoped_tooling.outcome == 'success' && env.CI_CODEX_REAL_INFERENCE == '1' && inputs.specs_json == '["real-inference-tui-artifact-steering.spec.ts"]'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_SCOPED_PROOF_PASSED: ${{ steps.scoped_proof.outcome == 'success' && '1' || '0' }}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' recipe-progress
+      - name: Validate scoped web voice progress
+        id: scoped_web_voice_progress
+        if: always() && steps.scoped_tooling.outcome == 'success' && env.CI_CODEX_WEB_VOICE == '1' && inputs.specs_json == '["real-inference-web-voice-processing.spec.ts"]'
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        env:
+          CI_SCOPED_PROOF_PASSED: ${{ steps.scoped_proof.outcome == 'success' && '1' || '0' }}
+        run: >-
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' web-voice-progress
       - name: Explain failed Rust lane in the job log
         if: >-
           failure() &&
@@ -1137,11 +1277,20 @@ jobs:
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && (contains(inputs.specs_json, 'tasks-flow.spec.ts') || contains(inputs.specs_json, 'project-task-sync.spec.ts'))))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1' && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1' && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py stop
+      - name: Collect scoped status and remove disposable scoped runtime
+        if: always() && steps.scoped_tooling.outcome == 'success' && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        working-directory: ${{ steps.scoped_tooling.outputs.root }}
+        shell: /bin/bash --noprofile --norc -ep {0}
+        run: |
+          outcome=0
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' logs || outcome=1
+          /usr/bin/python3 -I -S -B -c 'import os,runpy,sys; sys.path.insert(0,os.path.abspath("scripts")); runpy.run_path("scripts/ci_environment.py",run_name="__main__")' stop || outcome=1
+          exit "$outcome"
       - name: Remove attested runner Node only when identities still match
         if: always() && env.OPENMATES_CI_NODE_STATE != ''
         run: env -u NODE_OPTIONS -u NODE_PATH "$OPENMATES_CI_NODE" ../tooling/scripts/ci_stage_node_runtime.mjs cleanup
@@ -1154,7 +1303,7 @@ jobs:
           --candidate-tree "$CI_CANDIDATE_TREE"
           --harness-commit "$CI_HARNESS_COMMIT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always()
+        if: always() && env.CI_CODEX_REAL_INFERENCE != '1' && env.CI_CODEX_WEB_VOICE != '1'
         with:
           name: isolated-test-results
           retention-days: 7
@@ -1214,6 +1363,23 @@ jobs:
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
+      - name: Upload bounded scoped Codex receipts and proof media
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && (env.CI_CODEX_REAL_INFERENCE == '1' || env.CI_CODEX_WEB_VOICE == '1')
+        with:
+          name: isolated-test-results
+          retention-days: 7
+          path: |
+            subject/test-results/ci-environment.json
+            subject/test-results/ci-vault-seed.json
+            subject/test-results/ci-startup-phases.json
+            subject/test-results/ci-results.json
+            subject/test-results/ci-stack.log
+            subject/test-results/ci-cleanup.json
+            ${{ steps.scoped_proof.outcome == 'success' && steps.scoped_proof.outputs.paths || '' }}
+            ${{ steps.scoped_recipe_progress.outcome == 'success' && steps.scoped_recipe_progress.outputs.path || '' }}
+            ${{ steps.scoped_web_voice_progress.outcome == 'success' && steps.scoped_web_voice_progress.outputs.path || '' }}
+          if-no-files-found: error
       - name: Retain bounded failed Rust WASM stage privately
         if: always() && (inputs.mode == 'rust-wasm' || (env.CI_LANE_RUST_BROWSER == 'true'))
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -1259,7 +1425,7 @@ jobs:
     # the older 26.2 rejects code that Xcode compiles there (stricter `sending` checks).
     # They use no secrets, accounts or runtime seeds; macOS minutes are free for this public repo.
     # apple-build, apple-unit and apple-ui share the Xcode steps (every `inputs.mode != 'apple-core'` step).
-    if: github.event_name == 'workflow_dispatch' && startsWith(inputs.mode, 'apple-')
+    if: github.event_name == 'workflow_dispatch' && inputs.personal_devtest_surface == '' && startsWith(inputs.mode, 'apple-')
     runs-on: macos-26
     timeout-minutes: ${{ inputs.mode != 'apple-core' && 120 || 100 }}
     defaults:
@@ -1436,11 +1602,107 @@ jobs:
           path: subject/test-results/${{ inputs.mode }}/SourcePackages
           key: apple-spm-${{ inputs.mode }}-${{ hashFiles('subject/apple/OpenMates.xcodeproj/project.pbxproj', 'subject/apple/LocalModelBridge/catalog.json') }}
           restore-keys: apple-spm-${{ inputs.mode }}-
+      - name: Validate private Apple startup evidence recipient
+        if: startsWith(inputs.proof_video_profile, 'apple-startup:')
+        env:
+          EVIDENCE_PROFILE: ${{ inputs.proof_video_profile }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/dev
+          test "$CI_TEST_MODE" = apple-ui
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          printf '%s' "${EVIDENCE_PROFILE#apple-startup:}" | "$openssl_bin" base64 -d -A > "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          "$openssl_bin" x509 -in "$RUNNER_TEMP/apple-evidence-recipient.pem" -checkend 0 -noout
+      # Build once, test many (ci_coordinator.py, ci_apple.py): one owner's other unit/UI jobs
+      # on the same source test the first job's build products instead of compiling it again.
+      # `prepared_run_id` names that producer run; ci_apple.py verifies source and build
+      # identity and builds here itself when anything is missing or differs.
+      - name: Restore the round's shared build products
+        id: shared_products
+        if: >-
+          inputs.prepared_run_id != '' && (inputs.mode == 'apple-unit' || inputs.mode == 'apple-ui') &&
+          !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apple-products
+          path: ${{ runner.temp }}/apple-products-in
+          run-id: ${{ inputs.prepared_run_id }}
+          github-token: ${{ github.token }}
+      # The producer: build first, publish the products, then run its own tests.
+      - name: Build Apple products for the round
+        if: >-
+          contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+          inputs.mode != 'apple-core' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 70
+        run: python3 ../tooling/scripts/ci_apple.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PHASE: build
+          CI_APPLE_PRODUCTS_OUT: ${{ runner.temp }}/apple-products-out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: >-
+          contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+          inputs.mode != 'apple-core' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 15
+        with:
+          # Unsigned Debug simulator products of public source; consumers read them within the hour.
+          name: apple-products
+          retention-days: 1
+          compression-level: 1
+          path: ${{ runner.temp }}/apple-products-out/
+          if-no-files-found: ignore
       - name: Run Apple lane
+        if: "!startsWith(inputs.proof_video_profile, 'apple-startup:')"
         timeout-minutes: ${{ inputs.mode != 'apple-core' && 110 || 90 }}
         run: python3 ../tooling/scripts/ci_apple.py
         env:
           PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PHASE: >-
+            ${{ contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+            inputs.mode != 'apple-core' && 'test' || '' }}
+          CI_APPLE_PRODUCTS_IN: ${{ steps.shared_products.outcome == 'success' && format('{0}/apple-products-in', runner.temp) || '' }}
+      - name: Run private Apple startup benchmark
+        if: startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 110
+        run: python3 ../tooling/scripts/ci_apple.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PRIVATE_STARTUP: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+      # The web baseline runs on this same runner right after the Apple test, so
+      # both clients are compared under one machine, network and account state.
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        with:
+          package_json_file: subject/package.json
+      - name: Install the same-runner web benchmark
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 20
+        run: |
+          umask 077
+          mkdir -p test-results/apple-ui/private-web
+          pnpm install --frozen-lockfile > test-results/apple-ui/private-web/install.log 2>&1
+          pnpm --dir frontend/apps/web_app exec playwright install chromium >> test-results/apple-ui/private-web/install.log 2>&1
+      - name: Measure web startup and existing chats on the same runner
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 30
+        working-directory: subject/frontend/apps/web_app
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://app.dev.openmates.org
+          OPENMATES_PRIVATE_ACCOUNT_TIMINGS: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          out="$GITHUB_WORKSPACE/subject/test-results/apple-ui/private-web"
+          mkdir -p "$out"
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$out/results.json" pnpm exec playwright test tests/personal-devtest-chat-timings.spec.ts \
+            --retries=0 --workers=1 --reporter=json --output="$out/playwright" > "$out/runner.log" 2>&1 \
+            || echo "::warning::Same-runner web benchmark failed. See encrypted evidence."
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -1458,7 +1720,7 @@ jobs:
             subject/test-results/apple-unit/OpenMatesTests.xcresult
           if-no-files-found: error
       - name: Export UI test screenshots and recordings
-        if: always() && inputs.mode == 'apple-ui'
+        if: always() && inputs.mode == 'apple-ui' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
         timeout-minutes: 10
         run: |
           bundle=test-results/apple-ui/OpenMatesUITests.xcresult
@@ -1470,7 +1732,7 @@ jobs:
             || echo "::warning::UI result summary export failed"
           ls test-results/apple-ui/attachments 2>/dev/null | head -50
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always() && inputs.mode == 'apple-ui'
+        if: always() && inputs.mode == 'apple-ui' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
         with:
           # Separate from isolated-test-results: recordings are large and are evidence, not the verdict.
           name: apple-ui-evidence
@@ -1479,4 +1741,40 @@ jobs:
             subject/test-results/apple-ui/attachments/
             subject/test-results/apple-ui/summary.json
             subject/test-results/apple-ui/OpenMatesUITests.xcresult
+          if-no-files-found: warn
+      - name: Encrypt private Apple startup evidence
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 10
+        run: |
+          test -f "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          output=test-results/apple-ui
+          test -f "$output/private-xcode.log" || exit 0
+          files=(private-xcode.log)
+          for extra in private-samples private-web; do
+            if test -d "$output/$extra"; then files+=("$extra"); fi
+          done
+          if test -d "$output/OpenMatesUITests.xcresult"; then
+            xcrun xcresulttool export attachments --path "$output/OpenMatesUITests.xcresult" --output-path "$output/attachments" \
+              > "$output/private-export.log" 2>&1 || true
+            xcrun xcresulttool get test-results summary --path "$output/OpenMatesUITests.xcresult" > "$output/summary.json" \
+              2>> "$output/private-export.log" || true
+            files+=(OpenMatesUITests.xcresult private-export.log summary.json)
+            if test -d "$output/attachments"; then files+=(attachments); fi
+          fi
+          openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
+          tar -czf "$RUNNER_TEMP/apple-evidence.tar.gz" -C "$output" "${files[@]}"
+          "$openssl_bin" cms -encrypt -binary -aes-256-gcm -outform DER \
+            -in "$RUNNER_TEMP/apple-evidence.tar.gz" -out "$RUNNER_TEMP/apple-evidence.cms" \
+            "$RUNNER_TEMP/apple-evidence-recipient.pem"
+          if test -s "$output/summary.json"; then
+            python3 -c 'import json,sys; result=json.load(open(sys.argv[1])); assert result["totalTestCount"] == 2 and result["passedTests"] == 2, "Both real-account tests must pass without skips"' "$output/summary.json"
+          else
+            exit 1
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && startsWith(inputs.proof_video_profile, 'apple-startup:')
+        with:
+          name: apple-startup-encrypted-evidence
+          retention-days: 7
+          path: ${{ runner.temp }}/apple-evidence.cms
           if-no-files-found: warn

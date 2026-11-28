@@ -4,15 +4,15 @@
 //! holds the lock while it serves a request and releases it before it waits for
 //! the next one, so a turn's stream task (`TurnStream::run`) can lock the core
 //! per phase while the actor keeps accepting commands. That is what lets a
-//! second send into the same chat reach the server while a reply streams and
-//! come back `Queued`. Spec: `specifications/features/chat-queued-followups`.
+//! second send into the same chat reach the server while a reply streams,
+//! with its own receipt. Spec: `specifications/features/chat-queued-followups`.
 use super::Stamp;
 use futures_util::future::BoxFuture;
 use openmates::{
     error::Result,
     storage::CacheBytes,
 };
-use openmates_sdk::view_model::{LeasedCore, SendReceipt, TurnStream, ViewCore, ViewLease};
+use openmates_sdk::view_model::{LeasedCore, RequestId, SendReceipt, TurnStream, ViewCore, ViewLease};
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -92,7 +92,7 @@ impl ViewLease<CacheBytes> for TuiLease {
 
 /// The end of a streamed send, sent back to the actor loop which settles it
 /// exactly like the end of any other request (`Work::SendFinished`).
-pub(super) type SendOutcome = (Stamp, Result<SendReceipt>);
+pub(super) type SendOutcome = (Stamp, RequestId, Result<SendReceipt>);
 
 /// Stream an admitted turn on its own task; its outcome returns to the actor
 /// through `finished`. A closed channel means the actor is gone: drop quietly.
@@ -100,9 +100,10 @@ pub(super) fn spawn(
     stream: TurnStream<CacheBytes, TerminalSink>,
     finished: mpsc::UnboundedSender<SendOutcome>,
     epoch: Stamp,
+    request: RequestId,
 ) {
     tokio::spawn(async move {
         let result = stream.run().await;
-        let _ = finished.send((epoch, result));
+        let _ = finished.send((epoch, request, result));
     });
 }

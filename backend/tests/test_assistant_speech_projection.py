@@ -20,7 +20,9 @@ from backend.apps.ai.assistant_speech.projection import (
 from backend.apps.ai.utils.mate_utils import load_mates_config
 from backend.apps.audio.assistant_speech.acknowledgements import (
     ACKNOWLEDGEMENT_TEXTS,
+    PERMISSION_PROMPT_TEXTS,
     build_acknowledgement_clips,
+    prerecorded_clip_text,
 )
 from backend.apps.audio.assistant_speech.voice_profiles import resolve_assistant_voice_profile
 from backend.scripts.generate_assistant_acknowledgements import (
@@ -50,6 +52,33 @@ EXPECTED_MATE_PROFILE_KEYS = {
     "sophia",
     "suki",
 }
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
+def test_feedback_catalog_reuses_mate_assets_and_resolves_every_variant(tmp_path) -> None:
+    for locale in ("en-US", "de-DE", "es-ES", "fr-FR", "zh-CN"):
+        plan = build_plan(locale, tmp_path, voice_feedback=True)
+        assert {item["voice_profile_id"] for item in plan} == EXPECTED_MATE_PROFILE_KEYS
+        clips = build_acknowledgement_clips(voice_profile_id="ace", voice_profile_version=3,
+                                            language=locale, voice_feedback=True)
+        assert {clip["request_category"] for clip in clips} == {"voice_wait", "reasoning", "action"}
+        assert len(clips) == 9
+        for item in (item for item in plan if item["voice_profile_id"] == "ace"):
+            clip = next(clip for clip in clips if clip["clip_id"] == item["clip_id"])
+            assert prerecorded_clip_text(clip["asset_url"]) == item["text"]
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.waiting.spoken-intent-and-merge
+async def test_feedback_estimate_counts_only_missing_clips_without_vault(tmp_path, capsys) -> None:
+    plan = build_plan("en-US", tmp_path, voice_feedback=True)
+    [existing] = [item for item in plan if item["clip_id"] == "ace-en-US-reasoning-1"]
+    existing["output_path"].parent.mkdir(parents=True)
+    existing["output_path"].write_bytes(b"existing")
+    assert await run_acknowledgement_generator(language="en-US", output_root=tmp_path, generate=False,
+                                               voice_feedback=True, estimate_only=True) == 0
+    output = capsys.readouterr().out
+    assert '"pending_clip_count": 152' in output
+    assert not (tmp_path / "manifest.json").exists()
 
 
 # contract-test: direct surface=rest_api assertions=assistant-speech.voice.fixed-versioned-mate-profile
@@ -151,11 +180,12 @@ def test_approved_acknowledgement_catalog_has_three_confirming_variants_per_cate
 # contract-test: direct surface=rest_api assertions=assistant-speech.acknowledgement.deterministic-free,assistant-speech.voice.fixed-versioned-mate-profile
 def test_acknowledgement_generation_plan_is_complete_and_unique(tmp_path: Path) -> None:
     full_plan = build_plan("en-US", tmp_path)
-    # Mate clips plus one neutral system clip that confirms a chat still being created.
     plan = [item for item in full_plan if item["voice_profile_id"] != "system"]
-    assert [item["clip_id"] for item in full_plan if item not in plan] == ["system-en-US-chat_start-1"]
+    assert {item["clip_id"] for item in full_plan if item not in plan} == {
+        "system-en-US-chat_start-1", "system-en-US-waiting_start-1", "system-en-US-waiting_resume-1",
+    }
 
-    assert len(plan) == 17 * 4 * 3
+    assert len(plan) == 17 * (4 * 3 + len(PERMISSION_PROMPT_TEXTS["en-US"]))
     assert len({item["clip_id"] for item in full_plan}) == len(full_plan)
     assert {item["voice_profile_id"] for item in plan} == EXPECTED_MATE_PROFILE_KEYS
 

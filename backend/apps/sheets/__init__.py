@@ -1,0 +1,1 @@
+"""Sheet artifact configuration."""

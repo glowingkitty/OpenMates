@@ -51,6 +51,17 @@ test('Check fullscreen lists only Tasks naming a covered requirement', async ({ 
 });
 
 // contract-test: supporting surface=gui.web assertions=contracts.ui.human-readable-default
+test('Check from the chat opens the Plan assumption checking chat', async ({ page }, testInfo) => {
+  await page.goto('/dev/preview/embeds/checks/CheckSkillEmbedFullscreen?chrome=0&theme=light&variant=with-checking-chat');
+  await waitForComponentPreview(page);
+  const assumptions = page.getByTestId('plan-assumptions-list');
+  await expect(assumptions).toContainText('Orders reach the checkout service');
+  await testInfo.attach('check-assumption', { body: await assumptions.screenshot(), contentType: 'image/png' });
+  await assumptions.getByTestId('plan-assumption-open-chat').click();
+  await expect(page).toHaveURL(/#chat-id=preview-chat-assumption-delivery$/);
+});
+
+// contract-test: supporting surface=gui.web assertions=contracts.ui.human-readable-default
 test('Check without matching Tasks shows no Task section', async ({ page }) => {
   await page.goto('/dev/preview/embeds/checks/CheckEmbedFullscreen?chrome=0&theme=light');
   await waitForComponentPreview(page);

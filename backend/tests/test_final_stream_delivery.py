@@ -72,18 +72,30 @@ def payload(**overrides):
 
 def install(monkeypatch, manager, execute, message=None):
     class Cache:
+        def __init__(self):
+            self.snapshots = {}
+            self.snapshot_writes = []
+            self.snapshot_deletes = []
+
         @property
         def client(self):
             async def connected():
                 return object()
             return connected()
 
+        async def set(self, key, data, ttl):
+            self.snapshot_writes.append((key, data, ttl))
+            self.snapshots[key] = data
+
         async def delete(self, key):
-            pass
+            self.snapshot_deletes.append(key)
+            self.snapshots.pop(key, None)
 
         async def subscribe_to_channel(self, channel):
             assert channel == "chat_stream::*"
-            yield {"channel": "chat_stream::" + CHAT, "data": message if message is not None else payload()}
+            messages = message if isinstance(message, list) else [message or payload()]
+            for data in messages:
+                yield {"channel": "chat_stream::" + CHAT, "data": data}
 
     class RecoveryService:
         def __init__(self, service):
@@ -165,6 +177,7 @@ async def test_discovery_rechecks_origin_and_completion_capability(monkeypatch, 
 # contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
 async def test_failed_device_is_fail_closed_without_aborting_remaining_peers(monkeypatch, caplog, failure):
     monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setattr(websockets.logger, "propagate", False)
     monkeypatch.setattr(websockets.logger, "handlers", [caplog.handler])
     caplog.set_level(logging.INFO, logger=websockets.__name__)
     manager = Manager(["failed", "healthy"])
@@ -230,6 +243,49 @@ async def test_final_discovery_concurrency_is_bounded_to_four(monkeypatch):
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=cli assertions=chat-queued-followups.routing.active-work
+async def test_independent_final_preserves_foreground_snapshot_and_old_socket_presentation(monkeypatch):
+    assert any(route.endpoint is websockets.websocket_endpoint for route in websockets.router.routes)
+    manager = Manager(["updated-terminal", "old-terminal"])
+    manager.active_connections[OWNER] = {
+        "updated-terminal": SimpleNamespace(scope={"parallel_chat_turns_v1": True}),
+        "old-terminal": SimpleNamespace(scope={}, headers={"x-openmates-sdk": "cli"}),
+    }
+
+    async def execute(operation, device):
+        return result_for(operation)
+
+    def update(message_id, user_message_id, **overrides):
+        return payload(message_id=message_id, task_id=message_id, user_message_id=user_message_id, **overrides)
+
+    foreground = update("primary", "primary-user", is_final_chunk=False, recovery_provisional=True)
+    independent = update("second", "second-user", independent_reply=True)
+    frames = [
+        foreground,
+        {**independent, "is_final_chunk": False, "recovery_provisional": True},
+        independent,
+    ]
+    app = install(monkeypatch, manager, execute, frames)
+    await websockets.listen_for_ai_chat_streams(app)
+    cache = app.state.cache_service
+    snapshot = websockets.ai_stream_snapshot_cache_key(CHAT)
+    assert cache.snapshots == {snapshot: foreground}
+    assert cache.snapshot_writes == [(snapshot, foreground, websockets.AI_STREAM_SNAPSHOT_TTL_SECONDS)]
+    assert cache.snapshot_deletes == []
+
+    upgraded = [frame for device, frame in manager.messages if device == "updated-terminal"]
+    legacy = [frame for device, frame in manager.messages if device == "old-terminal"]
+    assert [(frame["payload"]["user_message_id"], frame["payload"]["is_final_chunk"])
+            for frame in upgraded if frame["type"] == "ai_message_update"] == [
+        ("primary-user", False), ("second-user", False), ("second-user", True),
+    ]
+    assert [frame["type"] for frame in legacy] == [
+        "ai_message_update", "recovery_jobs_available", "recovery_outputs_discovery_complete",
+    ]
+    assert legacy[0]["payload"]["user_message_id"] == "primary-user"
+
+
+@pytest.mark.asyncio
 # contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
 async def test_background_final_preserves_identity_and_discovery_order(monkeypatch):
     manager = Manager(["background"])
@@ -254,6 +310,7 @@ async def test_background_final_preserves_identity_and_discovery_order(monkeypat
 @pytest.mark.parametrize("ci", [None, "0", "true", "1"])
 # contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery
 def test_ci_stage_trace_has_fixed_values_and_no_private_fields(monkeypatch, caplog, ci):
+    monkeypatch.setattr(websockets.logger, "propagate", False)
     monkeypatch.setattr(websockets.logger, "handlers", [caplog.handler])
     if ci is None:
         monkeypatch.delenv("OPENMATES_CI_ISOLATED", raising=False)
@@ -276,6 +333,7 @@ def test_ci_stage_trace_has_fixed_values_and_no_private_fields(monkeypatch, capl
 # contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery
 def test_ci_stage_trace_exposes_only_allowlisted_standard_exception_class(monkeypatch, caplog, exception_type):
     monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setattr(websockets.logger, "propagate", False)
     monkeypatch.setattr(websockets.logger, "handlers", [caplog.handler])
     caplog.set_level(logging.INFO, logger=websockets.__name__)
     if exception_type is json.JSONDecodeError:
@@ -293,6 +351,7 @@ def test_ci_stage_trace_exposes_only_allowlisted_standard_exception_class(monkey
 @pytest.mark.asyncio
 # contract-test: supporting surface=cli assertions=storage.background.complete-sealed-recovery
 async def test_ci_stage_sequence_is_content_free_and_received_precedes_lookup(monkeypatch, caplog):
+    monkeypatch.setattr(websockets.logger, "propagate", False)
     monkeypatch.setattr(websockets.logger, "handlers", [caplog.handler])
     monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
     caplog.set_level(logging.INFO, logger=websockets.__name__)

@@ -246,6 +246,8 @@ struct DesignEmbroideryEmbedRenderer: View {
         .frame(maxWidth: .infinity)
         .frame(height: 320)
         .background(showGraphic ? Color.mediaLetterbox : fabric)
+        .imageZoom()
+        .id(showGraphic)
         .clipShape(RoundedRectangle(cornerRadius: .radius6))
     }
 

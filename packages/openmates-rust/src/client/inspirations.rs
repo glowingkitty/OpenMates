@@ -1,12 +1,11 @@
-//! Daily inspirations for the home banner (web `dailyInspirationDB.ts`,
-//! `loadDefaultInspirations.ts`, TS CLI `getDailyInspirations`).
-//!
-//! Signed-in accounts read their persisted, master-key encrypted rows from
-//! `GET /v1/daily-inspirations`; with none stored (or none readable) the public
-//! cleartext defaults from `GET /v1/default-inspirations` apply. The banner
-//! fields are typed; `legacy_json` carries the full npm CLI
-//! `getDailyInspirations` row shape for `inspirations --json`.
+//! Daily Inspiration reads and snapshot selection in the shared client.
+//! The CLI keeps its legacy JSON projection. The authenticated start row
+//! checks its recovered snapshots against the six-card web contract
+//! (`daily-inspiration.personalized-priority` in the Daily Inspiration specification).
 use crate::client::*;
+
+#[path = "inspiration_snapshot.rs"]
+pub mod snapshot;
 
 /// One inspiration as the home banner shows it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

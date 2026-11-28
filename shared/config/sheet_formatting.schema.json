@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sheet formatting",
+  "description": "Optional formatting for a sheet. Cell coordinates use spreadsheet notation with the table heading at row 1. Dimensions are in CSS pixels.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "columnWidths": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": { "pattern": "^[A-Z]{1,3}(?![\\s\\S])" },
+      "additionalProperties": { "type": "integer", "minimum": 24, "maximum": 1200 }
+    },
+    "rowHeights": {
+      "type": "object",
+      "maxProperties": 1000,
+      "propertyNames": { "pattern": "^[1-9][0-9]{0,3}(?![\\s\\S])" },
+      "additionalProperties": { "type": "integer", "minimum": 16, "maximum": 600 }
+    },
+    "cells": {
+      "type": "object",
+      "maxProperties": 10000,
+      "propertyNames": { "$ref": "#/$defs/address" },
+      "additionalProperties": { "$ref": "#/$defs/cellStyle" }
+    },
+    "merges": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end"],
+        "properties": {
+          "start": { "$ref": "#/$defs/address" },
+          "end": { "$ref": "#/$defs/address" }
+        }
+      }
+    },
+    "frozenRows": { "type": "integer", "minimum": 0, "maximum": 1000 },
+    "frozenColumns": { "type": "integer", "minimum": 0, "maximum": 256 }
+  },
+  "$defs": {
+    "address": { "type": "string", "pattern": "^[A-Z]{1,3}[1-9][0-9]{0,3}(?![\\s\\S])" },
+    "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}(?![\\s\\S])" },
+    "border": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["style", "color"],
+      "properties": {
+        "style": { "enum": ["thin", "medium", "thick", "dashed", "dotted", "double"] },
+        "color": { "$ref": "#/$defs/color" }
+      }
+    },
+    "numberFormat": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "enum": ["number", "percent"] },
+            "decimals": { "type": "integer", "minimum": 0, "maximum": 10 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "currency"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "currency" },
+            "currency": { "type": "string", "pattern": "^[A-Z]{3}(?![\\s\\S])" },
+            "decimals": { "type": "integer", "minimum": 0, "maximum": 10 }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["kind", "pattern"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "date" },
+            "pattern": { "enum": ["yyyy-mm-dd", "mm/dd/yyyy", "dd/mm/yyyy", "mmm d, yyyy"] }
+          }
+        }
+      ]
+    },
+    "cellStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "backgroundColor": { "$ref": "#/$defs/color" },
+        "textColor": { "$ref": "#/$defs/color" },
+        "fontFamily": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9][A-Za-z0-9 -]*(?![\\s\\S])" },
+        "fontSize": { "type": "integer", "minimum": 8, "maximum": 96 },
+        "bold": { "type": "boolean" },
+        "italic": { "type": "boolean" },
+        "underline": { "type": "boolean" },
+        "strikethrough": { "type": "boolean" },
+        "horizontalAlign": { "enum": ["left", "center", "right"] },
+        "verticalAlign": { "enum": ["top", "middle", "bottom"] },
+        "wrap": { "type": "boolean" },
+        "numberFormat": { "$ref": "#/$defs/numberFormat" },
+        "borders": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "top": { "$ref": "#/$defs/border" },
+            "right": { "$ref": "#/$defs/border" },
+            "bottom": { "$ref": "#/$defs/border" },
+            "left": { "$ref": "#/$defs/border" }
+          }
+        }
+      }
+    }
+  }
+}

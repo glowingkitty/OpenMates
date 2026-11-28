@@ -69,6 +69,9 @@ EXPECTED_BEHAVIOR = (
     # Owner, 20 Nov 2026: TASK-3023 (question partly under the chat header) was a false positive.
     "Content partly covered by the chat header, the call bar or another bar is not a defect when the user can "
     "scroll it into view; report overlap only when content can never be read or a control can never be reached. "
+    # Owner, 23 Nov 2026: issue a83d36b6 (sticky top bar overlaps user message text) was invalid.
+    "A sticky or fixed header, bar or overlay covering content while the page scrolls is normal scrolling "
+    "behavior, never a defect; do not report sticky or overlay elements covering content during scrolling. "
     "Short notices, toasts and notification banners (for example 'Sounds are on', which closes itself after 12 s "
     "and has a close button) are not defects because they cover part of the page for a few seconds; report one "
     "only when it blocks a needed action and cannot be closed, never closes, or its text itself is wrong."

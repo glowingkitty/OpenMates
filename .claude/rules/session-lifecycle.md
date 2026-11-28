@@ -54,7 +54,16 @@ paths:
 - `sessions.py deploy --title <title> --message <why>` validates, serializes and
   pushes the scoped diff to `dev`. Use `prepare-deploy` only to inspect scope.
   Keep the canonical checkout on `dev`.
+- No compaction or context-size handoff (owner, 27 Nov): a chat keeps working in the same chat
+  until its work is finished; the handoff hooks are removed.
+- Below 10% weekly Claude usage remaining, automatic wake-up transfers a stopped
+  Claude chat only when its linked Task already contains a handover. Active Claude
+  work prepares its handover at the next turn boundary. Record work done, open
+  work and decisions, branch/worktree, proofs, and the next step. Codex picks up
+  the Task and workspace. The source chat is archived. Preserve the live voice
+  call and owner model choices. Codex exhaustion queues work until capacity returns.
 - Shared dev runtime mutations: `sessions.py docker restart --session <id>
   --service <name>` with its resource leases; not a substitute CI runner.
 - OpenMates Tasks owns status; no local task ledgers. `sessions.py end` is
   optional maintenance and invents no proof or approval requirements.
+- Chat-to-chat `SendMessage` (peer name or `session_...`) is queued by `scripts/chat_mailbox.py` and shown at the recipient's next turn; `URGENT:` sends at once, sub-agent ids are untouched, and mail unread after 120 minutes wakes a running recipient once via the reap pass.

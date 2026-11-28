@@ -57,12 +57,13 @@
 	let selectedContent: string | null = $state(null);
 	let restoreConfirmVersion: number | null = $state(null);
 	let contentRequestId = 0;
+	let historyRequestId = 0;
 	let selectedMeta = $derived(versions.find((version) => version.version_number === selectedVersion));
 	let changeLines = $derived.by(() => buildLineDiff(selectedContent, currentContent));
 
-	// Load version history on mount
+	// A live checkpoint can finish after the timeline mounts with the previous head.
 	$effect(() => {
-		loadVersions();
+		void loadVersions(currentVersion);
 	});
 
 	$effect(() => {
@@ -70,18 +71,21 @@
 		activeCurrentVersion = currentVersion;
 	});
 
-	async function loadVersions() {
+	async function loadVersions(expectedHead: number) {
+		const requestId = ++historyRequestId;
 		loading = true;
 		errorMessage = '';
 		try {
 			const response = await fetchEmbedVersions(embedId, { order: 'desc', limit: 32, chatId, projectId, teamId });
+			if (requestId !== historyRequestId) return;
 			versions = response.versions;
 			nextCursor = response.next_cursor ?? null;
 			readonly = response.readonly;
-			activeCurrentVersion = response.current_version;
+			activeCurrentVersion = Math.max(expectedHead, response.current_version);
 		} catch (e) {
-			console.warn('[EmbedVersionTimeline] Falling back to local versions:', e);
 			const localVersions = await getEmbedDiffs(embedId);
+			if (requestId !== historyRequestId) return;
+			console.warn('[EmbedVersionTimeline] Falling back to local versions:', e);
 			versions = localVersions.map((version) => ({
 				version_number: version.version_number,
 				created_at: version.created_at,
@@ -170,7 +174,7 @@
 			selectedContent = response.content;
 			restoreConfirmVersion = null;
 			onVersionSelect(selectedVersion, response.content);
-			await loadVersions();
+			await loadVersions(restoredVersion);
 		} catch (e) {
 			errorMessage = e instanceof Error ? e.message : 'Failed to restore version';
 		} finally {

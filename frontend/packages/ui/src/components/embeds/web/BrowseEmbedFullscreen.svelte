@@ -6,6 +6,7 @@
   import { authStore } from '../../../stores/authState';
   import { userProfile } from '../../../stores/userProfile';
   import { activeTeamContext } from '../../../stores/teamStore';
+  import { browseTakeoverActive } from '../../../stores/browseTakeoverStore';
   import { browseContent, browseStatusKey, canViewBrowseSession } from './browseContent';
   import { renderBrowse } from './browseEmbedText';
   import { webBrowseClient, type BrowseSession } from '../../../services/webBrowseService';
@@ -21,6 +22,18 @@
   // Public examples and shared read-only results never open an authenticated
   // viewer. Account/team changes destroy the live frame and abort all requests.
   let canView = $derived(canViewBrowseSession($authStore.isAuthenticated, $userProfile.user_id, source));
+  let addressLine = $state<HTMLParagraphElement | null>(null);
+  // Take control brings the address line into view below the overlaid top bar
+  // buttons. Only the fullscreen content scroller moves (scrollIntoView would
+  // also scroll the panel and push the top bar off screen).
+  const ADDRESS_CLEARANCE_PX = 76;
+  $effect(() => {
+    if (!$browseTakeoverActive || !addressLine) return;
+    const scroller = addressLine.closest<HTMLElement>('.content-area');
+    if (!scroller) return;
+    const offset = addressLine.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTop = Math.max(0, scroller.scrollTop + offset - ADDRESS_CLEARANCE_PX);
+  });
   async function continueInChat(session: BrowseSession) {
     if (!ownerCurrent() || session.session_id !== result.sessionId || !session.chat_id
       || (source?.chatId && source.chatId !== session.chat_id)) throw new Error('browser_chat_changed');
@@ -34,7 +47,7 @@
   }
 </script>
 
-<UnifiedEmbedFullscreen appId="web" skillId="browse" skillIconName="website" {onClose} {embedId}
+<UnifiedEmbedFullscreen appId="web" skillId="browse" skillIconName="website" {onClose} currentEmbedId={embedId}
   {hasPreviousEmbed} {hasNextEmbed} {onNavigatePrevious} {onNavigateNext} {navigateDirection} {showChatButton} {onShowChat}
   testId="browse-fullscreen" embedHeaderTitle={result.title || $text('embeds.browse.title')}
   embedHeaderSubtitle={$text(browseStatusKey(result.status))}
@@ -42,8 +55,8 @@
   onCopy={() => { void navigator.clipboard.writeText(renderBrowse(updated || data.decodedContent)); }}
   onEmbedDataUpdated={({ decodedContent }) => { updated = decodedContent; }}>
   {#snippet content()}
-    <div class="browse-content">
-      {#if result.url}<p class="url">{result.url}</p>{/if}
+    <div class="browse-content" data-testid="browse-fullscreen-content">
+      {#if result.url}<p class="url" data-testid="browse-address-bar" bind:this={addressLine}>{result.url}</p>{/if}
       {#if canView && result.sessionId}
         {#key `${$userProfile.user_id}:${$activeTeamContext.teamId}:${$activeTeamContext.epoch}:${result.sessionId}`}
           <BrowseSessionViewer sessionId={result.sessionId} client={webBrowseClient} savedFrame={result.screenshot} onContinue={continueInChat} />

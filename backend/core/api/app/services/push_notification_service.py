@@ -40,6 +40,7 @@ APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
 
 
 APNS_MAX_PAYLOAD_BYTES = 4096
+WEB_PUSH_EXCERPT_CHARS = 600
 
 
 def notification_preview_text(content: str, lang: str = "en") -> str:
@@ -136,6 +137,11 @@ def notification_preview_text(content: str, lang: str = "en") -> str:
     text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "[Image]", text)
     text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
     text = re.sub(r"\[embed:[^\]]+\]|embed:[^\s)]+", "[Attachment]", text)
+    # Markdown tables and rules: drop separator rows, keep cell text.
+    text = re.sub(r"(?m)^(?=[^\n]*\|)(?=[^\n]*-)[ \t:|-]+$", "", text)
+    text = re.sub(r"(?m)^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$", "", text)
+    text = re.sub(r"(?m)^[ \t]*\|(.*?)\|?[ \t]*$", lambda m: " · ".join(
+        cell.strip() for cell in m.group(1).split("|") if cell.strip()) + ".", text)
     text = re.sub(r"(?m)^\s{0,3}(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)", "", text)
     text = re.sub(r"(\*\*|__)(.+?)\1", r"\2", text)
     text = re.sub(r"(?<!\w)(\*|_)(.+?)\1(?!\w)", r"\2", text)
@@ -145,20 +151,32 @@ def notification_preview_text(content: str, lang: str = "en") -> str:
         count = match.group(0).count("[Image]")
         return f"[{count} Images]" if count > 1 else "[Image]"
     text = re.sub(r"\[Image\](?:\s*\[Image\])+", image_group, text)
-    # Reapplying projection at transport must preserve an already formatted
-    # skill prefix and its deliberate blank line.
-    ready = not skills and re.match(r"^[^\n]+ \| [^\n]+\n\n", text)
-    if ready:
-        first, rest = text.split("\n\n", 1)
-        prose = first.strip() + "\n\n" + re.sub(r"\s+", " ", rest).strip()
-    else:
-        prose = re.sub(r"\s+", " ", text).strip()
-    if not skills:
+    # Keep the answer's own lines so the notification shows its first lines;
+    # blank lines and spacing inside a line collapse.
+    lines = (re.sub(r"[^\S\n]+", " ", line).strip() for line in text.split("\n"))
+    prose = "\n".join(line for line in lines if line)
+    # The answer text is what a notification is for; the app skill summary is
+    # only shown when the answer has no readable prose at all.
+    if prose or not skills:
         return prose
     prefix = skills[0]
     if len(skills) > 1:
         prefix += f" & {len(skills) - 1} other app skill" + ("s" if len(skills) > 2 else "")
-    return prefix + ("\n\n" + prose if prose else "")
+    return prefix
+
+
+def generic_chat_body(language: Optional[str]) -> str:
+    """Localized "New message received" for the public alert and empty excerpts."""
+    from backend.core.api.app.services.translations import TranslationService
+
+    key = "notifications.chat_message.new_message_received"
+    value = TranslationService().get_nested_translation(key, lang=language or "en")
+    return value if isinstance(value, str) and value and value != key else APNS_CHAT_MESSAGE_BODY
+
+
+def chat_notification_body(excerpt: str, context_line: Optional[str], language: Optional[str]) -> str:
+    """Excerpt first, the chat title line last; generic text when there is no excerpt."""
+    return "\n".join(part for part in ((excerpt or generic_chat_body(language)), context_line) if part)
 
 
 def apns_topic_for_platform(platform: str) -> str:
@@ -297,6 +315,7 @@ class PushNotificationService:
         recipient_account_id: Optional[str] = None,
         message_id: Optional[str] = None,
         workspace: Optional[dict] = None,
+        language: Optional[str] = None,
     ) -> bool:
         """
         Send a Web Push notification to a stored subscription.
@@ -337,10 +356,12 @@ class PushNotificationService:
                 on_expired_web_target=on_expired_web_target,
                 workflow_routing=workflow_routing,
                 encrypted_title=encrypted_title,
+                encrypted_context=encrypted_context,
                 on_apns_result=on_apns_result,
                 recipient_account_id=recipient_account_id,
                 message_id=message_id,
                 workspace=workspace,
+                language=language,
             )
         if subscription_type == "apns":
             return self._send_apns_notification(
@@ -357,6 +378,7 @@ class PushNotificationService:
                 recipient_account_id=recipient_account_id,
                 message_id=message_id,
                 workspace=workspace,
+                language=language,
             )
 
         if not self.is_ready():
@@ -366,10 +388,16 @@ class PushNotificationService:
         web_subscription_info = dict(subscription_info)
         web_subscription_info.pop("type", None)
 
+        if category == APNS_CHAT_CATEGORY:
+            from backend.core.api.app.services.push_notification_content import truncate_at_word
+
+            # Browser push is end-to-end encrypted to the browser (RFC 8291);
+            # same layout as Apple: chat title as title, answer excerpt as body.
+            body = chat_notification_body(truncate_at_word(body, WEB_PUSH_EXCERPT_CHARS), encrypted_context, language)
         payload = json.dumps(
             {
                 "title": title,
-                "body": body[:200] if category == APNS_CHAT_CATEGORY else body,
+                "body": body,
                 "icon": icon,
                 "badge": badge,
                 "tag": tag or "openmates-notification",
@@ -423,10 +451,12 @@ class PushNotificationService:
         on_expired_web_target: Optional[Callable[[], None]],
         workflow_routing: Optional[dict] = None,
         encrypted_title: Optional[str] = None,
+        encrypted_context: Optional[str] = None,
         on_apns_result: Optional[Callable[[str], None]] = None,
         recipient_account_id: Optional[str] = None,
         message_id: Optional[str] = None,
         workspace: Optional[dict] = None,
+        language: Optional[str] = None,
     ) -> bool:
         """Fan out one notification to all stored browser/APNs targets."""
         targets = subscription_info.get("targets")
@@ -452,10 +482,12 @@ class PushNotificationService:
                     on_expired_web_target=on_expired_web_target,
                     workflow_routing=workflow_routing,
                     encrypted_title=encrypted_title,
+                    encrypted_context=encrypted_context,
                     on_apns_result=on_apns_result,
                     recipient_account_id=recipient_account_id,
                     message_id=message_id,
                     workspace=workspace,
+                    language=language,
                 )
                 any_success = any_success or target_success
             except Exception as exc:
@@ -477,6 +509,7 @@ class PushNotificationService:
         recipient_account_id: Optional[str] = None,
         message_id: Optional[str] = None,
         workspace: Optional[dict] = None,
+        language: Optional[str] = None,
     ) -> bool:
         """
         Send an APNs alert notification to a native Apple device token.
@@ -532,7 +565,7 @@ class PushNotificationService:
         )
         host = "api.sandbox.push.apple.com" if use_sandbox else "api.push.apple.com"
         alert_title = APNS_CHAT_MESSAGE_TITLE if category == APNS_CHAT_CATEGORY else title
-        alert_body = APNS_CHAT_MESSAGE_BODY if category == APNS_CHAT_CATEGORY else body
+        alert_body = generic_chat_body(language) if category == APNS_CHAT_CATEGORY else body
         payload = {
             "aps": {
                 "alert": {"title": alert_title, "body": alert_body},
@@ -557,11 +590,11 @@ class PushNotificationService:
         if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} and encrypted_title and platform != "watchos":
             encrypted_payload = self._build_encrypted_apns_payload(
                 subscription_info, body, title=encrypted_title, context_line=encrypted_context,
-                reply_context=reply_context,
+                reply_context=reply_context, language=language,
             )
         else:
             encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(
-                subscription_info, body, reply_context=reply_context,
+                subscription_info, body, reply_context=reply_context, language=language,
             )
         if (category == APNS_CHAT_CATEGORY or category == "OPENMATES_WORKFLOW_COMPLETED") and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
@@ -569,15 +602,17 @@ class PushNotificationService:
             # Apple caps the entire UTF-8 JSON payload at 4096 bytes. Ciphertext
             # grows by the AES-GCM tag and base64; measure the real wire format.
             if len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > APNS_MAX_PAYLOAD_BYTES:
+                from backend.core.api.app.services.push_notification_content import truncate_at_word
+
                 clean = notification_preview_text(body)
                 low, high = 0, len(clean)
                 best = None
                 while low <= high:
                     middle = (low + high) // 2
                     candidate = self._build_encrypted_apns_payload(
-                        subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
+                        subscription_info, truncate_at_word(clean, middle),
                         title=encrypted_title if category in {"OPENMATES_WORKFLOW_COMPLETED", APNS_CHAT_CATEGORY} else None,
-                        context_line=encrypted_context, reply_context=reply_context,
+                        context_line=encrypted_context, reply_context=reply_context, language=language,
                     )
                     payload["encrypted_notification"] = candidate
                     size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -638,17 +673,17 @@ class PushNotificationService:
     def _build_encrypted_apns_payload(
         self, subscription_info: dict, preview_text: str, *,
         title: str | None = None, context_line: str | None = None, reply_context: dict | None = None,
+        language: str | None = None,
     ) -> Optional[dict]:
         """Encrypt optional Apple notification content to the device public key.
 
-        `context_line` is the already-composed `in "<chat title>"` text: it is sealed
-        verbatim, never run through the answer-text projection.
+        `context_line` is the already-composed chat title line: it is sealed
+        verbatim as the last body line, never run through the answer-text projection.
         """
         preview_text = notification_preview_text(preview_text) if subscription_info.get("preview_enabled") is not False else ""
-        preview_text = "\n".join(part for part in (context_line, preview_text) if part)
-        if title and not preview_text:
-            # Title without a body: the extension still needs a body to display.
-            preview_text = APNS_CHAT_MESSAGE_BODY
+        if title:
+            # The extension needs a body: excerpt (or generic text), chat line last.
+            preview_text = chat_notification_body(preview_text, context_line, language)
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
         if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or (not preview_text and reply_context is None):

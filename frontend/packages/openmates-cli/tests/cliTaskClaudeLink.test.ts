@@ -14,20 +14,24 @@ import {mkdtempSync, mkdirSync, writeFileSync, rmSync} from 'node:fs';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {encryptBytesWithAesGcm} from '../src/crypto.ts';
 
 const SESSION='00000000-0000-4000-8000-00000000c1a0';
+const PROJECT='00000000-0000-4000-8000-0000000a11ce';
+const MASTER=Buffer.alloc(32,7);
 
-async function withCli(run:(cli:(args:string[],env:Record<string,string|undefined>)=>Promise<{code:number;stdout:string;stderr:string}>,requests:{method?:string;path?:string;raw:string;creator?:string|string[]}[])=>Promise<void>) {
+async function withCli(projects:unknown[],run:(cli:(args:string[],env:Record<string,string|undefined>)=>Promise<{code:number;stdout:string;stderr:string}>,requests:{method?:string;path?:string;raw:string;creator?:string|string[]}[])=>Promise<void>) {
   const home=mkdtempSync(join(tmpdir(),'claude-cli-link-'));
   const state=join(home,'.openmates'); mkdirSync(state);
-  const master=Buffer.alloc(32,7);
+  const master=MASTER;
   const requests:{method?:string;path?:string;raw:string;creator?:string|string[]}[]=[];
   const server=createServer((req,res)=>{
     let raw=''; req.on('data',chunk=>raw+=chunk);
     req.on('end',()=>{
       requests.push({method:req.method,path:req.url,raw,creator:req.headers['x-openmates-task-creator']});
       res.setHeader('content-type','application/json');
-      if(req.method==='POST' && req.url==='/v1/user-tasks') res.end(JSON.stringify({task:{...JSON.parse(raw),version:1,status:'todo',position:0,created_at:1,updated_at:1}}));
+      if(req.method==='GET' && req.url?.split('?')[0]==='/v1/projects') res.end(JSON.stringify({projects}));
+      else if(req.method==='POST' && req.url==='/v1/user-tasks') res.end(JSON.stringify({task:{...JSON.parse(raw),version:1,status:'todo',position:0,created_at:1,updated_at:1}}));
       else {res.statusCode=404;res.end(JSON.stringify({error:'synthetic not found'}));}
     });
   });
@@ -55,7 +59,7 @@ async function withCli(run:(cli:(args:string[],env:Record<string,string|undefine
 
 // contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim,tasks.external-chat.encrypted-context
 test('Claude Code link on create requires the matching CLAUDE_CODE_SESSION_ID', async () => {
-  await withCli(async (cli,requests)=>{
+  await withCli([],async (cli,requests)=>{
     const args=['tasks','create','--title','Claude linked work','--external-chat',`claude:${SESSION}`,'--json'];
     const outside=await cli(args,{});
     assert.notEqual(outside.code,0);
@@ -81,5 +85,24 @@ test('Claude Code link on create requires the matching CLAUDE_CODE_SESSION_ID', 
     assert.ok(!posts[0].raw.includes('Claude Code session'),'default title is encrypted locally');
     const printed=JSON.parse(inside.stdout).task;
     assert.deepEqual(printed.external_chat,{provider:'claude',id:SESSION,title:'Claude Code session'});
+  });
+});
+
+// Dev connector regression (2026-11-27): `tasks create --project <id>` resolved the same Project
+// twice, each a full Project list (~0.8 s on dev), so start_chat's Task creation timed out.
+// contract-test: supporting surface=cli assertions=tasks.project-links.encrypted
+test('tasks create --project lists Projects once and links the resolved Project', async () => {
+  const project={project_id:PROJECT,encrypted_project_key:await encryptBytesWithAesGcm(new Uint8Array(32).fill(3),new Uint8Array(MASTER))};
+  await withCli([project],async (cli,requests)=>{
+    const created=await cli(['tasks','create','--title','Project linked work','--project',PROJECT,'--status','todo','--json'],{});
+    assert.equal(created.code,0,created.stderr);
+    const lists=requests.filter(item=>item.method==='GET' && item.path?.split('?')[0]==='/v1/projects');
+    assert.equal(lists.length,1,'the --project flag is resolved once per command');
+    const posts=requests.filter(item=>item.method==='POST' && item.path==='/v1/user-tasks');
+    assert.equal(posts.length,1);
+    assert.deepEqual(JSON.parse(posts[0].raw).linked_project_ids,[PROJECT],'the Task is linked to the resolved Project');
+    const missing=await cli(['tasks','create','--title','Unknown project work','--project','00000000-0000-4000-8000-00000000dead','--json'],{});
+    assert.notEqual(missing.code,0);
+    assert.match(missing.stderr+missing.stdout,/not found/);
   });
 });

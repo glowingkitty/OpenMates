@@ -38,7 +38,7 @@ def chunk_pages(pages: Sequence[int], size: int = OCR_CHUNK_PAGES) -> List[List[
 
 
 def _extract_sub_pdf(pdf_bytes: bytes, page_numbers: Sequence[int]) -> bytes:
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     source = fitz.open(stream=pdf_bytes, filetype="pdf")
     target = fitz.open()

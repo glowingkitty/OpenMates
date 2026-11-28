@@ -13,7 +13,9 @@ USER root
 COPY --from=patched-node /usr/local/bin/node /usr/local/bin/node
 # Fail the build if a future runtime replacement loses the security backport.
 RUN node -e "require('node:assert/strict').equal(require('node:zlib').constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH, -17)"
-RUN apk add --no-cache curl postgresql-client su-exec
+RUN apk add --no-cache curl postgresql-client \
+    && mkdir -p /directus/uploads \
+    && chown node:node /directus/uploads
 
 COPY --chown=node:node extensions /directus/extensions
 RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
@@ -204,15 +206,6 @@ fi
 wait "$directus_pid"
 START_SCRIPT
 
-COPY --chmod=755 <<'ENTRYPOINT_SCRIPT' /usr/local/bin/openmates-directus-entrypoint
-#!/bin/sh
-set -eu
-
-mkdir -p /directus/uploads
-chown node:node /directus/uploads
-exec su-exec node:node /usr/local/bin/openmates-directus-start
-ENTRYPOINT_SCRIPT
-
 COPY --chmod=755 <<'HEALTH_SCRIPT' /usr/local/bin/openmates-directus-health
 #!/bin/sh
 set -eu
@@ -343,6 +336,6 @@ sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
 test "$sub_chat_index_count" = "24"
 HEALTH_SCRIPT
 
-USER root
-CMD ["/usr/local/bin/openmates-directus-entrypoint"]
-HEALTHCHECK --interval=10s --timeout=8s --start-period=10m --retries=12 CMD ["su-exec", "node:node", "/usr/local/bin/openmates-directus-health"]
+USER node
+CMD ["/usr/local/bin/openmates-directus-start"]
+HEALTHCHECK --interval=10s --timeout=8s --start-period=10m --retries=12 CMD ["/usr/local/bin/openmates-directus-health"]

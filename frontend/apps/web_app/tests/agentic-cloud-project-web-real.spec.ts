@@ -12,6 +12,7 @@
  */
 export {};
 
+import { selectCompactWorkspace } from './helpers/workspace-navigation';
 import type { Locator, Page } from '@playwright/test';
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -29,6 +30,9 @@ const STORAGE_DIAGNOSTIC = /CLIENT_DECRYPT|decryption failed|DUPLICATE PREVENTED
 
 const L = ['web-laptop'];
 const B = ['web-laptop', 'web-phone'];
+// The laptop flow and the later Specification chat are two tests on one device: each attaches
+// only its own checkpoints (run on e907a42: the flow passed, then failed on the Spec check).
+const SPEC_PLAN_CHECKPOINTS = ['cloud-spec-plan'];
 const proofContract = defineVideoProof({
   id: 'agentic-cloud-project-web-real',
   title: 'Cloud agentic coding from the web app: recipe app, build, recorded test and commit in a hosted Project',
@@ -166,6 +170,16 @@ async function deleteOwnedData(page: Page): Promise<string[]> {
   return failures;
 }
 
+/**
+ * Dev gets new web builds while this long flow runs; the "software update" notice then covers
+ * nav links (run on cdfee91: the Projects link click timed out under it). Close it whenever it
+ * blocks an action; the notice is not part of what this proof checks.
+ */
+async function closeUpdateNoticeWhenInTheWay(page: Page): Promise<void> {
+  const notice = page.getByTestId('notification').and(page.locator('.notification-software-update'));
+  await page.addLocatorHandler(notice, async (shown) => { await shown.getByTestId('notification-dismiss').click(); });
+}
+
 function lastAssistant(page: Page): Locator {
   return page.getByTestId('message-assistant').last();
 }
@@ -225,7 +239,14 @@ async function selectPassingTestResult(page: Page): Promise<Locator | null> {
 }
 
 async function openProject(page: Page): Promise<void> {
-  await page.getByTestId('projects-nav-link').click();
+  const desktopLink = page.getByTestId('projects-nav-link').filter({ visible: true });
+  const mobileSwitcher = page.getByTestId('workspace-mobile-select').filter({ visible: true });
+  await expect(desktopLink.or(mobileSwitcher)).toBeVisible({ timeout: 60_000 });
+  if (await mobileSwitcher.isVisible()) {
+    await selectCompactWorkspace(page, '/#projects');
+  } else {
+    await desktopLink.click();
+  }
   await expect(page.getByTestId('projects-page')).toBeVisible({ timeout: 60_000 });
   const card = page.getByTestId('project-landing-card').filter({ hasText: projectName }).first();
   await expect(card, `the Project "${projectName}" created by this run`).toBeVisible({ timeout: 60_000 });
@@ -271,6 +292,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     try {
       const page = await context.newPage();
+      await closeUpdateNoticeWhenInTheWay(page);
       await loginToTestAccount(page);
       const failures = await deleteOwnedData(page);
       expect(failures, 'chats and Project of this run that could not be deleted').toEqual([]);
@@ -286,9 +308,12 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await page.setViewportSize({ width: 1440, height: 900 });
     const proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
+      checkpoints: proofContract.transcript.map((cue: { checkpoint: string }) => cue.checkpoint)
+        .filter((checkpoint: string) => !SPEC_PLAN_CHECKPOINTS.includes(checkpoint)),
     });
     watchStorage(page, testInfo);
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await startNewChat(page);
@@ -422,6 +447,7 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
       device: 'web-phone', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
     });
     expect(projectName, 'the laptop test created a Project').not.toBe('');
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await showProjectViews(page, testInfo, 'phone', proof);
@@ -437,8 +463,10 @@ test.describe('Cloud agentic coding from the web app (real inference, dev only)'
     await page.setViewportSize({ width: 1440, height: 900 });
     const proof = createVideoProofRuntime(proofContract, {
       device: 'web-laptop', attach: testInfo.attach.bind(testInfo), captureFrame: () => page.screenshot({ type: 'png' }),
+      checkpoints: SPEC_PLAN_CHECKPOINTS,
     });
     watchStorage(page, testInfo);
+    await closeUpdateNoticeWhenInTheWay(page);
     await loginToTestAccount(page);
     await allowE2bUpload(page);
     await openProject(page);

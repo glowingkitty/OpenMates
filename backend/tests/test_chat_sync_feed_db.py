@@ -30,9 +30,17 @@ KNEX_PATH = os.getenv(
     "/directus/node_modules/.pnpm/knex@3.1.0_pg@8.13.1/node_modules/knex/knex.js",
 )
 
+def _hosted_db_test_selected() -> bool:
+    if os.getenv("GITHUB_ACTIONS") != "true" or os.getenv("CI_TEST_MODE") != "pytest":
+        return False
+    targets = json.loads(os.getenv("CI_SPECS_JSON", "[]"))
+    return any(target.startswith("backend/tests/test_chat_sync_feed_db.py::") for target in targets)
+
+
 pytestmark = pytest.mark.skipif(
-    os.getenv("OPENMATES_DOCKER_DB_TESTS") != "1" or shutil.which("docker") is None,
-    reason="engineering DB test: set OPENMATES_DOCKER_DB_TESTS=1 with Docker available",
+    not _hosted_db_test_selected()
+    and (os.getenv("OPENMATES_DOCKER_DB_TESTS") != "1" or shutil.which("docker") is None),
+    reason="select this DB check in isolated CI or set OPENMATES_DOCKER_DB_TESTS=1 with Docker",
 )
 
 
@@ -192,3 +200,27 @@ def test_extension_pages_replay_reset_and_hydrate(database):
     assert out["expired_reset"] is True and out["current_not_reset"] is False
     assert out["overview"] == {"chat": True, "saved_items": 1}
     assert out["team_overview"] == {"chat": None, "saved_items": None}
+
+
+# contract-test: supporting surface=rest_api assertions=sync.startup.bounded-phases
+def test_open_history_stays_ordered_after_cursor_journal_pruning(database):
+    psql = database["psql"]
+    user, other = str(uuid.uuid4()), str(uuid.uuid4())
+    ids = [str(uuid.uuid4()) for _ in range(13)]
+    foreign = str(uuid.uuid4())
+    rows = ", ".join(f"('{chat_id}', '{_h(user)}', {idx})" for idx, chat_id in enumerate(ids))
+    psql(f"""
+        INSERT INTO directus_users (id, last_opened) VALUES ('{user}', '/chat/new'), ('{other}', '/chat/new');
+        INSERT INTO chats (id, hashed_user_id, last_edited_overall_timestamp)
+          VALUES {rows}, ('{foreign}', '{_h(other)}', 10000);
+    """)
+    # Opening a chat changes the account history without editing that chat.
+    for chat_id in [*ids, ids[0], foreign]:
+        psql(f"UPDATE directus_users SET last_opened = '{chat_id}' WHERE id = '{user}';")
+    psql(f"DELETE FROM chat_sync_changes WHERE scope = 'user:{_h(user)}';")
+    ranked = psql(f"""
+        SELECT chat_id FROM chat_sync_opened_chats WHERE user_scope = 'user:{_h(user)}'
+            AND chat_scope = 'personal:{_h(user)}'
+            ORDER BY revision DESC, chat_id LIMIT 11;
+    """)
+    assert ranked.splitlines() == [ids[0], *reversed(ids[3:])]

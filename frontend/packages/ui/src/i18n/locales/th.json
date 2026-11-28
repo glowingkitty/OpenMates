@@ -959,6 +959,12 @@
         "description": {
           "text": "อ่านดีไซน์ Figma และรับโครงสร้าง สไตล์ และข้อมูลส่งต่อโค้ด"
         }
+      },
+      "author": {
+        "text": "สร้างดีไซน์",
+        "description": {
+          "text": "สร้างใบปลิว โพสต์ หรือแบบจำลองที่แก้ไขได้"
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "สร้างงาน",
-          "description": {
-            "text": "สร้างงานพร้อมชื่อ คำอธิบาย และผู้รับผิดชอบ"
-          }
-        },
         "search": {
           "text": "ค้นหางาน",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "แชทตัวอย่าง"
       },
+      "sub_chat": {
+        "text": "แชตย่อย"
+      },
       "shared_chat": {
         "text": "แชทที่แชร์"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "แสดงเพิ่มเติม"
+      },
+      "account_total": {
+        "text": "{count} แชทในบัญชีของคุณ"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "ยุบ {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "งาน"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "ไดอะแกรม Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "กำลังอ่านกราฟิก…"
+        },
+        "progress_checking": {
+          "text": "กำลังตรวจสอบดีไซน์…"
+        },
+        "progress_adjusting": {
+          "text": "กำลังปรับดีไซน์สำหรับงานปัก…"
+        },
+        "progress_stitching": {
+          "text": "กำลังสร้างฝีเข็มและตัวอย่าง…"
+        },
+        "progress_saving": {
+          "text": "กำลังบันทึกไฟล์เครื่อง…"
+        },
         "threads": {
           "text": "ด้าย"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "ดาวน์โหลดดีไซน์"
+        },
+        "current_page": {
+          "text": "หน้าปัจจุบัน"
+        },
+        "all_pages": {
+          "text": "ทุกหน้า"
+        },
+        "image_unavailable": {
+          "text": "มีรูปภาพที่ไม่พร้อมใช้งานบนอุปกรณ์นี้ เปิดหน้าและรอให้รูปภาพโหลด แล้วลองอีกครั้ง"
+        },
+        "failed": {
+          "text": "ดาวน์โหลดดีไซน์ไม่ได้ โปรดลองอีกครั้ง"
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "ทดลองฟรี"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "ไม่อนุญาตโดเมนอีเมล"
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "การโทรใช้การถอดเสียง Mistral เสียง ElevenLabs v4 Turbo การเลือกเส้นทาง AI ตามปกติของ OpenMates และคิดค่าบริการตามการใช้งาน"
-    },
     "privacy_description": {
       "text": "Mistral ถอดเสียงจากไมโครโฟนของคุณ ส่วน ElevenLabs v4 Turbo สร้างเสียงผู้ช่วยจากข้อความตอบกลับและการตั้งค่าเสียง การสนทนาใช้การเลือกเส้นทาง AI และทักษะตามปกติของ OpenMates ผู้ให้บริการอาจเก็บข้อมูลคำขอตามนโยบายของตน"
     },

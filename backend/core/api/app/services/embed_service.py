@@ -11,6 +11,7 @@ import uuid
 import random
 import string
 import re
+from types import SimpleNamespace
 from typing import Dict, Any, Optional, List, Tuple, AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
@@ -35,6 +36,7 @@ from backend.shared.providers.e2b_application_preview import (
     ApplicationPreviewPlanningError,
     plan_application_preview_startup,
 )
+from backend.shared.python_utils.app_skill_output_safety import sanitize_connected_account_history_embed
 from backend.shared.python_utils.learning_mode import apply_learning_mode_cap_to_embed_result
 from backend.shared.python_utils.terminal_output_safety import (
     normalize_terminal_output,
@@ -48,6 +50,7 @@ from backend.apps.ai.utils.mindmap_fences import normalize_mindmap_source
 from backend.core.api.app.services.slides_embed_service import SlidesEmbedMixin
 from backend.apps.ai.utils.calendar_event_fences import normalize_calendar_event_source
 from backend.apps.ai.utils.json_content_fences import json_content_embed_type
+from backend.apps.ai.utils.sheet_formatting import SheetFormattingError, normalize_authored_sheet
 from backend.apps.ai.utils.app_skill_result_groups import sanitize_shopping_visual_evaluations
 from backend.shared.python_utils.chat_recovery_context import (
     RequiredRecoveryOutputError,
@@ -732,6 +735,7 @@ class EmbedService(SlidesEmbedMixin):
             "code": ("code", "code"),
             "sheet": ("sheets", "sheet"),
             "document": ("docs", "document"),
+            "design-document": ("design", "document"),
             "deck": ("slides", "deck"),
             "template": ("slides", "template"),
             "mail": ("mail", "email"),
@@ -740,6 +744,7 @@ class EmbedService(SlidesEmbedMixin):
             "diagram_html": ("diagrams", "html"),
             "mindmap": ("mindmaps", "mindmap"),
             "calendar_event": ("calendar", "event"),
+            "task": ("tasks", "task"),
             "authored_results": ("ai", "authored_results"),
         }
         return mapping.get(embed_type, (embed_type, embed_type))
@@ -806,6 +811,8 @@ class EmbedService(SlidesEmbedMixin):
             - skill_task_id: The unique skill task ID for cancellation
             None if creation fails
         """
+        if (app_id, skill_id) == ("design", "author"):
+            return None  # The skill delivers a validated direct Design embed.
         try:
             # Hash sensitive IDs for privacy protection
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
@@ -2104,6 +2111,7 @@ class EmbedService(SlidesEmbedMixin):
         log_prefix: str = "",
         embed_id: Optional[str] = None,
         project_source: Optional[Dict[str, Any]] = None,
+        expected_version_number: Optional[int] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create a finished generated-application parent embed for code file embeds.
 
@@ -2128,7 +2136,11 @@ class EmbedService(SlidesEmbedMixin):
                     logger.warning(f"{log_prefix} Application embed {embed_id} to re-publish is not cached")
                     return None
                 cached_embed = json.loads(cached_json.decode("utf-8") if isinstance(cached_json, bytes) else cached_json)
-                version_number = int(cached_embed.get("version_number") or 1) + 1
+                current_version = int(cached_embed.get("version_number") or 1)
+                if expected_version_number is not None and current_version != expected_version_number:
+                    logger.info("%s Application embed %s advanced during source revision", log_prefix, embed_id)
+                    return None
+                version_number = current_version + 1
             embed_id = embed_id or str(uuid.uuid4())
             child_embed_ids = [str(ref.get("embed_id")) for ref in file_refs if ref.get("embed_id")]
             embed_ref = self._generate_direct_embed_ref(
@@ -2397,6 +2409,7 @@ class EmbedService(SlidesEmbedMixin):
         user_vault_key_id: str,
         task_id: Optional[str] = None,
         log_prefix: str = "",
+        replace: Optional[tuple[str, int]] = None,
     ) -> Optional[Dict[str, Any]]:
         """Create child file embeds and one parent application embed from a structured artifact."""
         try:
@@ -2497,6 +2510,8 @@ class EmbedService(SlidesEmbedMixin):
             task_id=task_id,
             provenance="structured_artifact",
             log_prefix=log_prefix,
+            embed_id=replace[0] if replace else None,
+            expected_version_number=replace[1] if replace else None,
         )
 
     @staticmethod
@@ -2649,6 +2664,7 @@ class EmbedService(SlidesEmbedMixin):
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
         learning_mode_metadata: Optional[Dict[str, Any]] = None,
+        validation_error: Optional[str] = None,
         log_prefix: str = ""
     ) -> bool:
         """
@@ -2714,6 +2730,8 @@ class EmbedService(SlidesEmbedMixin):
             }
             if learning_mode_metadata:
                 updated_content.update(learning_mode_metadata)
+            if validation_error:
+                updated_content["validation"] = {"status": "error", "parse_error": validation_error}
 
             updated_toon = encode(updated_content)
 
@@ -3473,13 +3491,19 @@ class EmbedService(SlidesEmbedMixin):
             embed_type = json_content_embed_type(source_language)
             if embed_type is None:
                 raise ValueError("Unsupported JSON content fence")
+            if embed_type == "sheet":
+                return await self.create_table_embed_placeholder(
+                    chat_id=chat_id, message_id=message_id, user_id=user_id,
+                    user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
+                    task_id=task_id, title=title, log_prefix=log_prefix,
+                )
             app_id, skill_id = self._direct_embed_app_skill(embed_type)
             hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest()
             hashed_task_id = hashlib.sha256(task_id.encode()).hexdigest() if task_id else None
 
             embed_id = str(uuid.uuid4())
-            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results"}.get(embed_type, "Mind Map")
+            next_title = title or {"calendar_event": "Calendar event", "authored_results": "Results", "task": "Task"}.get(embed_type, "Mind Map")
             embed_ref = self._generate_direct_embed_ref(
                 embed_type,
                 embed_id,
@@ -3497,7 +3521,8 @@ class EmbedService(SlidesEmbedMixin):
                 "status": "processing",
                 **({"primary_event": None, "context_events": []} if embed_type == "calendar_event"
                    else {"items": [], "embed_ids": [], "view": {"mode": "auto", "embeds": []}}
-                   if embed_type == "authored_results" else {"node_count": 0, "edge_count": 0}),
+                   if embed_type == "authored_results" else {"task_source": ""} if embed_type == "task"
+                   else {"node_count": 0, "edge_count": 0}),
                 "validation": {"status": "processing", "warnings": []},
                 "version_number": 1,
             }
@@ -3574,6 +3599,7 @@ class EmbedService(SlidesEmbedMixin):
         version_number: Optional[int] = None,
         content_hash: Optional[str] = None,
         version_history_rows: Optional[List[Dict[str, Any]]] = None,
+        task_content: Optional[Dict[str, Any]] = None,
         log_prefix: str = "",
     ) -> bool:
         """Normalize a JSON artifact and retain the established encrypted lifecycle."""
@@ -3581,6 +3607,28 @@ class EmbedService(SlidesEmbedMixin):
             embed_type = json_content_embed_type(source_language)
             if embed_type is None:
                 raise ValueError("Unsupported JSON content fence")
+            if embed_type == "sheet":
+                if status == "processing":
+                    return True
+                table, rows, columns, validation_error = "", 0, 0, None
+                if status == "finished":
+                    try:
+                        title, table, rows, columns = normalize_authored_sheet(source_json)
+                    except SheetFormattingError as exc:
+                        validation_error = str(exc)
+                        status = "error"
+                        logger.warning(
+                            "%s Rejected formatted sheet %s during validation: %s",
+                            log_prefix, embed_id, validation_error,
+                        )
+                return await self.update_table_embed_content(
+                    embed_id=embed_id, table_content=table, chat_id=chat_id,
+                    user_id=user_id, user_id_hash=user_id_hash, user_vault_key_id=user_vault_key_id,
+                    status=status, title=title, row_count=rows, col_count=columns,
+                    version_number=version_number, content_hash=content_hash,
+                    version_history_rows=version_history_rows, validation_error=validation_error,
+                    log_prefix=log_prefix,
+                )
             if embed_type == "authored_results":
                 from backend.core.api.app.services.authored_result_service import update_authored_results_embed
                 return await update_authored_results_embed(
@@ -3607,11 +3655,21 @@ class EmbedService(SlidesEmbedMixin):
                 except Exception as e:
                     logger.warning(f"{log_prefix} Failed to decode existing JSON content: {e}")
 
-            normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
-                          else normalize_mindmap_source(source_json))
+            if embed_type == "task":
+                # Task fields are validated by the caller (task_fences); the embed only stores them.
+                task_fields = task_content or {}
+                task_validation = task_fields.get("validation") or {"status": "processing", "warnings": []}
+                normalized = SimpleNamespace(
+                    source_json=source_json, title=task_fields.get("title") or "", model=None,
+                    status=task_validation.get("status"), warnings=task_validation.get("warnings", []),
+                    parse_error=None, node_count=0, edge_count=0,
+                )
+            else:
+                normalized = (normalize_calendar_event_source(source_json) if embed_type == "calendar_event"
+                              else normalize_mindmap_source(source_json))
             if embed_type == "calendar_event" and status == "finished" and normalized.model is None:
                 status = "error"
-            next_title = title or normalized.title or existing_content.get("title") or "Mind Map"
+            next_title = title or normalized.title or existing_content.get("title") or ("Task" if embed_type == "task" else "Mind Map")
             next_version_number = version_number or int(cached_embed.get("version_number") or existing_content.get("version_number") or 1)
             next_content_hash = content_hash
             if next_content_hash is None and status == "finished":
@@ -3621,6 +3679,7 @@ class EmbedService(SlidesEmbedMixin):
                 {"primary_event": (normalized.model or {}).get("primary_event"),
                  "context_events": (normalized.model or {}).get("context_events", [])}
                 if embed_type == "calendar_event"
+                else {**(task_content or {}), "task_source": normalized.source_json} if embed_type == "task"
                 else {"node_count": normalized.node_count, "edge_count": normalized.edge_count}
             )
             updated_content = {
@@ -3638,13 +3697,18 @@ class EmbedService(SlidesEmbedMixin):
                 ),
                 "status": status,
                 **artifact_fields,
-                "validation": {
-                    "status": normalized.status,
-                    "warnings": normalized.warnings,
-                    "parse_error": normalized.parse_error,
-                },
+                "validation": (
+                    task_validation if embed_type == "task" else {
+                        "status": normalized.status,
+                        "warnings": normalized.warnings,
+                        "parse_error": normalized.parse_error,
+                    }
+                ),
                 "version_number": next_version_number,
             }
+            if embed_type == "task":
+                updated_content.pop("source_json", None)
+                updated_content.pop("model", None)
             updated_toon = encode(updated_content)
             encrypted_content, _ = await self.encryption_service.encrypt_with_user_key(
                 updated_toon,
@@ -4677,6 +4741,8 @@ class EmbedService(SlidesEmbedMixin):
     def _filter_toon_for_llm(
         self, toon_content: str, embed_id: str, log_prefix: str = "",
         seen_embed_refs: Optional[Dict[str, int]] = None,
+        *,
+        decoded: Optional[dict[str, Any]] = None,
     ) -> Tuple[str, Optional[str]]:
         """
         Filter a TOON-encoded embed content string for LLM consumption.
@@ -4722,7 +4788,8 @@ class EmbedService(SlidesEmbedMixin):
                 an embed_ref (passes through unchanged).
         """
         try:
-            decoded = decode(toon_content)
+            if decoded is None:
+                decoded = decode(toon_content)
             if not isinstance(decoded, dict):
                 # Non-dict TOON (unusual) — return as-is, no embed_ref
                 return toon_content, None
@@ -5358,6 +5425,29 @@ class EmbedService(SlidesEmbedMixin):
         # Second occurrence gets suffix " (2)", third " (3)", etc.
         return f"{raw_ref} ({count + 1})"
 
+    async def _filter_history_embed_for_llm(
+        self, toon_content: str, embed_id: str, log_prefix: str, seen_embed_refs: dict[str, int],
+    ) -> tuple[str, str | None, dict[str, Any] | None]:
+        """Protect decrypted app results before they are inserted into model history."""
+        try:
+            decoded = decode(toon_content)
+        except (TypeError, ValueError):
+            decoded = None
+        if isinstance(decoded, dict):
+            screened = await sanitize_connected_account_history_embed(
+                decoded, cache_service=self.cache_service,
+            )
+            if screened is not decoded:
+                toon_content = encode(screened)
+                decoded = screened
+        else:
+            decoded = None
+
+        filtered, embed_ref = self._filter_toon_for_llm(
+            toon_content, embed_id, log_prefix, seen_embed_refs, decoded=decoded,
+        )
+        return filtered, embed_ref, decoded
+
     async def resolve_embed_references_in_content(
         self,
         content: str,
@@ -5490,8 +5580,8 @@ class EmbedService(SlidesEmbedMixin):
                 # Filter the TOON content before showing to the LLM.
                 # Strips crypto/infra fields; injects embed_ref (human-readable filepath
                 # or filename) for image/audio embeds instead of the raw UUID embed_id.
-                filtered_toon, embed_ref = self._filter_toon_for_llm(
-                    toon_content, embed_id, log_prefix, seen_embed_refs
+                filtered_toon, embed_ref, decoded_for_type = await self._filter_history_embed_for_llm(
+                    toon_content, embed_id, log_prefix, seen_embed_refs,
                 )
 
                 # If an embed_ref was assigned, record it in the file_path_index so
@@ -5505,14 +5595,13 @@ class EmbedService(SlidesEmbedMixin):
                 resolved_text = f"```toon\n{filtered_toon}\n```"
 
                 try:
-                    decoded_for_type = decode(toon_content)
                     if isinstance(decoded_for_type, dict) and decoded_for_type.get("type") == "authored_results":
                         from backend.core.api.app.services.authored_result_service import authored_children_for_context
                         children = await authored_children_for_context(
                             self, embed_id, user_vault_key_id=user_vault_key_id, log_prefix=log_prefix,
                         )
                         for child_id, child_toon in children:
-                            child_filtered, child_ref = self._filter_toon_for_llm(
+                            child_filtered, child_ref, _ = await self._filter_history_embed_for_llm(
                                 child_toon, child_id, log_prefix, seen_embed_refs,
                             )
                             if child_ref:

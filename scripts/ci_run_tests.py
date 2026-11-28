@@ -36,6 +36,10 @@ from ci_voice_recovery_epoch import (
     activate_isolated_authored_media_recovery_epoch,
     activate_isolated_voice_recovery_epoch,
 )
+from ci_real_inference_recovery_epoch import (
+    REAL_INFERENCE_RECOVERY_SPECS,
+    activate_real_inference_recovery,
+)
 from ci_web_performance import (
     PERFORMANCE_SPECS,
     collect as collect_web_performance,
@@ -45,12 +49,14 @@ from ci_web_search_diagnostics import capture_scope as web_search_capture_scope
 
 from ci_environment import (
     COMPOSE_PATH,
+    PROVIDER_KEY_ALIASES,
     SOURCE,
     browser_account_count,
     browser_account_slots,
     compose,
     require_runner,
     has_team_storage_billing_schema,
+    scoped_codex_run,
 )
 
 try:
@@ -2544,6 +2550,8 @@ def run_e2e(
                 if name == "rust-core-first-session.spec.ts":
                     env["OPENMATES_RUST_FIRST_SESSION_PROVIDER"] = "1"
                 env["PLAYWRIGHT_TEST_API_URL"] = API
+                if name == "real-inference-web-voice-processing.spec.ts" and os.environ.get("CI_CODEX_WEB_VOICE") == "1":
+                    env["OPENMATES_CI_REAL_WEB_VOICE"] = "1"
                 recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())
@@ -2657,6 +2665,10 @@ def run_e2e(
                                 )
                             )
                         recovery_epoch_receipt = authored_media_epoch_receipt
+                    if name in REAL_INFERENCE_RECOVERY_SPECS:
+                        recovery_epoch_receipt = activate_real_inference_recovery(
+                            name, compose_path=COMPOSE_PATH, require_runner=require_runner, compose=compose,
+                        )
                     env.update(primary)
                     if name in BILLING_STORAGE_PROFILES:
                         billing_env, billing_paths = prepare_storage_billing_fixture(
@@ -2765,6 +2777,10 @@ def run_e2e(
                                 cwd=WEB,
                                 env=env,
                                 timeout=1200,
+                                **(
+                                    {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+                                    if scoped_codex_run() else {}
+                                ),
                             )
                         )
                 finally:
@@ -2790,6 +2806,8 @@ def run_e2e(
                     json.loads(report_path.read_text()) if report_path.is_file() else {}
                 )
                 stats = report.get("stats", {})
+                if scoped_codex_run():
+                    stats = scoped_playwright_stats(stats)
                 executed = (
                     int(stats.get("expected", 0))
                     + int(stats.get("unexpected", 0))
@@ -2862,7 +2880,10 @@ def run_e2e(
                         "exit_code": result.returncode if selected_case_complete else 1,
                         "coverage_complete": selected_case_complete,
                         "case_title": case_title,
-                        "reported_case_title": reported_case_title,
+                        "reported_case_title": (
+                            None if scoped_codex_run() and reported_case_title != case_title
+                            else reported_case_title
+                        ),
                         "coverage_scope": "single-case" if case_title else "full-spec",
                         "stats": stats,
                         "error": (
@@ -3017,8 +3038,23 @@ def run_e2e(
     return results
 
 
+def scoped_playwright_stats(stats):
+    """Keep only bounded counts from the candidate's Playwright report."""
+    counts = {}
+    for name in ("expected", "unexpected", "flaky", "skipped"):
+        count = stats.get(name, 0) if isinstance(stats, dict) else None
+        if type(count) is not int or not 0 <= count <= 1000:
+            raise RuntimeError("Invalid scoped Playwright statistics")
+        counts[name] = count
+    return counts
+
+
 def capture_failed_spec_diagnostics(index):
     """Keep the failure's server evidence before the next fresh login replaces it."""
+    # The scoped lane has one spec. The immutable cleanup runner collects
+    # finite status after it, without reading raw service logs.
+    if scoped_codex_run():
+        return
     env = {**os.environ, "CI_DIAGNOSTIC_LABEL": f"spec-{index}"}
     result = subprocess.run(
         [sys.executable, str(Path(__file__).with_name("ci_environment.py")), "logs"],
@@ -4340,6 +4376,9 @@ def pytest_failures(report_path: Path) -> list[str]:
 
 
 def main():
+    if scoped_codex_run():
+        for alias in PROVIDER_KEY_ALIASES:
+            os.environ.pop(alias, None)
     require_runner()
     RESULTS.mkdir(exist_ok=True)
     mode = os.environ["CI_TEST_MODE"]
@@ -4601,7 +4640,7 @@ def main():
         else:
             raise ValueError("Unknown test mode")
     except Exception as exc:
-        error = str(exc)
+        error = "Scoped CI test execution failed" if scoped_codex_run() else str(exc)
     payload = {
         "source_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True

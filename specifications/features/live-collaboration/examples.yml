@@ -1,6 +1,68 @@
 schema_version: 1
 specification: feature.live-collaboration@1
 
+assistant_live:
+  - id: assistant-rewrites-while-user-watches
+    given: Alice has the document "Launch plan" open and asks the assistant to rewrite the three paragraphs of the introduction.
+    when: The assistant writes its edit.
+    then: Alice sees the first paragraph change, then the second, then the third, in place in the open document, without a reload or a diff card. One undo brings back all three original paragraphs, and the timeline has one new version "Edited by the assistant".
+  - id: user-keeps-typing-during-assistant-edit
+    given: Alice asked the assistant to add a "Risks" section at the end of a document and keeps typing in the summary at the top.
+    when: The assistant's section arrives while she types.
+    then: The new section appears at the end, and every word Alice typed in the summary is still there.
+
+assistant:
+  - id: assistant-edit-while-others-type
+    given: Alice and Bob have a deck open; Alice asks the assistant to shorten slide 5 while Bob is editing slide 2.
+    when: The assistant's edit arrives.
+    then: Slide 5 changes for both, Bob's unfinished text on slide 2 is untouched, Alice can undo the assistant's edit with one undo, and the timeline has one new version.
+  - id: requester-goes-offline
+    given: Alice asks the assistant to fix a formula column in a sheet and closes her laptop before the answer is finished.
+    when: Alice opens the app on her phone ten minutes later.
+    then: The assistant's change is applied to the sheet then, on top of whatever others changed meanwhile, and appears for everyone who has the sheet open.
+
+assistant_conflicts:
+  - id: same-spot-changed
+    given: The assistant is rewriting the paragraph "Budget" in a document while Bob rewrites the first sentence of that same paragraph.
+    when: The assistant's edit arrives after Bob's change.
+    then: Bob's sentence stays. The assistant reads the paragraph again and writes its edit once more; when Bob changes the paragraph again before it lands, the assistant's version is shown as a suggestion card that Alice or Bob can apply or dismiss.
+  - id: section-deleted
+    given: The assistant is asked to shorten the section "Appendix" and Bob deletes that section while the assistant writes.
+    when: The assistant's edit arrives.
+    then: Nothing is added back, the section stays deleted, and the assistant says in the chat that the section was removed before its edit could be applied.
+  - id: sheet-cell-changed
+    given: The assistant recalculates column D of a sheet and Bob changed D4 by hand after the assistant read the sheet.
+    when: The assistant's edit arrives.
+    then: All other cells of column D change; D4 keeps Bob's value and shows the assistant's value as a suggestion.
+  - id: formula-to-deleted-row
+    given: A cell holds "=SUM(B2:B9)" and Bob deletes rows 2 to 9 while the assistant edits the sheet.
+    when: Both changes are merged.
+    then: The cell shows an error instead of a wrong number, the same on every device.
+  - id: editing-here
+    given: Alice asked the assistant to rewrite slide 4 of a deck that Bob also has open.
+    when: The assistant starts writing.
+    then: Bob sees "Mate is editing here" on slide 4 until the edit is finished.
+  - id: two-assistants
+    given: Alice and Bob each ask their assistant to edit the same document at the same time.
+    when: Both assistants write.
+    then: The second edit waits until the first one is finished and is then merged; both appear as their own entries in the timeline.
+
+devices:
+  - id: laptop-and-phone
+    given: Alice has the sheet "Budget 2027" open on her laptop and on her phone.
+    when: She changes cell C7 to 4,500 on the phone.
+    then: Within about a second the laptop shows 4,500 in C7 and the totals that depend on it.
+
+saving:
+  - id: no-save-step
+    given: Alice edits a code file in a hosted Project and closes the tab a few seconds after typing her last line.
+    when: She opens the file again on another device.
+    then: Her last line is there. She never pressed Save, and while she typed the header showed "Saved" a moment after each pause.
+  - id: waiting-for-connection
+    given: Alice's connection drops while she edits a document.
+    when: She keeps typing.
+    then: The header shows that changes are waiting for a connection, and it shows "Saved" again once the connection is back and the changes are stored.
+
 sync:
   - id: two-people-one-document
     given: Alice and Bob, members of the same Team, both have the document "Launch plan" open in edit mode.
@@ -25,35 +87,81 @@ privacy:
   - id: server-sees-only-ciphertext
     given: Alice types "Confidential price list" into a shared document.
     when: An operator inspects what the server received and stored for that item.
-    then: The words are not present; only encrypted change records and their sizes and times are.
+    then: The words are not present; only encrypted change records with their sizes, times and senders are.
 
 access:
-  - id: share-link-viewer-cannot-edit
-    given: Dave opened a shared deck through a view-only link while Alice edits it.
-    when: Dave's client sends a change.
-    then: The change is refused and the deck is unchanged for everyone.
+  - id: viewer-cannot-edit
+    given: Dave is a Project member with the view role while Alice edits a sheet in that Project.
+    when: Dave's client sends a change to cell A1.
+    then: The change is refused, Dave's app shows that he can only view, and the sheet is unchanged for everyone.
   - id: removed-member
     given: Bob has a Team document open when an admin removes him from the Team.
     when: Alice continues typing.
     then: Bob's view stops receiving Alice's changes and shows that he no longer has access; changes he tries to send are refused.
 
+keys:
+  - id: new-key-after-removal
+    given: An admin removes Bob from the Team "Studio North"; Bob still has an old copy of the Team document "Pricing" on his laptop.
+    when: Alice adds a new paragraph to "Pricing" the next day.
+    then: The new paragraph is encrypted with a key Bob never received, so even with the stored ciphertext he cannot read it. The removal dialog told the admin that Bob keeps what he had already seen.
+
 offline:
   - id: edits-on-a-train
     given: Alice loses her connection and adds two paragraphs to a document, while Bob changes the title online.
     when: Alice's device reconnects.
-    then: Both see Bob's title and Alice's two paragraphs.
-
-assistant:
-  - id: assistant-edit-while-others-type
-    given: Alice and Bob have a deck open; Alice asks the assistant to shorten slide 5 while Bob is editing slide 2.
-    when: The assistant's edit arrives.
-    then: Slide 5 changes for both at once, Bob's unfinished text on slide 2 is untouched, Alice can undo the assistant's edit with one undo, and the timeline has one new version.
+    then: Both see Bob's title and Alice's two paragraphs, and Alice sees a short note that her offline changes were merged.
+  - id: access-lost-while-offline
+    given: Alice edits a Team sheet offline, and meanwhile an admin removes her from the Team.
+    when: Alice's device reconnects.
+    then: Her offline changes are not sent, she is told she no longer has access, and she is offered to keep them as a private copy.
 
 versions:
-  - id: restore-for-everyone
-    given: A shared sheet has versions from Monday by Alice and from Tuesday by Bob and Carol.
-    when: Alice restores Monday's version while Bob has the sheet open.
-    then: Bob's sheet changes to Monday's content at once, and the timeline shows a new version "restored by Alice" after Tuesday's.
+  - id: session-versions
+    given: Alice edits a document for twenty minutes with Bob, pauses for ten minutes, then edits again alone.
+    when: She opens the timeline.
+    then: She sees two versions, not one per keystroke; the first lists Alice and Bob as contributors and the second only Alice.
+  - id: named-version
+    given: Alice has finished a draft of "Launch plan".
+    when: She names the current version "Sent to board".
+    then: The timeline shows "Sent to board", and it is kept when small versions are merged later.
+  - id: assistant-entry
+    given: Alice asks the assistant to fix the spelling of a document.
+    when: The edit is finished.
+    then: The timeline has one entry "Edited by the assistant" for it, and one undo removes the whole edit.
+  - id: restore-while-others-type
+    given: A shared sheet has versions from Monday by Alice and from Tuesday by Bob and Carol, and Bob is typing in it.
+    when: Alice restores Monday's version.
+    then: Bob's sheet changes to Monday's content at once, nothing is deleted, and the timeline shows a new version "restored by Alice" after Tuesday's.
+  - id: commit-points-at-versions
+    given: Alice and Bob edited two code files in a hosted Project during the afternoon.
+    when: Alice makes a Project commit "Add login form".
+    then: The commit lists both files, and opening the commit shows each file exactly as it was at that moment, even though Bob kept typing afterwards.
+
+code:
+  - id: two-developers-one-file
+    given: Alice and Bob have the hosted Project file "src/app.ts" open.
+    when: Alice edits the function at line 10 while Bob adds an import at line 1.
+    then: Both see both changes, Alice's cursor stays on her line although the lines below the import moved down by one, and Bob sees Alice's cursor in her colour.
+  - id: sandbox-merge
+    given: The assistant changes "src/app.ts" in its sandbox while Bob edits line 40 of the live file, and the assistant also changed line 40.
+    when: The assistant writes its changes back.
+    then: Its other changes are merged into the live file, line 40 keeps Bob's text with the assistant's line shown as a proposal, and the Project's tests run again.
+  - id: machine-file-read-only
+    given: A Project is connected to a Git repository on Alice's computer.
+    when: Bob opens "README.md" from that repository in the Project.
+    then: The file opens read-only with a note that it is edited on Alice's computer.
+
+
+
+
+
+
+
+share_view_only:
+  - id: link-stays-view-only
+    given: Alice shares a document through a share link with Erin, who is not in the Team.
+    when: Erin opens the link while Alice is typing.
+    then: Erin can read the document but sees no Edit button, and a change sent from her client is refused.
 
 core:
   - id: moving-a-slide-element
@@ -61,6 +169,6 @@ core:
     when: She releases the mouse.
     then: While dragging, the chart follows the pointer on her screen only. On release the web app sends one "move element" operation to the client core; the core changes the deck, saves and syncs it, and Bob sees the chart at the new position. No web code decided how the move merges with Bob's simultaneous resize of the same chart.
   - id: same-rules-on-every-client
-    given: The web app keeps a mirror for typing in a document, and a client that calls the core directly has none.
+    given: The web app keeps a mirror for typing in a document, and the CLI calls the core directly.
     when: The same assistant edit, the same undo and the same simultaneous edits by two members are applied on both clients.
     then: Both end with identical content, because the result is computed by the same core code on each; the mirror on web only passed change bytes between the editor and the core.

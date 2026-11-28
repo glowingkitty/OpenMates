@@ -20,7 +20,7 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
   import type { MessageHighlight } from '../types/chat';
-  import { findAnchorInRendered } from '../utils/messageHighlights';
+  import { EMBED_SKIP_SELECTOR, findAnchorInRendered } from '../utils/messageHighlights';
 
   interface Props {
     /** The element whose text nodes host the rendered message body. */
@@ -55,7 +55,6 @@
   const MARK_COMMENT_CLASS = 'has-comment';
   const MARK_FOCUSED_CLASS = 'focused';
   const MARK_LAST_CLASS = 'last-mark';
-  const EMBED_SKIP_SELECTOR = '.embed-full-width-wrapper';
 
   function isInsideEmbed(node: Node): boolean {
     const el = (node as Text).parentElement;
@@ -283,7 +282,7 @@
      the color token and interactions apply wherever they land (prose
      paragraphs, list items, quoted spans, etc.). */
   :global(mark.message-highlight-mark) {
-    background: var(--color-highlight-yellow, rgba(255, 213, 0, 0.4));
+    background: var(--color-highlight-yellow);
     /* Override the global mark rule in fonts.css which sets
        background-clip:text + -webkit-text-fill-color:transparent
        (gradient text trick for the brand logo). Without this reset
@@ -297,10 +296,10 @@
     transition: background var(--duration-fast, 150ms) var(--easing-default, ease);
   }
   :global(mark.message-highlight-mark.hovered) {
-    background: var(--color-highlight-yellow-solid, #ffd500);
+    background: var(--color-highlight-yellow-solid);
   }
   :global(mark.message-highlight-mark.focused) {
-    background: rgba(255, 213, 0, 0.65);
+    background: color-mix(in srgb, var(--color-highlight-yellow-solid) 65%, transparent);
   }
   /* Comment indicator — a small 💬 chip pinned to the trailing edge of the
      last mark for a highlight. The `last-mark` class is added only to the
@@ -308,7 +307,7 @@
      once even when the highlight spans multiple formatted elements. */
   :global(mark.message-highlight-mark.has-comment.last-mark::after) {
     content: '💬';
-    font-size: 10px;
+    font-size: var(--font-size-tiny);
     margin-left: 2px;
     vertical-align: super;
   }

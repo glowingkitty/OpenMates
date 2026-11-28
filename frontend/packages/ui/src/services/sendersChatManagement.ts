@@ -8,6 +8,7 @@
  * Split from chatSyncServiceSenders.ts for maintainability (Phase 04, Plan 01).
  * See docs/architecture/ for the encryption and sync architecture.
  */
+import { getActiveTeamContextSnapshot, isActiveTeamContext, type TeamContextSnapshot } from "../stores/teamStore";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
@@ -16,7 +17,7 @@ import { get } from "svelte/store";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
-import { getApiEndpoint, storageArchiveFetch } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch, usesOpenedChatStartup } from "../config/api";
 import type {
 	ChatComponentVersions,
 	UpdateTitlePayload,
@@ -311,7 +312,8 @@ export async function sendUpdateChatKeyImpl(
 
 export async function sendSetActiveChatImpl(
 	serviceInstance: ChatSynchronizationService,
-	chatId: string | null
+	chatId: string | null,
+	openedIn?: TeamContextSnapshot
 ): Promise<void> {
 	// Skip all IndexedDB and WebSocket operations for unauthenticated users.
 	// Demo chats don't need last_opened tracking or server sync.
@@ -338,6 +340,20 @@ export async function sendSetActiveChatImpl(
 		}
 	}
 
+	const usingOpenedHistory = usesOpenedChatStartup();
+	const context = openedIn ?? getActiveTeamContextSnapshot();
+	const isNavigationPath = chatId === "/chat/new" || chatId?.startsWith("/signup/") || chatId?.startsWith("#signup/");
+	if (openedIn && !isActiveTeamContext(openedIn.teamId, openedIn.epoch)) return;
+	if (usingOpenedHistory && openedIn && chatId && !isNavigationPath) {
+		const { recordOpenedChat } = await import("./rustCore/startupOpenedChats");
+		if (!isActiveTeamContext(openedIn.teamId, openedIn.epoch)) return;
+		// Presence on this tab and a genuine cross-device open have separate lifetimes.
+		// Recording is independent of socket availability and does not delay navigation.
+		void recordOpenedChat(chatId, openedIn.teamId).catch(() => {
+			console.warn("[ChatSyncService] Could not record the selected saved chat.");
+		});
+	}
+
 	// CRITICAL: Update IndexedDB immediately when switching chats (but NOT for new chat window).
 	// This ensures tab reload uses the correct last_opened chat (from IndexedDB, not server).
 	// The server update happens via WebSocket, but IndexedDB update is immediate for better UX.
@@ -347,7 +363,7 @@ export async function sendSetActiveChatImpl(
 	// always shows the last chat with actual content, not a blank new chat screen.
 	// Signup paths (e.g. '/signup/one_time_codes') and '/chat/new' (signup completion) are passed
 	// as explicit string values, not null, so they still get stored correctly.
-	if (chatId !== null) {
+	if (chatId !== null && (!usingOpenedHistory || openedIn || isNavigationPath)) {
 		try {
 			// Import userDB and updateProfile dynamically to avoid circular dependencies
 			const { userDB } = await import("../services/userDB");
@@ -378,13 +394,14 @@ export async function sendSetActiveChatImpl(
 
 	// Send to server via WebSocket (for cross-device sync and login scenarios)
 	// Note: Server handles null chatId by not updating last_opened (per backend logic)
+	if (!isActiveTeamContext(context.teamId, context.epoch)) return;
 	if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
 		console.warn(
 			"[ChatSyncService:Senders] WebSocket not connected. Cannot send 'set_active_chat'."
 		);
 		return;
 	}
-	const payload: SetActiveChatPayload = { chat_id: chatId };
+	const payload: SetActiveChatPayload = { chat_id: chatId, ...(context.teamId ? { team_id: context.teamId } : {}) };
 	try {
 		await webSocketService.sendMessage("set_active_chat", payload);
 		console.debug(`[ChatSyncService:Senders] Sent 'set_active_chat' to server: ${chatId}`);

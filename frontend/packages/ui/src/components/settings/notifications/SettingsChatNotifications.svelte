@@ -151,7 +151,7 @@ Native Swift counterparts:
      * goes to the server (PATCH merges it); the content itself is sealed to the
      * device later. Native apps read the same profile preference.
      */
-    async function savePushContentPreference(key: 'includeChatTitle' | 'includePreview'): Promise<void> {
+    async function savePushContentPreference(key: 'includeChatTitle' | 'includeAnswerText'): Promise<void> {
         const previous = preferences[key];
         pushNotificationStore.togglePreference(key);
         try {
@@ -175,7 +175,7 @@ Native Swift counterparts:
 
     /** First lines of the answer in the notification (default off). */
     function handleTogglePreview(): Promise<void> {
-        return savePushContentPreference('includePreview');
+        return savePushContentPreference('includeAnswerText');
     }
 
     /**
@@ -493,7 +493,7 @@ Native Swift counterparts:
         data-testid="push-notifications-include-preview"
         subtitleTop={$text('settings.chat.notifications.push_include_preview_desc')}
         hasToggle={true}
-        checked={preferences.includePreview}
+        checked={preferences.includeAnswerText}
         onClick={handleTogglePreview}
     />
 

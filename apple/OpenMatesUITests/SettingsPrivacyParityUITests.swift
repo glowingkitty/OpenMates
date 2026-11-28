@@ -6,6 +6,11 @@
 
 import XCTest
 
+private enum AppStringsUITestLabels {
+    /// settings.app_store.connected_accounts.card.disconnect_confirm_button (en)
+    static let disconnectConfirm = "Yes, disconnect"
+}
+
 @MainActor
 final class SettingsPrivacyParityUITests: XCTestCase {
     override func setUpWithError() throws {
@@ -29,6 +34,15 @@ final class SettingsPrivacyParityUITests: XCTestCase {
 
         element("settings-privacy-connected-accounts-row", in: app).tap()
         XCTAssertTrue(element("privacy-connected-account-row", in: app).waitForExistence(timeout: 5))
+        assertHittable("privacy-connected-account-connect-google", in: app)
+        assertHittable("privacy-connected-account-connect-figma", in: app)  // figma-visual-proof: not-required (OAuth provider, not a design)
+        scrollTo("privacy-connected-account-disconnect", in: app)
+        assertHittable("privacy-connected-account-disconnect", in: app)
+        element("privacy-connected-account-disconnect", in: app).tap()
+        let confirm = app.buttons[AppStringsUITestLabels.disconnectConfirm]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        XCTAssertTrue(element("privacy-connected-accounts-success", in: app).waitForExistence(timeout: 5))
         returnToPrivacyHub(in: app)
 
         scrollTo("settings-privacy-auto-delete-chats-row", in: app)

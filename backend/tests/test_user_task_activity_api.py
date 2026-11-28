@@ -139,6 +139,37 @@ async def test_create_activity_persists_only_ciphertext_with_personal_or_team_ta
     assert "raw_embed_key" not in record
 
 
+# contract-test: direct surface=rest_api assertions=tasks.activity.updates-task-time
+@pytest.mark.asyncio
+async def test_new_activity_moves_task_updated_at_without_bumping_version() -> None:
+    task_row = {"id": "task-row-1", "task_id": "task-1", "updated_at": 100, "version": 7}
+    directus = SimpleNamespace(
+        get_items=AsyncMock(side_effect=[[], [task_row]]),
+        create_item=AsyncMock(return_value=(True, {"id": "row-1", **activity_payload()})),
+        update_item=AsyncMock(return_value={**task_row, "updated_at": 200}),
+    )
+    methods = UserTaskMethods(directus)
+
+    await methods.create_task_activity("user-1", "task-1", activity_payload(), source_surface="cli")
+
+    collection, row_id, patch = directus.update_item.await_args.args
+    assert (collection, row_id) == ("user_tasks", "task-row-1")
+    assert set(patch) == {"updated_at"}
+    assert patch["updated_at"] > 100
+
+
+# contract-test: direct surface=rest_api assertions=tasks.activity.updates-task-time
+@pytest.mark.asyncio
+async def test_activity_retry_does_not_move_task_updated_at() -> None:
+    existing = {"id": "row-1", **activity_payload()}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[existing]), create_item=AsyncMock(), update_item=AsyncMock())
+    methods = UserTaskMethods(directus)
+
+    await methods.create_task_activity("user-1", "task-1", activity_payload(), source_surface="cli")
+
+    directus.update_item.assert_not_awaited()
+
+
 # contract-test: direct surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.single-final-section
 @pytest.mark.asyncio
 async def test_activity_create_is_idempotent_and_list_order_is_created_at_then_entry_id() -> None:

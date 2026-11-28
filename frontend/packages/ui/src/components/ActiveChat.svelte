@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { openGuestAccountEntry } from '../utils/guestAccountEntry';
     import { vibrateDevice } from '../services/eventSounds';
     import { markFirstSendStopped, isDraftChatClaimedForSend } from "../services/drafts/draftSendClaims";
     import { authoredResultMetadata } from '../utils/authoredResultPresentation';
@@ -6,6 +7,7 @@ import { storageArchiveFetch } from "../config/api";
 import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
     import HeaderActionMenu from './HeaderActionMenu.svelte';
+    import WorkspaceReportIssueButton from './workspace/WorkspaceReportIssueButton.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
     import { recordingState } from './enter_message/recordingStore';
@@ -13,7 +15,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
-    import SubChatWorkLink from './chats/SubChatWorkLink.svelte';
+    import SubChatOrigin from './chats/SubChatOrigin.svelte';
     import { loadSubChatWork, type SubChatWork } from './chats/subChatWork';
     import ChatTimelineToggle from './ChatTimelineToggle.svelte';
     import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
@@ -52,7 +54,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     import { chatNavigationReader } from '../services/chatNavigationReader';
     import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { fetchAuthenticatedChatMessageWindow } from '../services/authenticatedChatMessageWindow';
-    import { readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { reportOpenedChatFrame } from '../services/rustCore/startupOpenedChats';
+    import { canPreparePersonalLatestHistory, preparePersonalLatestHistory, readRustChatHistoryPage, readRustChatHistoryWindow } from '../services/rustCore/activeChatRustHistory';
+    import { getWorkspaceCacheIdentity } from '../services/workspaceQueryCache';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { VisibleMessageReceipts } from '../services/visibleMessageReceipts';
     import { recordRecentReplayDiagnostic, getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
@@ -382,6 +386,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         hasMeaningfulDraftForChat: (chatId: string) => boolean;
         hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+        allowGuestMediaStart: () => Promise<boolean>;
         stopRecordingForVoiceCall: () => void;
     };
 
@@ -775,6 +780,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     };
 
     type AiMessageChunkPayload = {
+        independent_reply?: boolean;
         sequence: number;
         chat_id: string;
         message_id: string;
@@ -782,6 +788,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         created_at?: number;
         full_content_so_far?: string | null;
         is_final_chunk?: boolean;
+        awaiting_async_skill_continuation?: boolean;
         category?: string;
         model_name?: string;
         rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates system message, not AI response
@@ -1110,6 +1117,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // the $effect that closes loginInterfaceOpen and transitions to the chat editor.
         // Wrapped in its own try-catch to guarantee execution even if the import above failed.
         console.debug("[ActiveChat] [2/3] Calling setAuthenticatedState");
+        if (user?.id) userProfile.update(profile => ({ ...profile, user_id: user.id }));
         try {
             const { setAuthenticatedState } = await import('../stores/authSessionActions');
             setAuthenticatedState();
@@ -2607,7 +2615,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         dismissedFollowUpSuggestionsKey = followUpSuggestionsKey;
 
         if (!$authStore.isAuthenticated && currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -3639,7 +3647,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Always read from IndexedDB — chatListCache is designed for sidebar
             // (Chats.svelte) remount performance, not the welcome screen. Using
             // the cache here causes stale sort order when returning from a chat.
-            let chats: Chat[] = await chatDB.getAllChats();
+            const chats = await chatDB.getAllChats(undefined, { limit: 100, teamId: contextTeamId, rootsOnly: true });
             const filteredChats = chats.filter((c) =>
                 !isPublicChat(c.chat_id) &&
                 !c.parent_id &&
@@ -5135,9 +5143,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         anonymousFileAttachmentPending = false;
         liveInputText = '';
         suggestionsWouldOverlapWelcome = false;
-        void assistantSpeechController.stop().catch((error) => {
-            console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
-        });
+        // Closing or switching panes does not change the call's audio owner.
+        if (!voiceCallOwnsAudio) {
+            void assistantSpeechController.stop().catch((error) => {
+                console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
+            });
+        }
         if (clearLiveInput) {
             void messageInputFieldRef?.clearMessageField(false, false).catch((error) => {
                 console.warn('[ActiveChat] Error clearing message input during UI reset:', error);
@@ -5455,6 +5466,18 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
+     $effect(() => {
+         if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1') return;
+         const id = currentChat?.chat_id;
+         if (!id || showWelcome || (chatLoadState !== 'ready' && chatLoadState !== 'error' &&
+             !currentMessages.some(message => message.chat_id === id))) return;
+         // Svelte has committed this window. Give the browser a paint before
+         // allowing the Worker and IndexedDB to resume background histories.
+         let nextFrame = requestAnimationFrame(() => {
+             nextFrame = requestAnimationFrame(() => reportOpenedChatFrame(id));
+         });
+         return () => cancelAnimationFrame(nextFrame);
+     });
      $effect(() => {
          // The bound chat can render its header, composer, and incoming call
          // transcripts before its history window finishes loading. It can host
@@ -5969,6 +5992,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         return { taskId, userMessageId };
     });
 
+    const independentAssistantTurns = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        return currentChat?.chat_id ? chatSyncService.getIndependentReplyViews(currentChat.chat_id) : [];
+    });
+
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
     // Map of task_id -> thinking content, streaming status, and signature metadata
     let thinkingContentByTask = $state<Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>>(new Map());
@@ -6077,6 +6105,14 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     // Without the guest banner slides the signed-out Chats screen always shows chat examples.
     const activeGuestSurface: DailyInspirationSurface = 'chats';
     let guestInputLinkIndex = $state(0);
+    const showGuestInputLink = $derived(showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused);
+    $effect(() => {
+        if (!showGuestInputLink) return;
+        const interval = window.setInterval(() => {
+            guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
+        }, GUEST_INPUT_LINK_ROTATION_MS);
+        return () => window.clearInterval(interval);
+    });
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroOverlayActive = $derived(
@@ -6669,6 +6705,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // FALLBACK: Mark thinking as complete when we start receiving the actual response
         // This ensures the "Thinking..." state ends even if thinking_complete event is missed
         // The message_id in the chunk should match the task_id used for thinking
+        if (chunk.independent_reply === true) _aiTaskStateTrigger++;
+        const typingOwnsReply = currentTypingStatus?.chatId === chunk.chat_id
+            && chunk.independent_reply !== true;
         const thinkingEntry = thinkingContentByTask.get(chunk.message_id);
         if (thinkingEntry && thinkingEntry.isStreaming) {
             console.log(`[ActiveChat] 🧠 Marking thinking as complete (fallback) | message_id: ${chunk.message_id}`);
@@ -6696,12 +6735,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // These should be rendered as system notices, not as assistant bubbles
             const isRejectionMessage = !!chunk.rejection_reason;
             if (isRejectionMessage) {
-                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+                if (chunk.independent_reply !== true) clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             }
             
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
-            const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
-            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+            const fallbackCategory = typingOwnsReply ? currentTypingStatus?.category : undefined;
+            const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
             const newAiMessage: ChatMessageModel = {
                 message_id: chunk.message_id,
                 chat_id: chunk.chat_id, // Ensure this is correct
@@ -6738,7 +6777,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // Wait until the new assistant message is rendered in the DOM before fading
             // out the centered overlay. Also enforces a minimum display time so step
             // cards (title, mate, model) remain readable before disappearing.
-            clearProcessingPhaseWhenReady(chunk.chat_id);
+            if (chunk.independent_reply !== true) clearProcessingPhaseWhenReady(chunk.chat_id);
             
             console.log(
                 `[ActiveChat] 🆕 NEW MESSAGE CREATED | ` +
@@ -6752,7 +6791,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const previousLength = targetMessage.content?.length || 0;
             const newLength = chunk.full_content_so_far?.length || 0;
             const lengthDiff = newLength - previousLength;
-            const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+            const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
             
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
@@ -6777,7 +6816,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
-                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+                if (chunk.independent_reply !== true) clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
@@ -6931,7 +6970,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
                 // CRITICAL FIX: Ensure model_name is preserved in final message
-                const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
+                const fallbackModelName = typingOwnsReply ? currentTypingStatus?.modelName : undefined;
                 const finalModelName = chunk.model_name || finalMessageInArray.model_name || fallbackModelName;
 
                 // Attach thinking metadata to the final message so it persists across devices.
@@ -7160,7 +7199,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
                 // Skip for incognito chats (they're not stored on the server). Recovery-v1 completions are persisted
                 // through sealed recovery jobs; sending legacy ai_response_completed for them is rejected by design.
-                if (!currentChat?.is_incognito && !currentChat?.is_anonymous && !isSealedRecoveryCompletion) {
+                if (chunk.independent_reply !== true && !currentChat?.is_incognito
+                    && !currentChat?.is_anonymous && !isSealedRecoveryCompletion) {
                     try {
                         console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
                             messageId: updatedFinalMessage.message_id,
@@ -7171,7 +7211,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     } catch (error) {
                         console.error('[ActiveChat] Error sending completed AI response to server:', error);
                     }
-                } else if (isSealedRecoveryCompletion) {
+                } else if (isSealedRecoveryCompletion || chunk.independent_reply === true) {
                     console.debug('[ActiveChat] Skipping legacy AI response storage for sealed recovery completion:', {
                         messageId: updatedFinalMessage.message_id,
                         chatId: updatedFinalMessage.chat_id,
@@ -7181,7 +7221,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     console.debug('[ActiveChat] Skipping server storage for incognito chat - not persisted on server');
                 }
 
-                maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
+                if (chunk.independent_reply !== true) maybeAutoStartCreatedApplicationPreview(updatedFinalMessage);
 
                 if (chatHistoryRef) {
                     chatHistoryRef.updateMessages(currentMessages);
@@ -7583,7 +7623,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // loadChat() is not called for the inline new-chat send path, so keep
             // ChatHeader's closed-sidebar navigation state in sync explicitly.
             chatListCache.upsertChat(currentChat);
-            updateNavFromCache(currentChat.chat_id);
+            updateNavFromCache(currentChat.chat_id, currentChat);
 
             const createdChatId = currentChat.chat_id;
             if (!currentChat.is_incognito && !currentChat.is_anonymous) {
@@ -7945,6 +7985,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let closingChat = $state(false);
     // Reverse lookup: the Plan assumption or Task this sub-chat works on.
     let subChatWork = $state<SubChatWork | null>(null);
+    // Decrypted title of the main chat this sub-chat was created from (empty until known).
+    let subChatParentTitle = $state('');
+    $effect(() => {
+        const parentId = currentChat?.parent_id;
+        subChatParentTitle = '';
+        if (!parentId) return;
+        let cancelled = false;
+        void (async () => {
+            const parent = await chatDB.getChat(parentId);
+            if (!parent) return;
+            const meta = parent.title ? null : await chatMetadataCache.getDecryptedMetadata(parent);
+            const title = resolveChatDisplayTitle(parent.title || meta?.title, null);
+            if (!cancelled) subChatParentTitle = title;
+        })().catch((error) => console.error('[ActiveChat] Failed to resolve sub-chat parent title:', error));
+        return () => { cancelled = true; };
+    });
     $effect(() => {
         const chatId = currentChat?.chat_id;
         const parentId = currentChat?.parent_id;
@@ -8129,22 +8185,23 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         !$authStore.isAuthenticated && !voiceCallOwnsAudio && isGuestVoiceCallSupported() &&
         (showWelcome || (!!currentChat?.chat_id && !isPublicChat(currentChat.chat_id)))
     );
+    const voiceCallInAnotherChat = $derived(voiceCallOwnsAudio && !showWelcome &&
+        !!callState.chatId && !!currentChat?.chat_id && currentChat.chat_id !== callState.chatId);
     const voiceCallLaunchEligible = $derived(guestVoiceCallLaunchEligible ||
-        $authStore.isAuthenticated && !voiceCallOwnsAudio &&
+        $authStore.isAuthenticated && (!voiceCallOwnsAudio || voiceCallInAnotherChat) &&
         (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
             !currentChat.is_shared_by_others && !currentChat.team_id && currentChat.chat_visibility !== 'direct' &&
             !isPublicChat(currentChat.chat_id))
     );
 
-    function handleStartVoiceCall(): void {
-        if (voiceCallOwnsAudio) {
-            callController.hangup();
-            return;
-        }
+    async function handleStartVoiceCall(): Promise<void> {
+        if (!voiceCallLaunchEligible) return;
+        const guest = !$authStore.isAuthenticated;
+        if (guest && !await messageInputFieldRef?.allowGuestMediaStart()) return;
         if (!voiceCallLaunchEligible) return;
         messageInputFieldRef?.stopRecordingForVoiceCall();
-        void assistantSpeechController.stop();
-        if (!$authStore.isAuthenticated) {
+        if (guest) {
+            void assistantSpeechController.stop();
             // Guest turns arrive through the turn sink, which already shows the
             // local guest chat; the binding only keeps the call strip in place.
             void guestVoiceCallController.start(showWelcome ? undefined : currentChat?.chat_id, (boundChatId) => {
@@ -8163,6 +8220,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         const draftReady = chatId && (showWelcome || isActiveDraftOnlyChat)
             ? Promise.resolve().then(() => draftInput?.prepareVoiceCallDraft?.(chatId) ?? false).catch(() => false)
             : undefined;
+        if (voiceCallInAnotherChat) voiceCallController.hangup();
         void voiceCallController.start(chatId, (boundChatId) => {
             voiceCallBindingChatId = boundChatId;
             void handleChatNavigate(boundChatId);
@@ -8176,6 +8234,12 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         void handleChatNavigate(chatId, () => navigationGeneration === loadChatGeneration
             && callId === callState.callId && chatId === callState.chatId
             && voiceCallOwnsAudio);
+    }
+
+    /** Opens the main chat of this sub-chat the way a sub-chat card opens a sub-chat. */
+    function openSubChatParent() {
+        const parentId = currentChat?.parent_id;
+        if (parentId && parentId !== currentChat?.chat_id) activeChatStore.setActiveChat(parentId);
     }
 
     async function handleCloseChat() {
@@ -8407,13 +8471,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 (inspiration.feature?.requires_authentication === true && settingsPath !== 'privacy/hide-personal-data') ||
                 AUTHENTICATED_ONLY_DAILY_INSPIRATION_FEATURE_IDS.has(inspiration.feature?.feature_id ?? '')
             )) {
-                console.debug('[ActiveChat] Guest clicked authenticated-only feature inspiration – opening signup interface');
-                currentSignupStep.set(STEP_BASICS);
-                isInSignupProcess.set(true);
-                loginInterfaceOpen.set(true);
-                if ($panelState.isActivityHistoryOpen) {
-                    panelState.toggleChats();
-                }
+                openGuestAccountEntry();
                 return;
             }
             settingsMenuVisible.set(true);
@@ -8432,17 +8490,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             return;
         }
 
-        // Unauthenticated users: open the signup screen (basics step) so they
-        // can register and then start using inspirations.
-        // Same pattern as handleOpenSignupInterface (message-input signup button).
         if (!$authStore.isAuthenticated) {
-            console.debug('[ActiveChat] Guest clicked inspiration banner – opening signup interface');
-            currentSignupStep.set(STEP_BASICS);
-            isInSignupProcess.set(true);
-            loginInterfaceOpen.set(true);
-            if ($panelState.isActivityHistoryOpen) {
-                panelState.toggleChats();
-            }
+            openGuestAccountEntry();
             return;
         }
 
@@ -9790,7 +9839,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         chatLoadState = 'ready';
         showWelcome = false;
         chatHistoryRef?.updateMessages(currentMessages);
-        updateNavFromCache(chatId);
+        updateNavFromCache(chatId, selected.chat);
         void tick().then(() => {
             if (generation !== loadChatGeneration || currentChat?.chat_id !== chatId
                 || !warmSelectionGuard?.canContinue || !chatHistoryRef) return;
@@ -9836,7 +9885,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         currentChat = chat;
         temporaryChatId = null;
         chatLoadState = 'ready';
-        updateNavFromCache(chat.chat_id);
+        updateNavFromCache(chat.chat_id, chat);
         void applyPersistedDraftHeader(chat, 'local draft adoption', () =>
             generation === loadChatGeneration && currentChat?.chat_id === chat.chat_id,
         ).catch((error) => console.error('[ActiveChat] Could not render adopted draft header:', error));
@@ -9846,7 +9895,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     }
 
      // Update the loadChat function
-     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
+     export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number; serverClassifiedSaved?: boolean }) {
          // Fixed-name open-to-rendered breakdown mark (Rust-core builds only; no content).
          if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:load-chat');
          if (options?.preserveActiveComposer && isPersistedDraftOnlyChat(chat)) {
@@ -9986,7 +10035,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          // Chats.svelte (the sidebar) has never been opened. On mobile the sidebar
          // starts closed, so the store would otherwise have hasPrev=false/hasNext=false
          // until the user opens the sidebar at least once.
-         updateNavFromCache(chat.chat_id);
+         updateNavFromCache(chat.chat_id, chat);
 
          // Load this chat's highlights from IndexedDB into the in-memory store
          // so the ChatHeader pill + in-message overlays render without waiting
@@ -10043,7 +10092,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // For public chats (demo/example) and incognito chats, skip database access - use the chat object directly
         // This is critical during logout when database is being deleted
         let freshChat: Chat | null = null;
-        const isProvidedDraftOnlyChat = isPersistedDraftOnlyChat(chat);
+        const isProvidedDraftOnlyChat = !options?.serverClassifiedSaved && isPersistedDraftOnlyChat(chat);
         if (isPublicChat(chat.chat_id)) {
             // Public chats don't need database access - use the provided chat object
             freshChat = chat;
@@ -10116,6 +10165,22 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
          }
 
          currentChat = freshChat || chat; // currentChat is now just metadata
+
+         // getChat already classified the persisted wrapper. Start the same
+         // latest read while the raw draft fields and encrypted header load.
+         const earlyHistoryOwner = $userProfile.user_id;
+         const earlyHistoryScope = import.meta.env.VITE_OPENMATES_RUST_CORE === '1' && !recentWindow &&
+             !isSameActiveChat && !options?.messageId && $authStore.isAuthenticated && !get(activeTeamId) &&
+             activeChatStore.get() === chat.chat_id && isCurrentLoadTarget() && !isPublicChat(chat.chat_id) &&
+             !isPendingInspirationChat(chat.chat_id) && !initialChatHistoryGate.pending(chat.chat_id) &&
+             freshChat && freshChat !== chat && freshChat.chat_id === chat.chat_id &&
+             canPreparePersonalLatestHistory(chat, earlyHistoryOwner) &&
+             canPreparePersonalLatestHistory(freshChat, earlyHistoryOwner) &&
+             chat.encrypted_chat_key === freshChat.encrypted_chat_key &&
+             chat.key_version === freshChat.key_version
+             ? getWorkspaceCacheIdentity() : null;
+         const earlyHistory = earlyHistoryScope && freshChat ? preparePersonalLatestHistory(freshChat) : null;
+
          if (currentChat?.chat_id && $authStore.isAuthenticated && !isPublicChat(currentChat.chat_id)) {
              try {
                  const rawChat = await chatDB.getRawChat(currentChat.chat_id);
@@ -10150,7 +10215,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
              }
          }
 
-          const isCurrentDraftOnlyChat = isPersistedDraftOnlyChat(currentChat);
+          const isCurrentDraftOnlyChat = !options?.serverClassifiedSaved && isPersistedDraftOnlyChat(currentChat);
 
          // ─── Chat Header: restore title/category/icon for all chat types ────────────────
          // Universal header restoration: handles public/demo, incognito, and regular chats.
@@ -10364,6 +10429,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         thinkingContentByTask = new Map();
         thinkingPlaceholderMessageIds = new Set();
         
+        if (earlyHistory && (!isCurrentLoadTarget() || activeChatStore.get() !== chat.chat_id ||
+            getWorkspaceCacheIdentity() !== earlyHistoryScope)) return;
+
         let newMessages: ChatMessageModel[] = [];
         let messageLoadFailed = false;
         let backgroundMessageWindowRepair: Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null> | null = null;
@@ -10480,13 +10548,33 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // Opt-in Rust core (VITE_OPENMATES_RUST_CORE): Rust owns this read unless it refuses.
                 let rustOwnedHistory = false;
                 try {
+                    const selectedChat = currentChat;
+                    const localInitialPending = initialChatHistoryGate.pending(selectedChat.chat_id);
+                    const useEarlyHistory = earlyHistory && !localInitialPending &&
+                        canPreparePersonalLatestHistory(selectedChat, earlyHistoryOwner) &&
+                        selectedChat.encrypted_chat_key === freshChat?.encrypted_chat_key &&
+                        selectedChat.key_version === freshChat?.key_version;
                     if (import.meta.env.VITE_OPENMATES_RUST_CORE === '1') performance.mark('openmates:rust:history-load');
-                    currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(currentChat.chat_id);
-                    const latestCheckpoint = [...currentCompressionCheckpoints].sort((a, b) => b.created_at - a.created_at)[0];
-                    // Default builds fold this to null: no await, the TS path is unchanged.
-                    const rustRead = import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' ? null : await readRustChatHistoryWindow(currentChat, { anchorMessageId: options?.messageId ?? null,
-                        activeTeamId: get(activeTeamId), localInitialPending: initialChatHistoryGate.pending(currentChat.chat_id) })
-                        .catch((rustError: unknown) => { rustOwnedHistory = true; messageLoadFailed = true; throw rustError; });
+                    // Apply the same compression checkpoints before publication.
+                    const [checkpoints, rustRead] = await Promise.all([
+                        loadCompressionCheckpointsForChat(selectedChat.chat_id),
+                        import.meta.env.VITE_OPENMATES_RUST_CORE === '1'
+                            ? (useEarlyHistory ? earlyHistory : readRustChatHistoryWindow(selectedChat, {
+                                anchorMessageId: options?.messageId ?? null,
+                                activeTeamId: get(activeTeamId),
+                                localInitialPending,
+                                serverClassifiedSaved: options?.serverClassifiedSaved,
+                            })).catch((rustError: unknown) => {
+                                rustOwnedHistory = true;
+                                messageLoadFailed = true;
+                                throw rustError;
+                            })
+                            : null,
+                    ]);
+                    if (!isCurrentLoadTarget() || (useEarlyHistory &&
+                        (activeChatStore.get() !== selectedChat.chat_id || getWorkspaceCacheIdentity() !== earlyHistoryScope))) return;
+                    currentCompressionCheckpoints = checkpoints;
+                    const latestCheckpoint = [...checkpoints].sort((a, b) => b.created_at - a.created_at)[0];
                     rustOwnedHistory ||= !!rustRead;
                     const rustWindow = rustRead?.window ?? null;
                     rustWindowStartCursor = rustWindow?.startCursorRef ?? null;
@@ -10846,6 +10934,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         if (currentChat?.chat_id && !isPublicChat(currentChat.chat_id) && !currentChat.is_incognito && !currentChat.is_anonymous) {
             rustPrunedNewMessages = await pruneCurrentDecryptedMessageWindowRust(newMessages);
         }
+        if (!isCurrentLoadTarget()) return;
         if (thisLoadRevision !== getRecentChatRevision(chat.chat_id)) {
             // A canonical write landed during this read. Retry after the transaction
             // settles so an older window cannot revive edited or deleted content.
@@ -11720,13 +11809,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
 
         initialize();
         installChatReplayCommand();
-        const guestInputLinkInterval = window.setInterval(() => {
-            guestInputLinkIndex = (guestInputLinkIndex + 1) % 2;
-        }, GUEST_INPUT_LINK_ROTATION_MS);
         
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
             console.debug("[ActiveChat] Opening login interface from header button");
+            panelState.closeSettings();
             loginInterfaceOpen.set(true);
             // Close chats panel when opening login
             if ($panelState.isActivityHistoryOpen) {
@@ -11738,6 +11825,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         // Listen for event to open signup interface from message input button
         const handleOpenSignupInterface = () => {
             console.debug("[ActiveChat] Opening signup interface from message input button");
+            panelState.closeSettings();
             // Set signup state directly to the first signup step
             currentSignupStep.set(STEP_BASICS);
             isInSignupProcess.set(true);
@@ -12535,7 +12623,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 const isStaleAcknowledgementForAnotherTurn = !!processingFeedbackTurn
                     && processingFeedbackTurn.userMessageId !== user_message_id
                     && latestPendingUserMessage?.message_id !== user_message_id;
-                const isDelayedAcknowledgement = terminalProcessingFeedbackTurns.has(feedbackTurnKey)
+                const isDelayedAcknowledgement = event.detail.independent_reply === true
+                    || terminalProcessingFeedbackTurns.has(feedbackTurnKey)
                     || hasKnownTypingForTurn
                     || isStaleAcknowledgementForAnotherTurn;
 
@@ -12589,8 +12678,13 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             taskId?: string;
             userMessageId?: string;
             status?: string;
+            independentReply?: boolean;
         }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                if (event.detail.independentReply) {
+                    _aiTaskStateTrigger++;
+                    return;
+                }
                 if (['cancelled', 'timed_out', 'failed'].includes(event.detail.status ?? '')) {
                     projectFileProgress = null;
                     if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
@@ -12624,11 +12718,15 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                 // Empty messages (interrupt before any text streamed) are NOT persisted.
                 const taskEndStatus = event.detail.status ?? 'unknown';
                 const shouldPersistInterruptedPartial = taskEndStatus === 'cancelled' || taskEndStatus === 'timed_out';
+                const ownsAssistantRow = (message: ChatMessageModel) =>
+                    (!!event.detail.taskId && message.message_id === event.detail.taskId)
+                    || (!!event.detail.userMessageId && message.user_message_id === event.detail.userMessageId);
                 let needsUpdate = false;
                 const messagesToPersist: ChatMessageModel[] = [];
                 for (let i = 0; i < currentMessages.length; i++) {
                     const msg = currentMessages[i];
-                    if (shouldPersistInterruptedPartial && msg.role === 'assistant' && msg.status === 'streaming') {
+                    if (shouldPersistInterruptedPartial && msg.role === 'assistant'
+                        && msg.status === 'streaming' && ownsAssistantRow(msg)) {
                         const finalized = { ...msg, status: 'synced' as const };
                         currentMessages[i] = finalized;
                         needsUpdate = true;
@@ -12663,10 +12761,11 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     }
                 }
                 
-                // FALLBACK: Mark ALL thinking entries as complete when AI task ends
-                // This ensures no thinking state is left in "streaming" mode after the task finishes
+                // Complete only thinking state belonging to the ending response.
                 let hasStreamingThinking = false;
                 thinkingContentByTask.forEach((entry, taskId) => {
+                    if (taskId !== event.detail.taskId
+                        && !currentMessages.some((message) => message.message_id === taskId && ownsAssistantRow(message))) return;
                     if (thinkingPlaceholderMessageIds.has(taskId)) {
                         thinkingContentByTask.delete(taskId);
                         const nextPlaceholderIds = new Set(thinkingPlaceholderMessageIds);
@@ -13184,20 +13283,25 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             chatId: string;
             taskId?: string;
             userMessageId?: string;
+            independentReply?: boolean;
         }>) => {
-            const { chatId, taskId, userMessageId } = event.detail;
+            const { chatId, taskId, userMessageId, independentReply } = event.detail;
             if (chatId !== currentChat?.chat_id) return;
+            if (independentReply) _aiTaskStateTrigger++;
 
             if (
-                processingFeedbackTurn
+                !independentReply && processingFeedbackTurn
                 && !matchesProcessingFeedbackTerminal(processingFeedbackTurn, { taskId, userMessageId })
             ) return;
 
             console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming/processing messages`);
-            if (processingFeedbackTurn) {
+            if (!independentReply && processingFeedbackTurn) {
                 clearProcessingFeedback(chatId, processingFeedbackTurn.userMessageId, true);
             }
             for (const msg of currentMessages) {
+                const matchesInterruptedRow = msg.message_id === taskId
+                    || (!!userMessageId && (msg.message_id === userMessageId || msg.user_message_id === userMessageId));
+                if ((taskId || userMessageId) && !matchesInterruptedRow) continue;
                 // Recover messages stuck in 'streaming' (stream was interrupted mid-flight)
                 // AND 'processing' (task was dispatched but worker never picked it up / crashed)
                 if (msg.status === 'streaming' || (msg.role === 'user' && msg.status === 'processing')) {
@@ -13522,7 +13626,6 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
         });
 
         return () => {
-            window.clearInterval(guestInputLinkInterval);
             // Remove listeners from chatSyncService
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
@@ -13736,24 +13839,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     {/if}
                   {/snippet}
                   {#snippet report()}
-                    <div
-                      class="new-chat-button-wrapper"
-                      data-testid="report-issue-button-shell"
-                    >
-                      <button
-                        data-testid="report-issue-button"
-                        class="header-action"
-                        aria-label={$text('header.report_issue')}
-                        onclick={handleReportIssue}
-                        use:tooltip
-                        ><span
-                          class="clickable-icon icon_bug top-button"
-                          aria-hidden="true"
-                        ></span><span class="action-label"
-                          >{$text('header.report_issue')}</span
-                        ></button
-                      >
-                    </div>
+                    <WorkspaceReportIssueButton onOpen={handleReportIssue} />
                   {/snippet}
                   {#snippet share()}
                     {#if hasActiveShareableChatSurface}
@@ -13897,7 +13983,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                   {#snippet close()}
                     <VoiceCallHeaderActions
                         callState={callController}
-                        showCall={voiceCallLaunchEligible && !voiceCallOwnsAudio && !showVoiceCallBarHere}
+                        showCall={voiceCallLaunchEligible && !showVoiceCallBarHere}
+                        callInAnotherChat={voiceCallInAnotherChat}
                         showClose={!showWelcome}
                         {closingChat}
                         onToggleCall={handleStartVoiceCall}
@@ -14261,7 +14348,9 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                         />
                     {/snippet}
 
-                    {#if subChatWork}<SubChatWorkLink work={subChatWork} onBack={handleCloseChat} />{/if}
+                    {#snippet subChatOriginEvent()}
+                        <SubChatOrigin parentTitle={subChatParentTitle} work={subChatWork} onOpenParent={openSubChatParent} />
+                    {/snippet}
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
@@ -14273,6 +14362,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                           }}
                           on:timelineStateChange={(event) => { timelineAvailable = event.detail.available; timelineNarrow = event.detail.narrow; }}
                           disablePointerEvents={showWelcome}
+                          belowHeader={currentChat?.parent_id ? subChatOriginEvent : undefined}
                           voiceCallBridge={showVoiceCallBarHere && !showWelcome
                               ? { controls: boundCallControls, onStickyChange: (stuck) => { voiceCallStripStuck = stuck; } }
                               : undefined}
@@ -14283,6 +14373,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                          {processingPhase}
                          {pendingAssistantResponse}
                          {activeAssistantTurn}
+                         {independentAssistantTurns}
+                         onStopIndependentReply={(chatId, taskId) => { void chatSyncService.sendCancelAiTask(taskId, chatId); }}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
                          {provisionalChatTitle}
@@ -14298,6 +14390,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                           isIncognito={!!currentChat?.is_incognito}
                            isExampleChat={!!currentChat && isExampleChat(currentChat.chat_id) && !$demoMode}
                            isSharedChat={!!currentChat?.is_shared_by_others && !$demoMode}
+                           isSubChat={!!(currentChat?.parent_id || currentChat?.is_sub_chat)}
                            canAnnotate={!currentChat?.is_shared_by_others && !(currentChat?.chat_id && isPublicChat(currentChat.chat_id))}
                            videoMp4Url={activeLocaleVideo?.mp4_url ?? activePublicChatMetadata?.video_mp4_url ?? null}
                            videoTeaserUrl={activeLocaleVideo?.teaser_url ?? activePublicChatMetadata?.video_teaser_url ?? null}
@@ -14397,7 +14490,7 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                     aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                 >
-                    {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
+                    {#if showGuestInputLink}
                         <a
                             class="guest-input-context-link"
                             data-testid="guest-input-context-link"

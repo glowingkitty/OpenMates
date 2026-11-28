@@ -507,6 +507,9 @@ class BaseApp:
                 "rerank_candidates": rerank_candidates,
                 "internal_llm_policy": internal_llm_policy,
             }
+            if self.id == "design" and skill_definition.id == "author":
+                skill_kwargs["design_source"] = request_body.get("_design_source")
+                skill_kwargs["design_author_allowed"] = request_body.get("_design_author_allowed") is True
             # Remove None values
             skill_kwargs = {k: v for k, v in skill_kwargs.items() if v is not None}
         except HTTPException:
@@ -696,6 +699,8 @@ class BaseApp:
                         if k in execute_params or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in execute_params.values())
                     }
                     
+                    if self.id == "design" and skill_definition.id == "author":
+                        clean_request_body.pop("design_source", None)
                     clean_request_body.update(supported_skill_kwargs)
 
                     # Auto-normalize: If the skill expects a 'requests' list parameter but the LLM

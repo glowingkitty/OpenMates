@@ -9,7 +9,11 @@ Use existing OpenMates tokens for theme-aware colors, spacing and typography.
 
 Use `UnifiedEmbedPreview` for every preview and
 `ResultEmbedFullscreen` for individual results. The latter composes the existing
-fullscreen shell/header, `EmbedLeafletMap` and private request composer. Use
+fullscreen shell and `EmbedLeafletMap`. The shell renders a shared compact
+preview icon, title and optional subtitle for content and results. The original
+44 px tile touches the top and left edges and retains its bottom-right radius. It also owns
+the More, Edit and Close controls and the sticky follow-up composer below the
+scrolling content. App skill execution views retain the large banner. Use
 `ResultEmbedCard` for image/title/fallback and wide information/media placement;
 use its `contain` media mode when the whole image must remain visible. Use
 `ResultEmbedInfo` for compact facts, amenity states and evidence. Collections use
@@ -22,11 +26,20 @@ for the shared chrome. Specialized editors keep their content and existing
 Copy/Download actions through the shared compact identity header. Only app-skill
 execution previews retain the large circular icon and original `BasicInfosBar`.
 The renderer supplies execution/content context from the actual embed type;
-new content types default to the result shell. Direct component previews use the
+new content types default to the result shell. Article views show the large
+heading, image, source action and body in the scrollport, with the fixed title
+appearing when the large heading scrolls out of view. More contains the embed's
+actions, Share embed where available, and Report Issue. Direct component previews use the
 registry-generated presentation map. The shared registry wraps resolved previews
 with the same reactive presentation context for Apps, Projects, saved items and
 maps, while preserving their existing props. Never classify results by app/skill IDs
 alone, since child results can share their parent's IDs.
+
+For this correction, each reference PNG comes from an existing browser preview
+card or a previous dev fullscreen. Each rendered screenshot checks the shared
+tile or an article title state at desktop or phone width.
+Accepted differences from the previous fullscreen are the flush corner, the
+article reading order and the embed-specific menu labels.
 
 The pure card, calendar, app-corner and event-content presentation lives in
 `frontend/packages/public-site/src/components/results/`. Both the web app adapters

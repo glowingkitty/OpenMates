@@ -11,13 +11,16 @@
 //! (auth session); spec `architecture.client-core`.
 use crate::CoreError;
 use crate::core::CoreCancellation;
-use crate::view_core::{AppleHost, Shared, ViewModelCore};
+use crate::view_core::{AppleHost, Shared, ViewModelCore, lock};
 use openmates_sdk::{
     client::{DeviceVerificationMethod, SessionVerification},
     error::{Error, Result},
+    local_cache::GenerationGuard,
     view_model::{SessionEvent, ViewEvent, ViewHost, ViewSink},
 };
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tokio_util::sync::CancellationToken;
 use zeroize::Zeroizing;
 
 /// The account's user payload and where it came from.
@@ -31,6 +34,33 @@ pub struct UserProfileRecord {
     /// admitted yet (offline start); replaced by the next admission.
     pub fresh: bool,
 }
+
+/// Temporary copy of the previously admitted profile during Personal restore.
+pub(crate) struct RestoredProfile {
+    pub(crate) json: Zeroizing<Vec<u8>>,
+    pub(crate) generation: GenerationGuard,
+    pub(crate) cancel: CancellationToken,
+    pub(crate) expires_at: Option<u64>,
+}
+
+impl RestoredProfile {
+    fn current(&self) -> bool {
+        self.generation.is_current() && !self.cancel.is_cancelled()
+            && self.expires_at.is_none_or(|expires| {
+                SystemTime::now().duration_since(UNIX_EPOCH).is_ok_and(|now| {
+                    now.as_millis() < u128::from(expires)
+                })
+            })
+    }
+
+    fn record(&self) -> Option<UserProfileRecord> {
+        if !self.current() { return None; }
+        let mut bytes = Zeroizing::new(self.json.to_vec());
+        self.current().then(|| UserProfileRecord { json: std::mem::take(&mut *bytes), fresh: false })
+    }
+}
+
+pub(crate) type RestoredProfileSlot = Arc<Mutex<Option<RestoredProfile>>>;
 
 /// The factor the server asks for (core `DeviceVerificationMethod`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, uniffi::Enum)]
@@ -109,7 +139,12 @@ impl Shared {
 
     /// The admitted payload, else the cached one of a restored session that
     /// is not admitted yet and has no verification pending.
+    // The published Personal startup profile is a local read and can be
+    // returned without awaiting the actor's network admission.
     async fn user_profile(&self) -> Result<UserProfileRecord> {
+        if let Some(profile) = lock(&self.restored_profile).as_ref().and_then(RestoredProfile::record) {
+            return Ok(profile);
+        }
         let host = self.host.lock().await;
         let current = host.as_ref().ok_or(Error::Authentication)?;
         let client = current.core().client();

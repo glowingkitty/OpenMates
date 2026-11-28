@@ -92,10 +92,7 @@ impl Projects<'_> {
     /// # Errors
     /// `Error::Invalid` for ambiguous or unknown selectors, plus transport,
     /// authorization and decryption errors of the underlying Project reads.
-    pub(crate) async fn resolve_sdk_selector(
-        &mut self,
-        selector: &str,
-    ) -> Result<ResolvedProject> {
+    pub(crate) async fn resolve_sdk_selector(&mut self, selector: &str) -> Result<ResolvedProject> {
         if is_canonical_uuid(selector) {
             return self.resolve(selector).await;
         }

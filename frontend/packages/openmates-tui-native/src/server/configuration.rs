@@ -755,6 +755,8 @@ mod tests {
         assert_eq!(saved.source_strategy.as_deref(), Some("working_tree"));
         assert_eq!(saved.server_profile, "minimal");
         assert_eq!(saved.default_services, Some(vec!["api".into()]));
+        // The command dispatcher enters this scope before reading Compose from a registered checkout.
+        let _source = fs::source_scope(&repo).unwrap();
         assert_eq!(services(&saved, &Flags::new()).unwrap(), vec!["api"]);
         assert_eq!(
             std::fs::metadata(repo).unwrap().permissions().mode() & 0o777,

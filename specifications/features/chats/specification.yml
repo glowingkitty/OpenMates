@@ -418,6 +418,21 @@ assertions:
   depends_on:
   - models.AssistantRenderDocument.inline_entities
   - examples.inline_entities
+- id: chats.rendering.image-gestures
+  type: behavior
+  must: Pinching or double-tapping images on the web or in a fullscreen Apple image viewer magnifies only
+    the image within its media area.
+    A magnified image pans without moving the rest of the interface. A pinch keeps the page at its existing
+    scale and does not navigate or reload it. Switching between the graphic and stitches views of an
+    embroidery result starts the newly selected image at its fitted size.
+  depends_on:
+  - examples.image_gestures
+- id: chats.rendering.embed-zoom-view
+  type: behavior
+  must: In read-only document, mind map, and diagram views on the web, pinch and double-tap use the content
+    viewer's zoom controls and keep the page at its existing scale. Panning remains within the viewer.
+  depends_on:
+  - examples.embed_zoom_view
 - id: chats.layout.responsive-history
   type: parity
   must: The rendered web chat history is the visual source of truth across compact and regular widths; transcript

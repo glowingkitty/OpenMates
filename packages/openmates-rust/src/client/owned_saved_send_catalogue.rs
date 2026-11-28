@@ -78,6 +78,7 @@ impl OwnedTurnPhases {
                 let row=response.get("team").ok_or(Error::Protocol)?;
                 if text(row,"team_id")!=team{return Err(Error::Forbidden)}
                 let wrapped=Zeroizing::new(required(row,"encrypted_team_key")?.to_owned());
+                refuse_sealed_team_key(&wrapped)?;
                 self.catalogue_negative()?;
                 // Opaque crypto cannot be interrupted: actually await this same
                 // original resource, then refuse if original A was retired.

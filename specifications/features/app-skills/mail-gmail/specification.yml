@@ -1,0 +1,117 @@
+schema_version: 1
+id: feature.app-skills.mail-gmail
+version: 1
+status: approved
+title: Mail Skills for Gmail
+summary: >
+  Mail skills search messages, read threads and create drafts in a connected Gmail account
+  through Google's official Gmail API, under the shared connected-accounts contract.
+  OpenMates never sends email: a send capability is deferred by owner decision (2026-11-22).
+inherits:
+  - architecture.connected-accounts@2
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Gmail search with Gmail query syntax and pagination, reading a thread with decoded text bodies, and creating drafts (new or replies in a thread).
+    - Minimal Google scopes, the shared permission model and honest per-request failures.
+    - Prompt-injection hardening of mailbox content and refusal of unresolved privacy placeholders in drafts.
+  excludes:
+    - Sending email, drafts.send, messages.send, the gmail.send scope, scheduled send and auto-reply.
+    - Deleting, labelling or modifying messages, attachments upload, other mail providers (Proton keeps its own skill).
+    - Server-side storage of mailbox content; results return as client-encrypted embeds.
+
+models:
+  MailGmailSkills:
+    commands: {type: array, values: [search, read-thread, create-draft]}
+    provider: {type: enum, values: [google]}
+    read_scope: {type: enum, values: [gmail.readonly]}
+    draft_scope: {type: enum, values: [gmail.compose]}
+
+assertions:
+  - id: mail-gmail.scopes
+    type: security
+    must: >
+      Use only Google's official Gmail API. Request gmail.readonly for search and thread reads and
+      gmail.compose for drafts, each only when the matching capability is enabled; never request
+      gmail.send, gmail.modify or full mail access. Missing scope is reported as a reconnect-required
+      error, never as an empty mailbox.
+    depends_on: [examples.connection]
+  - id: mail-gmail.read.search
+    type: behavior
+    must: >
+      Mail search with provider google passes the query and date bounds as Gmail search operators,
+      returns message id, thread id, sender, recipients, subject, date and snippet, and exposes a
+      next_page_token without silent truncation. Requests without provider keep using the existing
+      Proton path unchanged.
+    depends_on: [examples.reads]
+  - id: mail-gmail.read.thread
+    type: behavior
+    must: >
+      Read-thread returns every message of one thread with text/plain preferred and HTML reduced to
+      text, attachment names but no attachment content, and a bounded body length.
+    depends_on: [examples.reads]
+  - id: mail-gmail.read.untrusted-content
+    type: security
+    must: >
+      Mailbox text is untrusted data. Screen every returned string before it reaches the assistant,
+      including short subjects, sender names, snippets, bodies, quoted threads and attachment names.
+      Withhold the result if screening cannot decide. Mailbox text never grants permission to draft,
+      send or read other messages.
+    depends_on: [examples.screening]
+  - id: mail-gmail.draft.create-only
+    type: security
+    must: >
+      Create-draft calls drafts.create only and reports sent false. Recipients (To, Cc, Bcc), subject and
+      body are validated; replies pass the thread id and carry In-Reply-To and References taken from the
+      thread. Default runtime mode is Always ask, and the approval shows recipients and subject.
+    depends_on: [examples.drafts]
+  - id: mail-gmail.draft.placeholders
+    type: security
+    must: >
+      Privacy placeholders such as [EMAIL_1_org] that were not resolved to real values are rejected in
+      recipients, subject and body with a clear error before any request to Google; invalid addresses and
+      header-injecting newlines are rejected the same way.
+    depends_on: [examples.drafts]
+  - id: mail-gmail.errors
+    type: behavior
+    must: >
+      Provider failures become structured per-request results: 401 reconnect required, 403 insufficient
+      scope versus forbidden, 404 not found, 429 rate limited with retry-after, transport failures
+      unavailable, and an uncertain draft write reported as uncertain rather than retried blindly.
+    depends_on: [examples.errors]
+  - id: mail-gmail.no-send
+    type: security
+    must: >
+      No send skill, endpoint, registry action, client method or OAuth scope exists. Adding send later
+      needs a new owner decision and a new Specification version.
+    depends_on: [examples.drafts]
+  - id: mail-gmail.live-proof
+    type: validation
+    must: >
+      Live checks against a real Google test account run only after the owner consents to it, with
+      synthetic mail; they cover search, thread read and draft creation, never sending.
+    depends_on: [examples.live]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party connected-account endpoints; normal developer API-key skill exposure stays disabled.
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    parity: semantic
+    role: Skill execution against accounts already connected through CLI or web.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Native implementation follows verified shared and web behavior in a separate stage.}
+
+examples:
+  file: examples.yml
+  required_groups: [connection, reads, drafts, errors, live]

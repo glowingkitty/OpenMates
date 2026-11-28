@@ -7,7 +7,7 @@ const base = '/dev/preview/settings/notifications/SettingsChatNotifications?them
 
 // contract-test: direct surface=gui.web assertions=notifications.content.privacy-boundary
 // contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible,settings-ui.localization.visible-content-resolves
-test('push summary and preview switches are always visible and saved one at a time', async ({ page }) => {
+test('push answer text and chat title switches are on by default and saved one at a time', async ({ page }) => {
 	const bodies: unknown[] = [];
 	await page.route('**/v1/push/preferences', async route => {
 		bodies.push(route.request().postDataJSON());
@@ -18,14 +18,18 @@ test('push summary and preview switches are always visible and saved one at a ti
 	const summary = canvas.getByTestId('push-notifications-include-chat-title');
 	const preview = canvas.getByTestId('push-notifications-include-preview');
 	await expect(summary).toBeVisible();
-	await expect(summary).toContainText('Show summary and chat title');
-	await expect(summary).toContainText('Apple and Google cannot read them');
+	await expect(summary).toContainText('Show the chat title');
+	await expect(summary).toContainText('Apple and Google cannot read it');
+	await expect(preview).toContainText('Apple and Google cannot read it');
 	await expect(preview).toBeVisible();
-	await expect(preview).toContainText('Off by default');
+	await expect(preview).toContainText('Show the answer text');
+	await expect(preview).toContainText('On by default');
+	await expect(preview.locator('input[type="checkbox"]')).toBeChecked();
+	await expect(summary.locator('input[type="checkbox"]')).toBeChecked();
 	await preview.click();
-	await expect.poll(() => bodies).toEqual([{ includePreview: true }]);
+	await expect.poll(() => bodies).toEqual([{ includeAnswerText: false }]);
 	await summary.click();
-	await expect.poll(() => bodies).toEqual([{ includePreview: true }, { includeChatTitle: false }]);
+	await expect.poll(() => bodies).toEqual([{ includeAnswerText: false }, { includeChatTitle: false }]);
 	await page.screenshot({ path: test.info().outputPath('push-switches.png') });
 });
 

@@ -1,7 +1,7 @@
 """Bounded, cached retrieval of source-bound GitHub test artifacts.
 
 Results are downloaded once under the coordinator's lock. ZIP paths and expanded
-sizes are checked before extraction, and the dev server retains 30 GiB free.
+sizes are checked before extraction, and the dev server retains its 10 GiB disk floor.
 Credentials and private setup files are never valid returned evidence paths.
 See docs/plans/isolated-github-tests/plan.yml.
 """
@@ -93,6 +93,29 @@ def admitted_e2b_runner(job: dict, entry: dict) -> bool:
     )
 
 
+def dedicated_codex_profile(job: dict) -> str | None:
+    """Recognize only the individually dispatched protected proofs."""
+    if job.get("mode") != "e2e":
+        return None
+    if __package__:
+        from .ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_PROFILE, CODEX_WEB_VOICE_SPEC
+    else:
+        from ci_environment import CODEX_REAL_INFERENCE_SPECS, CODEX_WEB_VOICE_PROFILE, CODEX_WEB_VOICE_SPEC
+    specs = json.loads(job["specs"])
+    if specs == [CODEX_WEB_VOICE_SPEC]:
+        return CODEX_WEB_VOICE_PROFILE
+    if isinstance(specs, list) and len(specs) == 1 and isinstance(specs[0], str) and specs[0] in CODEX_REAL_INFERENCE_SPECS:
+        return "codex-real-inference"
+    return None
+
+
+def expected_job_harness_commit(job: dict, workflow_commit: str) -> str:
+    """Keep the prepared build's producer distinct from a keyed consumer."""
+    if dedicated_codex_profile(job):
+        return workflow_commit
+    return job.get("preparation_harness_commit") or workflow_commit
+
+
 def green_e2e_source_and_egress_verified(
     environment: dict,
     job: dict,
@@ -107,6 +130,19 @@ def green_e2e_source_and_egress_verified(
     ):
         return False
     selected = sorted(json.loads(job["specs"]))
+    protected_profile = dedicated_codex_profile(job)
+    if protected_profile and (
+        not expected_harness_commit
+        or environment.get("harness_commit") != expected_harness_commit
+    ):
+        return False
+    if protected_profile == "codex-real-web-voice" and (
+        environment.get("real_inference_profile") != protected_profile
+        or environment.get("provider_egress") != "real-inference-allowlist"
+        or environment.get("real_inference_providers") != ["elevenlabs", "inception_labs", "mistral_ai", "typesafe"]
+        or environment["services"].get("speech-worker", {}).get("running") is not True
+    ):
+        return False
     if job.get("mode") == "e2e" and selected == ["cli-memory-readiness.spec.ts"]:
         # Exact harmless Node-only lane: real private services, no web renderer.
         # Complete fixture assertions and run-bound cleanup remain required below.
@@ -1669,7 +1705,7 @@ def fetch(github, job: dict, root: Path) -> dict:
         from scripts.resource_budget import reserve
     except ModuleNotFoundError:
         from resource_budget import reserve
-    # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
+    # Retrieval keeps the host's 10 GiB floor (RESERVE, resource_budget.MIN_FREE).
     diagnostic_reserve = (
         260 * 1024**2
         if job.get("mode") == "rust-native-dev"
@@ -1814,7 +1850,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
         or shutil.disk_usage(root).free < RESERVE
     ):
         raise RuntimeError(
-            "Artifact retrieval would exceed size limit or 30 GiB reserve"
+            f"Artifact retrieval would exceed size limit or the {RESERVE // 1024**3} GiB disk reserve"
         )
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
@@ -1853,9 +1889,7 @@ def _fetch_reserved(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "CI run did not build the web app with the Rust client core that the job requested"
             )
-        expected_harness_commit = (
-            job.get("preparation_harness_commit") or run["head_sha"]
-        )
+        expected_harness_commit = expected_job_harness_commit(job, run["head_sha"])
         if report and (
             report.get("harness_commit") != expected_harness_commit
             or report.get("proof_profile", "") != job.get("proof_profile", "")

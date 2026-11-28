@@ -55,6 +55,11 @@
   import { resolveCodePreviewKind } from './interactiveHtmlSandbox';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import CodeEditor from './CodeEditor.svelte';
+  import CodeLiveEditor from './CodeLiveEditor.svelte';
+  import { isLiveCollaborationEnabled } from '../../../config/liveCollaborationFlag';
+  import { userProfile } from '../../../stores/userProfile';
+  import LiveHeaderStatus from '../shared/LiveHeaderStatus.svelte';
+  import type { LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
   import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
   import type { EmbedEditScope } from '../../../services/rustCore/embeds/embedEditProtocol';
@@ -248,6 +253,11 @@
 
   // ── Editing a stored code file as the next version ─────────────────────────
   let editing = $state(false);
+  // Live collaboration (flag live_collaboration): the core saves every change, so there is no Save step.
+  const liveMode = isLiveCollaborationEnabled();
+  let liveStatus = $state<LiveStatus>('saving');
+  let livePeers = $state<LivePeer[]>([]);
+  let liveSelf = $derived({ display_name: $userProfile.username || 'You', color: '#6364FF' });
   let editError = $state('');
   let editConflict = $state(false);
   let editScope = $state<EmbedEditScope | null>(null);
@@ -264,9 +274,9 @@
   });
   /**
    * Stored Project files only (the server accepts code edits in Project scope
-   * only): not streaming, not a remote preview, no PII masking in the shown text.
+   * only; in live mode also Team Project files, whose access the live session checks): not streaming, not a remote preview, no PII masking in the shown text.
    */
-  let canEdit = $derived(!!embedId && editScope?.kind === 'project' && data.embedData?.status !== 'processing' && dc.type !== 'remote_file_preview' && !onImport && !hasPII);
+  let canEdit = $derived(!!embedId && (editScope?.kind === 'project' || liveMode && !!projectId) && data.embedData?.status !== 'processing' && dc.type !== 'remote_file_preview' && !onImport && !hasPII);
 
   let codeEditor = $state<ReturnType<typeof CodeEditor> | undefined>(undefined);
   let codeSaving = $state(false);
@@ -274,6 +284,7 @@
   /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
   function toggleCodeEdit(): void {
     // A save closes the editor before its saving flag is reset, so start each edit clean.
+    if (liveMode) { editing = !editing; return; }
     if (!editing) { editError = ''; editConflict = false; codeSaving = false; editing = true; return; }
     void codeEditor?.save();
   }
@@ -1659,7 +1670,10 @@
   {/snippet}
 
   {#snippet content()}
-    {#if editing}
+    {#if editing && liveMode && embedId}
+      <LiveHeaderStatus status={liveStatus} peers={livePeers} />
+      <CodeLiveEditor itemId={embedId} {projectId} teamId={teamId ?? undefined} filename={language} self={liveSelf} bind:status={liveStatus} bind:peers={livePeers} onCancel={() => { editing = false; }} />
+    {:else if editing}
       <CodeEditor
         bind:this={codeEditor}
         bind:saving={codeSaving}

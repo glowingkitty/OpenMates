@@ -27,6 +27,10 @@ REAL_INFERENCE_HOSTS: frozenset[str] = frozenset({
     "api.search.brave.com",
     "api.typesafe.ai",
 })
+CODEX_REAL_INFERENCE_HOSTS: frozenset[str] = frozenset({
+    "api.inceptionlabs.ai",
+    "api.typesafe.ai",
+})
 PROVIDER_PROXY_PORT = 3128
 MAX_PROXY_HEADER = 16384
 
@@ -98,10 +102,31 @@ class Forwarder(socketserver.BaseRequestHandler):
             relay(self.request, upstream)
 
 
+
+CODEX_WEB_VOICE_HOSTS = CODEX_REAL_INFERENCE_HOSTS | {"api.mistral.ai", "api.elevenlabs.io"}
+
+
 class Gateway(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
     allowed_hosts: frozenset[str] | None = None  # None: the replay list
+
+
+def provider_proxy_hosts(environ) -> frozenset[str] | None:
+    """Select one built-in egress policy. None disables the proxy."""
+    real_inference = environ.get("OPENMATES_CI_REAL_INFERENCE_PROXY", "")
+    public_provider = environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1"
+    if real_inference and public_provider:
+        raise RuntimeError("Real-inference and replay provider proxies never share a run")
+    if real_inference == "codex":
+        return CODEX_REAL_INFERENCE_HOSTS
+    if real_inference == "codex-web-voice":
+        return CODEX_WEB_VOICE_HOSTS
+    if real_inference == "1":
+        return REAL_INFERENCE_HOSTS
+    if real_inference:
+        raise RuntimeError("Unknown real-inference provider proxy policy")
+    return PUBLIC_PROVIDER_HOSTS if public_provider else None
 
 
 if __name__ == "__main__":
@@ -110,12 +135,10 @@ if __name__ == "__main__":
     if os.environ.get("OPENMATES_CI_MAIL_CAPTURE") == "1":
         TARGETS[8025] = ("mailpit", 8025)
     servers = [Gateway(("0.0.0.0", port), Forwarder) for port in TARGETS]
-    real_inference = os.environ.get("OPENMATES_CI_REAL_INFERENCE_PROXY") == "1"
-    if real_inference and os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
-        raise RuntimeError("Real-inference and replay provider proxies never share a run")
-    if real_inference or os.environ.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
+    allowed_hosts = provider_proxy_hosts(os.environ)
+    if allowed_hosts is not None:
         proxy = Gateway(("0.0.0.0", PROVIDER_PROXY_PORT), ProviderProxy)
-        proxy.allowed_hosts = REAL_INFERENCE_HOSTS if real_inference else None
+        proxy.allowed_hosts = allowed_hosts
         servers.append(proxy)
     for server in servers:
         threading.Thread(target=server.serve_forever, daemon=True).start()

@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlparse
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import httpx
+import json
 import pytest
 
 
@@ -111,18 +112,18 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["scopes"] == [route.CALENDAR_READ_SCOPE]
+    assert payload["scopes"] == [route.CALENDAR_READ_SCOPE, "openid", "email"]
     parsed = urlparse(payload["authorization_url"])
     params = parse_qs(parsed.query)
     assert parsed.netloc == "accounts.google.com"
     assert params["client_id"] == ["vault-client-id"]
     assert params["access_type"] == ["offline"]
     assert params["prompt"] == ["consent"]
-    assert params["scope"] == [route.CALENDAR_READ_SCOPE]
+    assert params["scope"] == [f"{route.CALENDAR_READ_SCOPE} openid email"]
     state = params["state"][0]
     state_key = route._state_key(state)
     assert cache.values[state_key]["user_id"] == "user-1"
-    assert cache.values[state_key]["scopes"] == [route.CALENDAR_READ_SCOPE]
+    assert cache.values[state_key]["scopes"] == [route.CALENDAR_READ_SCOPE, "openid", "email"]
     assert cache.values[state_key]["webapp_url"] == "https://app.dev.openmates.org"
 
 
@@ -229,6 +230,7 @@ def test_google_calendar_start_uses_events_and_discovery_scopes_for_write_or_del
     assert set(response.json()["scopes"]) == {
         route.CALENDAR_EVENTS_SCOPE,
         "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+        *route.GOOGLE_IDENTITY_SCOPES,
     }
 
 
@@ -440,3 +442,108 @@ def test_google_calendar_callback_preserves_actual_granted_scopes(monkeypatch, o
     assert captured["refresh_token_bundle"]["scopes"] == (expected_scopes[:2] if omit_scope else expected_scopes)
     assert captured["account_hint"]["scopes"] == (expected_scopes[:2] if omit_scope else expected_scopes)
     assert captured["account_hint"]["capabilities"] == ["write"]
+
+
+def _id_token(claims: dict) -> str:
+    import json
+    from base64 import urlsafe_b64encode
+
+    def part(data: dict) -> str:
+        return urlsafe_b64encode(json.dumps(data).encode()).decode().rstrip("=")
+
+    return f"{part({'alg': 'RS256'})}.{part(claims)}.signature"
+
+
+def _start(monkeypatch, body: dict):
+    monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_REDIRECT_URI", "https://api.dev.openmates.org/v1/provider-oauth/google/calendar/callback")
+    cache = FakeCache()
+    client, route = make_client(cache)
+
+    async def creds():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", creds)
+    response = client.post("/v1/provider-oauth/google/calendar/start", json=body)
+    return cache, client, route, response
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+def test_google_account_email_is_read_from_id_token() -> None:
+    route = import_route_module()
+    assert route.extract_google_account_email({"id_token": _id_token({"email": "person@example.org"})}) == "person@example.org"
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+@pytest.mark.parametrize(
+    "token_response",
+    [{}, {"id_token": "not-a-jwt"}, {"id_token": "a.%%%.c"}, {"id_token": _id_token({"sub": "1"})}, {"id_token": _id_token({"email": 5})}],
+)
+def test_google_account_email_missing_or_malformed_yields_none(token_response) -> None:
+    route = import_route_module()
+    assert route.extract_google_account_email(token_response) is None
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+def test_google_mail_start_requests_read_and_compose_without_send(monkeypatch) -> None:
+    cache, _client, route, response = _start(monkeypatch, {"app_id": "mail", "capabilities": ["read", "draft"]})
+    assert response.status_code == 200
+    scopes = response.json()["scopes"]
+    assert scopes == [route.GMAIL_READ_SCOPE, route.GMAIL_COMPOSE_SCOPE, "openid", "email"]
+    assert not any("gmail.send" in scope or "mail.google.com" in scope for scope in scopes)
+    state = next(value for key, value in cache.values.items() if key.startswith(route.GOOGLE_CALENDAR_STATE_PREFIX))
+    assert state["app_id"] == "mail"
+    assert state["return_path"] == "/#settings/apps/mail"
+    params = parse_qs(urlparse(response.json()["authorization_url"]).query)
+    assert params["include_granted_scopes"] == ["true"]
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+@pytest.mark.parametrize("capability", ["send", "write", "delete"])
+def test_google_mail_start_rejects_send_and_calendar_capabilities(monkeypatch, capability) -> None:
+    _cache, _client, _route, response = _start(monkeypatch, {"app_id": "mail", "capabilities": [capability]})
+    assert response.status_code == 400
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+def test_google_start_rejects_unknown_app_and_calendar_default_unchanged(monkeypatch) -> None:
+    _c, _cl, _r, bad = _start(monkeypatch, {"app_id": "drive", "capabilities": ["read"]})
+    assert bad.status_code == 400
+    cache, _cl, route, ok = _start(monkeypatch, {"capabilities": ["read"]})
+    state = next(value for key, value in cache.values.items() if key.startswith(route.GOOGLE_CALENDAR_STATE_PREFIX))
+    assert state["app_id"] == "calendar"
+    assert state["return_path"] == "/#settings/apps/calendar"
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
+@pytest.mark.parametrize("with_email", [True, False])
+def test_google_callback_hint_carries_email_label_only_when_known(monkeypatch, with_email) -> None:
+    cache = FakeCache()
+    client, route = make_client(cache, FakeEncryption())
+    scopes = [route.GMAIL_READ_SCOPE, "openid", "email"]
+    cache.values[route._state_key("s")] = {
+        "user_id": "user-1", "app_id": "mail", "capabilities": ["read"], "scopes": scopes,
+        "redirect_uri": "https://api.dev.openmates.org/cb", "return_path": "/#settings/apps/mail",
+        "webapp_url": "https://app.dev.openmates.org",
+    }
+
+    async def exchange(**kwargs):
+        response = {
+            "refresh_token": "synthetic-secret",
+            "scope": f"{route.GMAIL_READ_SCOPE} openid https://www.googleapis.com/auth/userinfo.email",
+        }
+        if with_email:
+            response["id_token"] = _id_token({"email": "person@example.org"})
+        return response
+
+    monkeypatch.setattr(route, "exchange_google_authorization_code", exchange)
+    response = client.get("/v1/provider-oauth/google/calendar/callback?code=c&state=s", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("#settings/apps/mail")
+    assert "person@example.org" not in response.headers["location"]
+    handoff = next(v for k, v in cache.values.items() if k.startswith("connected_account:oauth_handoff:"))
+    # The hint is stored inside the Vault-encrypted handoff payload (FakeEncryption is base64).
+    blob = b64decode(handoff["encrypted_handoff_payload"].split(":", 2)[2]).decode()
+    hint = json.loads(blob)["account_hint"]
+    assert ("person@example.org" in blob) is with_email
+    assert hint["app_id"] == "mail"
+    assert (hint.get("account_email") == "person@example.org") is with_email

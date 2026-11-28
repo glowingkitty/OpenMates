@@ -1243,7 +1243,7 @@ describe("role-based server planning", () => {
       return match[1];
     };
 
-    assert.match(baseBlock, /VAULT_URL: http:\/\/vault:8200/, "worker base must include Vault URL");
+    assert.match(baseBlock, /VAULT_URL: "?http:\/\/vault:8200"?/, "worker base must include Vault URL");
     assert.match(baseBlock, /vault-setup-data:\/vault-data/, "worker base must mount Vault token data");
     assert.match(baseBlock, /\.\.\/\.\.\/config:\/app_config/, "worker base must mount provider config");
 

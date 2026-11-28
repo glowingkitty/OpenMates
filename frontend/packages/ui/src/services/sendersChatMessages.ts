@@ -1,3 +1,4 @@
+import { collectDesignSource, withoutDesignReference } from "./designSourceForTurn";
 import { noteLocalSend } from "./eventSounds";
 import { prepareSavedPersonalAdmissionHistory, selectPersonalPhasedAdmission } from './savedPersonalAdmissionHistory';
 import { withoutPresentationOnlyEvents } from './contextEntryEvents';
@@ -1200,12 +1201,13 @@ async function publishPostAdmissionContext(input: {
 				const sharedFocus = getActiveProjectFocus(message.chat_id);
 				void sharedFocus.catch(() => undefined);
 				const initialFocus = async () => isV2Current() ? await sharedFocus : null;
-				const [[tasks, focusCatalog, plan, routedAccounts], [memoryDocs, focusDocs, projectDocs]] = await Promise.all([
+				const [[tasks, focusCatalog, plan, routedAccounts], [memoryDocs, focusDocs, projectDocs, designSource]] = await Promise.all([
 					selectionDetails,
 					Promise.all([
 						collectCustomRuleDocuments({ chatId: message.chat_id, initialFocus }),
 						context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 						context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
+						collectDesignSource(message.content ?? "", message.chat_id),
 					]),
 				]);
 				const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
@@ -1222,6 +1224,7 @@ async function publishPostAdmissionContext(input: {
 						project_focus_documents: focusDocs.slice(0, 8),
 						project_context_documents: projectDocs.slice(0, 20),
 						connected_account_token_refs: routedAccounts?.tokenRefs ?? [],
+						...(designSource ? { design_source: designSource } : {}),
 					},
 				});
 				return detailsFrame!;
@@ -1273,11 +1276,12 @@ async function publishPostAdmissionContext(input: {
 		const { collectCustomRuleDocuments } = await import("./ruleDocumentService");
 		const sharedFocus = getActiveProjectFocus(message.chat_id);
 		const initialFocus = async () => isCurrent() ? await sharedFocus : null;
-		const [memoryDocs, focusDocs, projectDocs, detailedAccounts] = await Promise.all([
+		const [memoryDocs, focusDocs, projectDocs, detailedAccounts, designSource] = await Promise.all([
 			collectCustomRuleDocuments({ chatId: message.chat_id, initialFocus }),
 			context.collectPrivateFocusForRequest({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 			context.collectProjectReferenceDocuments({ chatId: message.chat_id, text: message.content ?? "", initialFocus }),
 			accounts,
+			collectDesignSource(message.content ?? "", message.chat_id),
 		]);
 		const memoryCatalog = await collectMemoryCatalogForSend(memoryDocs);
 		if (!isCurrent()) return;
@@ -1289,6 +1293,7 @@ async function publishPostAdmissionContext(input: {
 				project_focus_documents: focusDocs.slice(0, 8),
 				project_context_documents: projectDocs.slice(0, 20),
 				connected_account_token_refs: detailedAccounts?.tokenRefs ?? [],
+				...(designSource ? { design_source: designSource } : {}),
 			},
 		});
 	}
@@ -1871,6 +1876,7 @@ export async function sendNewMessageImpl(
 		await updateMessageStatusForSendRetry(serviceInstance, message, "waiting_for_internet");
 		throw new PendingAdmissionCompatibilityError();
 	}
+	const admissionText = await withoutDesignReference(message.content ?? "");
 	const fastPersonalText = selectPersonalPhasedAdmission(fastAdmissionAllowed, retainedJournal, retainedFastAdmission) && usesPersonalRecovery
 		&& (retainedFastAdmission ||
 			(predecessorVersion ?? preflightExpectedMessagesVersion(chat?.messages_v)) > 0
@@ -1880,8 +1886,8 @@ export async function sendNewMessageImpl(
 		&& !((message as unknown as { broadcast?: boolean }).broadcast)
 		&& !encryptedSuggestionToDelete && (!connectedAccountContext || retainedFastAdmission)
 		&& typeof message.content === "string"
-		&& !message.content.includes("```")
-		&& !message.content.includes("embed_id")
+		&& !admissionText.includes("```")
+		&& !admissionText.includes("embed_id")
 		&& !message.content.includes("@memory")
 		&& !message.content.includes("| ");
 	if (fastPersonalText && chat) {
@@ -2324,7 +2330,7 @@ export async function sendNewMessageImpl(
 	// Extract embed references from message content (now includes the newly created code embeds)
 	// Embeds are referenced as JSON code blocks: ```json\n{"type": "app_skill_use", "embed_id": "..."}\n```
 	const { extractEmbedReferences, loadEmbedsWithRetry } = await import("./embedResolver");
-	const embedRefs = extractEmbedReferences(contentForServer);
+	const embedRefs = extractEmbedReferences(contentForServer).filter((ref) => ref.type !== "design-document");
 
 	// Load embeds from EmbedStore (decrypted, ready to send as cleartext)
 	interface EmbedForServer {
@@ -3380,6 +3386,24 @@ export async function sendNewMessageImpl(
 					Number(preflightPayload.expected_messages_v) + 1,
 				);
 				holdAdmissionUntil?.(admissionCompleted);
+				if (RUST_SEND_PREP_BUILD) {
+					// A turn the server already answered or refused for good must leave
+					// the reconnect retry, or every reload resends it (Task 361c8696).
+					const retainedTurnId = turnId;
+					const { watchRetainedTurnOutcome } = await import("./rustCore/send/rustTurnOutcomeWatch");
+					watchRetainedTurnOutcome({
+						chatId: message.chat_id, messageId: message.message_id, turnId: retainedTurnId,
+						settled: admissionCompleted, events: webSocketService,
+						end: async (outcome) => {
+							await Promise.all([
+								clearPendingMessageJournal(message.chat_id, message.message_id, MESSAGE_TURN_PREFLIGHT_FIELD),
+								clearPendingMessageJournal(message.chat_id, message.message_id, contextPhaseJournalField("routing")),
+								clearPendingMessageJournal(message.chat_id, message.message_id, contextPhaseJournalField("details")),
+							]);
+							await updateMessageStatusForSendRetry(serviceInstance, message, outcome === "finished" ? "synced" : "failed");
+						},
+					});
+				}
 				if (usesPersonalRecovery) {
 					// The versioned confirmation commits this user row at expected+1: a
 					// follow-up may be admitted at once and waits server-side as Queued

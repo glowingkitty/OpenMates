@@ -1,6 +1,12 @@
 import { expect, type Page } from '@playwright/test';
 import { waitForChatReady } from './chat-test-helpers';
 
+/** Open the actual compact picker and follow one of its navigation links. */
+export async function selectCompactWorkspace(page: Page, href: string): Promise<void> {
+  await page.getByTestId('workspace-mobile-select').click();
+  await page.getByTestId('workspace-picker-option').and(page.locator(`[href="${href}"]`)).click();
+}
+
 /** Auth restoration can finish before feature-controlled workspace links load. */
 export async function assertWorkspaceNavigationItems(
   page: Page,
@@ -12,8 +18,8 @@ export async function assertWorkspaceNavigationItems(
   await expect.poll(async () => mode === 'desktop'
     ? header.getByRole('link').and(header.getByTestId(/-nav-link$/))
       .evaluateAll(links => links.map(link => link.getAttribute('data-testid')))
-    : header.getByTestId('workspace-mobile-select').getByRole('option', { includeHidden: true })
-      .evaluateAll(options => options.map(option => (option as HTMLOptionElement).value)), {
+    : header.getByTestId('workspace-picker-option')
+      .evaluateAll(options => options.map(option => option.getAttribute('href'))), {
     timeout,
     message: `The ${mode} workspace navigation must expose the exact expected items after feature loading`,
   }).toEqual(expectedItems);

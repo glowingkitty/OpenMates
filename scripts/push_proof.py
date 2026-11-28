@@ -28,7 +28,19 @@ something visual to show:
   * a session of the chat ran an end-to-end or visual CI job (VISUAL_CI_MODES) that finished; its
     screenshots or video come from that run.
 Everything else (research, backend work, security checks, docs, tooling) is never asked for proof
-and never refused for lacking it; the push wording plays no part. A push that needs proof and has
+and never refused for lacking it; the push wording plays no part.
+
+Video rule (owner, 23 Nov 2026): every Playwright run in GitHub CI or E2B records a video
+(playwright.config.ts refuses video off there), and that video is the proof. When a session of
+the chat ran Playwright (a finished CI job in PLAYWRIGHT_CI_MODES, or a heavy_slot run of
+Playwright in E2B or locally, logged in host-load-guard/events.jsonl with the chat id), the
+push needs a video (VIDEO_SUFFIXES) or a signed link to one, whether or not anything was
+deployed; a screenshot alone is refused. Voice and audio flows attach the *-with-audio.webm.
+
+Kept copies (owner, 23 Nov 2026): every screenshot and video sent with a push is also copied
+to PROOF_STORE/<YYYYMMDD>/<push time>-<chat>/ in the main checkout (logs/ is ignored by git,
+files are owner-only) and its path is logged as `proof.stored`, so the owner's dev connector
+can show it again (view_attachment). Copies older than PROOF_KEEP_DAYS are pruned. A push that needs proof and has
 none is refused (exit 1) unless ``--no-proof "<why>"`` is given, which sends it with a loud
 "No screenshot or video" line so the owner sees what is missing.
 """
@@ -43,6 +55,7 @@ import shutil
 import sqlite3
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Callable
@@ -70,6 +83,12 @@ EMAIL_TEMPLATE_DIR = "templates/email"
 TEST_PARTS = {"tests", "__tests__", "test", "OpenMatesTests", "OpenMatesUITests"}
 VISUAL_CI_MODES = ("e2e", "component", "visual-smoke", "apple-ui")
 FINISHED_STATES = ("success", "failure")
+PLAYWRIGHT_CI_MODES = ("e2e", "component", "visual-smoke")
+HOST_EVENTS = Path("logs") / "host-load-guard" / "events.jsonl"
+HOST_EVENTS_TAIL = 4 * 1024 * 1024
+PLAYWRIGHT_RE = re.compile(r"\bplaywright(/test/cli\.js)? test\b")
+PROOF_STORE = Path("logs") / "agent-questions" / "proof"
+PROOF_KEEP_DAYS = 14
 CI_QUEUE = Path("logs") / "ci-coordinator" / "queue.sqlite3"
 
 
@@ -149,6 +168,80 @@ def proof_reasons(root: Path, chat_id: str) -> list[str]:
         modes = sorted({mode for mode, _ in jobs})
         reasons.append(f"ran {len(jobs)} end-to-end or visual CI job(s) ({', '.join(modes)})")
     return reasons
+
+
+def local_playwright_runs(root: Path, chat_id: str) -> int:
+    """heavy_slot Playwright runs (E2B or local) this chat started."""
+    path = root / HOST_EVENTS
+    if not chat_id or not path.is_file():
+        return 0
+    with path.open("rb") as handle:
+        handle.seek(max(0, path.stat().st_size - HOST_EVENTS_TAIL))
+        lines = handle.read().decode("utf-8", errors="replace").splitlines()
+    count = 0
+    for line in lines:
+        if chat_id not in line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if (event.get("session") == chat_id and event.get("event") in ("heavy_remote_run", "heavy_slot_run")
+                and (event.get("kind") == "playwright" or PLAYWRIGHT_RE.search(str(event.get("command", ""))))):
+            count += 1
+    return count
+
+
+def video_reasons(root: Path, chat_id: str) -> list[str]:
+    """Why this push needs a video: the chat ran Playwright (module docstring, video rule)."""
+    sessions = chat_sessions(root, chat_id)
+    reasons = []
+    ci = [mode for mode, _ in visual_ci_jobs(root, list(sessions)) if mode in PLAYWRIGHT_CI_MODES]
+    if ci:
+        reasons.append(f"ran {len(ci)} Playwright CI job(s) ({', '.join(sorted(set(ci)))})")
+    if local := local_playwright_runs(root, chat_id):
+        reasons.append(f"ran Playwright {local} time(s) through heavy_slot")
+    return reasons
+
+
+def is_video(raw: str) -> bool:
+    return Path(raw).suffix.lower() in VIDEO_SUFFIXES
+
+
+def is_video_link(url: str) -> bool:
+    from urllib.parse import urlparse
+
+    return PurePosixPath(urlparse(url).path).suffix.lower() in VIDEO_SUFFIXES
+
+
+def video_refusal(reasons: list[str]) -> str:
+    return ("this push needs the run's video: the chat " + " and ".join(reasons) + ". Every Playwright run in "
+            "CI or E2B records one; attach it with --attach <video.webm> (CI videos are in the run's folder under "
+            "test-results/ci-runs/; voice and audio flows: the *-with-audio.webm) or --link <signed video link>, "
+            "also when nothing was deployed; if there truly is no video, pass --no-proof \"<why>\"")
+
+
+def store_copies(root: Path, paths: list[str], chat_id: str, now: float) -> list[str]:
+    """Owner-only copies of the screenshots and videos of one push; returns their repo-relative paths."""
+    base = root / PROOF_STORE
+    day = time.strftime("%Y%m%d", time.gmtime(now))
+    folder = base / day / f"{int(now)}-{re.sub(r'[^A-Za-z0-9]', '', chat_id)[:8] or 'chat'}"
+    stored: list[str] = []
+    taken: set[str] = set()
+    for raw in paths:
+        if not is_visual(raw):
+            continue
+        source = check_path(raw)
+        folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target = folder / unique_name(source.name, taken)
+        shutil.copyfile(source, target)
+        target.chmod(0o600)
+        stored.append(str(target.relative_to(root)))
+    cutoff = time.strftime("%Y%m%d", time.gmtime(now - PROOF_KEEP_DAYS * 86400))
+    for old in base.glob("[0-9]" * 8) if base.is_dir() else []:
+        if old.name < cutoff:
+            shutil.rmtree(old, ignore_errors=True)
+    return stored
 
 
 def refusal(reasons: list[str]) -> str:

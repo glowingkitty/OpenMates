@@ -65,6 +65,27 @@ function initProjectFileExecutorLifecycle(): void {
   });
 }
 
+let taskJobLifecycle: Promise<void> | undefined;
+
+function initTaskJobLifecycle(): Promise<void> {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== "1") return Promise.resolve();
+  taskJobLifecycle ??= import("./services/rustCore/tasks/taskJobRunner").then(({ installTaskJobRunner }) => {
+    let remove: (() => void) | undefined;
+    authStore.subscribe(({ isAuthenticated }) => {
+      if (isAuthenticated) {
+        remove ??= installTaskJobRunner();
+      } else {
+        remove?.();
+        remove = undefined;
+      }
+    });
+  }).catch((error: unknown) => {
+    taskJobLifecycle = undefined;
+    console.error("[App] Could not install the Task job runner", error);
+  });
+  return taskJobLifecycle;
+}
+
 let removeMemoryWriteJobRunner: (() => void) | null = null;
 let unsubscribeMemoryWriteJobAuth: (() => void) | null = null;
 
@@ -136,6 +157,7 @@ export async function initializeApp(
     // Install authenticated Project clients before async initialization can
     // delay their capability registration while the composer is already usable.
     initProjectFileExecutorLifecycle();
+    await initTaskJobLifecycle();
     initMemoryWriteJobLifecycle();
     initChatOrchestrationJobLifecycle();
 

@@ -216,6 +216,29 @@ resolvers.set('calendar-event', async ({ embedId, decodedContent, embedData, onF
     status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen } };
 });
 
+// Assistant-authored inline task card (frontend type tasks-task, backend type task).
+const taskResolver: PreviewResolver = async ({ embedId, decodedContent, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/tasks/TaskEmbedPreview.svelte');
+  const { normalizeTaskResult } = await import('../components/embeds/tasks/taskEmbedData');
+  const task = normalizeTaskResult(embedId, decodedContent);
+  return { component, props: {
+    id: embedId,
+    taskId: task.task_id,
+    shortId: task.short_id,
+    title: task.title,
+    description: task.description,
+    status: task.status ?? 'todo',
+    assignee: task.assignee ?? task.assignee_type,
+    dueDate: task.due_date,
+    projectName: task.project_name,
+    validation: task.validation,
+    isMobile: false,
+    onFullscreen,
+  } };
+};
+resolvers.set('tasks-task', taskResolver);
+resolvers.set('task', taskResolver);
+
 for (const skillId of ["search", "read"] as const) {
   resolvers.set(`app:projects:${skillId}`, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
     const { default: component } = await import("../components/embeds/projects/ProjectReferenceEmbedPreview.svelte");
@@ -886,9 +909,10 @@ const travelConnectionResolver: PreviewResolver = async ({
   const endpoints = travelConnectionEndpoints(decodedContent, !isAuthored);
   const legs = Array.isArray(decodedContent.legs) ? decodedContent.legs as Record<string, unknown>[] : [];
   const firstLeg = legs[0];
-  const lastLeg = legs.at(-1);
+  const lastLeg = legs[legs.length - 1];
   const firstSegment = (Array.isArray(firstLeg?.segments) ? firstLeg.segments[0] : undefined) as Record<string, unknown> | undefined;
-  const lastSegment = (Array.isArray(lastLeg?.segments) ? lastLeg.segments.at(-1) : undefined) as Record<string, unknown> | undefined;
+  const lastSegments = Array.isArray(lastLeg?.segments) ? lastLeg.segments : [];
+  const lastSegment = lastSegments[lastSegments.length - 1] as Record<string, unknown> | undefined;
   return {
     component,
     props: {
@@ -1209,6 +1233,16 @@ resolvers.set("docs-doc", docsResolver);
 resolvers.set("document", docsResolver); // legacy server type
 // App-skill route for docs app
 resolvers.set("app:docs:doc", docsResolver);
+
+// Saved Design scenes use the same Worker validator as the fullscreen viewer.
+resolvers.set("design-document", async ({ embedId, embedData, decodedContent, onFullscreen }) => {
+  const [{ default: component }, { readDesignView }] = await Promise.all([
+    import("../components/embeds/design/DesignDocumentEmbedPreview.svelte"),
+    import("../components/embeds/design/editor/designView"),
+  ]);
+  const design = await readDesignView(decodedContent, embedData.content);
+  return { component, props: { id: embedId, design, status: design ? "finished" : "error", onFullscreen } };
+});
 
 // ── Direct: slides (slides_markup deck) ──────────────────────────────────────
 

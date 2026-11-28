@@ -30,6 +30,9 @@ from backend.core.api.app.services.directus.chat_key_wrapper_methods import sele
 logger = logging.getLogger(__name__)
 
 CAPABILITY = "chat_sync_feed_v1"
+STARTUP_OPENED_CAPABILITY = "chat_startup_opened_v1"
+STARTUP_OPENED_TEAM_CAPABILITY = "chat_startup_opened_team_v1"
+STARTUP_OPENED_LIMIT = 11
 HINT_CHANNEL_PREFIX = "chat_sync:"
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 200
@@ -67,10 +70,15 @@ def scope_keys(user_id: str, team_id: str | None) -> tuple[str, str]:
     return scope, f"user:{_sha(user_id)}"
 
 
-def socket_has_capability(websocket: Any) -> bool:
+def socket_has_capability(websocket: Any, capability: str = CAPABILITY) -> bool:
     query = getattr(websocket, "query_params", None) or {}
     raw = query.get("client_capabilities", "") if hasattr(query, "get") else ""
-    return CAPABILITY in {item.strip() for item in str(raw).split(",") if item.strip()}
+    return capability in {item.strip() for item in str(raw).split(",") if item.strip()}
+
+
+def socket_uses_opened_startup(websocket: Any, team_id: str | None) -> bool:
+    capability = STARTUP_OPENED_TEAM_CAPABILITY if team_id else STARTUP_OPENED_CAPABILITY
+    return socket_has_capability(websocket, capability)
 
 
 def parse_last_opened(value: Any) -> str | None:
@@ -102,6 +110,15 @@ def _chat_builders():
         _effective_metadata_v,
     )
     return _build_chat_details_from_directus_metadata, _apply_authoritative_draft_metadata, _effective_metadata_v
+
+
+def opened_message_versions(rows: list[dict[str, Any]]) -> dict[str, int]:
+    """Comparable revisions for the already authorized, bounded offline cohort."""
+    return {
+        row["id"]: version
+        for row in rows
+        if type(version := row.get("messages_v")) is int and 0 <= version <= (1 << 53) - 1
+    }
 
 
 def _project_visible(row: dict[str, Any], user_id: str) -> dict[str, Any] | None:
@@ -280,6 +297,50 @@ class ChatSyncFeedService:
             due_soon = await self.due_soon_set(user_id, raw.get("saved_items") or [])
             page["overview"] = {**(page["overview"] or {}), "due_soon": due_soon}
         return page
+
+    async def startup_opened(self, user_id: str, team_id: str | None) -> list[dict[str, Any]]:
+        await self.authorize(user_id, team_id)
+        scope, user_scope = scope_keys(user_id, team_id)
+        raw = await self._call("opened", {"scope": scope, "user_scope": user_scope})
+        return self._visible_index_rows(raw, user_id, team_id)[:STARTUP_OPENED_LIMIT]
+
+    async def recent_modified(
+        self, user_id: str, team_id: str | None, limit: int, offset: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        await self.authorize(user_id, team_id)
+        scope, user_scope = scope_keys(user_id, team_id)
+        raw = await self._call("recent-modified", {
+            "scope": scope, "user_scope": user_scope, "limit": limit, "offset": offset,
+        })
+        total = raw.get("total_count")
+        if type(total) is not int or total < 0:
+            raise ChatSyncFeedError("sync_deferred")
+        rows = self._visible_index_rows(raw, user_id, team_id)
+        drafts = {str(draft["chat_id"]): draft for draft in raw.get("drafts", []) if isinstance(draft, dict) and "chat_id" in draft}
+        for row in rows:
+            row.update(_draft_payload(drafts.get(row["id"])))
+        return rows, total
+
+    @staticmethod
+    def _visible_index_rows(raw: dict[str, Any], user_id: str, team_id: str | None) -> list[dict[str, Any]]:
+        rows = raw.get("chats")
+        if not isinstance(rows, list):
+            raise ChatSyncFeedError("sync_deferred")
+        result = []
+        seen = set()
+        team_hash = _sha(team_id) if team_id else None
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("id"), str) or not _UUID.fullmatch(row["id"]):
+                continue
+            if row["id"] in seen or (row.get("hashed_team_id") or None) != team_hash:
+                continue
+            if team_hash is None and row.get("hashed_user_id") != _sha(user_id):
+                continue
+            projected = _project_visible(row, user_id)
+            if projected is not None:
+                result.append(projected)
+                seen.add(row["id"])
+        return result
 
     async def due_soon_set(self, user_id: str, saved_items: list[dict[str, Any]]) -> dict[str, Any]:
         hashed_user = _sha(user_id)

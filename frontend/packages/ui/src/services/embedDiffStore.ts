@@ -182,6 +182,13 @@ export async function fetchEmbedVersionContent(
 	if (!Array.isArray(responseData.rows) || responseData.rows[responseData.rows.length - 1]?.version_number !== versionNumber) {
 		throw new Error('Version response does not match the selected version');
 	}
+	const snapshot = responseData.rows[responseData.rows.length - 1]?.encrypted_snapshot;
+	const teamId = scope.get('team_id');
+	if (teamId && snapshot && import.meta.env.VITE_OPENMATES_RUST_CORE === '1') {
+		const { liveItemClient } = await import('./live/liveItemClient');
+		const text = await liveItemClient().liveOpenTeamRevisionContent(embedId, teamId, versionNumber, snapshot, true);
+		if (text !== null) return { ...responseData, content: text };
+	}
 	const content = await reconstructEncryptedVersion(embedId, responseData.rows);
 	if (responseData.rows.length > 32 && responseData.readonly === false) {
 		void publishClientSnapshot(embedId, versionNumber, responseData.current_version, content, scope);

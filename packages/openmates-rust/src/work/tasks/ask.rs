@@ -161,14 +161,15 @@ impl Tasks<'_> {
         let (master, wrapping) = self.keys().await?;
         let mut output = sanitize(&value);
         if let Some(raw) = value.get("task").filter(|v| v.is_object()) {
-            output["task"] = decrypt(raw.clone(), &master, &wrapping, None)?.public;
+            output["task"] = decrypt(raw.clone(), &master, &wrapping, None, &[])?.public;
         }
         if let Some(rows) = value.get("tasks").and_then(Value::as_array) {
             output["tasks"] = json!(
-                rows.iter()
-                    .map(|row| decrypt(row.clone(), &master, &wrapping, None).map(|t| t.public))
-                    .collect::<Result<Vec<_>>>()?
-            );
+                    rows.iter()
+                        .map(|row| decrypt(row.clone(), &master, &wrapping, None, &[])
+                            .map(|t| t.public))
+                        .collect::<Result<Vec<_>>>()?
+                );
         }
         Ok(output)
     }

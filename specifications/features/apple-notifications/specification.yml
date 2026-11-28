@@ -127,7 +127,7 @@ assertions:
     depends_on: [models.ApplePushPayload, examples.payload_privacy]
   - id: apple-notifications.preview.readable
     type: behavior
-    must: An encrypted response preview starts with the first app and skill's translated display labels plus available allowlisted human query or request details, summarizes additional skill uses, then separates readable response prose with a blank line; inline embeds use human markers such as [3 Images], never raw JSON, internal identifiers, or embed protocol. The complete APNs UTF-8 JSON payload, including ciphertext and base64 overhead, stays within 4096 bytes by retaining the available start of the preview.
+    must: A device-encrypted chat notification shows the chat title as its title and the first lines of the answer, as plain text with its line breaks kept, as its body; markdown, code blocks, tables and embed protocol are removed, inline embeds use human markers such as [3 Images], never raw JSON or internal identifiers, and app skill labels stand in only when the answer has no readable prose. The chat title and the answer excerpt are on by default and each can be turned off (includeChatTitle shows "OpenMates" instead, includeAnswerText shows the localized generic text instead); a chat without a title also shows "OpenMates"; hidden or unknown chats stay generic. The excerpt is as long as the complete APNs UTF-8 JSON payload, including ciphertext and base64 overhead, allows within 4096 bytes; as many whole leading lines as fit, the last partly fitting line cut at a word boundary with an ellipsis.
     depends_on: [models.ApplePushPayload, examples.payload_privacy]
   - id: apple-notifications.action.routing-coherent
     type: behavior

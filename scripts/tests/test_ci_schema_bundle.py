@@ -387,6 +387,21 @@ def test_restore_readiness_rejects_temporary_socket_only_server(monkeypatch):
     assert all("PGPASSWORD" not in argument for call in calls for argument in call)
 
 
+def test_schema_consumer_startup_failure_reports_only_entrypoint_errors(monkeypatch):
+    def compose(*args):
+        if args[0] == "up":
+            raise subprocess.CalledProcessError(1, args, stderr=b"container exited")
+        return subprocess.CompletedProcess(
+            args, 0, stdout=b"DETAIL: private SQL data", stderr=b"chmod: permission denied"
+        )
+
+    monkeypatch.setattr(bundle, "compose", compose)
+
+    with pytest.raises(RuntimeError, match="container exited.*chmod: permission denied") as error:
+        bundle.start_schema_consumer_database()
+    assert "private SQL data" not in str(error.value)
+
+
 def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeypatch):
     source = "a" * 40
     dump = b"CREATE TABLE example ();\n"
@@ -408,11 +423,11 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
     monkeypatch.setattr(bundle, "require_routing_proof_table", lambda: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: dump)
-    monkeypatch.setattr(
-        bundle,
-        "compose",
-        lambda *args, **kwargs: compose_calls.append(args),
-    )
+    def compose(*args, **kwargs):
+        compose_calls.append(args)
+        return subprocess.CompletedProcess(args, 0, stdout=b"70\n")
+
+    monkeypatch.setattr(bundle, "compose", compose)
 
     evidence = bundle.verify_image("schema:test")
 
@@ -428,6 +443,7 @@ def test_verify_image_uses_two_fresh_consumers_and_cleans_each(tmp_path, monkeyp
     assert len(passwords) == 2
     assert bundle.PREPARED_SCHEMA_ADMIN_PASSWORD not in passwords
     assert sum(call[:2] == ("down", "--volumes") for call in compose_calls) == 2
+    assert compose_calls.count(("exec", "-T", "cms-database", "id", "-u")) == 2
     assert len(evidence["consumers"]) == 2
 
 
@@ -455,7 +471,9 @@ def test_verify_image_writes_private_diagnostic_before_rejecting_restore(
     monkeypatch.setattr(bundle, "wait_for_restored_schema", lambda: None)
     monkeypatch.setattr(bundle, "require_routing_proof_table", lambda: None)
     monkeypatch.setattr(bundle, "database_dump", lambda: actual)
-    monkeypatch.setattr(bundle, "compose", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        bundle, "compose", lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout=b"70\n")
+    )
     monkeypatch.setattr(
         bundle,
         "write_restore_diagnostic",

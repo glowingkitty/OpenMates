@@ -959,6 +959,12 @@
         "description": {
           "text": "Figma डिज़ाइन पढ़ें और संरचना, स्टाइल और कोड हैंडऑफ़ पाएँ।"
         }
+      },
+      "author": {
+        "text": "डिज़ाइन बनाएँ",
+        "description": {
+          "text": "संपादन योग्य फ़्लायर, पोस्ट या मॉकअप बनाएँ।"
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "कार्य बनाएं",
-          "description": {
-            "text": "शीर्षक, विवरण और असाइनी के साथ कार्य बनाएं।"
-          }
-        },
         "search": {
           "text": "कार्य खोजें",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "उदाहरण चैट"
       },
+      "sub_chat": {
+        "text": "सब-चैट"
+      },
       "shared_chat": {
         "text": "साझा चैट"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "और दिखाएं"
+      },
+      "account_total": {
+        "text": "आपके खाते में {count} चैट"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "{label} समेटें"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "कार्य"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid डायग्राम"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "ग्राफ़िक पढ़ा जा रहा है…"
+        },
+        "progress_checking": {
+          "text": "डिज़ाइन जाँचा जा रहा है…"
+        },
+        "progress_adjusting": {
+          "text": "डिज़ाइन को कढ़ाई के लिए ढाला जा रहा है…"
+        },
+        "progress_stitching": {
+          "text": "टाँके और पूर्वावलोकन बनाए जा रहे हैं…"
+        },
+        "progress_saving": {
+          "text": "मशीन फ़ाइलें सहेजी जा रही हैं…"
+        },
         "threads": {
           "text": "धागे"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "डिज़ाइन डाउनलोड करें"
+        },
+        "current_page": {
+          "text": "वर्तमान पेज"
+        },
+        "all_pages": {
+          "text": "सभी पेज"
+        },
+        "image_unavailable": {
+          "text": "इस डिवाइस पर एक इमेज उपलब्ध नहीं है। पेज खोलें, इमेज लोड होने तक इंतज़ार करें और दोबारा कोशिश करें।"
+        },
+        "failed": {
+          "text": "डिज़ाइन डाउनलोड नहीं हो सका। दोबारा कोशिश करें।"
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "मुफ्त में आज़माएँ"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "ई-मेल डोमेन की अनुमति नहीं है।"
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "वॉइस कॉल में Mistral ट्रांसक्रिप्शन, ElevenLabs v4 Turbo की आवाज़, OpenMates की सामान्य AI रूटिंग और उपयोग आधारित बिलिंग होती है।"
-    },
     "privacy_description": {
       "text": "Mistral तुम्हारे माइक्रोफ़ोन की आवाज़ को टेक्स्ट में बदलता है; ElevenLabs v4 Turbo उत्तर के टेक्स्ट और आवाज़ की सेटिंग से सहायक की आवाज़ बनाता है। बातचीत में OpenMates की सामान्य AI रूटिंग और स्किल्स इस्तेमाल होती हैं। प्रदाता अपनी नीतियों के अनुसार अनुरोध का डेटा रख सकते हैं।"
     },

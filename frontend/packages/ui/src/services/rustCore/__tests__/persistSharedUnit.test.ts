@@ -22,6 +22,7 @@ import type { Message } from '../../../types/chat';
 const seen: string[] = [];
 const rows = (value: unknown) => value as Message[];
 const binding: PersistBinding = {
+	persist_startup_opened: (input) => JSON.stringify({ path: JSON.parse(input).chatId }),
 	persist_message_should_update: (input) => {
 		const { pairs } = JSON.parse(input);
 		seen.push(input);

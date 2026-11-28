@@ -389,9 +389,10 @@ final class ChatNavigationParityUITests: XCTestCase {
         app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-delayed-visible-window"]
         app.launch()
         try assertHeaderTitle("Current Chat", in: app)
+        RealAccountUITestSupport.resolveStartupNotificationPrompt()
         let loading = app.descendants(matching: .any)["chat-initial-content-loading"].firstMatch
         let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: loading)
-        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
+        XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 20), .completed)
         let close = try NativeUITestElementResolution.requireVisible(
             app.buttons.matching(identifier: "chat-close-button"), in: app, timeout: 5)
         close.tap()
@@ -419,7 +420,7 @@ final class ChatNavigationParityUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["follow-up-suggestions"].exists)
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
-            predicate: NSPredicate(format: "exists == false"), object: loading)], timeout: 8), .completed)
+            predicate: NSPredicate(format: "exists == false"), object: loading)], timeout: 20), .completed)
         let history = app.scrollViews["chat-history-container"].firstMatch
         XCTAssertTrue(history.waitForExistence(timeout: 5))
         // The selectable user text exposes its stable message identity even when

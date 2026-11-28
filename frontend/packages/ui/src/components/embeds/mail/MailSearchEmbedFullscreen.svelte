@@ -14,8 +14,7 @@
   import { extractSearchResultsFromContent } from '../embedPreviewHydration';
 
   interface MailSearchResult {
-    uid?: string;
-    message_id?: string;
+    embed_id?: string;
     from?: string;
     to?: string;
     receiver?: string;
@@ -56,7 +55,8 @@
   // Extract fields from data prop
   let query = $derived(typeof data.decodedContent?.query === 'string' ? data.decodedContent.query : 'Recent emails');
   let provider = $derived(typeof data.decodedContent?.provider === 'string' ? data.decodedContent.provider : '');
-  let results = $derived(extractSearchResultsFromContent(data.decodedContent) as MailSearchResult[]);
+  let inlineResults = $derived(extractSearchResultsFromContent(data.decodedContent) as MailSearchResult[]);
+  let embedIds = $derived(data.decodedContent?.embed_ids ?? data.embedData?.embed_ids);
   let timeRange = $derived.by(() => {
     const content = data.decodedContent || {};
     if (typeof content.time_range === 'string' && content.time_range.trim()) return content.time_range;
@@ -67,21 +67,23 @@
     if (end) return `Until ${end}`;
     return 'All time';
   });
-  let resultCount = $derived(typeof data.decodedContent?.result_count === 'number' ? data.decodedContent.result_count : results.length);
+  let resultCount = $derived(typeof data.decodedContent?.result_count === 'number' ? data.decodedContent.result_count : inlineResults.length);
 
-  let selectedIndex = $state(0);
-  let selectedResult = $derived(results[selectedIndex] || null);
-  let safeBodyHtml = $derived(
-    selectedResult?.body_html ? sanitizeMailHtmlForRender(selectedResult.body_html) : ''
-  );
-  let plainBodyText = $derived(
-    selectedResult
-      ? (selectedResult.body_text || selectedResult.snippet || buildMailBodyPreviewText('', selectedResult.body_html || ''))
-      : ''
-  );
+  let selection = $state<{ parentId: string | undefined; childId?: string; index: number }>();
 
-  function selectResult(index: number) {
-    selectedIndex = index;
+  function selectResult(result: MailSearchResult, index: number) {
+    selection = { parentId: embedId, childId: result.embed_id, index };
+  }
+
+  function transformMailResult(embedId: string, content: Record<string, unknown>): MailSearchResult {
+    return { ...content, embed_id: embedId };
+  }
+
+  function getSelectedIndex(results: MailSearchResult[]): number {
+    const current = selection?.parentId === embedId ? selection : undefined;
+    const targetId = current?.childId ?? (current ? undefined : data.focusChildEmbedId);
+    const targetIndex = targetId ? results.findIndex((result) => result.embed_id === targetId) : -1;
+    return targetIndex >= 0 ? targetIndex : Math.min(current?.index ?? 0, Math.max(0, results.length - 1));
   }
 </script>
 
@@ -100,8 +102,13 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  embedIds={embedIds as string | string[] | undefined}
+  childEmbedTransformer={transformMailResult}
 >
-  {#snippet content()}
+  {#snippet content({ children })}
+    {@const results = children.length ? children as MailSearchResult[] : inlineResults}
+    {@const selectedIndex = getSelectedIndex(results)}
+    {@const selectedResult = results[selectedIndex]}
     <div class="mail-search-fullscreen">
       <aside class="results-list">
         {#if results.length === 0}
@@ -111,7 +118,8 @@
             <button
               class="result-item"
               class:selected={idx === selectedIndex}
-              onclick={() => selectResult(idx)}
+              onclick={() => selectResult(result, idx)}
+              data-testid="mail-search-result"
             >
               <div class="subject">{result.subject || '(No subject)'}</div>
               <div class="sender">{result.from || result.receiver || 'Unknown sender'}</div>
@@ -125,6 +133,8 @@
 
       <section class="mail-reader">
         {#if selectedResult}
+          {@const safeBodyHtml = selectedResult.body_html ? sanitizeMailHtmlForRender(selectedResult.body_html) : ''}
+          {@const plainBodyText = selectedResult.body_text || selectedResult.snippet || buildMailBodyPreviewText('', selectedResult.body_html || '')}
           <header class="reader-header">
             <div class="reader-subject">{selectedResult.subject || '(No subject)'}</div>
             <div class="reader-meta">
@@ -177,7 +187,12 @@
     text-align: left;
     cursor: pointer;
     display: flex;
+    flex: none;
     flex-direction: column;
+    align-items: stretch;
+    height: auto;
+    margin: 0;
+    filter: none;
     gap: var(--spacing-2);
   }
 
@@ -265,7 +280,8 @@
 
   @media (max-width: 900px) {
     .mail-search-fullscreen {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto 1fr;
       margin: 72px 8px 90px;
     }
 

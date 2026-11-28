@@ -1,4 +1,4 @@
-import { expect, type Page, type TestInfo } from '@playwright/test';
+import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 
 /** Desktop drawers remain mounted while clipped; DOM visibility is not closed state. */
 export async function closeSettingsPanel(page: Page, testInfo: TestInfo): Promise<void> {
@@ -55,4 +55,21 @@ export async function openAppSettings(page: Page, appUrl: string, appId: string)
 	const menu = page.locator(`[data-testid="settings-menu"][data-active-view="apps/${appId}"]`);
 	await expect(menu).toBeVisible({ timeout: 15_000 });
 	return menu;
+}
+
+/** Opens Settings > Account > Connected accounts directly from its hash link and waits until it can add an account. */
+export async function openConnectedAccountsSettings(page: Page, url: string) {
+	await page.goto(url, { waitUntil: 'domcontentloaded' });
+	const menu = page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]');
+	await expect(menu).toBeVisible({ timeout: 30_000 });
+	await expect(menu.getByTestId('connected-accounts-add-button')).toBeVisible({ timeout: 30_000 });
+	return menu;
+}
+
+/** Starts adding a Google account with Calendar access (the default choice) from the central Connected accounts page. */
+export async function startGoogleCalendarAdd(menu: Locator) {
+	await menu.getByTestId('connected-accounts-add-button').click();
+	await menu.getByTestId('connected-accounts-add-google').click();
+	await expect(menu.getByTestId('connected-accounts-add-toggle-calendar')).toBeVisible();
+	await menu.getByTestId('connected-accounts-add-google-continue').click();
 }

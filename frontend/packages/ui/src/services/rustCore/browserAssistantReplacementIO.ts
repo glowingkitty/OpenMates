@@ -1,4 +1,5 @@
 /// <reference lib="es2022.object" />
+import { chatTransaction, messageStoreName } from "../db/openedHistoryStorage";
 import {createRustChatOpenRequest,createRustChatTransaction} from './browserAdapters';
 import type {RustChatIORoutingLease} from './browserAdapters';
 /** Inactive executor: closed Rust monitor candidate plans, existing DB only. */
@@ -47,13 +48,13 @@ export async function executeBrowserAssistantReplacementPlan(factory:IDBFactory,
   current();if(typeof factory.databases!=='function')throw Error('unavailable');const databases=await awaitBrowserRead(factory.databases(),lifetime.signal);current();const version=databases.find(v=>v.name==='chats_db'&&integer(v.version)&&Number(v.version)>0)?.version;
   if(version===undefined||p.databaseVersion!==null&&version!==p.databaseVersion)throw Error('unavailable');
   db=await new Promise<IDBDatabase>((resolve,reject)=>{let settled=false;const request=routingLease?createRustChatOpenRequest(routingLease,factory):factory.open('chats_db');const fail=()=>{if(!settled){settled=true;lifetime.signal.removeEventListener('abort',fail);reject(Error('unavailable'));}};lifetime.signal.addEventListener('abort',fail,{once:true});request.onupgradeneeded=()=>{request.transaction?.abort();fail();};request.onerror=request.onblocked=fail;request.onsuccess=()=>{const opened=request.result;try{current();if(settled||opened.version!==version)throw Error('unavailable');settled=true;lifetime.signal.removeEventListener('abort',fail);resolve(opened);}catch{opened.close();fail();}};});
-  current();db.onversionchange=()=>{abort();db?.close();};if(['chats','messages'].some(name=>!db!.objectStoreNames.contains(name)))throw Error('unavailable');const opened=db;
+  current();db.onversionchange=()=>{abort();db?.close();};if(['chats','messages'].some(name=>!db!.objectStoreNames.contains(name === 'messages' ? messageStoreName(db!) : name)))throw Error('unavailable');const opened=db;
   return await new Promise<string>((resolve,reject)=>{
    const rows:unknown[]=[];
    let failure:unknown=null,metadata:unknown=null,before:unknown=null,candidates:Row[]=queries.map(q=>({messageId:q.messageId,rows:[]})),beforeCandidates:unknown=null,deleted:unknown[]=[],remaining=ids.length+1,ready=false;
    const packet=()=>({version:1,kind:p.kind,operationId:p.operationId,databaseVersion:opened.version,transactionCommitted:true,credentialAcknowledged:false,crossDatabaseAssociationProven:false,metadata,rows,before,candidates,beforeCandidates,deleted});
    const fail=(e:unknown)=>{failure??=e;try{tx!.abort();}catch{/* terminal owns settlement */}};
-   current();tx=routingLease?createRustChatTransaction(routingLease,opened,['chats','messages'],write?'readwrite':'readonly'):opened.transaction(['chats','messages'],write?'readwrite':'readonly');
+   current();tx=routingLease?createRustChatTransaction(routingLease,opened,['chats','messages'],write?'readwrite':'readonly'):chatTransaction(opened, ['chats','messages'],write?'readwrite':'readonly');
    tx.onabort=()=>{try{current();}catch(e){failure??=e;}reject(failure??Error('storage_failed'));};tx.onerror=()=>{failure??=Error('storage_failed');};tx.oncomplete=()=>{try{current();if(failure)throw failure;if(!ready)throw Error('unavailable');resolve(bounded(packet()));}catch(e){reject(e);}};
    const chats=tx.objectStore('chats'),messages=tx.objectStore('messages');
    const planWrites=()=>{

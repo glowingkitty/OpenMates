@@ -14,6 +14,8 @@
         title,
         icon,
         iconClass,
+        iconSrc = '',
+        iconAlt = '',
     }: {
         /** Heading text displayed next to the icon */
         title: string;
@@ -23,13 +25,21 @@
         /** Optional full CSS class override for the icon element (e.g., "icon app-ai").
          *  When set, replaces the default "subsetting_icon {icon}" classes. */
         iconClass?: string;
+        /** Optional image (e.g. a provider logo) shown instead of the icon mask. */
+        iconSrc?: string;
+        /** Alt text for iconSrc. */
+        iconAlt?: string;
     } = $props();
 </script>
 
 <div class="settings-section-heading">
     <div class="heading-row">
-        <div class="heading-icon {iconClass ?? `subsetting_icon ${icon}`}"
-            style={iconClass ? undefined : `--icon-mask-image: var(--icon-url-${resolveIconName(icon)});`}></div>
+        {#if iconSrc}
+            <div class="heading-icon heading-image" data-testid="settings-section-heading-image"><img src={iconSrc} alt={iconAlt} /></div>
+        {:else}
+            <div class="heading-icon {iconClass ?? `subsetting_icon ${icon}`}"
+                style={iconClass ? undefined : `--icon-mask-image: var(--icon-url-${resolveIconName(icon)});`}></div>
+        {/if}
         <h3 class="heading-text">{title}</h3>
     </div>
     <div class="heading-bar"></div>
@@ -53,6 +63,22 @@
         width: 44px;
         height: 44px;
         min-width: 44px;
+    }
+
+    .heading-image {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        background: var(--color-grey-10);
+        border-radius: var(--radius-3);
+        box-sizing: border-box;
+    }
+
+    .heading-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
 
     .heading-text {

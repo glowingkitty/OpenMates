@@ -275,7 +275,7 @@ def _render_health(incident: dict[str, Any], details: dict[str, Any]) -> Rendere
 # --- routing and delivery ---------------------------------------------------
 # Health signals that need the operator now; every other health signal waits for the daily email.
 IMMEDIATE_HEALTH_SIGNALS = frozenset({
-    "watcher_not_running", "fix_guard_violation", "fix_smoke_failed", "triage_limit_exhausted", "fix_limit_exhausted",
+    "watcher_not_running", "operator_question_failed", "secret_alert_active", "fix_guard_violation", "fix_smoke_failed", "triage_limit_exhausted", "fix_limit_exhausted",
 })
 
 

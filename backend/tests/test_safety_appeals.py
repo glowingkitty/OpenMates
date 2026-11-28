@@ -193,3 +193,16 @@ async def test_suspension_signs_the_account_out_everywhere():
     revoke.assert_awaited_once_with(d, cache, "u1")
     d.logout_all_sessions.assert_awaited_once_with("u1")
     broadcast.assert_awaited_once_with(cache, "u1", "account_suspended")
+
+
+# contract-test: supporting surface=rest_api assertions=safety-strikes.review-deadlines-retention
+def test_pending_review_listing_requests_only_service_readable_user_fields():
+    """The service role gets a Directus 403 for directus_users.date_created; the
+    reminder/auto-restore beat and the admin list must not request it."""
+    import asyncio
+    from backend.shared.python_utils.image_safety.account_suspension import list_pending_reviews
+
+    d = directus(users=[{"id": "u1", "signup_started_at": "2026-01-02T00:00:00+00:00"}])
+    asyncio.run(list_pending_reviews(d))
+    fields = d.get_items.await_args.kwargs["params"]["fields"].split(",")
+    assert "date_created" not in fields and "signup_started_at" in fields

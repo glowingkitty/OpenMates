@@ -10,13 +10,14 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
-    private let markerPrompt = "Write four short sentences about Kyoto and Osaka. Start with: Kyoto neighbors Osaka."
-    private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
-    private let assistantResponseTimeout: TimeInterval = 90
-
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
+
+    #if os(iOS)
+    private let markerPrompt = "Write four short sentences about Kyoto and Osaka. Start with: Kyoto neighbors Osaka."
+    private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
+    private let assistantResponseTimeout: TimeInterval = 90
 
     override func tearDownWithError() throws {
         #if os(iOS)
@@ -699,6 +700,657 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                       "A cached account must finish the real phased sync after launch")
     }
 
+    #endif
+
+    #if os(macOS)
+    // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence
+    func testCompactMacAuthScrollsToEmailAndContinue() {
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"])
+        let loginTab = app.buttons["auth-login-tab"]
+        XCTAssertTrue(loginTab.waitForExistence(timeout: 15))
+        loginTab.click()
+        let window = app.windows.firstMatch
+        let lowerCorner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1))
+            .withOffset(CGVector(dx: -2, dy: -2))
+        let compactHeight = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0))
+            .withOffset(CGVector(dx: -2, dy: 480))
+        lowerCorner.press(forDuration: 0.1, thenDragTo: compactHeight)
+
+        let scroll = app.scrollViews["auth-flow-scroll"].firstMatch
+        XCTAssertTrue(scroll.waitForExistence(timeout: 5))
+        scroll.scroll(byDeltaX: 0, deltaY: 900)
+        let email = app.textFields["email-input"]
+        XCTAssertTrue(email.exists)
+        XCTAssertFalse(email.isHittable, "The compact viewport must exercise a clipped auth field")
+        guard RealAccountUITestSupport.focusAuthField(email, in: app, identifier: "email-input") else { return }
+        app.typeText("example@example.invalid")
+        let continueButton = app.buttons["continue-button"]
+        XCTAssertTrue(continueButton.wait(for: \.isEnabled, toEqual: true, timeout: 3))
+        XCTAssertTrue(RealAccountUITestSupport.revealAuthControl(continueButton, in: app))
+    }
+    #endif
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.startup.useful-content,chat-navigation.open.local-first-coherent
+    func testPersonalAccountColdLaunchFirstFrame() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-expose-chat-ids",
+                             "--ui-test-read-only-performance", "--ui-test-startup-chat-readiness"])
+        try preparePersonalAccountStartupBenchmark(in: app, credentials: credentials)
+        let authenticatedProbe = personalDevStartupAccountProbe(in: app)
+        // Before the timed samples so its settle wait does not skew them.
+        try attachContinuationDiagnostics(in: app, name: "Personal DevTest continue row after sign-in")
+
+        // Keep all launch samples and their attachments even when an
+        // independent transcript or reconciliation assertion fails.
+        continueAfterFailure = true
+        var openedChatIDs = Set<String>()
+        var previousOpenedChatID: String?
+        for sample in 1...3 {
+            app.terminate()
+            let launch = ProcessInfo.processInfo.systemUptime
+            app.launch()
+            try attachStartupTimings("Personal DevTest relaunch \(sample)", [
+                "cached_process_launch_returned_ms": [startupElapsedMS(since: launch)],
+            ])
+            guard authenticatedProbe.waitForExistence(timeout: 15) else {
+                XCTFail("Relaunch must restore the signed-in development account")
+                previousOpenedChatID = nil
+                continue
+            }
+            try attachStartupTimings("Personal DevTest restored account \(sample)", [
+                "cached_process_launch_to_restored_account_ms": [startupElapsedMS(since: launch)],
+            ])
+            #if os(iOS)
+            if let previousOpenedChatID {
+                try recordCompactStartupResume(previousOpenedChatID, in: app, launch: launch, sample: sample)
+            }
+            #endif
+            var sidebarVisible = false
+            do {
+                try revealRecentChatsForStartupBenchmark(in: app)
+                _ = try recentChatForStartupBenchmark(in: app, excluding: [], timeout: 20)
+                try attachStartupTimings("Personal DevTest recent rows \(sample)", [
+                    "cached_process_launch_to_recent_rows_ms": [startupElapsedMS(since: launch)],
+                    "sidebar_populated_rows_on_screen_at_observation": [onScreenStartupRowCount(in: app)],
+                ])
+                sidebarVisible = true
+            } catch {
+                XCTFail("The cached account sidebar must show a real chat")
+            }
+            var firstDeliberateSelectionUptimeMS: Int?
+            if sidebarVisible {
+                #if !os(iOS)
+                if let previousOpenedChatID {
+                    let resumed = app.descendants(matching: .any).matching(identifier: "chat-view-\(previousOpenedChatID)")
+                    do {
+                        _ = try NativeUITestElementResolution.requireVisible(resumed, in: app, timeout: 30, actionable: false)
+                        try recordCoreWindowStartupTimings(in: app, since: launch, name: "Personal DevTest resumed window \(sample)",
+                                                           metricPrefix: "cached_process_launch_to_resumed")
+                    } catch {
+                        XCTFail("The previously opened cached chat must resume")
+                    }
+                }
+                #endif
+
+                previousOpenedChatID = nil
+                do {
+                    previousOpenedChatID = try recordSelectedChatStartup(in: app,
+                        excluding: &openedChatIDs, sample: sample, selectionUptimeMS: &firstDeliberateSelectionUptimeMS)
+                } catch {
+                    XCTFail("A distinct cached chat must be selectable")
+                }
+            } else {
+                previousOpenedChatID = nil
+            }
+            // The app retains its shell and row readiness timestamps from
+            // launch. Sample them even if navigation or reconciliation failed.
+            try recordStartupReadiness(in: authenticatedProbe, launch: launch, sample: sample,
+                                       beforeSelection: firstDeliberateSelectionUptimeMS)
+        }
+
+        // Time a quiet selected chat using XCTest's app-process metrics. The
+        // automation does not poll accessibility or drive UI during the sample.
+        let options = XCTMeasureOptions()
+        options.iterationCount = 1
+        measure(metrics: [XCTClockMetric(), XCTCPUMetric(application: app),
+                          XCTMemoryMetric(application: app)], options: options) {
+            Thread.sleep(forTimeInterval: 15)
+        }
+    }
+
+    #if os(iOS)
+    private func recordCompactStartupResume(_ chatID: String, in app: XCUIApplication,
+                                            launch: TimeInterval, sample: Int) throws {
+        // The open compact drawer shifts the actual transcript offscreen and
+        // removes its accessibility subtree. Check the resumed route first.
+        let resumed = app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)").firstMatch
+        let transcript = app.scrollViews["chat-history-container"]
+        let messages = transcript.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier IN %@", ["message-user", "message-assistant"]))
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            NativeUITestElementResolution.isOnScreen(resumed, in: app)
+                && Self.hasReadableStartupMessage(messages, in: transcript, app: app)
+        }, object: app)
+        guard XCTWaiter.wait(for: [visible], timeout: 30) == .completed else {
+            XCTFail("The previously opened cached chat must resume with an on-screen readable message")
+            return
+        }
+        try attachStartupTimings("Personal DevTest visible resumed message \(sample)", [
+            "cached_process_launch_to_resumed_visible_message_ms": [startupElapsedMS(since: launch)],
+        ])
+        try recordCoreWindowStartupTimings(in: app, since: launch, name: "Personal DevTest resumed window \(sample)",
+                                           metricPrefix: "cached_process_launch_to_resumed", requireCachedStartupWindow: true)
+    }
+    #endif
+
+    private func recordSelectedChatStartup(in app: XCUIApplication, excluding openedChatIDs: inout Set<String>,
+                                           sample: Int, selectionUptimeMS: inout Int?) throws -> String? {
+        let openedChat = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier BEGINSWITH %@", "chat-view-")).firstMatch
+        var excluded = openedChatIDs
+        if openedChat.exists {
+            excluded.insert("user-chat:" + String(openedChat.identifier.dropFirst("chat-view-".count)))
+        }
+        let row = try recentChatForStartupBenchmark(in: app, excluding: excluded, timeout: 20)
+        let value = try XCTUnwrap(row.value as? String)
+        openedChatIDs.insert(value)
+        let chatID = String(value.dropFirst("user-chat:".count))
+        _ = try XCTUnwrap(UUID(uuidString: chatID), "The selected row must be an existing account chat")
+        let selection = ProcessInfo.processInfo.systemUptime
+        selectionUptimeMS = Int(selection * 1_000)
+        NativeUITestElementResolution.activate(row)
+        let chat = app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)")
+        _ = try NativeUITestElementResolution.requireVisible(chat, in: app, timeout: 20, actionable: false)
+        try attachStartupTimings("Personal DevTest selected chat shell \(sample)", [
+            "select_to_visible_chat_shell_ms": [startupElapsedMS(since: selection)],
+        ])
+
+        let transcript = app.scrollViews["chat-history-container"]
+        let messages = transcript.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier IN %@", ["message-user", "message-assistant"])
+        )
+        let readableMessage = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            Self.hasReadableStartupMessage(messages, in: transcript, app: app)
+        }, object: app)
+        let result = XCTWaiter.wait(for: [readableMessage], timeout: 20)
+        guard result == .completed else {
+            XCTFail("The selected transcript must show a readable on-screen message. "
+                    + "Message rows: \(messages.count), transcript present: \(transcript.exists)")
+            return nil
+        }
+        var firstContent: [String: [Int]] = [
+            "select_to_visible_message_ms": [startupElapsedMS(since: selection)],
+        ]
+        // In-app frames: the row's tap handler to the first committed message
+        // frame of that chat, free of accessibility snapshot latency.
+        let probe = personalDevStartupAccountProbe(in: app)
+        let selectionMS = Int(selection * 1_000)
+        let tap = Self.startupProbeInteger("tap-uptime-ms", probe: probe)
+        let readable = Self.startupProbeInteger("tap-readable-uptime-ms", probe: probe)
+        if tap >= selectionMS {
+            firstContent["select_to_app_tap_ms"] = [tap - selectionMS]
+            if readable >= tap { firstContent["app_tap_to_readable_frame_ms"] = [readable - tap] }
+        }
+        try attachStartupTimings("Personal DevTest first-content timings \(sample)", firstContent)
+        try recordCoreWindowStartupTimings(in: app, since: selection, name: "Personal DevTest selected window \(sample)",
+                                           metricPrefix: "select_to", requireDeliberateOpen: true)
+        return chatID
+    }
+
+    private func recordCoreWindowStartupTimings(in app: XCUIApplication, since start: TimeInterval,
+                                                name: String, metricPrefix: String,
+                                                requireDeliberateOpen: Bool = false,
+                                                requireCachedStartupWindow: Bool = false) throws {
+        let marker = app.descendants(matching: .any).matching(identifier: "startup-selected-window-metrics").firstMatch
+        let startMS = Int(start * 1_000)
+        // Automatic resume explicitly checks the server's latest page. A
+        // deliberate tap may instead settle through an authorized local window.
+        let settlementField = requireDeliberateOpen ? "refreshed-uptime-ms" : "canonical-uptime-ms"
+        let refreshed = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            Self.startupProbeInteger(settlementField, probe: marker) >= startMS
+        }, object: app)
+        let successfulRefresh = XCTWaiter.wait(for: [refreshed], timeout: 25) == .completed
+        var metrics: [String: [Int]] = [:]
+        let appOpen = Self.startupProbeInteger("open-started-uptime-ms", probe: marker)
+        if requireDeliberateOpen, appOpen >= startMS {
+            metrics["select_to_app_open_started_ms"] = [appOpen - startMS]
+        }
+        for (field, metric) in [
+            ("cached-uptime-ms", "_cached_core_message_ms"),
+            ("first-server-page-uptime-ms", "_first_server_page_ms"),
+            ("canonical-uptime-ms", "_canonical_core_message_ms"),
+            ("refreshed-uptime-ms", "_refreshed_core_message_ms"),
+        ] {
+            let timestamp = Self.startupProbeInteger(field, probe: marker)
+            if timestamp >= startMS { metrics[metricPrefix + metric] = [timestamp - startMS] }
+            if requireDeliberateOpen, appOpen >= startMS, timestamp >= appOpen {
+                metrics["app_open" + metric] = [timestamp - appOpen]
+            }
+        }
+        if !metrics.isEmpty { try attachStartupTimings(name, metrics) }
+        XCTAssertTrue(successfulRefresh, requireDeliberateOpen
+            ? "The authorized selected window must settle independently of offline preparation"
+            : "The resumed window must settle from the canonical server read")
+        let canonical = Self.startupProbeInteger("canonical-uptime-ms", probe: marker)
+        if requireCachedStartupWindow {
+            let cached = Self.startupProbeInteger("cached-uptime-ms", probe: marker)
+            XCTAssertGreaterThanOrEqual(cached, startMS, "The resumed window must publish decrypted cached messages")
+            if canonical >= startMS, cached >= startMS {
+                XCTAssertLessThanOrEqual(cached, canonical, "Cached resume must precede the canonical server read")
+            }
+        }
+        if canonical >= startMS {
+            let firstServerPage = Self.startupProbeInteger("first-server-page-uptime-ms", probe: marker)
+            XCTAssertGreaterThanOrEqual(firstServerPage, startMS)
+            XCTAssertLessThanOrEqual(firstServerPage, canonical, "The first server page must precede or coincide with canonical settlement")
+        }
+        if requireDeliberateOpen {
+            let registration = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                Self.startupProbeInteger("open-settled-uptime-ms", probe: marker) >= startMS
+            }, object: app)
+            XCTAssertEqual(XCTWaiter.wait(for: [registration], timeout: 15), .completed,
+                           "Finish the deliberate open before relaunching to check its persisted selection")
+        }
+    }
+
+    private func recordStartupReadiness(in probe: XCUIElement, launch: TimeInterval, sample: Int,
+                                        beforeSelection: Int?) throws {
+        let launchMS = Int(launch * 1_000)
+        if beforeSelection == nil {
+            let readiness = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                Self.startupProbeInteger("sidebar-ten-rows-uptime-ms", probe: probe) >= launchMS
+            }, object: nil)
+            _ = XCTWaiter.wait(for: [readiness], timeout: 20)
+        }
+        let tenRows = Self.startupProbeInteger("sidebar-ten-rows-uptime-ms", probe: probe)
+        let withinStartup = tenRows >= launchMS && tenRows <= (beforeSelection ?? Int.max)
+        let entry = Self.startupProbeInteger("app-entry-uptime-ms", probe: probe)
+        XCTAssertGreaterThanOrEqual(entry, launchMS, "The readiness timestamp must belong to this app launch")
+        var metrics: [String: [Int]] = [
+            "sidebar_populated_model_rows_at_observation": [Self.startupProbeInteger("sidebar-populated-rows", probe: probe)],
+        ]
+        if entry >= launchMS {
+            metrics["cached_process_launch_to_app_entry_ms"] = [entry - launchMS]
+            for (field, metric) in [
+                ("app-init-finished-uptime-ms", "app_entry_to_init_finished_ms"),
+                ("root-task-started-uptime-ms", "app_entry_to_root_task_started_ms"),
+                ("core-start-invoked-uptime-ms", "app_entry_to_core_start_invoked_ms"),
+                ("main-shell-init-uptime-ms", "app_entry_to_main_shell_init_ms"),
+                ("cached-chat-list-received-uptime-ms", "app_entry_to_cached_chat_list_received_ms"),
+                ("cached-profile-ready-uptime-ms", "app_entry_to_cached_profile_ready_ms"),
+                ("cached-scope-activated-uptime-ms", "app_entry_to_cached_scope_activated_ms"),
+                ("fresh-profile-ready-uptime-ms", "app_entry_to_fresh_profile_ready_ms"),
+                ("fresh-scope-activated-uptime-ms", "app_entry_to_fresh_scope_activated_ms"),
+                ("shell-mount-uptime-ms", "app_entry_to_shell_mount_ms"),
+                ("sidebar-first-row-uptime-ms", "app_entry_to_sidebar_model_first_populated_ms"),
+            ] {
+                let uptime = Self.startupProbeInteger(field, probe: probe)
+                if uptime >= entry { metrics[metric] = [uptime - entry] }
+            }
+            let processStart = Self.startupProbeInteger("process-start-uptime-ms", probe: probe)
+            if processStart > 0, processStart <= entry {
+                metrics["process_start_to_app_entry_ms"] = [entry - processStart]
+                let rowFrame = Self.startupProbeInteger("first-row-frame-uptime-ms", probe: probe)
+                let messageFrame = Self.startupProbeInteger("first-message-frame-uptime-ms", probe: probe)
+                if rowFrame >= processStart { metrics["process_start_to_first_row_frame_ms"] = [rowFrame - processStart] }
+                if messageFrame >= processStart {
+                    metrics["process_start_to_first_message_frame_ms"] = [messageFrame - processStart]
+                }
+                let content = [rowFrame, messageFrame].filter { $0 >= processStart && $0 <= (beforeSelection ?? Int.max) }
+                if let first = content.min() { metrics["process_start_to_first_content_frame_ms"] = [first - processStart] }
+            }
+            for (field, metric) in [
+                ("scope-setup-ms", "offline_scope_setup_ms"),
+                ("scope-pending-count-ms", "offline_scope_pending_count_ms"),
+            ] {
+                let duration = Self.startupProbeInteger(field, probe: probe, missing: -1)
+                if duration >= 0 { metrics[metric] = [duration] }
+            }
+            if tenRows >= entry, withinStartup {
+                metrics["app_entry_to_sidebar_model_ten_populated_ms"] = [tenRows - entry]
+                metrics["cached_process_launch_to_sidebar_model_ten_populated_ms"] = [tenRows - launchMS]
+            } else if let beforeSelection, tenRows > beforeSelection {
+                metrics["select_to_sidebar_model_ten_populated_ms"] = [tenRows - beforeSelection]
+            }
+        }
+        try attachStartupTimings("Personal DevTest app startup readiness \(sample)", metrics)
+        XCTAssertTrue(withinStartup && tenRows >= entry,
+                      "Ten distinct real account chats must have populated sidebar titles before deliberate selection")
+    }
+
+    private func onScreenStartupRowCount(in app: XCUIApplication) -> Int {
+        let rows = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value BEGINSWITH %@", "chat-item-wrapper", "user-chat:"))
+        let panel = app.descendants(matching: .any).matching(identifier: "chat-history-panel").firstMatch
+        let viewport = panel.frame.intersection(app.windows.firstMatch.frame)
+        return Set(rows.allElementsBoundByIndex.compactMap { row -> UUID? in
+            let frame = row.frame
+            guard !frame.isEmpty, viewport.contains(CGPoint(x: frame.midX, y: frame.midY)),
+                  let value = row.value as? String, value.hasPrefix("user-chat:") else { return nil }
+            let label = row.label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard !label.isEmpty, label != row.identifier, !label.hasPrefix("untitled chat"),
+                  !label.hasPrefix("new chat") else { return nil }
+            return UUID(uuidString: String(value.dropFirst("user-chat:".count)))
+        }).count
+    }
+
+    private nonisolated static func startupProbeInteger(_ key: String, probe: XCUIElement, missing: Int = 0) -> Int {
+        guard probe.exists else { return missing }
+        let prefix = key + "="
+        let field = probe.label.split(separator: ";").first { $0.hasPrefix(prefix) }
+        return field.flatMap { Int($0.dropFirst(prefix.count)) } ?? missing
+    }
+
+    private func preparePersonalAccountStartupBenchmark(in app: XCUIApplication,
+                                                        credentials: RealAccountTestCredentials) throws {
+        // Submit from the real SecureField. The hosted simulator can omit the
+        // focused field from direct accessibility snapshots.
+        let login = ProcessInfo.processInfo.systemUptime
+        let authenticatedProbe = personalDevStartupAccountProbe(in: app)
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials, submitPasswordUsingKeyboard: true,
+                                       authenticated: authenticatedProbe)
+        // A system permission sheet can block passive app AX observations.
+        RealAccountUITestSupport.resolveStartupNotificationPrompt()
+        XCTAssertTrue(authenticatedProbe.waitForExistence(timeout: 15),
+                      "Personal DevTest measurement requires a signed-in development account")
+        try revealRecentChatsForStartupBenchmark(in: app)
+        let row = try recentChatForStartupBenchmark(in: app, excluding: [], timeout: 30)
+        let value = try XCTUnwrap(row.value as? String)
+        _ = try XCTUnwrap(UUID(uuidString: String(value.dropFirst("user-chat:".count))),
+                          "Fresh sign-in must reveal a saved account chat")
+        try attachStartupTimings("Personal DevTest fresh-login timings", [
+            "fresh_login_start_to_recent_rows_ms": [startupElapsedMS(since: login)],
+        ])
+        app.launchArguments.removeAll {
+            ["--ui-test-disable-auth-cache", "--ui-test-open-login", "--ui-test-start-new-chat"].contains($0)
+        }
+    }
+
+    private func personalDevStartupAccountProbe(in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@ AND NOT label CONTAINS %@",
+            "read-only-responsiveness-metrics", "server-kind=development", "account-hash=none;"
+        )).firstMatch
+    }
+
+    private nonisolated static func hasReadableStartupMessage(_ messages: XCUIElementQuery,
+                                                              in transcript: XCUIElement,
+                                                              app: XCUIApplication) -> Bool {
+        let candidates = messages.allElementsBoundByIndex
+        guard !candidates.isEmpty, transcript.exists else { return false }
+        let viewport = transcript.frame.intersection(app.windows.firstMatch.frame)
+        guard !viewport.isEmpty else { return false }
+        return candidates.contains { message in
+            guard message.exists else { return false }
+            let frame = message.frame
+            let exposed = frame.intersection(viewport)
+            // A tall message may cover the transcript while its midpoint is
+            // off-screen. Require enough of the real row to show a text line.
+            guard !exposed.isEmpty, exposed.height >= min(frame.height, 20) else { return false }
+            let label = message.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !label.isEmpty && label != message.identifier
+        }
+    }
+
+    private func recentChatForStartupBenchmark(in app: XCUIApplication, excluding openedChatIDs: Set<String>,
+                                               timeout: TimeInterval) throws -> XCUIElement {
+        // Use one predicate on the actual sidebar rows. Chaining another
+        // matching query can lose the row identifier in XCTest's snapshot.
+        let rows = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value BEGINSWITH %@ AND NOT (value IN %@)",
+            "chat-item-wrapper", "user-chat:", Array(openedChatIDs)))
+        let candidate = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            NativeUITestElementResolution.visible(rows, in: app) != nil
+        }, object: app)
+        let result = XCTWaiter.wait(for: [candidate], timeout: timeout)
+        if result != .completed {
+            let sidebarRows = app.descendants(matching: .any).matching(identifier: "chat-item-wrapper").count
+            let accountRows = rows.count
+            XCTFail("Expected an on-screen account row. Sidebar rows: \(sidebarRows), matched account rows: \(accountRows)")
+        }
+        return try XCTUnwrap(NativeUITestElementResolution.visible(rows, in: app))
+    }
+
+    private func startupElapsedMS(since start: TimeInterval) -> Int {
+        Int((ProcessInfo.processInfo.systemUptime - start) * 1_000)
+    }
+
+    /// Device report: the start screen's Continue row showed 2 cards. The app's
+    /// DEBUG probe reports, as counts only, which candidates each filter dropped.
+    private func attachContinuationDiagnostics(in app: XCUIApplication, name: String) throws {
+        let probe = app.descendants(matching: .any).matching(identifier: "welcome-continuation-diagnostics").firstMatch
+        guard probe.waitForExistence(timeout: 10) else {
+            try attachStartupTimings(name, ["continue_probe_missing": [1]])
+            return
+        }
+        Thread.sleep(forTimeInterval: 5) // let visible metadata decryption settle
+        var metrics: [String: [Int]] = [:]
+        for pair in ((probe.value as? String) ?? "").split(separator: " ") {
+            let parts = pair.split(separator: "=")
+            if parts.count == 2, let value = Int(parts[1]) { metrics["continue_\(parts[0])"] = [value] }
+        }
+        try attachStartupTimings(name, metrics)
+    }
+
+    private func attachStartupTimings(_ name: String, _ metrics: [String: [Int]]) throws {
+        let data = try JSONSerialization.data(withJSONObject: metrics, options: .sortedKeys)
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    private func revealRecentChatsForStartupBenchmark(in app: XCUIApplication) throws {
+        let panels = app.descendants(matching: .any).matching(identifier: "chat-history-panel")
+        if NativeUITestElementResolution.visible(panels, in: app, actionable: false) != nil { return }
+        let toggles = app.buttons.matching(identifier: "sidebar-toggle")
+        #if os(macOS)
+        app.activate()
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            if NativeUITestElementResolution.visible(panels, in: app, actionable: false) != nil { return true }
+            return NativeUITestElementResolution.visible(toggles, in: app, actionable: false)?.isEnabled == true
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 15), .completed,
+                       "The reopened window must expose its sidebar or the actual menu control")
+        try recoverClippedStartupControl(in: app, controls: toggles)
+        for _ in 0..<3 {
+            if NativeUITestElementResolution.visible(panels, in: app, actionable: false) != nil { return }
+            guard let toggle = NativeUITestElementResolution.visible(toggles, in: app, actionable: false),
+                  toggle.isEnabled else { break }
+            let onDesktop = Self.startupControlIsWithinMacDesktop(toggle, in: app)
+            guard onDesktop != false else { break }
+            if toggle.isHittable {
+                NativeUITestElementResolution.activate(toggle)
+            } else {
+                guard onDesktop == true else { break }
+                // Drive the real control when AX has no hit point for a button
+                // whose center remains in both the window and hosted desktop.
+                toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+            }
+            let opened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                NativeUITestElementResolution.visible(panels, in: app, actionable: false) != nil
+            }, object: app)
+            if XCTWaiter.wait(for: [opened], timeout: 2) == .completed { return }
+        }
+        #else
+        let toggle = try NativeUITestElementResolution.requireVisible(toggles, in: app, timeout: 15)
+        NativeUITestElementResolution.activate(toggle)
+        #endif
+        _ = try NativeUITestElementResolution.requireVisible(panels, in: app, timeout: 10, actionable: false)
+    }
+
+    #if os(macOS)
+    private nonisolated static func startupControlIsWithinMacDesktop(_ control: XCUIElement,
+                                                                    in app: XCUIApplication) -> Bool? {
+        // XCTest's window frame can extend past the desktop. The native
+        // main menu bar provides the global horizontal screen bounds.
+        let desktop = app.menuBars.firstMatch.frame
+        guard !desktop.isEmpty else { return nil }
+        let controlX = control.frame.midX
+        return controlX >= desktop.minX && controlX < desktop.maxX
+    }
+
+    private func recoverClippedStartupControl(in app: XCUIApplication, controls: XCUIElementQuery) throws {
+        guard let control = NativeUITestElementResolution.visible(controls, in: app, actionable: false),
+              Self.startupControlIsWithinMacDesktop(control, in: app) == false else { return }
+        let windowMenu = app.menuBars.firstMatch.menuBarItems["Window"]
+        try XCTUnwrap(windowMenu.exists && windowMenu.isEnabled ? windowMenu : nil).click()
+        let zoom = windowMenu.menuItems["Zoom"]
+        guard zoom.waitForExistence(timeout: 3), zoom.isEnabled else {
+            app.typeKey(.escape, modifierFlags: [])
+            XCTFail("The hosted window must offer its native Zoom action for an offscreen header control")
+            return
+        }
+        zoom.click()
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard let control = NativeUITestElementResolution.visible(controls, in: app, actionable: false) else {
+                return false
+            }
+            return Self.startupControlIsWithinMacDesktop(control, in: app) == true
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [visible], timeout: 5), .completed,
+                       "The native window must expose its header control on the desktop")
+    }
+    #endif
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.startup.bounded-phases
+    func testPersonalAccountColdLaunchToInteractive() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        // The first-frame lane may already have admitted this account on
+        // the same test device. Restore it before considering a new sign-in:
+        // hiding that vault from the UI cannot authorize replacing it.
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-expose-chat-ids", "--ui-test-read-only-performance"])
+        let authenticated = personalDevStartupAccountProbe(in: app)
+        let signIn = app.buttons.matching(identifier: "header-login-signup-btn")
+        let resolved = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            authenticated.exists || NativeUITestElementResolution.visible(signIn, in: app) != nil
+        }, object: app)
+        guard XCTWaiter.wait(for: [resolved], timeout: 30) == .completed else {
+            XCTFail("The initial app launch must expose a restored development account or the genuine sign-in control")
+            return
+        }
+        if !authenticated.exists {
+            try preparePersonalAccountStartupBenchmark(in: app, credentials: credentials)
+        }
+
+        continueAfterFailure = true
+        for sample in 1...3 {
+            app.terminate()
+            let start = ProcessInfo.processInfo.systemUptime
+            app.launch()
+            let launchReturnedMS = startupElapsedMS(since: start)
+            try attachStartupTimings("Personal DevTest relaunch \(sample)", [
+                "cached_process_launch_returned_ms": [launchReturnedMS],
+            ])
+            guard try activateStartupSettings(in: app) else {
+                XCTFail("The cached account window must expose its real settings control")
+                continue
+            }
+            guard waitForStartupSettingsHome(in: app) else {
+                XCTFail("The settings screen must respond before waiting on phased sync")
+                continue
+            }
+            try attachStartupTimings("Personal DevTest visible settings \(sample)", [
+                "cached_process_launch_to_visible_settings_ms": [startupElapsedMS(since: start)],
+            ])
+            guard waitForInitialSyncComplete(in: app, timeout: 60) else {
+                XCTFail("Phased sync must independently settle after a returning launch")
+                continue
+            }
+            try attachStartupTimings("Personal DevTest observed sync \(sample)", [
+                "cached_process_launch_to_observed_sync_ms": [startupElapsedMS(since: start)],
+            ])
+        }
+    }
+
+    private func activateStartupSettings(in app: XCUIApplication) throws -> Bool {
+        let controls = app.buttons.matching(identifier: "settings-button")
+        #if os(macOS)
+        app.activate()
+        let deadline = ProcessInfo.processInfo.systemUptime + 45
+        for _ in 0..<3 {
+            let remaining = deadline - ProcessInfo.processInfo.systemUptime
+            guard remaining > 0 else { break }
+            var resolved: XCUIElement?
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                resolved = NativeUITestElementResolution.visible(controls, in: app, actionable: false)
+                return resolved?.isEnabled == true
+            }, object: app)
+            guard XCTWaiter.wait(for: [ready], timeout: min(15, remaining)) == .completed,
+                  let control = resolved, control.exists, control.isEnabled else { continue }
+            let onDesktop = Self.startupControlIsWithinMacDesktop(control, in: app)
+            if onDesktop == false {
+                try recoverClippedStartupControl(in: app, controls: controls)
+                continue
+            }
+            if control.isHittable {
+                NativeUITestElementResolution.activate(control)
+                return true
+            }
+            if onDesktop == true, NativeUITestElementResolution.isOnScreen(control, in: app) {
+                control.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+                return true
+            }
+        }
+        return false
+        #else
+        let settings = try NativeUITestElementResolution.requireVisible(controls, in: app, timeout: 45)
+        NativeUITestElementResolution.activate(settings)
+        return true
+        #endif
+    }
+
+    private func waitForStartupSettingsHome(in app: XCUIApplication) -> Bool {
+        #if os(macOS)
+        let panels = app.descendants(matching: .any).matching(identifier: "workspace-settings")
+        let teams = app.buttons.matching(identifier: "team-quick-open")
+        let visible = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard let panel = NativeUITestElementResolution.visible(panels, in: app, actionable: false),
+                  let control = NativeUITestElementResolution.visible(teams, in: app) else { return false }
+            let viewport = panel.frame.intersection(app.windows.firstMatch.frame)
+            let frame = control.frame
+            return !viewport.isEmpty && viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+        }, object: app)
+        return XCTWaiter.wait(for: [visible], timeout: 10) == .completed
+        #else
+        return RealAccountUITestSupport.waitForVisibleSettingsHome(in: app, timeout: 10)
+        #endif
+    }
+
+    private func waitForInitialSyncComplete(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
+        let marker = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-sync-complete", "true"))
+            .firstMatch
+        return marker.waitForExistence(timeout: timeout)
+    }
+
+    #if os(iOS)
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.surface.semantic-parity
+    func testPersonalAccountResumesConnectivityThroughRepeatedBackgrounding() throws {
+        let credentials = try RealAccountTestCredentials.fromPersonalDevEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 60))
+        let status = app.descendants(matching: .any).matching(identifier: "connection-status-indicator").firstMatch
+        let settings = app.buttons["settings-button"]
+        for seconds in [5, 10, 30, 60, 15] {
+            XCUIDevice.shared.press(.home)
+            Thread.sleep(forTimeInterval: TimeInterval(seconds))
+            app.activate()
+            XCTAssertTrue(settings.waitForExistence(timeout: 30))
+            XCTAssertTrue(status.waitForNonExistence(timeout: 30), "Connection must recover after \(seconds)s in background")
+            XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 30))
+            XCTAssertTrue(settings.isHittable)
+        }
+    }
+
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
         let markerPrompt = "Reply with one short sentence: Hello from Osaka."
@@ -1332,13 +1984,6 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         return rows.count > 0
     }
 
-    private func waitForInitialSyncComplete(in app: XCUIApplication, timeout: TimeInterval) -> Bool {
-        let marker = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@ AND value == %@", "chat-sync-complete", "true"))
-            .firstMatch
-        return marker.waitForExistence(timeout: timeout)
-    }
-
     private func makeLoadedChatsManifest(app: XCUIApplication, rows: XCUIElementQuery, credentials: RealAccountTestCredentials) -> [String: Any] {
         let maxRows = Int(ProcessInfo.processInfo.environment["CHAT_RENDERING_PARITY_MAX_ROWS"] ?? "40") ?? 40
         let rowCount = min(rows.count, maxRows)
@@ -1598,6 +2243,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         if label.isEmpty || label == identifier { return "#\(identifier)" }
         return "#\(identifier)=\(label.contains("@") ? "<email>" : label)"
     }
+    #endif
 }
 
 private struct AnonymousFreeUsageProbe: Decodable {

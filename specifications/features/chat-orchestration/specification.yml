@@ -336,7 +336,10 @@ assertions:
   type: behavior
   must: A sub-chat started for a Plan assumption or a Task is linked to it - the assumption records the sub-chat as its
     checking chat and the Task as its working chat. The Specification, Check and Plan cards and the chat's active Plan
-    show the linked sub-chat and open it, and the sub-chat names the assumption or Task it works on with a way back.
+    show the linked sub-chat and open it. A sub-chat shows a Sub-chat pill in its header and, at the top, a system event
+    "Created as a sub-chat of <main chat name>" whose name opens the main chat, naming the assumption or Task it works on;
+    its close button returns to the main chat. There is no separate back bar and no sub-chats toggle in the message
+    input, since sub-chats come from the focus (owner decision 23 Nov).
   depends_on:
   - examples.sub_chat_links
 applies_to:

@@ -33,7 +33,7 @@ export type LiveTranscriptCorrectionOutcome = 'replaced' | 'inserted' | 'kept';
 
 export interface LiveTranscriptController {
     /** Apply the latest cumulative transcript. Returns true when text was inserted. */
-    apply(cumulativeTranscript: string): boolean;
+    apply(cumulativeTranscript: string, followCaret?: boolean): boolean;
     /** True once any dictated text is in the document. */
     hasText(): boolean;
     /** Current dictated ranges (mapped through every later edit). */
@@ -41,7 +41,7 @@ export interface LiveTranscriptController {
     /** Show or clear the processing shimmer on the dictated ranges. */
     setProcessing(active: boolean): void;
     /** Reconcile the corrected transcript with the dictated text. */
-    applyCorrection(correctedTranscript: string): LiveTranscriptCorrectionOutcome;
+    applyCorrection(correctedTranscript: string, preserveSelection?: boolean): LiveTranscriptCorrectionOutcome;
     /** Remove untouched dictated text (used when the recording is cancelled). */
     discard(): void;
     /** Stop tracking editor transactions. */
@@ -103,7 +103,7 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
     const untouched = (segment: Segment) => textAt(segment.from, segment.to) === segment.text;
 
     /** Insert `text` replacing [from, to); returns the new range of `text` itself. */
-    const write = (from: number, to: number, text: string, newSegment: boolean): Segment | null => {
+    const write = (from: number, to: number, text: string, newSegment: boolean, preserveSelection = false): Segment | null => {
         let body = normalize(text);
         let spaceBefore = false;
         let spaceAfter = false;
@@ -119,15 +119,14 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
         const inserted = `${spaceBefore ? ' ' : ''}${body}${spaceAfter ? ' ' : ''}`;
         const bodyFrom = from + (spaceBefore ? 1 : 0);
         const bodyTo = bodyFrom + body.length;
-        const ok = editor.chain()
+        const chain = editor.chain()
             .command(({ tr }) => { tr.setMeta(LIVE_TRANSCRIPT_META, true); return true; })
             .insertContentAt({ from, to }, transcriptToContent(inserted), {
                 updateSelection: false,
                 parseOptions: { preserveWhitespace: 'full' },
-            })
-            .setTextSelection(bodyTo)
-            .scrollIntoView()
-            .run();
+            });
+        if (!preserveSelection) chain.setTextSelection(bodyTo).scrollIntoView();
+        const ok = chain.run();
         if (!ok) return null;
         return { from: bodyFrom, to: bodyTo, text: body, spaceBefore, spaceAfter };
     };
@@ -139,7 +138,7 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
     };
 
     return {
-        apply(cumulativeTranscript) {
+        apply(cumulativeTranscript, followCaret = true) {
             if (!alive()) return false;
             const transcript = normalize(cumulativeTranscript);
             // Realtime deltas only append. A finalized transcript that diverges
@@ -149,13 +148,17 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
             if (!delta) return false;
             syncDomSelection();
             const selection = editor.state.selection;
+            const last = segments[segments.length - 1];
+            // After Finish, append trailing words at their dictated location.
+            // If the user removed that range altogether, leave it removed.
+            const dictatedEnd = last?.to;
+            if (!followCaret && (dictatedEnd === undefined || dictatedEnd === last?.from)) return false;
+            const to = followCaret ? selection.to : dictatedEnd ?? selection.to;
             // Dictation replaces selected text like typing does, but never a
             // selected embed or other node.
-            const from = selection instanceof TextSelection ? selection.from : selection.to;
-            const { to, empty } = selection;
-            const last = segments[segments.length - 1];
-            const continues = !!last && empty && to === last.to && untouched(last);
-            const written = write(from, to, delta, !continues);
+            const from = followCaret && selection instanceof TextSelection ? selection.from : to;
+            const continues = !!last && (!followCaret || selection.empty) && to === last.to && untouched(last);
+            const written = write(from, to, delta, !continues, !followCaret);
             consumed = transcript;
             if (!written) return false;
             if (continues) {
@@ -178,7 +181,7 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
             processing = active;
             refreshProcessing();
         },
-        applyCorrection(correctedTranscript) {
+        applyCorrection(correctedTranscript, preserveSelection = false) {
             if (!alive()) return 'kept';
             const corrected = normalize(correctedTranscript).trim();
             if (!corrected) return 'kept';
@@ -194,7 +197,8 @@ export function createLiveTranscriptController(editor: Editor): LiveTranscriptCo
             const [only] = segments;
             if (segments.length !== 1 || !untouched(only)) return 'kept';
             if (only.text === corrected) return 'replaced';
-            const written = write(only.from, only.to, corrected, false);
+            if (preserveSelection) syncDomSelection();
+            const written = write(only.from, only.to, corrected, false, preserveSelection);
             if (!written) return 'kept';
             only.to = written.to;
             only.text = written.text;

@@ -7,11 +7,12 @@
 # Hooks installed:
 #   pre-commit: runs staged maintainability checks and translation validation
 #               when frontend files are staged.
+#   commit-msg: checks public text and staged names (scripts/public_link_guard.py).
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOKS_DIR="$REPO_ROOT/.git/hooks"
+HOOKS_DIR="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir)/hooks"
 SCRIPTS_DIR="$REPO_ROOT/scripts"
 
 if [ ! -d "$HOOKS_DIR" ]; then
@@ -46,7 +47,7 @@ if [ ! -f "$UI_DIR/package.json" ]; then
     exit 0
 fi
 
-echo "🔍 [pre-commit] Checking $text() translation keys..."
+echo '🔍 [pre-commit] Checking $text() translation keys...'
 
 # Run validate:locales and capture output
 OUTPUT="$(cd "$UI_DIR" && npm run validate:locales 2>&1)"
@@ -71,6 +72,36 @@ HOOK
 
 chmod +x "$PRE_COMMIT"
 echo "✅ Installed: $PRE_COMMIT"
+
+# ── commit-msg: no chat or session links in public commit messages (owner, 23 Nov) ──
+COMMIT_MSG="$HOOKS_DIR/commit-msg"
+cat > "$COMMIT_MSG" << 'HOOK'
+#!/usr/bin/env bash
+# commit-msg hook — installed by scripts/install-hooks.sh
+# Check the actual stored message, including lines beginning with a comment character.
+set -e
+guard="$(git rev-parse --show-toplevel)/scripts/public_link_guard.py"
+[ -f "$guard" ] || guard="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/scripts/public_link_guard.py"
+[ -f "$guard" ] || exit 0
+python3 "$guard" commit-msg "$1"
+if branch=$(git symbolic-ref --quiet HEAD); then
+    python3 "$guard" branch "$branch"
+fi
+exec python3 "$guard" tree
+HOOK
+chmod +x "$COMMIT_MSG"
+echo "✅ Installed: $COMMIT_MSG"
+
 echo ""
 echo "The pre-commit hook will now block high-confidence debt and missing \$text() keys."
-echo "To skip in an emergency (not recommended): git commit --no-verify"
+
+PRE_PUSH="$HOOKS_DIR/pre-push"
+cat > "$PRE_PUSH" << 'HOOK'
+#!/usr/bin/env bash
+set -euo pipefail
+guard="$(git rev-parse --show-toplevel)/scripts/public_link_guard.py"
+[ -f "$guard" ] || guard="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/scripts/public_link_guard.py"
+exec python3 "$guard" pre-push "$1"
+HOOK
+chmod +x "$PRE_PUSH"
+echo "Installed: $PRE_PUSH"

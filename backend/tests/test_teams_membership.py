@@ -38,7 +38,8 @@ async def test_admin_can_invite_member_and_change_role_without_owner_promotion()
 
 # contract-test: supporting surface=rest_api assertions=teams.membership.role-gated,teams.security.join-policy
 @pytest.mark.anyio
-async def test_remove_member_refuses_owner_and_revokes_non_owner_access() -> None:
+async def test_remove_member_refuses_owner_and_revokes_non_owner_access(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-team-key-transaction")
     directus = FakeDirectus()
     methods = TeamMethods(directus)
     await methods.create_team("alice", team_payload())
@@ -53,10 +54,11 @@ async def test_remove_member_refuses_owner_and_revokes_non_owner_access() -> Non
     assert bob_removed is True
     alice_membership = [row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("alice")][0]
     bob_membership = [row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("bob")][0]
-    bob_wrapper = [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")][0]
+    bob_wrappers = [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")]
     assert alice_membership["status"] == "active"
     assert bob_membership["status"] == "removed"
-    assert bob_wrapper["status"] == "revoked"
+    assert bob_wrappers == []
+    assert directus.rows["teams"][0]["rotation_pending"] is True
 
 
 # contract-test: supporting surface=rest_api assertions=teams.membership.role-gated,teams.security.join-policy

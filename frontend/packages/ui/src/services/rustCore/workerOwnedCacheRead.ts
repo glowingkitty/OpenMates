@@ -11,7 +11,7 @@ import { noOwnedDriver,ownedIdentity,project,retainOriginalClient,runClientPhase
 import type { OwnedCacheRequest,OwnedCacheSlot,RustOwnedCacheHandle,RustOwnedCacheTerminal } from "./workerRuntimeTypes";
 
 /** Owned cache read driver of the Rust core Worker dispatcher. */
-export const runOwnedCacheRead = async (rt: WorkerRuntimeState, input:OwnedCacheRequest, fail:(error:'unavailable'|'session_expired')=>void) => {
+export const runOwnedCacheRead = async (rt: WorkerRuntimeState, input:OwnedCacheRequest, fail:(error:'unavailable'|'session_expired'|'cancelled')=>void) => {
     const owned=rt.client;
     if(!owned||rt.busy||rt.cacheRead||input.id<=rt.lastCacheReadId||rt.ownedCacheReads.size>=MAX_PENDING_REQUESTS){fail('unavailable');noOwnedDriver(rt, input);return;}
     const incoming=input.operation==='read_cache_monitor_update',monitor=incoming?rt.cacheMonitor:null;
@@ -20,7 +20,11 @@ export const runOwnedCacheRead = async (rt: WorkerRuntimeState, input:OwnedCache
     const slot:OwnedCacheSlot={id:input.id,original:owned,monitor,live:true,stopped:false,effectId:0,state:{effects:0,rows:new Map()},...((input.localFirst||input.profileCache)?{localRead:createOwnedLocalReadState()}:{}),absence:null,control:null,continuation:null,heldDriver:null,inventory:null,recovery:null,recoveryControl:null,finalization:null,mainMetadata:null,replyStore:null,retainedRecoveries:[],reply:null,drain:null,identity:ownedIdentity(rt, input),terminalRequired:input.ownedCache===true};
     rt.ownedCacheReads.set(input.id,slot);const release=retainOriginalClient(rt, owned);
     let handle:RustOwnedCacheHandle|null=null,continuationWait:Promise<void>|null=null,terminal:RustOwnedCacheTerminal|null=null,observedAbsence=false;
-    const current=()=>{if(rt.disposed||rt.client!==owned||!slot.live||slot.stopped||slot.monitor?.retired)throw Error('session_expired');};
+    const stoppedRead = new Error('cancelled');
+    const current=()=>{
+      if(rt.disposed||rt.client!==owned||!slot.live||slot.monitor?.retired)throw Error('session_expired');
+      if(slot.stopped)throw stoppedRead;
+    };
     let draftBudget=false;
     const effect=async(plan:string):Promise<string>=>{
       let terminal!:Promise<string>;
@@ -233,7 +237,13 @@ export const runOwnedCacheRead = async (rt: WorkerRuntimeState, input:OwnedCache
           throw Error('cancelled');
         }finally{if(!consumed)step.free();}
       }
-    }catch{
+    }catch(error){
+      // Original Rust denial or loss of its Client remains terminal. Only the
+      // exact local stop sentinel or native cancellation can complete a stop.
+      const ordinaryCold = !incoming && !input.profileCache;
+      const coldDenial = ordinaryCold && (error === 'session_expired' ||
+        error instanceof Error && error.message === 'session_expired');
+      const coldStopped = ordinaryCold && slot.stopped && (error === stoppedRead || error === 'cancelled');
       // A failed/retired B read owns no parent/session retirement authority.
       // Existing native root/parent/master/denial guards still refuse every
       // operation/output; actual global disposal remains authoritative.
@@ -245,7 +255,7 @@ export const runOwnedCacheRead = async (rt: WorkerRuntimeState, input:OwnedCache
           observedAbsence=true;
         });}catch{/* No absence from error labels, cancellation, Drop or unknown IO. */}
       }
-      if(!observedAbsence)fail('unavailable');
+      if(!observedAbsence)fail(coldDenial ? 'session_expired' : coldStopped ? 'cancelled' : 'unavailable');
     }finally{
       // Settlement runs in a nested function so its early returns do not
       // override the try/catch completion (no-unsafe-finally); try/catch never throws.

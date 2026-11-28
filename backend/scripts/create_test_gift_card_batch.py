@@ -17,13 +17,15 @@ Operator instructions (production, run by the owner):
 3. Create the cards and store the codes on the dev host only (codes go to
    stdout only; nothing is logged or written on prod):
        umask 077; mkdir -p ~/.openmates/ai-test-users
-       scripts/prod-ssh.sh "docker exec -i api python /app/backend/scripts/create_test_gift_card_batch.py --count 40" \\
+       scripts/prod-ssh.sh "docker exec -i api python /app/backend/scripts/create_test_gift_card_batch.py --count 160" \\
            >> ~/.openmates/ai-test-users/prod-gift-cards.txt
        chmod 600 ~/.openmates/ai-test-users/prod-gift-cards.txt
    Use --dry-run first to see what would be created (no codes printed).
 4. Close the window: `scripts/prod-ssh.sh close` and let temp-ssh-access expire.
 
-Options: --count N (1-500), --credits C (default and maximum 1000),
+The default of 160 cards covers 80 weekday runs (about 112 calendar days).
+Each weekday run uses two production cards. Options: --count N (1-500),
+--credits C (default and maximum 1000),
 --dry-run, --count-remaining. The script refuses to run when the gift_cards
 schema lacks marks_test_account (deploy the schema first).
 """
@@ -37,6 +39,7 @@ from datetime import date
 
 sys.path.insert(0, '/app/backend')
 
+DEFAULT_COUNT = 160
 MAX_CREDITS = 1000
 MAX_COUNT = 500
 GIFT_CARD_CHARSET = (
@@ -69,31 +72,38 @@ async def schema_has_marks_test_account(directus) -> bool:
 
 async def count_remaining(directus) -> int:
     """Number of unredeemed (not yet deleted) marks_test_account cards."""
-    cards = await directus.get_all_gift_cards()
-    return sum(1 for card in cards if card.get('marks_test_account'))
+    token = await directus.ensure_auth_token(admin_required=True)
+    response = await directus._make_api_request(
+        'GET', f'{directus.base_url}/items/gift_cards',
+        headers={'Authorization': f'Bearer {token}'},
+        params={'aggregate[count]': '*', 'filter[marks_test_account][_eq]': 'true'})
+    if response.status_code != 200:
+        raise RuntimeError(f'Directus could not count test cards (HTTP {response.status_code})')
+    return int(response.json()['data'][0]['count'])
 
 
 async def create_batch(directus, count: int, credits: int, notes: str) -> list[str]:
-    """Create ``count`` cards and return their codes. Codes are never logged."""
+    """Create all cards with their test-only flags in one Directus request."""
     fields = build_card_fields(credits, notes)
-    codes: list[str] = []
+    codes: dict[str, None] = {}
     while len(codes) < count:
-        code = generate_gift_card_code()
-        if await directus.get_gift_card_by_code(code) is not None:
-            continue
-        created = await directus.create_gift_card(
-            code=code, credits_value=fields['credits_value'], purchaser_user_id_hash=None)
-        if not created:
-            raise RuntimeError(f'Directus refused to create card {len(codes) + 1}; {len(codes)} created')
-        await directus.update_item(
-            'gift_cards', created['id'], {'marks_test_account': True, 'notes': fields['notes']})
-        codes.append(code)
-    return codes
+        codes[generate_gift_card_code()] = None
+    token = await directus.ensure_auth_token(admin_required=True)
+    response = await directus._make_api_request(
+        'POST', f'{directus.base_url}/items/gift_cards',
+        headers={'Authorization': f'Bearer {token}'},
+        params={'fields': 'id'},
+        json=[{'code': code, **fields} for code in codes])
+    if not 200 <= response.status_code < 300:
+        raise RuntimeError(f'Directus refused the test card batch (HTTP {response.status_code})')
+    if len(response.json()['data']) != count:
+        raise RuntimeError('Directus returned an unexpected number of test cards')
+    return list(codes)
 
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description='Create single-use test gift cards (marks_test_account).')
-    parser.add_argument('--count', type=int, default=0, help=f'Cards to create (1-{MAX_COUNT}).')
+    parser.add_argument('--count', type=int, default=DEFAULT_COUNT, help=f'Cards to create (1-{MAX_COUNT}, default {DEFAULT_COUNT}).')
     parser.add_argument('--credits', type=int, default=MAX_CREDITS, help=f'Credits per card (max {MAX_CREDITS}).')
     parser.add_argument('--dry-run', action='store_true', help='Validate and report; create nothing.')
     parser.add_argument('--count-remaining', action='store_true', help='Print unredeemed test card count.')
@@ -129,7 +139,7 @@ async def main() -> int:
             return 0
         codes = await create_batch(directus, args.count, args.credits,
                                    f'ai-test-users batch {date.today().isoformat()}')
-        print('\n'.join(codes))
+        print('\n'.join(codes), flush=True)
         return 0
     except RuntimeError as err:
         logger.error('%s', err)

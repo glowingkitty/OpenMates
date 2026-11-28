@@ -61,6 +61,10 @@ final class WorkspaceSwitcherUITests: XCTestCase {
             XCTAssertEqual(indicator.frame.width, 30, accuracy: 1)
             XCTAssertEqual(indicator.frame.height, 30, accuracy: 1)
             XCTAssertLessThanOrEqual(indicator.frame.maxX, profile.frame.minX)
+            if state == "offline" || state == "reconnecting" {
+                XCTAssertTrue(app.buttons["compact-logo-button"].isHittable,
+                              "Connection feedback must preserve the OpenMates icon")
+            }
             if state == "reconnecting" {
                 let retry = app.buttons["connection-status-retry"]
                 XCTAssertTrue(retry.isHittable, "Actual reconnect action retains its header hit target")

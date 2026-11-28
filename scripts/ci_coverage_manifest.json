@@ -22,6 +22,20 @@
         "components/web-browse-embeds.spec.ts"
       ]
     },
+    "design_editor_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare preview with bundled design documents and images. Exercises canvas gestures, edit controls, themes and renderer performance without backend services, credentials or AI.",
+      "specs": [
+        "components/design-document.spec.ts",
+        "components/design-editor.spec.ts",
+        "components/design-editor-performance.spec.ts"
+      ]
+    },
+    "shared_embed_fullscreen_preview": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only previews exercise the shared fullscreen corner, menu actions, article scroll handoff and local file downloads. The Rust browser package supplies Design scene validation and Code filename planning.",
+      "specs": ["components/embed-fullscreen-header.spec.ts"]
+    },
     "design_embroidery_embed_preview": {
       "execution": "e2e",
       "enabling_work": "Account-free Vite-only bare embroidery result card and opened view. Fixtures carry inline preview media; download-URL and follow-up requests are intercepted and asserted. No backend, E2B sandbox, account credentials or AI inference. The real conversion is verified separately against the sandbox template and in chat.",
@@ -182,6 +196,7 @@
         "wiki-learning-flow.spec.ts",
         "embed-preview-backfill-replay.spec.ts",
         "embed-catalog-hyphen-roundtrip.spec.ts",
+        "design-document-view.spec.ts",
         "historical-image-child-recovery.spec.ts"
       ]
     },
@@ -213,7 +228,8 @@
       "execution": "e2e",
       "enabling_work": "Use genuine disposable S3-compatible storage with fresh Vault credentials and preserved original persistence/auth assertions; no real mail delivery or Hetzner region failover claim.",
       "specs": [
-        "report-issue-flow.spec.ts"
+        "report-issue-flow.spec.ts",
+        "uploaded-image-gestures.spec.ts"
       ]
     },
     "ai_provider": {
@@ -325,6 +341,7 @@
         "components/apps-request-composer.spec.ts",
         "components/chat-message-expansion.spec.ts",
         "components/chat-message-copy.spec.ts",
+        "components/chat-message-selection-toolbar-embed.spec.ts",
         "components/header-mobile-layout-preview.spec.ts",
         "components/connection-status-preview.spec.ts",
         "components/embed-version-timeline.spec.ts",
@@ -335,6 +352,7 @@
         "components/voice-call-speech-rendering.spec.ts",
         "components/svg-image-embed.spec.ts",
         "components/chat-header-image-lifecycle.spec.ts",
+        "components/idle-decorative-motion.spec.ts",
         "components/chat-message-results-width.spec.ts",
         "components/apps-skill-form.spec.ts",
         "app-load-no-error-logs.spec.ts",
@@ -374,7 +392,7 @@
         "components/specification-embed.spec.ts",
         "components/plan-embed.spec.ts",
         "components/spec-sub-chat-links.spec.ts",
-        "components/sub-chat-work-link.spec.ts",
+        "components/sub-chat-origin.spec.ts",
         "components/check-embed.spec.ts",
         "components/chat-active-plan.spec.ts",
         "components/plan-skill-embeds.spec.ts",
@@ -508,6 +526,7 @@
         "components/settings-teams-icons.spec.ts",
         "components/settings-teams-storage.spec.ts",
         "components/image-result-fullscreen-proxy.spec.ts",
+        "components/content-image-gestures.spec.ts",
         "components/music-fullscreen-responsive.spec.ts",
         "components/recording-public-playback.spec.ts",
         "components/workflow-send-delivery-status.spec.ts",
@@ -516,14 +535,19 @@
         "components/workflow-chat-embed.spec.ts",
         "components/chat-project-navigation.spec.ts",
         "components/chat-list-deletion.spec.ts",
+        "components/chat-account-count.spec.ts",
         "components/project-chat-previews.spec.ts",
         "components/project-file-references.spec.ts",
         "components/settings-storage-overview.spec.ts",
         "components/settings-chat-notifications.spec.ts",
         "components/maps-discovery.spec.ts",
         "components/maps-place-label.spec.ts",
+        "components/mail-search-fullscreen.spec.ts",
         "components/agent-context-message.spec.ts",
         "components/figma-connected-accounts.spec.ts",
+        "components/connected-accounts-before.spec.ts",
+        "components/connected-accounts-central.spec.ts",
+        "components/connected-accounts-redesign.spec.ts",
         "components/project-focus-specialist.spec.ts",
         "components/focus-banner-placement.spec.ts",
         "components/rule-document-manager.spec.ts",
@@ -575,6 +599,8 @@
         "components/nutrition-serving-macros.spec.ts",
         "public-example-activity-summary.spec.ts",
         "components/chat-message-openmates-identity.spec.ts",
+        "components/chat-message-bubble-tail.spec.ts",
+        "components/embed-card-title-wrap.spec.ts",
         "components/voice-call-header-actions.spec.ts",
         "components/voice-call-focused-draft.spec.ts",
         "landing-shopping-replacement.spec.ts",
@@ -1206,6 +1232,7 @@
         "components/docs-editor.spec.ts",
         "components/test-result-embed.spec.ts",
         "components/application-embed-preview.spec.ts",
+        "components/task-embed-preview.spec.ts",
         "components/slides-template-embed.spec.ts",
         "components/project-timeline.spec.ts"
       ]
@@ -1354,17 +1381,30 @@
         "components/chat-orchestration-event-notice.spec.ts"
       ]
     },
+    "rich_sheets_e2e": {
+      "execution": "e2e",
+      "enabling_work": "Two provisioned Team members in an isolated stack, using the live collaboration flag to edit one sheet, sync formatting, undo and restore. No provider inference.",
+      "specs": [
+        "rich-sheet-live.spec.ts"
+      ]
+    },
     "real_inference": {
       "execution": "e2e",
       "enabling_work": "Real provider inference in the run's own isolated stack. Only the protected real-inference GitHub environment (dev branch) supplies the dev-only provider keys, which reach only that run's throwaway Vault; the stack's only egress is the gateway's HTTPS allowlist for those providers. Own batch; never mixed with replay fixtures.",
       "specs": [
         "real-inference-chat-notice-headline.spec.ts",
         "real-inference-cli-workflows-ai-chat.spec.ts",
+        "real-inference-tui-artifact-steering.spec.ts",
+        "real-inference-tui-chat-processing.spec.ts",
+        "real-inference-web-voice-processing.spec.ts",
+        "real-inference-design-editor.spec.ts",
+        "real-inference-dictation-gate.spec.ts",
         "real-inference-focus-mode-video.spec.ts",
         "real-inference-gemini-chat.spec.ts",
         "real-inference-image-model.spec.ts",
         "real-inference-memory-suggestions.spec.ts",
         "real-inference-life-compass-focus.spec.ts",
+        "real-inference-task-inline-embeds.spec.ts",
         "real-inference-press-release-project-memory.spec.ts",
         "real-inference-project-layered-focus.spec.ts",
         "real-inference-safety-suspension.spec.ts",
@@ -1372,7 +1412,10 @@
         "real-inference-spec-authoring-focus.spec.ts",
         "real-inference-spec-sub-chats.spec.ts",
         "real-inference-sub-chats.spec.ts",
-        "real-inference-wellbeing-helpline.spec.ts"
+        "real-inference-wellbeing-helpline.spec.ts",
+        "real-inference-live-assistant-doc.spec.ts",
+        "real-inference-live-assistant-sheet.spec.ts",
+        "real-inference-live-assistant-code.spec.ts"
       ]
     },
     "proof_audio_capture_component": {
@@ -1381,9 +1424,31 @@
       "specs": [
         "components/proof-audio-capture.spec.ts"
       ]
+    },
+    "live_collaboration_components": {
+      "execution": "e2e",
+      "enabling_work": "Account-free Vite-only bare previews of the live document and code editors (two TipTap/CodeMirror mirrors joined in memory by a fake link) and the live header status with presence avatars. No backend, Rust core, account credentials, provider or AI inference; real-stack multi-user specs are separate.",
+      "specs": [
+        "components/docs-live-editor-pair.spec.ts",
+        "components/code-live-editor-pair.spec.ts",
+        "components/live-header-status.spec.ts",
+        "components/sheet-live-grid-pair.spec.ts",
+        "components/slides-live-pair.spec.ts"
+      ]
+    },
+    "live_collaboration_e2e": {
+      "execution": "e2e",
+      "enabling_work": "Two isolated provisioned accounts (a Team owner and a member) in the run's own isolated stack with the live_collaboration web flag set per browser context; own batch because every spec runs two browsers.",
+      "specs": [
+        "live-collab-two-users.spec.ts",
+        "live-collab-conflicts.spec.ts"
+      ]
     }
   },
   "holds": {
+    "personal-devtest-chat-timings.spec.ts": {
+      "next_action": "Run against the populated development account only through the private Personal DevTest web workflow. It uses GitHub secrets and encrypts browser logs and recordings before upload."
+    },
     "cli-native-agentic-app-real.spec.ts": {
       "next_action": "Real Gemini inference against dev with the personal test account: run only on the dev host with the personal-dev lease and the native CLI binary in OPENMATES_NATIVE_CLI. Never submit this provider-billed flow to isolated CI."
     },

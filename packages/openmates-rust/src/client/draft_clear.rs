@@ -108,32 +108,36 @@ impl Client {
         let Some(row) = self.chats.get(id) else {
             return Ok(false);
         };
-        if !super::sync::draft_only(row) {
-            return Ok(false);
-        }
-        if text(row, "id") != id {
-            return Err(Error::Forbidden);
-        }
-        for field in ["encrypted_chat_key", "encrypted_draft_md"] {
-            if row
-                .get(field)
-                .is_some_and(|value| !value.is_null() && !value.is_string())
-            {
-                return Err(Error::Protocol);
-            }
-        }
-        let messages = match row.get("messages_v") {
-            None | Some(Value::Null) => 0,
-            Some(value) => value.as_u64().ok_or(Error::Protocol)?,
-        };
-        Ok(messages == 0
-            && self.history.get(id).is_none_or(Vec::is_empty)
-            && !self
-                .wrappers
-                .iter()
-                .chain(row["chat_key_wrappers"].as_array().into_iter().flatten())
-                .any(|wrapper| text(wrapper, "hashed_chat_id") == sha256(id)))
+        is_cached_draft_shell(row, id, self.history.get(id).map(Vec::as_slice), &self.wrappers)
     }
+}
+
+pub(super) fn is_cached_draft_shell(
+    row: &Value, id: &str, history: Option<&[Value]>, wrappers: &[Value],
+) -> Result<bool> {
+    if !super::sync::draft_only(row) {
+        return Ok(false);
+    }
+    if text(row, "id") != id {
+        return Err(Error::Forbidden);
+    }
+    for field in ["encrypted_chat_key", "encrypted_draft_md"] {
+        if row
+            .get(field)
+            .is_some_and(|value| !value.is_null() && !value.is_string())
+        {
+            return Err(Error::Protocol);
+        }
+    }
+    let messages = match row.get("messages_v") {
+        None | Some(Value::Null) => 0,
+        Some(value) => value.as_u64().ok_or(Error::Protocol)?,
+    };
+    Ok(messages == 0
+        && history.is_none_or(<[Value]>::is_empty)
+        && !wrappers.iter()
+            .chain(row["chat_key_wrappers"].as_array().into_iter().flatten())
+            .any(|wrapper| text(wrapper, "hashed_chat_id") == sha256(id)))
 }
 
 fn clear_owner(user: &Value) -> Option<&str> {

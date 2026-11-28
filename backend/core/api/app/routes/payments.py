@@ -11,6 +11,7 @@ from pathlib import Path
 
 from backend.core.api.app.services.payment.payment_service import PaymentService
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.stats_account_label import is_test_account_user, remember_test_account
 from backend.core.api.app.services.directus.gift_card_methods import (
     GiftCardIdentityMismatchError,
     GiftCardEmailRequiredError,
@@ -2639,7 +2640,9 @@ async def payment_webhook(
                             
                             # 4. If first purchase, increment finished signup
                             # We can check if last_opened was a signup path
-                            if user_cache_data.get("last_opened", "").startswith("/signup/"):
+                            if user_cache_data.get("last_opened", "").startswith("/signup/") and not (
+                                await is_test_account_user(cache_service, directus_service, user_id, user_cache_data)
+                            ):
                                 await server_stats_service.increment_stat("new_users_finished_signup")
 
                             # 5. Financial analytics counters
@@ -4898,13 +4901,14 @@ async def redeem_gift_card(
         user_cache_data["signup_completed"] = True
         if gift_card.get("marks_test_account"):
             user_cache_data["is_test_account"] = True
+            await remember_test_account(cache_service, user_id, True)
         await cache_service.set_user(user_cache_data, user_id=user_id)
         
         # Update Global Stats for Gift Card
         try:
             # Gift cards increase liability and count as a 'finished signup' if it's the first one
             await cache_service.update_liability(int(credits_value))
-            if not was_signup_completed:
+            if not was_signup_completed and not gift_card.get("marks_test_account") and not user_cache_data.get("is_test_account"):
                 await cache_service.increment_stat("new_users_finished_signup", 1)
             # Track gift card redemption for financial analytics
             await cache_service.increment_stat("gift_cards_redeemed")

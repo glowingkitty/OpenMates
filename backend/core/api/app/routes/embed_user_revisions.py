@@ -34,8 +34,9 @@ import re
 import time
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
+from backend.apps.ai.assistant_live_changes import record_committed_embed_version
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
@@ -57,6 +58,9 @@ CIPHERTEXT_MAX_LENGTH = 4 * 1024 * 1024
 OPERATION_ID_PATTERN = r"^[A-Za-z0-9._:-]{1,128}$"
 HEX_64_PATTERN = r"^[0-9a-f]{64}$"
 MAX_VERSION = 2_147_483_647
+VERSION_KINDS = ("session", "assistant", "restore", "named", "commit")
+MAX_CONTRIBUTORS = 16
+MAX_VERSION_NAME_LENGTH = 4096
 TEAM_WRITE_ROLES = {"owner", "admin", "member"}
 # Refusals of the atomic operation that are part of the contract. Anything else
 # is a server fault and is reported as such, never as success.
@@ -70,9 +74,10 @@ STABLE_ERROR_CODES = frozenset({
     "embed_access_denied", "embed_type_not_editable", "foreign_file_key", "enhance_result_not_found",
     "embed_not_found",
     "operation_payload_mismatch", "immutable_history_mismatch", "base_snapshot_required",
+    "team_key_rotation_pending", "team_key_epoch_conflict", "invalid_revision_ciphertext",
     "restore_source_missing", "enhance_result_not_ready", "enhance_result_expired", "enhance_version_mismatch",
     "enhance_scope_mismatch",
-    "invalid_current_revision",
+    "invalid_current_revision", "invalid_version_kind", "invalid_version_name", "invalid_contributors",
 })
 _SAFE_VARIANT = re.compile(r"^[a-z0-9_]{1,32}$")
 # Bucket of every image variant (images.generate, Enhance and uploads store them in chatfiles).
@@ -152,6 +157,21 @@ class MediaIndex(BaseModel):
     content_type: Optional[str] = Field(default=None, pattern=r"^image/[a-z0-9.+-]{1,64}$")
 
 
+class Contributor(BaseModel):
+    """A version contributor: a hashed user id or an assistant (Mate) name, never a plaintext user id."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_hash: Optional[str] = Field(default=None, pattern=HEX_64_PATTERN)
+    mate_name: Optional[str] = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def _exactly_one(self) -> "Contributor":
+        if (self.user_hash is None) == (self.mate_name is None):
+            raise ValueError("contributor needs exactly one of user_hash or mate_name")
+        return self
+
+
 class UserRevisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -165,6 +185,16 @@ class UserRevisionRequest(BaseModel):
     restored_from: Optional[int] = Field(default=None, ge=1, le=MAX_VERSION)
     files: Optional[RevisionFiles] = None
     media_index: Optional[MediaIndex] = None
+    # Timeline metadata (feature live-collab.versions.named-snapshots); all optional.
+    version_kind: Optional[Literal["session", "assistant", "restore", "named", "commit"]] = None
+    encrypted_version_name: Optional[str] = Field(default=None, min_length=1, max_length=MAX_VERSION_NAME_LENGTH)
+    contributors: Optional[List[Contributor]] = Field(default=None, min_length=1, max_length=MAX_CONTRIBUTORS)
+
+    @model_validator(mode="after")
+    def _name_only_for_named(self) -> "UserRevisionRequest":
+        if self.encrypted_version_name is not None and self.version_kind != "named":
+            raise ValueError("encrypted_version_name requires version_kind named")
+        return self
 
 
 def get_directus_service(request: Request) -> DirectusService:
@@ -304,6 +334,8 @@ async def commit_user_embed_revision(
                 directus_service, embed_id=embed_id, user_id=current_user.id, media_index=body.media_index,
             )
     await _forget_cached_embed(request, embed_id)
+    if result.get("current_revision"):
+        await record_committed_embed_version(request.app.state.cache_service, embed_id, result["current_revision"])
     if not result.get("idempotent"):
         await _broadcast_committed(current_user.id, result)
     return {

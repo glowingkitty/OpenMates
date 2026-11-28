@@ -9,6 +9,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import type { Page, TestInfo } from '@playwright/test';
 
 const { expect, test: auditedTest } = require('./helpers/cookie-audit');
 const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
@@ -27,8 +28,8 @@ const usage = () => ({
   cta: 'Create an account to keep using OpenMates.'
 });
 
-async function mockGuestBackend(page: any, mode: 'answer' | 'limit') {
-  const seen = { socketUrls: [] as string[], speechRequests: [] as any[], speechCookies: [] as (string | undefined)[], streamRequests: [] as any[], frames: [] as any[] };
+async function mockGuestBackend(page: any, mode: 'answer' | 'limit' | 'hold') {
+  const seen = { socketUrls: [] as string[], speechRequests: [] as any[], speechCookies: [] as (string | undefined)[], streamRequests: [] as any[], frames: [] as any[], releaseHold: () => {} };
   await page.route('**/v1/settings/server-status', (route: any) => route.fulfill({
     status: 200, contentType: 'application/json',
     body: JSON.stringify({
@@ -78,6 +79,14 @@ async function mockGuestBackend(page: any, mode: 'answer' | 'limit') {
       if (frame.type === 'start') ws.send(JSON.stringify({ type: 'ready' }));
       if (frame.type === 'mic_audio' && !replied) {
         replied = true;
+        if (mode === 'hold') {
+          ws.send(JSON.stringify({ type: 'waiting', active: true, line: 'waiting_start', clip: {
+            clip_id: 'ace-en-US-voice_wait-1',
+            asset_url: '/audio/assistant-acknowledgements/ace/en-US/voice_wait-1.mp3',
+          } }));
+          seen.releaseHold = () => ws.send(JSON.stringify({ type: 'waiting', active: false, line: 'waiting_resume' }));
+          return;
+        }
         if (mode === 'limit') {
           ws.send(JSON.stringify({ type: 'error', code: 'anonymous_usage_limit', signup_required: true }));
           return;
@@ -114,6 +123,30 @@ test.describe('guest voice call', () => {
     { name: 'desktop', size: { width: 1280, height: 720 } },
     { name: 'phone', size: { width: 390, height: 844 } }
   ];
+  // contract-test: supporting surface=gui.web assertions=video-call.guest-calls,video-call.waiting.spoken-intent-and-merge
+  test('plays the guest hold and resume clips without requesting a chat or speech generation', async ({ page }, testInfo) => {
+    const seen = await mockGuestBackend(page, 'hold');
+    await startGuestCall(page);
+    const bar = page.getByTestId('voice-call-bar');
+    await expect(bar.getByTestId('voice-call-status-text')).toHaveText('Waiting for you');
+    await expect.poll(() => page.evaluate(() => (window as any).__playedAudio.some(
+      (clip: { src: string }) => clip.src.includes('/ace/en-US/voice_wait-1.mp3'),
+    ))).toBe(true);
+    const screenshot = testInfo.outputPath('guest-spoken-hold.png');
+    await bar.screenshot({ path: screenshot });
+    await testInfo.attach('guest-spoken-hold', { path: screenshot, contentType: 'image/png' });
+    seen.releaseHold();
+    await expect.poll(() => page.evaluate(() => (window as any).__playedAudio.some(
+      (clip: { src: string }) => clip.src.includes('/waiting_resume-1.mp3'),
+    ))).toBe(true);
+    await expect(bar).toBeVisible();
+    expect(seen.streamRequests).toHaveLength(0);
+    expect(seen.speechRequests).toHaveLength(0);
+    await expectNoCredentials(page, seen);
+    await bar.getByTestId('voice-call-hangup').click();
+    await expect(bar).toHaveCount(0);
+  });
+
   for (const viewport of viewports) {
     // contract-test: direct surface=gui.web assertions=video-call.guest-calls
     test(`signed-out visitor asks by voice and hears the answer (${viewport.name})`, async ({ page }: any, testInfo: any) => {
@@ -139,8 +172,54 @@ test.describe('guest voice call', () => {
     });
   }
 
+  for (const knownDevice of [false, true]) {
+    // contract-test: direct surface=gui.web assertions=message-input.signed-out-action-access,video-call.guest-calls
+    test(`blocked call opens ${knownDevice ? 'login' : 'signup'} before starting on a ${knownDevice ? 'known' : 'new'} device`, async ({ page }: { page: Page }, testInfo: TestInfo) => {
+      const seen = await mockGuestBackend(page, 'answer');
+      let exhausted = knownDevice;
+      await page.route('**/v1/anonymous/free-usage/status**', route => route.fulfill({
+        json: exhausted
+          ? { ...usage(), active: false, can_send_text: false, reason: 'per_identity_exhausted' }
+          : usage(),
+      }));
+      await page.addInitScript((known: boolean) => {
+        if (known) localStorage.setItem('openmates:last-auth-method', 'email');
+        const starts: string[] = [];
+        Object.assign(window, { callStarts: starts });
+        navigator.mediaDevices.getUserMedia = async () => {
+          starts.push('microphone');
+          throw new Error('A blocked call requested the microphone');
+        };
+        new MutationObserver(() => {
+          if (document.querySelector('[data-testid="voice-call-bar"]')) starts.push('call bar');
+        }).observe(document, { subtree: true, childList: true });
+      }, knownDevice);
+      await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+      const field = page.getByTestId('message-field');
+      await expect(field).toHaveAttribute('data-editor-ready', 'true', { timeout: 30_000 });
+      const editor = field.getByTestId('message-editor').locator('[contenteditable="true"]');
+      await editor.fill('A local draft');
+      if (knownDevice) {
+        await expect(page.getByTestId('guest-access-reason')).toHaveText("You've logged in on this device before. Log in to keep chatting.");
+        await expect(page.getByTestId('composer-account-cta')).toHaveText(/^log\s?in$/i);
+      } else {
+        await expect(field.getByTestId('composer-send-button')).toBeEnabled();
+        // A different visitor can use up the shared allowance while this tab is open.
+        exhausted = true;
+      }
+      // The welcome header hides while the composer is focused.
+      await editor.blur();
+      await page.locator('[data-testid="voice-call-start"]:visible').click();
+      await expect(page.getByTestId(knownDevice ? 'login-modal' : 'signup-modal')).toBeVisible();
+      await expect(page.getByTestId('notification').filter({ hasText: 'Continue' })).toHaveCount(0);
+      expect(await page.evaluate(() => (window as typeof window & { callStarts: string[] }).callStarts)).toEqual([]);
+      expect(seen.socketUrls).toEqual([]);
+      await testInfo.attach('account-flow-without-call', { body: await page.screenshot(), contentType: 'image/png' });
+    });
+  }
+
   // contract-test: direct surface=gui.web assertions=video-call.guest-calls
-  test('an exhausted allowance ends the call and offers sign-up', async ({ page }: any, testInfo: any) => {
+  test('an allowance exhausted during a call ends it and offers sign-up', async ({ page }: any, testInfo: any) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 720 });
     const seen = await mockGuestBackend(page, 'limit');

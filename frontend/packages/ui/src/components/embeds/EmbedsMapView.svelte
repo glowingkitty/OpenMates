@@ -782,12 +782,17 @@
     const endMinutes = rawEndMinutes != null && (rawEndMinutes !== startMinutes || endDayOffset > 0)
       ? rawEndMinutes + (endDayOffset || (rawEndMinutes < startMinutes ? 1440 : 0))
       : durationMinutes != null && durationMinutes > 0 ? startMinutes + durationMinutes : undefined;
+    const dateOnly = departureMinutes == null;
+    const hasDateOnlyEnd = dateOnly && endDateOrdinal != null
+      && typeof entry.decodedContent?.date_end === 'string'
+      && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end);
+    // Event search gives the last day of a conference. The calendar accepts an exclusive end.
+    const eventEndOffset = normalizeEmbedType(entry.embedType ?? '') === 'events-event' ? 1 : 0;
     return {
       ref: entry.ref, title: entry.title, category: entry.category, highlighted: entry.highlighted,
       location: calendarLocation(entry), dateOrdinal, startMinutes, endMinutes,
-      dateOnly: departureMinutes == null,
-      endDateOrdinal: departureMinutes == null && typeof entry.decodedContent?.date_end === 'string'
-        && /^\d{4}-\d{2}-\d{2}$/.test(entry.decodedContent.date_end) ? endDateOrdinal ?? undefined : undefined,
+      dateOnly,
+      endDateOrdinal: hasDateOnlyEnd ? endDateOrdinal + eventEndOffset : undefined,
     };
   }
 
@@ -1400,7 +1405,7 @@
   {#if visualTabs.length === 0}
     <div class="map-view-list" data-testid="embeds-map-view-list">
       <div class="map-view-carousel" data-testid="embeds-map-view-carousel" data-embed-result-context="results" aria-label="Result previews">
-        {#each carouselEntries as entry}
+        {#each carouselEntries as entry (entry.ref)}
           <div class="map-view-card" data-testid="embeds-map-view-card" data-entry-ref={entry.ref} data-entry-mapped={entry.lat != null && entry.lon != null || (entry.route?.length ?? 0) > 1 ? 'true' : 'false'} data-entry-status={entry.status} data-entry-category={entry.category} role="group" aria-label={entry.title}>
             {#if entry.preview}
               {@const Component = getRenderableComponent(entry.preview.component)}
@@ -1421,7 +1426,7 @@
         {:else if carouselEntries.length === 0}
           <div class="empty-state">No mappable embeds resolved yet.</div>
         {:else}
-          {#each carouselEntries as entry}
+          {#each carouselEntries as entry (entry.ref)}
             <div
               class="map-view-card"
               class:highlighted={entry.highlighted}

@@ -16,7 +16,7 @@ use openmates_sdk::{
 use serde_json::json;
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use zeroize::Zeroizing;
@@ -31,6 +31,7 @@ const BODY: &str = "Synthetic cached body";
 struct Api {
     url: String,
     chat_requests: Arc<AtomicUsize>,
+    principal_changed: Arc<AtomicBool>,
 }
 
 pub(crate) async fn read_request(stream: &mut tokio::net::TcpStream) -> String {
@@ -69,14 +70,21 @@ async fn api(serve_chat: bool) -> Api {
     let url = format!("http://{}", listener.local_addr().unwrap());
     let chat_requests = Arc::new(AtomicUsize::new(0));
     let counter = chat_requests.clone();
+    let principal_changed = Arc::new(AtomicBool::new(false));
+    let change = principal_changed.clone();
     tokio::spawn(async move {
         while let Ok((mut stream, _)) = listener.accept().await {
             let counter = counter.clone();
+            let change = change.clone();
             tokio::spawn(async move {
                 let request = read_request(&mut stream).await;
                 let body = if request.starts_with("POST /v1/auth/session ") {
-                    json!({"success": true, "ws_token": "synthetic",
-                        "user": {"id": "synthetic-user"}})
+                    let principal = if change.load(Ordering::SeqCst) {
+                        "different-synthetic-user"
+                    } else {
+                        "synthetic-user"
+                    };
+                    json!({"success": true, "ws_token": "synthetic", "user": {"id": principal}})
                 } else {
                     counter.fetch_add(1, Ordering::SeqCst);
                     if !serve_chat {
@@ -99,7 +107,11 @@ async fn api(serve_chat: bool) -> Api {
             });
         }
     });
-    Api { url, chat_requests }
+    Api {
+        url,
+        chat_requests,
+        principal_changed,
+    }
 }
 
 pub(crate) fn session(api: &str, id: &str) -> Session {
@@ -256,6 +268,54 @@ async fn open_chat_emits_the_cached_window_before_any_chat_request() {
             (7, ChatWindowSourceRecord::Cached),
             (7, ChatWindowSourceRecord::CachedOffline)
         ]
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn readmission_after_transport_loss_preserves_the_open_window_for_older_paging() {
+    let dir = private_dir();
+    let api = api(true).await;
+    let (core, events) = admitted(dir.path(), &api).await;
+    core.open_chat(7, CHAT.into(), None).await.unwrap();
+    let (_, window_before) = windows(&events.all()).pop().expect("selected window");
+    let before = events.all().len();
+
+    core.start(None).await.unwrap();
+    let after_readmission = events.all();
+    assert!(matches!(
+        &after_readmission[before..],
+        [ViewEventRecord::Session {
+            event: SessionEventRecord::Admitted { .. }
+        }]
+    ));
+    let chat_requests = api.chat_requests.load(Ordering::SeqCst);
+    core.load_older(7, CHAT.into(), None).await.unwrap();
+    let latest = windows(&events.all())
+        .pop()
+        .expect("older paging kept the window");
+    assert_eq!(latest, (7, window_before));
+    assert_eq!(api.chat_requests.load(Ordering::SeqCst), chat_requests);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn readmission_revokes_the_window_when_the_server_principal_changes() {
+    let dir = private_dir();
+    let api = api(true).await;
+    let (core, events) = admitted(dir.path(), &api).await;
+    core.open_chat(7, CHAT.into(), None).await.unwrap();
+    api.principal_changed.store(true, Ordering::SeqCst);
+
+    assert_eq!(core.start(None).await, Err(CoreError::Expired));
+    assert!(core.session_info().await.unwrap().is_none());
+    assert!(matches!(
+        events.all().last(),
+        Some(ViewEventRecord::Session {
+            event: SessionEventRecord::Expired
+        })
+    ));
+    assert_eq!(
+        core.load_older(7, CHAT.into(), None).await,
+        Err(CoreError::Authentication)
     );
 }
 

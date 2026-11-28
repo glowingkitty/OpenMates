@@ -77,6 +77,22 @@ SEARCH_RELEVANCE_PROFILES: Dict[str, SearchRelevanceProfile] = {
             "Exceptional direct fit supported by the supplied evidence",
         ),
     ),
+    "health_appointments": SearchRelevanceProfile(
+        instructions=(
+            "Rank the appointment against the user's stated requirements using only the supplied "
+            "service, practitioner, insurance and booking evidence. A generic consultation or a "
+            "clinician's specialty does not establish that a particular treatment is offered. "
+            "Treat unverified requirements as unknown and rank explicit conflicts lowest. "
+            "Do not infer medical suitability, prescribing approval, coverage or a guaranteed slot."
+        ),
+        criteria=(
+            "Explicit conflict with the requested service or eligibility",
+            "Weak match or a critical booking requirement is unknown",
+            "Plausible match with some explicit service evidence",
+            "Strong match with relevant service and booking evidence",
+            "Explicit match for all stated appointment requirements",
+        ),
+    ),
     "web": SearchRelevanceProfile(
         instructions=(
             "Score how well this single web result satisfies the stated relevance goal. "

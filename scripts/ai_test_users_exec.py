@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,10 +65,9 @@ def gate(target: str, base: Path | None) -> tuple[str | None, dict]:
     if target == "prod":
         if not accounts.prod_enabled(base):
             return "prod_disabled", {}
-        code, remaining = accounts.pop_prod_code(base)
+        code, _ = accounts.pop_prod_code(base)
         if code is None:
             return "no_gift_card", {}
-        accounts.notify_low_codes(remaining, base=base)
         return None, {"gift_card_code": code, "invite_code": ""}
     try:
         return None, accounts.create_dev_card()
@@ -150,8 +150,8 @@ def read_result(summary: dict, result_file: Path, email: str, cfg: Settings) -> 
         summary.update({k: result.get(k) for k in (
             "status", "steps", "harness_usd", "e2b", "error", "judge_error", "credits_start", "credits_end",
             "answer_quality", "demo_candidate", "goal_outcomes", "video_offset_seconds")})
-        summary["findings"] = [{**{k: f.get(k) for k in ("title", "severity", "step", "video_seconds", "kept",
-                                                         "at_epoch")},
+        summary["findings"] = [{**{k: f.get(k) for k in ("title", "severity", "category", "step",
+                                                         "video_seconds", "kept", "at_epoch")},
                                 "evidence": str(f.get("evidence") or "")[:300]}
                                for f in findings]
         summary["findings_total"] = len(findings)
@@ -187,10 +187,13 @@ def host_delete(email: str) -> str:
         return f"failed: {str(exc)[:200]}"
 
 
-def retry_deletions(run_id: str, run_dir: Path, cfg: Settings) -> list[dict]:
+def retry_deletions(run_id: str, run_dir: Path, cfg: Settings,
+                    targets: Collection[str] = ("dev", "prod")) -> list[dict]:
     """Fresh sandbox job in delete-only mode for each account whose deletion failed."""
     outcomes = []
     for entry in accounts.pending_deletions(cfg.base, run_id=run_id):
+        if entry["target"] not in targets:
+            continue
         if entry["target"] == "prod" and not accounts.prod_enabled(cfg.base):
             continue
         if entry["target"] == "dev":

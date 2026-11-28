@@ -1,0 +1,255 @@
+schema_version: 2
+id: connected-accounts-central-page
+title: Central connected-accounts page, Gmail read and drafts, popup sign-in
+status: implementing
+goal: >
+  One central Settings > Account > Connected accounts page lists every connected
+  account across providers and apps with its email and last use; each account has
+  a sub-page with per-app permissions, Reconnect and Disconnect. App settings pages
+  only show which accounts the app may use. One Google account serves Calendar and
+  Gmail (search, read threads, create drafts; no sending). Provider sign-in opens in
+  a popup so OpenMates stays open.
+scope:
+  in:
+    - Central page, account sub-page, app page summary on web.
+    - Multi-app permission envelope in the encrypted app permissions (Rust core + web).
+    - Client-encrypted encrypted_last_used_at and plaintext connector_status reconnect_required on connected_accounts.
+    - Gmail search, read thread and create draft skills on Google's official API.
+    - Popup or new-tab OAuth with same-tab fallback that returns to the originating settings page.
+    - Clear classification of disabled Google APIs (accessNotConfigured).
+  out:
+    - Any Gmail send path (deferred by owner decision, 22 Nov).
+    - Proton Mail changes.
+    - Apple UI (handed to the Apple chat as a note).
+scenarios:
+  - id: S-1
+    title: See and manage all connected accounts in one place
+    given:
+      - A user has one Google account (Calendar and Gmail) and one legacy expired Google row.
+    when:
+      - The user opens Settings > Account > Connected accounts and an account's sub-page.
+    then:
+      - Each entry shows provider icon, email (or "Email not saved" with connect date) and last use; the sub-page shows per-app permissions, Reconnect and Disconnect.
+  - id: S-2
+    title: App page shows only usable accounts
+    given:
+      - The Calendar app has one usable Google account.
+    when:
+      - The user opens Settings > Apps > Calendar.
+    then:
+      - The page lists that account and links to the central page, with no connect or manage buttons.
+  - id: S-3
+    title: Gmail read and drafts through the shared Google account
+    given:
+      - The Google account granted Gmail read and compose scopes.
+    when:
+      - The assistant searches mail, reads a thread or creates a draft.
+    then:
+      - Results come from Gmail; drafts are never sent; placeholders are refused before any Google call.
+  - id: S-4
+    title: Sign-in keeps OpenMates open
+    given:
+      - The user starts adding or reconnecting an account.
+    when:
+      - The provider sign-in completes in a popup, or in the same tab when popups are blocked.
+    then:
+      - The opener updates by itself; the same-tab path returns to the originating settings page with a success or error message.
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Central page lists every account with email or legacy hint and last use; sub-page shows per-app permissions, Reconnect and Disconnect with confirm.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-CENTRAL]
+  - id: AC-2
+    scenario: S-2
+    text: App pages show only the accounts the app may use plus a link; no duplicate connect or manage buttons.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-APP-PAGE]
+  - id: AC-3
+    scenario: S-3
+    text: Gmail search, read thread and create draft pass with a fake Gmail server; no send path exists.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-GMAIL]
+  - id: AC-4
+    scenario: S-4
+    text: Popup sign-in updates the opener; blocked popup falls back to same-tab return with a message.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-APP-PAGE]
+  - id: AC-5
+    scenario: S-1
+    text: the client writes encrypted_last_used_at (throttled) after a turn token ref is minted, the server refuses plaintext last_used_at, and invalid_grant marks reconnect_required.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-USAGE]
+tests:
+  - id: T-CENTRAL
+    type: playwright
+    file: frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session a22e --source <ci-source> --mode component --spec frontend/apps/web_app/tests/components/connected-accounts-central.spec.ts
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [list entries, legacy hint, detail permissions, disconnect confirm]
+    covers: [AC-1]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-11-23T18:01:36+00:00'
+        command: python3 scripts/ci_coordinator.py wait b83cc75fd0220b8956f626d93df2d9b4c5fbbba49768721e3ce2fff576122002
+        run_id: '45231904985'
+        subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+        execution_environment: isolated_github_ci
+        harness_commit: a937b3c3de4cf0962c16d5ae0dc26fa8414d8d71
+        profile: component/github-isolated
+        artifacts:
+        - https://github.com/glowingkitty/OpenMates/actions/runs/45231904985/artifacts/14846579077
+  - id: T-APP-PAGE
+    type: playwright
+    file: frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    command: python3 scripts/ci_coordinator.py submit --session a22e --source <ci-source> --mode e2e --spec frontend/apps/web_app/tests/calendar-connected-accounts.spec.ts
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [app page accounts and link, popup sign-in, same-tab fallback message]
+    covers: [AC-2, AC-4]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-11-23T18:06:49+00:00'
+        command: python3 scripts/ci_coordinator.py wait 745358aaccfab0da03c41117e77236f5865437eb761da99417858f5e903f25ef
+        run_id: '45231921266'
+        subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+        execution_environment: isolated_github_ci
+        harness_commit: a937b3c3de4cf0962c16d5ae0dc26fa8414d8d71
+        profile: e2e/github-isolated
+        artifacts:
+        - https://github.com/glowingkitty/OpenMates/actions/runs/45231921266/artifacts/14847959268
+  - id: T-GMAIL
+    type: pytest
+    file: backend/tests/test_gmail_skills.py
+    command: python3 scripts/ci_coordinator.py submit --session a22e --source <ci-source> --mode pytest --no-prepared-builds --spec backend/tests/test_gmail_skills.py
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [search, read thread, create draft, placeholder refusal, no send]
+    covers: [AC-3]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-11-23T18:01:44+00:00'
+        command: python3 scripts/ci_coordinator.py wait 59eddcbc5e41828fbc1142d2b038b73fbf181365df1179e712e92f41301b117e
+        run_id: '45231897596'
+        subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+        execution_environment: isolated_github_ci
+        harness_commit: a937b3c3de4cf0962c16d5ae0dc26fa8414d8d71
+        profile: pytest/github-isolated
+        artifacts:
+        - https://github.com/glowingkitty/OpenMates/actions/runs/45231897596/artifacts/14847388103
+  - id: T-USAGE
+    type: pytest
+    file: backend/tests/test_connected_account_usage_metadata.py
+    command: python3 scripts/ci_coordinator.py submit --session a22e --source <ci-source> --mode pytest --no-prepared-builds --spec backend/tests/test_connected_account_usage_metadata.py
+    execution_environment: isolated_github_ci
+    target: isolated_github_ci
+    assertions: [plaintext last_used_at refused, reconnect_required on invalid_grant]
+    covers: [AC-5]
+    red_phase: {required: false, expected: not_applicable, evidence: {}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        timestamp: '2026-11-23T18:01:44+00:00'
+        command: python3 scripts/ci_coordinator.py wait 59eddcbc5e41828fbc1142d2b038b73fbf181365df1179e712e92f41301b117e
+        run_id: '45231897596'
+        subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+        execution_environment: isolated_github_ci
+        harness_commit: a937b3c3de4cf0962c16d5ae0dc26fa8414d8d71
+        profile: pytest/github-isolated
+        artifacts:
+        - https://github.com/glowingkitty/OpenMates/actions/runs/45231897596/artifacts/14847388103
+tasks:
+  - id: TASK-1
+    title: Build and verify the central page, app pages, Gmail skills and popup sign-in
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    expected_files:
+      - frontend/packages/ui/src/components/settings/account/SettingsConnectedAccounts.svelte
+      - frontend/packages/ui/src/components/settings/AppDetails.svelte
+      - backend/core/directus/schemas/connected_accounts.yml
+      - backend/apps/mail/skills/gmail_search.py
+      - packages/openmates-rust/src/web_connected_accounts_oauth.rs
+    verification_ids: [T-CENTRAL, T-APP-PAGE, T-GMAIL, T-USAGE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [frontend/packages/ui/src/components/settings/connected_accounts/ConnectedAccountDetail.svelte]
+      shared_files: []
+implementation_state:
+  subject_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-11-24'
+    reason: Marco approved the five connected-account and Gmail rules in the TASK-6855 follow-up.
+  plan:
+    status: approved
+    approved_at: '2026-11-22'
+decisions:
+  - id: D-1
+    status: active
+    decision: One central connected-accounts page; app pages only list usable accounts with a link.
+    reason: Owner design, 22 Nov (receipt f63863e149787051).
+    decided_at: '2026-11-22'
+  - id: D-2
+    status: active
+    decision: Gmail is search, read threads and drafts only; no send path.
+    reason: Owner decision, 22 Nov (receipt 2c96b0b4189c0b36).
+    decided_at: '2026-11-22'
+  - id: D-3
+    status: active
+    decision: Provider sign-in opens in a popup; same-tab fallback returns to the originating settings page.
+    reason: Owner request, 22 Nov (receipt d6b444a56a5e7354).
+    decided_at: '2026-11-22'
+  - id: D-4
+    status: active
+    decision: last use is client-encrypted (encrypted_last_used_at, written by the client); reconnect_required stays plaintext connector status; one row per provider account with a multi-app permission envelope.
+    reason: Owner decision 23 Nov (receipt 37852aaf0eca8987) - no unencrypted exception for last use; the server must set reconnect_required itself; one Google account must serve several apps.
+    decided_at: '2026-11-23'
+attempts:
+  - id: A-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Parallel lanes (backend metadata, Rust row plan, central page, app page and popup sign-in), then isolated CI.
+    recorded_at: '2026-11-22'
+handoff:
+  current_task_id: TASK-1
+  next_action: The connected accounts feature is on dev. See the Gmail and Calendar prompt screening Plan for the follow-up and the Gmail live-check guide for the dedicated-account run.
+  command: python3 scripts/plan_validate.py docs/plans/connected-accounts-central-page/plan.yml
+  expected_outcome: Validated plan and green CI for the listed tests.
+  last_verified_commit: bd58f34a81f968fbc5bd94b8601641831103009d
+  blocker: null

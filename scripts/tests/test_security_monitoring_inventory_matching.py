@@ -17,7 +17,7 @@ import sys
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from security_monitoring import inventory, matcher, sources  # noqa: E402 - scripts dir added above
+from security_monitoring import apple_updates, inventory, matcher, sources  # noqa: E402 - scripts dir added above
 from security_monitoring.models import AdvisoryItem, HostReport  # noqa: E402 - scripts dir added above
 from security_monitoring.sources.fetch import FetchError  # noqa: E402 - scripts dir added above
 from security_monitoring.versions import compare_dpkg, compare_semver, evaluate_affected  # noqa: E402 - scripts dir added above
@@ -410,7 +410,9 @@ def test_swift_range_requirement_uses_floor_and_is_queried_against_osv(tmp_path)
     queries = sources.packages._osv_queries(inv)
     assert ("SwiftURL", "github.com/example/my-swift-lib", "1.8.0") in queries
     assert ("SwiftURL", "github.com/example/swift-sodium", "0.9.1") in queries
-    assert not [query for query in queries if query[1].endswith("pinned-lib")]  # commit pins are not versions
+    commit = "12ce7374c86944e1f68f3a866d10105d8357f074"
+    assert ("SwiftURL", "github.com/example/pinned-lib", commit) in queries
+    assert sources.packages._osv_request("SwiftURL", "github.com/example/pinned-lib", commit) == {"commit": commit}
     item = AdvisoryItem(source="osv", advisory_id=GHSA, aliases=(CVE,), title="swift flaw", severity="high",
                         published_at=None, modified_at=None,
                         affected=({"ecosystem": "SwiftURL", "name": "github.com/example/my-swift-lib", "versions": ["1.8.0"]},))
@@ -433,3 +435,76 @@ def test_extra_cargo_locks_from_env_are_internal_and_labelled_neutrally(tmp_path
     assert asset.source_file == "extra-cargo-lock:1"
     assert not inv.complete and "extra-cargo-lock:2: SourceUnreadable" in inv.incomplete_sources
     assert "elsewhere" not in repr(inv)
+
+
+# Monitoring coverage: security-monitoring.apple-packages.daily-report
+# contract-test: infrastructure
+def test_apple_scan_uses_resolved_transitives_and_vendored_binary(tmp_path):
+    root = write_repo(tmp_path)
+    pbx = root / inventory.APPLE_PROJECT / "project.pbxproj"
+    pbx.write_text(PBXPROJ + 'relativePath = "Vendor/onnxruntime-spm";\nshellScript = "LocalModelBridge/prepare.py";\n',
+                   encoding="utf-8")
+    lock = root / inventory.SWIFT_LOCK
+    lock.parent.mkdir(parents=True)
+    lock.write_text(json.dumps({"pins": [
+        {"location": "https://github.com/Example/Swift-Sodium.git", "state": {"version": "0.10.0"}},
+        {"location": "https://github.com/example/transitive.git", "state": {"version": "1.2.0"}},
+    ]}), encoding="utf-8")
+    manifest = root / inventory.ONNX_MANIFEST
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('    .binaryTarget(name: "onnxruntime", path: "onnxruntime-c-1.20.0.zip"),\n', encoding="utf-8")
+    catalog = root / inventory.EXECUTORCH_CATALOG
+    catalog.parent.mkdir(parents=True)
+    catalog.write_text('{"version": "1.5.0"}', encoding="utf-8")
+
+    inv = inventory.apple_package_inventory(root)
+    assert find(inv, "github.com/example/swift-sodium")[0].version == "0.10.0"
+    assert find(inv, "github.com/example/transitive")[0].version == "1.2.0"
+    native = ("GitHub", inventory.ONNX_REPO, "1.20.0")
+    assert native in sources.packages._osv_queries(inv)
+    assert ("GitHub", inventory.EXECUTORCH_REPO, "1.5.0") in sources.packages._osv_queries(inv)
+    assert sources.packages._osv_request(*native) == {"package": {"purl": "pkg:github/microsoft/onnxruntime@v1.20.0"}}
+
+    def fetch(url, options=None):
+        if "/transitive/" in url:
+            raise FetchError("timeout")
+        if "/swift-sodium/" in url:
+            return [{"name": "v0.12.0-beta.1"}, {"name": "v0.11.0"}]
+        if "/executorch/" in url:
+            return [{"name": "v1.6.0"}]
+        assert "api.nuget.org/" in url
+        return {"versions": ["1.20.0", "1.26.0"]}
+
+    lines = apple_updates.report_lines(root, fetch)
+    assert ("Update available", "ONNX Runtime 1.20.0 → 1.26.0 (upstream runtime release)") in lines
+    assert ("Update available", "example/swift-sodium 0.10.0 → 0.11.0") in lines
+    assert ("Update available", "pytorch/executorch 1.5.0 → 1.6.0") in lines
+    assert ("Not checked", "github.com/example/transitive (timeout)") in lines
+    assert not any(label == "Coverage gap" for label, _ in lines)
+
+
+# Monitoring coverage: security-monitoring.apple-packages.daily-report
+# contract-test: infrastructure
+def test_apple_tokenizer_binary_advisory_matches_its_swift_package():
+    source = sources.packages
+    package = inventory.Asset("package", "SwiftURL", source.TOKENIZERS_PACKAGE, "0.5.0", ("apple_client",), "client_only")
+    inv = inventory.Inventory("", (package,))
+
+    def fetch(url, options=None):
+        if url.startswith("https://raw.githubusercontent.com/"):
+            assert "/b5d3e007d5d3de98eef1b750d68e880fae3dc425/rust/Cargo.lock" in url
+            return '[[package]]\nname = "example"\nversion = "1.2.3"\nsource = "registry+https://example.test"\n'
+        if url.endswith("/querybatch"):
+            assert options["json"]["queries"] == [{"package": {"ecosystem": "crates.io", "name": "example"}, "version": "1.2.3"}]
+            return {"results": [{"vulns": [{"id": GHSA}]}]}
+        assert url.endswith(f"/vulns/{GHSA}")
+        return {"id": GHSA, "summary": "Advisory in the binary's Rust dependency"}
+
+    items, error = source.collect_tokenizers_rust(inv, fetch)
+    assert error is None
+    observations = matcher.match(items, inv, {})
+    assert len(observations) == 1
+    assert observations[0].assets == (package,)
+    assert observations[0].match_strength == "exact_version"
+    newer = replace(inv, assets=(replace(package, version="0.6.0"),))
+    assert source.collect_tokenizers_rust(newer, fetch) == ([], "unmapped_binary_release")

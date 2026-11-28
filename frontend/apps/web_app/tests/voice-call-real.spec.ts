@@ -18,6 +18,8 @@
  *  - a form started by a typed message continues by voice in the same chat: the spoken answer is
  *    filled through the same Browse session and the spoken reply asks one question (form scenario;
  *    the form link lives outside the repository in VOICE_CALL_FORM_PROMPT);
+ *  - with Projects switched off as on production, the spoken turn is still sent and answered
+ *    (production-features scenario, issue F74ES);
  *  - no error or warning notification appears, in particular not
  *    "canonical embed revision changed or is immutable".
  * Held out of isolated CI: real provider inference with the personal dev account.
@@ -25,6 +27,7 @@
 import type { Page, TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
+import { selectMentionResult } from './helpers/mention-test-helpers';
 
 const { expect, test: playwrightTest } = require('@playwright/test');
 const { withProofAudio } = require('./helpers/proof-audio');
@@ -56,10 +59,13 @@ interface Scenario {
   form?: boolean;
   /** An earlier spoken turn in the same call, answered before `question` is spoken. */
   firstTurn?: { heard: RegExp; answer: RegExp };
+  /** Runs with Projects switched off the way production answers (404 FEATURE_DISABLED). */
+  projectsDisabled?: boolean;
 }
 
 // The typed request with the form link (kept out of the repository; passed by the runner).
 const FORM_PROMPT = process.env.VOICE_CALL_FORM_PROMPT || '';
+const FORM_VOICE_MODEL = process.env.VOICE_CALL_FORM_EXPECTED_MODEL;
 const BROWSE_EMBED = '[data-testid="embed-preview"][data-app-id="web"][data-skill-id="browse"]';
 
 const MEMORY_TITLE = 'Job application profile';
@@ -72,6 +78,10 @@ const MEMORY_NOTICE = '[data-testid="context-entry-event"][data-kind="memory"][d
 const SCENARIOS: Scenario[] = [
   { slug: 'capital', question: 'What is the capital of France?', heard: /capital of France/i,
     answer: /Paris/i, videos: false },
+  // F74ES: production has Projects switched off, so every Project route answers 404
+  // FEATURE_DISABLED. A spoken turn must still be sent and answered aloud.
+  { slug: 'production-features', question: 'What is the capital of France?', heard: /capital of France/i,
+    answer: /Paris/i, videos: false, projectsDisabled: true },
   { slug: 'black-hole', question: 'How does a black hole work? Show me a video example.', heard: /black hole/i,
     answer: /black hole|gravity|event horizon/i, videos: true },
   // The reported DGZVY failure: the call turn pauses for a Memory approval and the continuation
@@ -127,11 +137,14 @@ async function saveMemoryFirst(page: Page, log: any, screenshot: any): Promise<s
 /** Typed first turn that opens the form with Browse; the call then continues in this chat. */
 async function startFormFirst(page: Page, log: any, screenshot: any) {
   await startNewChat(page, log);
-  await sendMessage(page, FORM_PROMPT, log, screenshot, 'form-typed-request');
+  await selectMentionResult(page, 'Gemini-3.8-Flash', 'Gemini 3.8 Flash');
+  await sendMessage(page, FORM_PROMPT, log, screenshot, 'form-typed-request', { preserveExistingContent: true });
   await waitForAssistantMessage(page, { which: 'last', timeout: 300_000, logCheckpoint: log });
   await expect(page.getByTestId('stop-processing-button')).toHaveCount(0, { timeout: 300_000 });
   await expandActivity(page);
-  await expect(page.getByTestId('message-assistant').last().locator(BROWSE_EMBED).first(),
+  const reply = page.getByTestId('message-assistant').last();
+  await expect(reply.getByTestId('generated-by')).toContainText(/Gemini 3\.8 Flash/i);
+  await expect(reply.locator(BROWSE_EMBED).first(),
     'the typed form request opens the form with Browse').toBeVisible({ timeout: 30_000 });
   log('form opened with Browse by the typed request');
 }
@@ -148,6 +161,23 @@ async function removeSavedMemory(page: Page, chatId: string, log: any, screensho
   }
   log('saved memory removed');
   await deleteActiveChat(page, log, screenshot, 'memory-save-chat-cleanup');
+}
+
+/** Answers like production, where Projects are switched off: the feature list says so and every
+ * Project route returns 404 FEATURE_DISABLED (backend_config.yml). Context routes also cover the
+ * shared Worker's requests, which is where the Rust core reads the chat's Project focus. */
+async function switchProjectsOff(page: Page, projectRequests: string[]): Promise<void> {
+  await page.context().route('**/v1/features/availability', async (route) => {
+    const response = await route.fetch();
+    if (!response.ok()) throw new Error(`Feature availability failed (${response.status()}).`);
+    const data = await response.json();
+    await route.fulfill({ response, json: { ...data,
+      disabled: [...new Set([...(data.disabled ?? []), 'platform:projects'])] } });
+  });
+  await page.context().route('**/v1/projects/**', (route) => {
+    projectRequests.push(new URL(route.request().url()).pathname);
+    return route.fulfill({ status: 404, json: { detail: 'FEATURE_DISABLED' } });
+  });
 }
 
 /** In-page recorders: notifications, media playback and the unspoken-word highlight. */
@@ -220,6 +250,7 @@ for (const scenario of SCENARIOS) {
     // contract-test: direct surface=gui.web assertions=video-call.chat.transcripts,video-call.audio.localized-waiting,video-call.audio.spoken-rich-response
     test(`a spoken question in a new chat is transcribed, answered aloud${scenario.videos ? ' with videos' : ''} and raises no error`,
       async ({ page }: { page: Page }, testInfo: TestInfo) => {
+        const testStartedAt = Date.now();
         test.skip(Boolean(scenario.form) && !FORM_PROMPT, 'VOICE_CALL_FORM_PROMPT names no form request.');
         test.setTimeout(scenario.form ? 900_000 : 420_000);
         expect(getTestAccount().email, 'test account credentials').toBeTruthy();
@@ -238,14 +269,16 @@ for (const scenario of SCENARIOS) {
         page.on('pageerror', (error) => consoleTail.push(`[pageerror] ${String(error).slice(0, 300)}`));
         // Acknowledgement clips are fetched and played from blob: URLs, so their path is only visible
         // in the server event that announces them and in the clip download.
-        const acknowledgementUrls: string[] = [];
+        const acknowledgements: { url: string; messageId: string }[] = [];
         const clipDownloads: string[] = [];
         const toolTurnAudioPhases: string[] = [];
         page.on('websocket', (socket) => socket.on('framereceived', ({ payload }) => {
           if (typeof payload !== 'string' || (!payload.includes('assistant_speech_acknowledgement')
             && !(scenario.videos && payload.includes('assistant_speech_audio')))) return;
-          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string; kind?: string; phase?: string } };
-          if (frame.type === 'assistant_speech_acknowledgement') acknowledgementUrls.push(String(frame.payload?.audio_url ?? ''));
+          const frame = JSON.parse(payload) as { type?: string; payload?: { audio_url?: string; message_id?: string; kind?: string; phase?: string } };
+          if (frame.type === 'assistant_speech_acknowledgement') {
+            acknowledgements.push({ url: frame.payload?.audio_url ?? '', messageId: frame.payload?.message_id ?? '' });
+          }
           if (frame.type === 'assistant_speech_audio' && frame.payload?.kind === 'voice_prose_turn'
             && ['start', 'end', 'error'].includes(frame.payload.phase ?? '')) {
             toolTurnAudioPhases.push(frame.payload.phase!);
@@ -253,6 +286,8 @@ for (const scenario of SCENARIOS) {
         }));
         page.on('request', (request) => { if (request.url().includes(ACK_ROOT)) clipDownloads.push(new URL(request.url()).pathname); });
         await page.addInitScript(installRecorders);
+        const projectRequests: string[] = [];
+        if (scenario.projectsDisabled) await switchProjectsOff(page, projectRequests);
 
         await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
         await loginToTestAccount(page, log, screenshot);
@@ -261,13 +296,19 @@ for (const scenario of SCENARIOS) {
         let memoryChatId: string | null = null;
         try {
           if (scenario.memory) memoryChatId = await saveMemoryFirst(page, log, screenshot);
-          if (scenario.form) await startFormFirst(page, log, screenshot);
+          if (scenario.form) {
+            await startFormFirst(page, log, screenshot);
+            acknowledgements.length = 0;
+            clipDownloads.length = 0;
+          }
           let repliesBeforeCall = await page.getByTestId('message-assistant').count();
           const microphone = await page.evaluate(async () => {
             const devices = await navigator.mediaDevices.enumerateDevices();
             return devices.filter((device) => device.kind === 'audioinput').length;
           });
           log(`audio input devices: ${microphone}`);
+          // Bound the recurring smoke call even if speech stalls.
+          if (scenario.slug === 'capital') testInfo.setTimeout(Date.now() - testStartedAt + 45_000);
           await page.locator('[data-testid="voice-call-start"]:visible').click();
           started = true;
           const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
@@ -319,10 +360,32 @@ for (const scenario of SCENARIOS) {
           }
 
           // The spoken question gets its own new reply (the form chat already has one).
-          await expect.poll(async () => page.getByTestId('message-assistant').count(), { timeout: 240_000 })
+          const assistantReplies = page.getByTestId('message-assistant');
+          await expect.poll(() => assistantReplies.count(), { timeout: 240_000 })
             .toBeGreaterThan(repliesBeforeCall);
-          const reply = page.getByTestId('message-assistant').last();
-          await expect(reply).toContainText(scenario.answer, { timeout: 240_000 });
+          let completedBrowse = 0;
+          if (scenario.form) {
+            // The first reply can announce an in-flight Browse action. Wait until
+            // the action finishes before checking the answer and its playback.
+            await expect.poll(async () => {
+              await expandActivity(page);
+              const responses = (await assistantReplies.all()).slice(repliesBeforeCall);
+              const completed = await Promise.all(responses.map((response) => (
+                response.locator(BROWSE_EMBED).filter({ hasText: 'Completed' }).count()
+              )));
+              completedBrowse = completed.reduce((total, count) => total + count, 0);
+              return completedBrowse;
+            }, { timeout: 240_000, message: 'the spoken answer is filled through Browse in the same chat' }).toBeGreaterThan(0);
+          }
+          const reply = assistantReplies.last();
+          const answerBody = scenario.form ? reply.getByTestId('message-content').last() : reply;
+          await expect(answerBody).toContainText(scenario.answer, { timeout: 240_000 });
+          if (scenario.projectsDisabled) {
+            // The turn really met production's answer: the core asked for the Project focus and got 404.
+            log(`project requests answered FEATURE_DISABLED: ${projectRequests.join(', ')}`);
+            expect(projectRequests.some((url) => url.endsWith('/v1/projects/focus/current')),
+              'the spoken turn read the Project focus and was answered 404 FEATURE_DISABLED').toBe(true);
+          }
           if (scenario.videos) {
             const videos = page.locator('[data-testid="embed-preview"][data-app-id="videos"]');
             await expect(videos.first()).toBeVisible({ timeout: 180_000 });
@@ -341,6 +404,10 @@ for (const scenario of SCENARIOS) {
           await snap(page, testInfo, `${scenario.slug}-04-speaking`);
           if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'while spoken');
           await expect.poll(async () => {
+            const { played } = await recorded(page);
+            return played.some((entry) => entry.playing && !entry.src.includes(ACK_ROOT) && entry.maxTime > 1.5);
+          }, { timeout: 90_000, message: 'reply audio really advances' }).toBe(true);
+          await expect.poll(async () => {
             const samples = (await recorded(page)).unspoken;
             return samples.length > 30 && samples.slice(-20).every((chars) => chars === 0);
           }, { timeout: 240_000, message: 'the whole reply must become visible once spoken' }).toBe(true);
@@ -353,6 +420,7 @@ for (const scenario of SCENARIOS) {
           const played = state.played.filter((entry) => entry.playing);
           log(`played audio: ${JSON.stringify(played.map((entry) => ({
             src: entry.src.startsWith('blob:') ? 'blob' : entry.src.replace(/^https?:\/\/[^/]+/, '').split('?')[0], seconds: Math.round(entry.maxTime * 10) / 10 })))}`);
+          const acknowledgementUrls = acknowledgements.map(({ url }) => url);
           log(`acknowledgements: ${JSON.stringify(acknowledgementUrls.map((url) => url.replace(/^https?:\/\/[^/]+/, '')))}; clip downloads: ${JSON.stringify(clipDownloads)}`);
           if (!scenario.form) {
             // Only a call that starts a new chat confirms with the system clip.
@@ -361,7 +429,23 @@ for (const scenario of SCENARIOS) {
             expect(clipDownloads.some((url) => url.includes(`${ACK_ROOT}system/`)), 'the system clip is fetched for playback').toBe(true);
           }
           const mateClips = [...acknowledgementUrls, ...clipDownloads].filter((url) => MATE_WAITING_CLIP.test(url));
-          if (scenario.firstTurn) {
+          if (scenario.form) {
+            // Browse can finish in a separate assistant reply after the spoken follow-up.
+            // Check each acknowledgement against its own reply instead of counting the whole call.
+            const formAcks = acknowledgements.filter(({ url }) => MATE_WAITING_CLIP.test(url));
+            expect(formAcks.length, 'the form follow-up plays a routed Mate waiting clip').toBeGreaterThan(0);
+            const messageIds = formAcks.map(({ messageId }) => messageId);
+            expect(new Set(messageIds).size, 'each assistant message gets at most one waiting clip').toBe(formAcks.length);
+            for (const { messageId, url } of formAcks) {
+              expect(messageId, 'the waiting clip identifies its response').toBeTruthy();
+              const response = page.getByTestId('message-assistant').and(page.locator(`[data-message-id="${messageId}"]`));
+              const mate = (await response.getByTestId('chat-mate-name').first().textContent())?.trim().toLowerCase();
+              expect(mate, 'the response names the Mate').toBeTruthy();
+              expect(url, 'the waiting clip uses the responding Mate').toContain(`${ACK_ROOT}${mate}/`);
+              expect(clipDownloads.some((download) => url.endsWith(download)),
+                'the waiting clip of the responding Mate is fetched for playback').toBe(true);
+            }
+          } else if (scenario.firstTurn) {
             // A follow-up turn may wait in the voice of the Mate that answers it, never another one.
             const mate = (await reply.getByTestId('chat-mate-name').first().textContent())?.trim().toLowerCase() ?? '';
             log(`follow-up turn mate: ${mate}; mate clips: ${JSON.stringify(mateClips)}`);
@@ -371,22 +455,20 @@ for (const scenario of SCENARIOS) {
           } else {
             expect(mateClips, 'no guessed Mate waiting clip').toHaveLength(0);
           }
-          const speech = played.filter((entry) => !entry.src.includes(ACK_ROOT));
-          expect(speech.length, 'the reply is played as audio').toBeGreaterThan(0);
-          expect(Math.max(...speech.map((entry) => entry.maxTime)), 'reply audio really advances').toBeGreaterThan(1.5);
-
           const timerNow = await timerSeconds(page);
           log(`call duration: ${timerAtStart}s -> ${timerNow}s`);
           expect(timerNow, 'call duration counter runs').toBeGreaterThan(timerAtStart + 5);
           if (scenario.form) {
-            await expandActivity(page);
-            const browse = await reply.locator(BROWSE_EMBED).count();
-            const questions = ((await reply.innerText()).match(/\?/g) || []).length;
-            log(`form voice reply: browse embeds ${browse}; question marks ${questions}`);
-            expect(browse, 'the spoken answer is filled through Browse in the same chat').toBeGreaterThan(0);
-            expect(questions, 'one question per spoken turn').toBeLessThanOrEqual(2);
+            await expect(reply).toHaveAttribute('data-streaming', 'false', { timeout: 90_000 });
+            const spokenReply = (await reply.getByTestId('message-content').allTextContents()).join('\n');
+            // Punctuation in a quoted form label belongs to the website.
+            const questions = (spokenReply.replace(/“[^”]*”|"[^"]*"/g, '').match(/\?/g) || []).length;
+            log(`form voice reply: browse embeds ${completedBrowse}; question marks ${questions}`);
+            expect(questions, 'one question per spoken turn').toBe(1);
+            await reply.scrollIntoViewIfNeeded();
           }
           const generatedBy = reply.getByTestId('generated-by');
+          if (scenario.form && FORM_VOICE_MODEL) await expect(generatedBy).toContainText(FORM_VOICE_MODEL);
           if (await generatedBy.isVisible().catch(() => false)) log(`reply generated by: ${(await generatedBy.textContent())?.trim()}`);
           if (scenario.memory) await expectIncludedMemoryTitles(page, log, 'after the reply');
           await snap(page, testInfo, `${scenario.slug}-05-answered`);
@@ -398,14 +480,20 @@ for (const scenario of SCENARIOS) {
 
           const notifications = (await recorded(page)).notifications;
           log(`notifications: ${JSON.stringify(notifications)}`);
-          const problems = notifications.filter((entry) => /notification-(error|warning)/.test(entry.cls)
-            || /canonical embed revision/i.test(entry.text));
+          // The account's own 2FA/passkey nag appears at login when the test account has neither;
+          // it is account state, not a call problem (other specs treat it the same way).
+          const problems = notifications.filter((entry) => (/notification-(error|warning)/.test(entry.cls)
+            && !entry.text.startsWith('Security Reminder')) || /canonical embed revision/i.test(entry.text));
           expect(problems, 'no error or warning notification during the call').toEqual([]);
           expect(consoleErrors.filter((text) => /canonical embed revision/i.test(text)),
             'no canonical embed revision error').toEqual([]);
           await snap(page, testInfo, `${scenario.slug}-06-ended`);
         } catch (error) {
           await snap(page, testInfo, `${scenario.slug}-failed`).catch(() => undefined);
+          if (scenario.form) {
+            const browsePreviews = await page.locator(BROWSE_EMBED).allTextContents().catch(() => []);
+            log(`Browse previews at failure: ${JSON.stringify(browsePreviews.map((text) => text.trim().slice(0, 180)))}`);
+          }
           log(`browser console before the failure:\n${consoleTail.join('\n')}`);
           throw error;
         } finally {

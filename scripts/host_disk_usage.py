@@ -98,14 +98,21 @@ def worktree_roots(projects: Path) -> list[str]:
     return sorted(glob.glob(f"{repo}/.openmates-agent-worktrees/*") + glob.glob(f"{repo}/.claude/worktrees/*"))
 
 
+def other_project_roots(projects: Path) -> list[str]:
+    """Sibling project checkouts next to OpenMates (their cargo targets count as Rust build output)."""
+    repo = str(projects / "OpenMates")
+    return sorted(path for path in glob.glob(f"{projects}/*")
+                  if path != repo and os.path.isdir(path) and not os.path.islink(path))
+
+
 def rust_paths(projects: Path) -> list[str]:
-    """Every Rust build output folder: shared caches, and cargo targets in checkouts and /tmp."""
+    """Every Rust build output folder: shared caches, and cargo targets in checkouts, sibling projects and /tmp."""
     repo = projects / "OpenMates"
     caches = glob.glob(f"{HOME}/.cache/openmates-rust-*") + glob.glob(f"{HOME}/.cache/*-target")
     tmp = [path for path in glob.glob("/tmp/*") if os.path.isdir(path) and not os.path.islink(path)
            and os.stat(path).st_uid == os.getuid()]
     return sorted(set(caches) | set(cargo_targets([str(repo), *worktree_roots(projects)], 6))
-                  | set(cargo_targets(tmp, 4)))
+                  | set(cargo_targets(other_project_roots(projects), 3)) | set(cargo_targets(tmp, 4)))
 
 
 def projects_root() -> Path:

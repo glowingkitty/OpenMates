@@ -1,0 +1,12 @@
+schema_version: 2
+title: Prevent silent stalls in work chats
+profile: concise
+id: stalled-work-chat-recovery
+status: approved
+goal: "Make stalls impossible or loudly visible"
+scope:
+  - Give every Claude and Codex work chat a progress heartbeat and every wait an owner and a deadline.
+  - Coordinate recovery through one durable decision path and escalate once after recovery attempts.
+  - Protect unsent drafts, verify connector delivery, and show unresolved stalls and owner decisions in a daily list.
+  - Classify watchdog and post-update alerts by verified impact, combine related failures, and show the title and action in plain language.
+  - Simulate each incident class on dev before enabling notifications.

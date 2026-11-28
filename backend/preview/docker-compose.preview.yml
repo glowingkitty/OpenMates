@@ -132,6 +132,7 @@ services:
       context: ../../
       dockerfile: backend/admin_sidecar/Dockerfile
     restart: unless-stopped
+    user: "${OPENMATES_SIDECAR_UID:-10005}:${OPENMATES_SIDECAR_GID:-10005}"
     environment:
       # Admin authentication — same key as the main service's ADMIN_LOG_API_KEY.
       # Set in .env: ADMIN_LOG_API_KEY=<random-secret>

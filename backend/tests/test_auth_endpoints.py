@@ -29,7 +29,7 @@ import sys
 import hashlib
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, call
 
 from fastapi import BackgroundTasks, HTTPException, Response
 from starlette.requests import Request
@@ -761,7 +761,12 @@ class TestLookupUserCacheWarmup:
             },
             "Authentication successful",
         ))
-        directus_service.get_user_fields_direct = AsyncMock(return_value={"user_email_salt": "real-email-salt"})
+        from backend.core.api.app.schemas.user import AI_PREFERENCE_FIELDS
+
+        directus_service.get_user_fields_direct = AsyncMock(side_effect=[
+            {"user_email_salt": "real-email-salt"},
+            {"default_ai_model_complex": "google/gemini-3.8-flash"},
+        ])
         directus_service.get_user_profile = AsyncMock(return_value=(
             True,
             {
@@ -833,7 +838,11 @@ class TestLookupUserCacheWarmup:
         assert response.user is not None
         assert response.user.user_email_salt == "real-email-salt"
         assert response.user.encrypted_settings == "opaque-owner-account-settings"
-        directus_service.get_user_fields_direct.assert_awaited_once_with(user_id, ["user_email_salt"])
+        assert response.user.default_ai_model_complex == "google/gemini-3.8-flash"
+        assert directus_service.get_user_fields_direct.await_args_list == [
+            call(user_id, ["user_email_salt"]),
+            call(user_id, list(AI_PREFERENCE_FIELDS), no_cache=True),
+        ]
         cache_service.set_user.assert_awaited_once()
         cached_payload = cache_service.set_user.await_args.args[0]
         assert cached_payload["user_email_salt"] == "real-email-salt"

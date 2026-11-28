@@ -1,12 +1,13 @@
+# Canonical core service definitions. After editing, run python3 scripts/sync_core_compose.py.
 name: openmates-core
 
 x-openmates-api-image: &openmates-api-image
-  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.32.0}
+  image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-api:${OPENMATES_IMAGE_TAG:-v0.33.0}
 
 x-openmates-worker-base: &openmates-worker-base
   <<: *openmates-api-image
   restart: unless-stopped
-  user: root
+  user: celeryuser
   env_file: ../../.env
   environment: &openmates-worker-env
     PYTHONPATH: "/app"
@@ -102,7 +103,7 @@ services:
 
   cms:
     container_name: cms
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-directus:${OPENMATES_IMAGE_TAG:-v0.33.0}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -154,6 +155,7 @@ services:
   cms-database:
     container_name: cms-database
     image: postgres:13-alpine
+    user: postgres
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -172,7 +174,7 @@ services:
 
   cms-setup:
     container_name: cms-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-cms-setup:${OPENMATES_IMAGE_TAG:-v0.33.0}
     env_file: ../../.env
     environment:
       ADMIN_EMAIL: ${DATABASE_ADMIN_EMAIL}
@@ -219,7 +221,7 @@ services:
       - ${OPENMATES_APP_PACKAGES_DIR:-../../.openmates/app-packages}:/app-packages:ro
       - apps-recommendations-data:/app/data/apps-recommendations
     command: >
-      sh -c "mkdir -p /app/data/apps-recommendations && chmod 700 /app/data/apps-recommendations && chown -R celeryuser:celeryuser /app/data/apps-recommendations /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=email --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   user-init-worker:
     <<: *openmates-worker-base
@@ -232,7 +234,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9110"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_init --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_init --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   core-worker:
     <<: *openmates-worker-base
@@ -245,7 +247,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9109"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=persistence,health_check,server_stats,demo,e2e_tests,push,leaderboard --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   user-tasks-worker:
     <<: *openmates-worker-base
@@ -258,7 +260,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9112"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_tasks --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=user_tasks --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   reminder-worker:
     <<: *openmates-worker-base
@@ -271,7 +273,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9111"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=reminder --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=reminder --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   workflow-worker:
     <<: *openmates-worker-base
@@ -290,7 +292,7 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-1}"
       CELERY_METRICS_PORT: "9108"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=workflow --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=workflow --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   task-scheduler:
     <<: *openmates-worker-base
@@ -320,7 +322,7 @@ services:
       CELERY_AUTOSCALE_MAX: "${APP_AI_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_METRICS_PORT: "9102"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-ai-routing-worker:
     <<: *openmates-worker-base
@@ -332,7 +334,7 @@ services:
       CELERY_AUTOSCALE_MAX: "${APP_AI_ROUTING_CONCURRENCY:-2}"
       CELERY_METRICS_PORT: "9113"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai_routing --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_ai_routing --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-images-worker:
     <<: *openmates-worker-base
@@ -344,7 +346,7 @@ services:
       CELERY_AUTOSCALE_MAX: "${APP_IMAGES_WORKER_CONCURRENCY:-${CELERY_AUTOSCALE_MAX:-3}}"
       CELERY_METRICS_PORT: "9103"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_images --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_images --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-music-worker:
     <<: *openmates-worker-base
@@ -355,7 +357,7 @@ services:
       CELERY_QUEUES: "app_music"
       CELERY_AUTOSCALE_MAX: "${APP_MUSIC_WORKER_CONCURRENCY:-2}"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_music --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_music --concurrency=$${CELERY_AUTOSCALE_MAX} --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-videos-worker:
     <<: *openmates-worker-base
@@ -367,7 +369,7 @@ services:
       CELERY_VIDEOS_AUTOSCALE_MAX: "${CELERY_VIDEOS_AUTOSCALE_MAX:-2}"
       E2B_REMOTION_TEMPLATE: "${E2B_REMOTION_TEMPLATE:-}"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_videos --concurrency=$${CELERY_VIDEOS_AUTOSCALE_MAX} --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_videos --concurrency=$${CELERY_VIDEOS_AUTOSCALE_MAX} --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
 
   app-pdf-worker:
     <<: *openmates-worker-base
@@ -378,18 +380,18 @@ services:
       CELERY_QUEUES: "app_pdf"
       CELERY_METRICS_PORT: "9104"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_pdf --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_pdf --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
 
   app-docs-worker:
     <<: *openmates-worker-base
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-docs-worker:${OPENMATES_IMAGE_TAG:-v0.33.0}
     container_name: app-docs-worker
     mem_limit: "${APP_DOCS_WORKER_MEMORY_LIMIT:-1536m}"
     environment:
       <<: *openmates-worker-env
       CELERY_QUEUES: "app_docs"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_docs --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_docs --concurrency=2 --max-tasks-per-child=10 --max-memory-per-child=1000000 --prefetch-multiplier=1"
 
   app-code-worker:
     <<: *openmates-worker-base
@@ -399,7 +401,7 @@ services:
       <<: *openmates-worker-env
       CELERY_QUEUES: "app_code"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_code --concurrency=2 --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_code --concurrency=2 --max-tasks-per-child=20 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   app-social-media-worker:
     <<: *openmates-worker-base
@@ -409,11 +411,12 @@ services:
       <<: *openmates-worker-env
       CELERY_QUEUES: "app_social_media"
     command: >
-      sh -c "chown -R celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_social_media --concurrency=2 --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
+      sh -c "exec python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info --queues=app_social_media --concurrency=2 --max-tasks-per-child=50 --max-memory-per-child=600000 --prefetch-multiplier=1"
 
   cache:
     container_name: cache
     image: docker.dragonflydb.io/dragonflydb/dragonfly
+    user: dfly
     restart: unless-stopped
     ulimits:
       memlock: -1
@@ -439,10 +442,12 @@ services:
   vault:
     container_name: vault
     image: hashicorp/vault:1.19
+    user: vault
     restart: unless-stopped
-    cap_add:
-      - IPC_LOCK
     environment:
+      # The file-backed Vault configuration has mlock disabled.
+      SKIP_CHOWN: "1"
+      SKIP_SETCAP: "1"
       VAULT_LOG_LEVEL: "warn"
     command: "vault server -log-level=warn -config=/vault/config/vault.hcl"
     volumes:
@@ -459,7 +464,7 @@ services:
 
   vault-setup:
     container_name: vault-setup
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-vault-setup:${OPENMATES_IMAGE_TAG:-v0.33.0}
     env_file: ../../.env
     environment:
       VAULT_ADDR: "http://vault:8200"
@@ -479,6 +484,7 @@ services:
   openobserve:
     container_name: openobserve
     image: public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3
+    user: "10007:10007"
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -498,6 +504,9 @@ services:
   promtail:
     container_name: promtail
     image: grafana/promtail:3.2.1
+    user: "10006:10006"
+    # Docker socket and the core application's log directory use these groups.
+    group_add: ["${DOCKER_GID-999}", "1000"]
     restart: unless-stopped
     env_file: ../../.env
     volumes:
@@ -563,7 +572,7 @@ services:
 
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager:v0.32.1
+    image: prom/alertmanager:v0.33.1
     restart: unless-stopped
     env_file: ../../.env
     volumes:
@@ -584,17 +593,18 @@ services:
 
   admin-sidecar:
     container_name: core-admin-sidecar
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-admin-sidecar:${OPENMATES_IMAGE_TAG:-v0.33.0}
     restart: unless-stopped
+    user: "${OPENMATES_SIDECAR_UID:-10005}:${OPENMATES_SIDECAR_GID:-10005}"
     environment:
       ADMIN_LOG_API_KEY: "${SECRET__CORE_SERVER__ADMIN_LOG_API_KEY:-}"
-      COMPOSE_PROJECT: "openmates"
+      COMPOSE_PROJECT: "openmates-core"
       COMPOSE_FILE: "backend/core/docker-compose.selfhost.yml"
       SERVICES_ALLOWED: "api,task-worker,reminder-worker,task-scheduler,cache,admin-sidecar"
       SERVICE_UPDATE_ALL: "true"
       SERVICE_UPDATE_TARGET: "api"
       SERVICE_UPDATE_EXTRAS: "vault-setup,cms-setup"
-      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-true}"
+      CLEAR_CACHE_ON_UPDATE: "${CLEAR_CACHE_ON_UPDATE:-false}"
       CACHE_VOLUME_NAME: "openmates-cache-data"
       GIT_WORK_DIR: "${GIT_WORK_DIR}"
       ADMIN_NOTIFY_EMAIL: "${ADMIN_NOTIFY_EMAIL:-}"
@@ -620,7 +630,7 @@ services:
 
   webapp:
     container_name: webapp
-    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.32.0}
+    image: ${OPENMATES_IMAGE_REGISTRY:-ghcr.io/glowingkitty}/openmates-webapp:${OPENMATES_IMAGE_TAG:-v0.33.0}
     restart: unless-stopped
     ports:
       - "5173:5173"

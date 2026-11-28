@@ -329,6 +329,15 @@
   height: auto;
 }
 
+/* The empty paragraph must be as tall as the absolutely-positioned hint line,
+   otherwise flex centring places a ~26px box mid-field and the 48px hint line
+   starts at its top, pushing the text below the buttons' centre (stop state). */
+.message-field.inline-compact :global(.ProseMirror p.is-editor-empty:first-child) {
+  height: 48px;
+  min-height: 48px;
+  line-height: 48px;
+}
+
 /* Maps overlay open — field expands to show the map edge-to-edge.
    The MapsView sits as an absolutely-positioned child that fills inset:0,
    so padding is cleared and height is driven by containerStyle. */

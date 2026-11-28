@@ -11,9 +11,73 @@ Run: python3 -m pytest scripts/tests/test_response_media.py.
 from __future__ import annotations
 
 import json
+import sys
+import hashlib
+import io
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 from scripts import response_media as media
+
+
+@pytest.mark.parametrize("access", ["owner", "public_acl", "bucket_policy", "missing_expiry"])
+def test_container_verifies_bucket_privacy_without_rewriting_acl(monkeypatch, access):
+    class StorageError(Exception):
+        response = {"Error": {"Code": "NoSuchBucketPolicy"}}
+
+    document = b"%PDF-1.4 test"
+    monkeypatch.setattr(sys, "stdin", SimpleNamespace(buffer=io.BytesIO(document)))
+    client = Mock()
+    grants = [{"Grantee": {"Type": "CanonicalUser", "ID": "owner"}}]
+    if access == "public_acl":
+        grants.append({"Grantee": {"Type": "Group", "URI": "AllUsers"}})
+    client.get_bucket_acl.return_value = {"Owner": {"ID": "owner"}, "Grants": grants}
+    if access != "bucket_policy":
+        client.get_bucket_policy.side_effect = StorageError
+    client.get_bucket_lifecycle_configuration.return_value = {"Rules": [
+        {"Status": "Enabled", "Prefix": "", "Expiration": {"Days": 2}},
+    ] if access != "missing_expiry" else []}
+    client.get_bucket_cors.return_value = {"CORSRules": [{
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": ["HEAD", "GET"],
+        "AllowedOrigins": ["http://127.0.0.1:4096", "http://localhost:4096", "https://code.dev.openmates.org"],
+        "ExposeHeaders": ["Accept-Ranges", "Content-Length", "Content-Range", "Content-Type", "ETag"],
+        "MaxAgeSeconds": 3600,
+    }]}
+    client.generate_presigned_url.return_value = "https://example.invalid/signed"
+    manager = SimpleNamespace(initialize=AsyncMock(), get_secret=AsyncMock(side_effect=["id", "secret", None]))
+    boto = Mock()
+    boto.client.return_value = client
+    monkeypatch.setitem(sys.modules, "boto3", boto)
+    monkeypatch.setitem(sys.modules, "botocore.config", SimpleNamespace(Config=Mock()))
+    monkeypatch.setitem(sys.modules, "botocore.exceptions", SimpleNamespace(ClientError=StorageError))
+    monkeypatch.setitem(
+        sys.modules, "backend.core.api.app.utils.secrets_manager",
+        SimpleNamespace(SecretsManager=lambda: manager),
+    )
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setenv("AGENT_RESPONSE_MEDIA_REQUEST", json.dumps({
+        "size": len(document), "bucket": media.BUCKET_NAME, "dev_bucket": media.DEV_BUCKET_NAME,
+        "lifecycle_days": 2, "media_kind": "document", "sha256": hashlib.sha256(document).hexdigest(),
+        "key": "review-responses/test.pdf", "content_type": "application/pdf", "expires_in": 172800,
+    }))
+
+    if access == "owner":
+        exec(media.INNER_UPLOAD_CODE, {})
+        assert client.put_object.call_args.kwargs["ACL"] == "private"
+        assert client.put_object.call_args.kwargs["Body"] == document
+        assert boto.client.call_args.kwargs["region_name"] == "nbg1"
+        assert manager.get_secret.call_args.kwargs["log_missing"] is False
+    else:
+        with pytest.raises(RuntimeError, match="Response-media bucket"):
+            exec(media.INNER_UPLOAD_CODE, {})
+        client.put_object.assert_not_called()
+    client.put_bucket_acl.assert_not_called()
+    client.put_bucket_lifecycle_configuration.assert_not_called()
+    client.put_bucket_cors.assert_not_called()
 
 
 def test_dry_run_image_outputs_markdown_and_html(tmp_path: Path, capsys) -> None:

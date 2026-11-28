@@ -12,13 +12,16 @@
 import logging
 from typing import Dict, Any
 
-from opentelemetry import context, trace
+from opentelemetry import context
 from opentelemetry.propagate import extract, inject
 
 logger = logging.getLogger(__name__)
 
 # Reserved payload field name for trace context propagation
 TRACEPARENT_FIELD = "_traceparent"
+
+# Client-supplied value is untrusted; a valid W3C traceparent is 55 chars.
+MAX_TRACEPARENT_LENGTH = 512
 
 
 def extract_ws_trace_context(payload: Dict[str, Any]) -> context.Context:
@@ -40,6 +43,15 @@ def extract_ws_trace_context(payload: Dict[str, Any]) -> context.Context:
     traceparent = payload.pop(TRACEPARENT_FIELD, None)
 
     if not traceparent:
+        return context.get_current()
+
+    if (
+        not isinstance(traceparent, str)
+        or len(traceparent) > MAX_TRACEPARENT_LENGTH
+        or "\r" in traceparent
+        or "\n" in traceparent
+    ):
+        logger.debug("Ignored malformed trace context field in WS message")
         return context.get_current()
 
     try:

@@ -16,7 +16,7 @@
 use crate::core::{
     CoreCancellation, CoreConfig, CredentialSnapshotRecord, build_runtime, join_result,
 };
-use crate::{CoreError, view_records::ViewEventRecord};
+use crate::{CoreError, view_account::{RestoredProfile, RestoredProfileSlot}, view_records::ViewEventRecord};
 use futures_util::future::BoxFuture;
 use openmates_sdk::{
     Client, ClientIdentity, ClientOptions,
@@ -41,6 +41,7 @@ use std::time::Duration;
 use tokio::runtime::{Handle, Runtime};
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
+use zeroize::Zeroizing;
 
 pub(crate) use crate::view_vault::{VaultBridge, store_open_error};
 
@@ -108,6 +109,8 @@ pub(crate) struct AppleHost {
     api_url: String,
     credentials: Arc<AcknowledgedCredentials<Bytes>>,
     cancel: CancellationToken,
+    restored_profile: RestoredProfileSlot,
+    restored_principal: Option<String>,
 }
 
 impl ViewHost<Bytes> for AppleHost {
@@ -131,42 +134,38 @@ impl ViewHost<Bytes> for AppleHost {
         Box::pin(async { Ok(()) })
     }
 
-    fn admit<'a>(&'a mut self, sink: &'a ListenerSink) -> BoxFuture<'a, Result<()>> {
+    fn publish_restored_session<'a>(
+        &'a mut self,
+        sink: &'a ListenerSink,
+        event: SessionEvent,
+    ) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            let shell = self.core.shell().clone();
-            let credentials = self.credentials.clone();
-            let cancel = self.cancel.clone();
-            let admission = FreshSessionAdmission::admit(
-                self.core.client_mut(),
-                &shell,
-                &*credentials,
-                &cancel,
-            )
-            .await?;
-            // Same name choice as the terminal's admitted greeting.
-            let user = admission.user()?;
-            let username = ["username", "display_name"]
-                .into_iter()
-                .filter_map(|key| user[key].as_str())
-                .find(|name| !name.is_empty())
-                .unwrap_or("OpenMates")
-                .to_owned();
-            drop(admission);
-            // The admitted payload is what an offline restore shows next
-            // (`userProfile`, `view_account.rs`); stored before `Admitted`.
-            shell.save_admitted_user(self.core.client()).await?;
-            let expires_at = self
-                .core
-                .client()
-                .session()
-                .ok_or(Error::Authentication)?
-                .paired_session_expires_at;
-            sink.emit(ViewEvent::Session(SessionEvent::Admitted {
-                username,
-                expires_at,
-            }))
-            .await
+            let client = self.core.client();
+            let shell = self.core.shell();
+            let generation = shell.ops().guard();
+            // Team selection and admission keep their existing gate. Only the
+            // already authorized Personal account can unlock from disk here.
+            if let Some(session) = client.session().filter(|session| session.active_team_id.is_none())
+                && let Ok(Some(profile)) = shell.cached_user(client).await
+                && let Some(principal) = ["id", "user_id"].into_iter()
+                    .filter_map(|key| profile[key].as_str()).find(|id| !id.is_empty())
+                && let Ok(json) = serde_json::to_vec(&profile)
+                && generation.is_current() && !self.cancel.is_cancelled()
+            {
+                self.restored_principal = Some(principal.to_owned());
+                *lock(&self.restored_profile) = Some(RestoredProfile {
+                    json: Zeroizing::new(json),
+                    generation,
+                    cancel: self.cancel.clone(),
+                    expires_at: session.paired_session_expires_at,
+                });
+            }
+            sink.emit(ViewEvent::Session(event)).await
         })
+    }
+
+    fn admit<'a>(&'a mut self, sink: &'a ListenerSink) -> BoxFuture<'a, Result<()>> {
+        self.admit_session(sink, false)
     }
 
     fn recover_before_list<'a>(
@@ -196,6 +195,57 @@ impl ViewHost<Bytes> for AppleHost {
 }
 
 impl AppleHost {
+    fn admit_session<'a>(
+        &'a mut self,
+        sink: &'a ListenerSink,
+        existing: bool,
+    ) -> BoxFuture<'a, Result<()>> {
+        Box::pin(async move {
+            let shell = self.core.shell().clone();
+            let credentials = self.credentials.clone();
+            let cancel = self.cancel.clone();
+            let profile_slot = self.restored_profile.clone();
+            let close_local_profile = || { lock(&profile_slot).take(); };
+            let admission = if existing {
+                self.core.begin_client_operation(&cancel);
+                FreshSessionAdmission::readmit_existing(
+                    self.core.client_mut(), &shell, &*credentials, &cancel,
+                )
+                .await?
+            } else if let Some(principal) = self.restored_principal.take() {
+                FreshSessionAdmission::admit_restored(
+                    self.core.client_mut(), &shell, &*credentials, &cancel, principal, &close_local_profile,
+                ).await?
+            } else {
+                FreshSessionAdmission::admit(self.core.client_mut(), &shell, &*credentials, &cancel)
+                    .await?
+            };
+            // Same name choice as the terminal's admitted greeting.
+            let user = admission.user()?;
+            let username = ["username", "display_name"]
+                .into_iter()
+                .filter_map(|key| user[key].as_str())
+                .find(|name| !name.is_empty())
+                .unwrap_or("OpenMates")
+                .to_owned();
+            drop(admission);
+            // The admitted payload is what an offline restore shows next
+            // (`userProfile`, `view_account.rs`); stored before `Admitted`.
+            shell.save_admitted_user(self.core.client()).await?;
+            let expires_at = self
+                .core
+                .client()
+                .session()
+                .ok_or(Error::Authentication)?
+                .paired_session_expires_at;
+            sink.emit(ViewEvent::Session(SessionEvent::Admitted {
+                username,
+                expires_at,
+            }))
+            .await
+        })
+    }
+
     /// Forward unowned socket frames of this actor into `sink`.
     pub(crate) fn enable_unowned_forwarding(&mut self, sink: &ListenerSink) {
         self.core.forward_unowned_frames(Arc::new(sink.clone()));
@@ -217,6 +267,8 @@ pub(crate) struct Shared {
     pub(crate) sink: ListenerSink,
     /// The actor state of the signed-in session; `None` while signed out.
     pub(crate) host: Mutex<Option<AppleHost>>,
+    /// Profile read published by a restored cache, independently of the actor lock.
+    pub(crate) restored_profile: RestoredProfileSlot,
     /// Revocation without waiting for a busy actor (logout priority lane).
     pub(crate) revocation: StdMutex<Option<RevocationHandle<Bytes>>>,
     /// Cancels the running send without waiting for the actor.
@@ -252,7 +304,25 @@ impl Shared {
 
     async fn start(&self, cancel: CancellationToken) -> Result<()> {
         let mut host = self.host.lock().await;
-        self.start_locked(&mut host, cancel).await
+        let generation = self.ops.guard();
+        let stored = self.credentials.load(self.ops.generation()).await?;
+        if !generation.is_current() || cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        if let Some(current) = host.as_mut()
+            && let Some((active, stored)) = current.core.client().session().zip(stored.as_ref())
+            && active.matches_stored_session(stored)
+            && ["id", "user_id"].into_iter().any(|key| {
+                current.core.client().user()[key].as_str().is_some_and(|id| !id.is_empty())
+            })
+        {
+            // Re-admit the same durable client without retiring its window,
+            // older-page cursor or current request after a transport drop.
+            current.cancel = cancel;
+            let admitted = current.admit_session(&self.sink, true).await;
+            return self.settle_auth(&mut host, admitted).await;
+        }
+        self.restore_loaded_session(&mut host, stored, cancel).await
     }
 
     /// `start` with the actor lock already held (login hand-over).
@@ -261,7 +331,23 @@ impl Shared {
         host: &mut Option<AppleHost>,
         cancel: CancellationToken,
     ) -> Result<()> {
-        let Some(session) = self.credentials.load(self.ops.generation()).await? else {
+        let stored = self.credentials.load(self.ops.generation()).await?;
+        self.restore_loaded_session(host, stored, cancel).await
+    }
+
+    async fn restore_loaded_session(
+        &self,
+        host: &mut Option<AppleHost>,
+        stored: Option<Session>,
+        cancel: CancellationToken,
+    ) -> Result<()> {
+        let shared_profile = self.restored_profile.clone();
+        struct ClearLocalProfile(RestoredProfileSlot);
+        impl Drop for ClearLocalProfile {
+            fn drop(&mut self) { lock(&self.0).take(); }
+        }
+        let _clear_profile = ClearLocalProfile(shared_profile.clone());
+        let Some(session) = stored else {
             *host = None;
             *lock(&self.revocation) = None;
             *lock(&self.send_cancel) = None;
@@ -283,6 +369,7 @@ impl Shared {
         let mut core = ViewCore::new(client, ShellSession::new(cache), persistence);
         // Chat content loads per chat on open (a2-design: index-only start).
         core.set_eager_cached_content(false);
+        core.enable_recently_opened_chats();
         *lock(&self.revocation) = Some(core.revocation_handle());
         *lock(&self.send_cancel) = Some(core.send_cancel_handle());
         *lock(&self.unowned_sender) = Some(core.unowned_frame_sender());
@@ -295,6 +382,8 @@ impl Shared {
             api_url: self.api_url.clone(),
             credentials: self.credentials.clone(),
             cancel: cancel.clone(),
+            restored_profile: shared_profile,
+            restored_principal: None,
         });
         let start = ViewCommand::Start {
             credentials: Box::new(session),
@@ -342,6 +431,7 @@ impl Shared {
 
     /// Sign out (see `ViewModelCore::logout`).
     pub(crate) async fn logout(&self) -> Result<()> {
+        lock(&self.restored_profile).take();
         // Durable revocation first, without waiting for a running command.
         let revocation = lock(&self.revocation).clone();
         if let Some(revocation) = &revocation {
@@ -437,6 +527,7 @@ impl ViewModelCore {
                 credentials,
                 sink: ListenerSink(listener),
                 host: Mutex::new(None),
+                restored_profile: Arc::new(StdMutex::new(None)),
                 revocation: StdMutex::new(None),
                 send_cancel: StdMutex::new(None),
                 unowned_sender: StdMutex::new(None),
@@ -561,6 +652,76 @@ impl ViewModelCore {
         self.run(async move { shared.start(token).await }).await
     }
 
+    /// Emit the scoped last-opened cache window without a network request.
+    ///
+    /// # Errors
+    /// Cache, cancellation or session errors from the core startup flow.
+    pub async fn paint_startup_chat(
+        &self,
+        request: u64,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    view_model::paint_startup_chat(host, RequestId(request), sink, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Refresh the last-opened window and return the remaining ordered startup IDs.
+    ///
+    /// # Errors
+    /// Admission, cancellation or other errors from the core startup flow.
+    pub async fn resume_startup_chat(
+        &self,
+        request: u64,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<Vec<String>, CoreError> {
+        // Request zero is the Apple shell's selector-only reconnect operation.
+        let token = if request == 0 {
+            self.detached(cancellation)
+        } else {
+            self.foreground(cancellation)
+        };
+        let shared = self.shared.clone();
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    if request == 0 {
+                        view_model::refresh_startup_cohort(host, cancel)
+                    } else {
+                        view_model::resume_startup_chat(host, RequestId(request), sink, cancel)
+                    }
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Fill the core-selected startup histories without opening them in the UI.
+    ///
+    /// # Errors
+    /// Authority, cancellation or durable storage errors from the core.
+    pub async fn hydrate_startup_chats(
+        &self,
+        ids: Vec<String>,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.detached(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, _, cancel| {
+                    view_model::hydrate_startup_chats(host, ids, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
     /// The background half of start: the chat list read from the network,
     /// persisted, then emitted as `ChatList(Partial)`. Safe to repeat.
     ///
@@ -571,11 +732,30 @@ impl ViewModelCore {
         &self,
         cancellation: Option<Arc<CoreCancellation>>,
     ) -> std::result::Result<(), CoreError> {
-        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        let (shared, token) = (self.shared.clone(), self.detached(cancellation));
         self.run(async move {
             shared
                 .signed_in(token, |host, sink, cancel| {
                     view_model::boot_sync(host, sink, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Load one explicit older metadata page in current workspace order.
+    ///
+    /// # Errors
+    /// Authorization, cancellation or malformed response.
+    pub async fn load_more_chat_metadata(
+        &self,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, |host, sink, cancel| {
+                    view_model::load_more_chat_metadata(host, 0, sink, cancel)
                 })
                 .await
         })
@@ -622,6 +802,26 @@ impl ViewModelCore {
         .await
     }
 
+    /// Admit the restored workspace without pulling its list before startup resume.
+    ///
+    /// # Errors
+    /// Scope, admission or cancellation errors from the core.
+    pub async fn switch_team_for_startup(
+        &self,
+        team_id: Option<String>,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    view_model::switch_team_for_startup(host, team_id, sink, cancel)
+                })
+                .await
+        })
+        .await
+    }
+
     /// Open chat `chat_id` as the window of Swift's `request` id, replacing
     /// any other open window. Events, all carrying `request`: the cached
     /// window (`ChatWindow` with source `Cached`) before any network request
@@ -651,6 +851,27 @@ impl ViewModelCore {
                         sink,
                         cancel,
                     )
+                })
+                .await
+        })
+        .await
+    }
+
+    /// Refresh the open chat without registering a new deliberate open.
+    ///
+    /// # Errors
+    /// Scope, cancellation or authorized latest-window errors.
+    pub async fn refresh_open_chat(
+        &self,
+        request: u64,
+        chat_id: String,
+        cancellation: Option<Arc<CoreCancellation>>,
+    ) -> std::result::Result<(), CoreError> {
+        let (shared, token) = (self.shared.clone(), self.foreground(cancellation));
+        self.run(async move {
+            shared
+                .signed_in(token, move |host, sink, cancel| {
+                    view_model::refresh_open_chat(host, RequestId(request), chat_id, sink, cancel)
                 })
                 .await
         })

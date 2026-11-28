@@ -65,10 +65,10 @@ COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 COPY frontend/apps/web_app/static/newsletter-assets /app/frontend/apps/web_app/static/newsletter-assets
 RUN test -s /app/frontend/packages/ui/src/i18n/locales/en.json
 
-RUN mkdir -p /app/logs /app/backend/core/api/logs /celerybeat-data \
-    && chmod -R 777 /app/logs /app/backend/core/api/logs \
-    && adduser --disabled-password --gecos '' celeryuser \
-    && chown -R celeryuser:celeryuser /app /celerybeat-data
+RUN adduser --disabled-password --gecos '' celeryuser \
+    && chown -R celeryuser:celeryuser /app \
+    && install -d -o celeryuser -g celeryuser -m 0750 \
+        /app/logs /app/backend/core/api/logs /app/data/apps-recommendations /celerybeat-data
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1

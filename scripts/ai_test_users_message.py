@@ -1,7 +1,11 @@
-"""The one Discord message of an AI test-user run (owner, 20 Nov 2026).
+"""The one Discord message of an AI test-user run (owner, 20 Nov 2026; layout 23 Nov 2026).
 
-Two summary lines (counts, then run problems or flow verdicts), then one line per finding grouped by
-cause, each with its verdict and a link into the session video (private bucket, deleted after 7 days):
+Two summary lines (issue counts per environment, debug chats started and issues waiting for Marco's
+approval; then flow verdicts, harness problems and how many findings were dropped), then a DEV and a
+PRODUCTION section. Each issue there shows its title on its own line, then the environment, whether a
+debugging chat started (and which), is covered by an open Task or chat, or waits for approval
+(`ai_test_users_triage.py`), its report id and a link into the session video (private bucket, deleted
+after 7 days). Issues are the kept findings (bug or suspect) grouped by cause within one environment:
 
   bug         Jev kept the finding.
   not a bug   Jev dropped it.
@@ -39,6 +43,8 @@ EMBED_LIMIT = 4096  # Discord embed description
 EMBED_TOTAL_LIMIT = 5800  # Discord: 6000 characters across all embeds of a message, kept with a margin
 MAX_EMBEDS = 10
 VERDICT_ORDER = {"bug": 0, "suspect": 1, "not a bug": 2}
+DEV_COLOR = 0x3B82F6
+PROD_COLOR = 0xDC2626
 
 
 def tokens(text: str) -> set[str]:
@@ -150,46 +156,70 @@ def cause_line(group: dict) -> str:
 
 
 def problem_text(problems: list[str]) -> str:
-    """Line-2 problems: at most MAX_PROBLEMS short texts without links (full list in report.md)."""
+    """Line-2 harness problems: at most MAX_PROBLEMS short texts without links (full list in report.md)."""
     if not problems:
-        return "No run problems."
+        return ""
     short = [re.sub(r"\s*\[[^\]]*\]\(<?[^)>]*>?\)", "", p).strip() for p in problems[:MAX_PROBLEMS]]
     short = [p if len(p) <= PROBLEM_CHARS else p[:PROBLEM_CHARS].rstrip() + "…" for p in short]
     more = f" (+{len(problems) - MAX_PROBLEMS} more in report.md)" if len(problems) > MAX_PROBLEMS else ""
-    return f"Problems: {'; '.join(short)}{more}."
+    return f"Harness problems: {'; '.join(short)}{more}."
+
+
+def _embed_lines(lines: list[str]) -> list[dict]:
+    """Issue lines into embeds: a `## ` line starts a titled section; long sections continue in more embeds."""
+    sections: list[dict] = []
+    for line in lines:
+        if line.startswith("## "):
+            sections.append({"title": line[3:], "lines": []})
+        elif sections:
+            sections[-1]["lines"].append(line)
+        else:
+            sections.append({"title": "", "lines": [line]})
+    embeds: list[dict] = []
+    used, dropped = 0, 0
+    for section in sections:
+        embed = {"title": section["title"], "description": ""}
+        used += len(section["title"])
+        for index, line in enumerate(section["lines"]):
+            if used + len(line) + 61 > EMBED_TOTAL_LIMIT or len(embeds) >= MAX_EMBEDS:
+                dropped += len(section["lines"]) - index
+                break
+            if len(embed["description"]) + len(line) + 1 > EMBED_LIMIT:
+                embeds.append(embed)
+                embed = {"title": "", "description": ""}
+            embed["description"] = f"{embed['description']}\n{line}" if embed["description"] else line
+            used += len(line) + 1
+        if embed["title"] or embed["description"]:
+            embeds.append(embed)
+    embeds = embeds[:MAX_EMBEDS]
+    if dropped and embeds:
+        note = f"(+{dropped} more lines in report.md)"
+        last = embeds[-1]
+        last["description"] = f"{last['description']}\n{note}" if len(last["description"]) + len(note) < EMBED_LIMIT \
+            else last["description"]
+    for embed in embeds:
+        if not embed["title"]:
+            del embed["title"]
+        embed["description"] = embed["description"] or "none"
+        if embed.get("title", "").startswith("DEV"):
+            embed["color"] = DEV_COLOR
+        elif embed.get("title", "").startswith("PRODUCTION"):
+            embed["color"] = PROD_COLOR
+    return embeds
 
 
 def discord_payload(text: str) -> dict:
-    """One Discord message: the two summary lines as content, the cause lines in embeds.
+    """One Discord message: the two summary lines as content, the DEV and PRODUCTION sections as embeds.
 
-    Signed video links are ~400 characters, so the cause lines do not fit the 2000-character content
+    Signed video links are ~400 characters, so the issue lines do not fit the 2000-character content
     limit; embeds add up to 6000 characters (4096 per embed, 10 embeds) and render markdown links."""
     lines = text.splitlines()
     content = "\n".join(lines[:2])[:CONTENT_LIMIT]
-    causes_lines = [re.sub(r"\]\(<([^>\s]+)>\)", r"](\1)", line) for line in lines[2:]]  # embeds never unfurl
-    descriptions: list[str] = []
-    used, dropped = 0, 0
-    for index, line in enumerate(causes_lines):
-        left = len(causes_lines) - index - 1
-        reserve = 60 if left else 0  # room for the "+N more" line
-        if used + len(line) + 1 + reserve > EMBED_TOTAL_LIMIT or (
-                len(descriptions) == MAX_EMBEDS and len(descriptions[-1]) + len(line) + 1 > EMBED_LIMIT):
-            dropped = len(causes_lines) - index
-            break
-        if descriptions and len(descriptions[-1]) + len(line) + 1 <= EMBED_LIMIT:
-            descriptions[-1] += "\n" + line
-        else:
-            descriptions.append(line)
-        used += len(line) + 1
-    if dropped:
-        note = f"(+{dropped} more causes in report.md)"
-        if descriptions and len(descriptions[-1]) + len(note) + 1 <= EMBED_LIMIT:
-            descriptions[-1] += "\n" + note
-        else:
-            descriptions.append(note)
+    rest = [re.sub(r"\]\(<([^>\s]+)>\)", r"](\1)", line) for line in lines[2:]]  # embeds never unfurl
     payload: dict = {"content": content}
-    if descriptions:
-        payload["embeds"] = [{"description": d} for d in descriptions]
+    embeds = _embed_lines(rest)
+    if embeds:
+        payload["embeds"] = embeds
     return payload
 
 
@@ -214,23 +244,75 @@ def push(text: str, title: str = "AI test users", post=None, sleep=None) -> None
     agent_question.record_push(root, text, time.time(), title=title, source=accounts.PUSH_SOURCE)
 
 
-def run_message(title: str, results: list[dict], problems: list[str], flows: dict | None = None) -> str:
-    """The run's single push: two summary lines, then one line per cause."""
+ENV_NAMES = {"dev": "DEV", "prod": "PRODUCTION"}
+
+
+def debug_status(debug: dict) -> str:
+    """What happened about a debugging chat for one issue, in plain words for Marco."""
+    status, chat = debug.get("status"), debug.get("chat_title", "")
+    return {
+        "started": f"debug chat started: {chat}",
+        "queued": f"debug chat queued, starts when a slot frees: {chat}",
+        "would_start": "debug chat would start (dry run, not started)",
+        "covered": f"no new chat, already covered by {debug.get('covered_by')}",
+        "deferred": f"no debug chat yet: {debug.get('note', 'daily cap reached')}",
+        "no_report": "no debug chat: no report was filed",
+        "failed": f"debug chat failed to start ({debug.get('note', 'unknown error')})",
+        "approval": f"waiting for your approval, {debug.get('why')}",
+        "deploy_time": "no debug chat: filed during a production update (deploy-time, retest before acting)",
+    }.get(status, str(status))
+
+
+def issue_lines(issue: dict) -> list[str]:
+    """Two lines per issue: the title alone, then environment, debug-chat status, report and video."""
+    group = issue["group"]
+    lead = group["members"][0]
+    count = f" · {len(group['members'])}× ({', '.join(dict.fromkeys(m['result'].get('persona') for m in group['members']))})" \
+        if len(group["members"]) > 1 else ""
+    report = f" · report {issue['short_issue_id']}" if issue.get("short_issue_id") else ""
+    link = reporting.video_link(lead["result"], lead["finding"].get("video_seconds"))
+    title = re.sub(r"\s+", " ", issue["title"]).strip()[:150]
+    return [f"**{title}**",
+            f"{ENV_NAMES[issue['env']]} · {debug_status(issue['debug'])}{report}{count}" + (f" · {link}" if link else "")]
+
+
+def run_message(title: str, results: list[dict], problems: list[str], flows: dict | None = None,
+                issues: list[dict] | None = None) -> str:
+    """The run's single push: two summary lines, then a DEV and a PRODUCTION section with one entry per issue.
+
+    `issues` comes from `ai_test_users_triage.triage` (with the debug-chat outcome); without it the routes
+    are computed here and nothing is started."""
+    import ai_test_users_triage as triage
+
+    if issues is None:
+        issues = triage.triage(results, None, dispatch=False)
     ran = [r for r in results if r.get("status") not in ("skipped", "prod_disabled", "no_gift_card")]
-    groups = causes(results)
-    count = {v: sum(1 for g in groups if g["verdict"] == v) for v in VERDICT_ORDER}
-    findings = sum(len(g["members"]) for g in groups)
-    filed = sum(1 for r in results for rep in r.get("reports") or [] if rep.get("short_issue_id"))
+    per_env = {env: [i for i in issues if i["env"] == env] for env in ENV_NAMES}
+    statuses = [i["debug"]["status"] for i in issues]
+    chats = sum(1 for s in statuses if s in ("started", "queued"))
+    waiting = statuses.count("approval")
+    covered = statuses.count("covered")
+    dropped = sum(1 for r in results for f in r.get("findings") or [] if verdict(f) == "not a bug")
     broken = [f for f, v in (flows or {}).items() if v.get("verdict") != "working"]
-    icon = "❌" if problems or broken else "✅"
-    first = (f"{icon} {title}: {len(ran)} personas ran, {findings} findings in {len(groups)} causes "
-             f"({count['bug']} bug, {count['suspect']} suspect, {count['not a bug']} not a bug), {filed} reports filed.")
+    icon = "❌" if issues or problems or broken else "✅"
+    first = (f"{icon} {title}: {len(ran)} personas ran, {len(per_env['dev'])} DEV and {len(per_env['prod'])} "
+             f"PRODUCTION issues; {chats} debug chat{'s' if chats != 1 else ''} started, "
+             + (f"{covered} already covered by an open Task or chat, " if covered else "")
+             + f"{waiting} waiting for your approval.")
     parts = []
     if flows:
         parts.append("Flows: " + ", ".join(f"{f.split('_', 1)[0]} {v['verdict']} {v['passed']}/{v['runs']}"
                                            for f, v in sorted(flows.items())) + ".")
-    parts.append(problem_text(problems))
-    lines = [first, " ".join(parts)] + [cause_line(g) for g in groups[:MAX_CAUSES]]
-    if len(groups) > MAX_CAUSES:
-        lines.append(f"(+{len(groups) - MAX_CAUSES} more causes in report.md)")
+    if problems:
+        parts.append(problem_text(problems))
+    parts.append(f"{dropped} finding{'s' if dropped != 1 else ''} dropped as not a bug (report.md).")
+    lines = [first, " ".join(parts)]
+    if problems and not issues:
+        return "\n".join(lines)
+    for env, name in ENV_NAMES.items():
+        lines.append(f"## {name} issues ({len(per_env[env])})")
+        for index, issue in enumerate(per_env[env][:MAX_CAUSES]):
+            lines += ([""] if index else []) + issue_lines(issue)
+        if len(per_env[env]) > MAX_CAUSES:
+            lines.append(f"(+{len(per_env[env]) - MAX_CAUSES} more issues in report.md)")
     return "\n".join(lines)

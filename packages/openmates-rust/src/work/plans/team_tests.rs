@@ -50,10 +50,17 @@ fn ts_team_wrapper_and_owner_master_wrapper_open_the_same_plan_key() {
         &master,
         Some(&key("team_key_b64")),
         &team,
+        &[],
     )
     .unwrap();
-    let via_master =
-        team::plan_key(&record(json!([master_wrapper()])), &master, None, &team).unwrap();
+    let via_master = team::plan_key(
+        &record(json!([master_wrapper()])),
+        &master,
+        None,
+        &team,
+        &[],
+    )
+    .unwrap();
     assert_eq!(*via_team, key("plan_key_b64"));
     assert_eq!(*via_master, key("plan_key_b64"));
     let plan = decode_with_key(record(json!([team_wrapper()])), via_team).unwrap();
@@ -66,8 +73,9 @@ fn team_scope_never_opens_foreign_or_ambiguous_records() {
     let master = key("master_key_b64");
     let team_key = key("team_key_b64");
     let team = v("team_id");
-    let open =
-        |raw: Value, team_key: Option<&[u8; 32]>| team::plan_key(&raw, &master, team_key, &team);
+    let open = |raw: Value, team_key: Option<&[u8; 32]>| {
+        team::plan_key(&raw, &master, team_key, &team, &[])
+    };
     // Personal record (no Team hash) and another Team's record.
     let mut personal = record(json!([master_wrapper()]));
     personal["hashed_team_id"] = Value::Null;
@@ -91,9 +99,9 @@ fn team_scope_never_opens_foreign_or_ambiguous_records() {
         ),
         Err(Error::Forbidden)
     ));
-    // A non-epoch-1 Team wrapper is not a Team wrapper; nothing else opens it.
+    // A Team wrapper without a valid epoch (from 1) is not a Team wrapper; nothing else opens it.
     let mut epoch = team_wrapper();
-    epoch["team_key_epoch"] = json!(2);
+    epoch["team_key_epoch"] = json!(0);
     assert!(matches!(
         open(record(json!([epoch])), None),
         Err(Error::Forbidden)

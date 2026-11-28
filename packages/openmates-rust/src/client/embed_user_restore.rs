@@ -114,9 +114,9 @@ impl Client {
     /// Restore version `from` of an embed as its next version: the new
     /// version equals version `from` (content and, for images, its files);
     /// every version stays in the history. `head` is the cached head row,
-    /// `scope` where the user restored it. Version `from` is read with
-    /// [`Self::embed_version_content`] (Personal account). The text preview of
-    /// the head is left unchanged.
+    /// `scope` where the user restored it. Personal versions use
+    /// [`Self::embed_version_content`]. Team chat versions use scoped history
+    /// and the current Team revision cipher for collaborative embeds.
     ///
     /// # Errors
     /// `Validation` for `from` outside `1..head`, the read's errors as
@@ -133,6 +133,31 @@ impl Client {
             return Err(UserRevisionError::Validation {
                 code: "invalid_restored_from",
             });
+        }
+        if let RevisionScope::Chat {
+            chat_id,
+            team_id: Some(team_id),
+        } = &scope
+        {
+            let key = self.edit_embed_key(&head.embed_id).await?;
+            let content = self
+                .read_team_chat_revision(team_id, chat_id, &head.embed_id, from, &key)
+                .await?;
+            let row = self.embeds.get(&head.embed_id).ok_or(Error::Protocol)?;
+            let encrypted_type = row["encrypted_type"].as_str().ok_or(Error::Protocol)?;
+            let kind =
+                crate::client::embed_write::keys::decrypt_text(encrypted_type, &key, None)?;
+            let cipher =
+                if crate::client::live::stored_form::kind_of_embed_type(&kind).is_some() {
+                    self.team_revision_cipher(team_id, &head.embed_id, None)
+                        .await?
+                } else {
+                    None
+                };
+            let request = restore_request(head, scope, from, content)?;
+            return self
+                .commit_embed_user_revision_with_cipher(request, identity, key, cipher)
+                .await;
         }
         let mut read = self.embed_version_content(&head.embed_id, from).await?;
         let content = match read.get_mut("content") {

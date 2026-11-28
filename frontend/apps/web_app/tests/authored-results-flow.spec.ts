@@ -71,7 +71,10 @@ async function closeFullscreen(page: Page, fullscreen: Locator) {
 }
 async function createBrowserEmbedShare(page: Page, fullscreen: Locator, embedId: string) {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
-  await fullscreen.getByTestId('embed-share-button').click();
+  await fullscreen.getByRole('button', { name: 'More', exact: true }).click();
+  const share = fullscreen.getByTestId('embed-more-menu').getByTestId('embed-share-button');
+  await expect(share).toHaveAccessibleName('Share embed');
+  await share.click();
   await expect(page.getByTestId('share-embed-preview')).toBeVisible();
   const metadata = page.waitForResponse(response => response.url().includes('/v1/share/embed/metadata')
     && response.request().method() === 'POST' && response.request().postDataJSON()?.embed_id === embedId,

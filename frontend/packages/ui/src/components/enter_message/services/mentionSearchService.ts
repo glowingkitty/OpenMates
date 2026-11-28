@@ -1,4 +1,5 @@
 // frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts
+export const MEMORY_MENTION_GRADIENT = { start: '#dd03b5', end: '#cb00a5' } as const;
 //
 // Service for searching across all mentionable items in the @ dropdown.
 // Provides unified search across AI models, mates, app skills, focus modes, and settings/memories.

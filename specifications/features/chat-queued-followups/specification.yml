@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.chat-queued-followups
-version: 2
+version: 3
 status: draft
 title: Queued Chat Follow-ups and Steering
 summary: 'Users can send follow-ups while an assistant is working, edit the same queued message across devices,
@@ -13,10 +13,11 @@ scope:
   - Web Queued state, Edit and Steer instead controls below the queued user message.
   - Web queued editing, unchanged-send no-op and Cancel edit above the composer.
   - Safe current-run steering after a completed tool batch or before the next agent cycle.
+  - Independent questions and verified status requests during longer-running work.
   - Authorization, privacy, concurrency, recovery and existing execution gates.
   excludes:
   - Chronological response layout, governed separately by feature.chats and feature.chat-processing-feedback.
-  - Cancelling tools that have already started or undoing completed side effects.
+  - Reversing completed side effects or stopping an external tool that provides no cancellation operation.
   - Broad public or developer access to client-encrypted message revisions.
 models:
   QueuedTurn:
@@ -65,7 +66,7 @@ assertions:
   type: behavior
   must: A follow-up submitted during an active assistant run reaches the server immediately, retains one stable
     user-message identity, and is shown as Queued in authorized devices rather than waiting in the originating input.
-    Queue state and encrypted content converge after reload or reconnect. Normal queued follow-ups wait for the
+    Queue state and encrypted content converge after reload or reconnect. Follow-ups that require unfinished results wait for the
     active run to finish and retain existing duplicate-safe admission, ordering and recovery. Saved durable-protocol
     followers retain their own preflight, inference task, outbox and billing identities and dispatch serially, with
     authenticated completed predecessor results added to their context; they are never combined under a replacement
@@ -73,6 +74,26 @@ assertions:
   depends_on:
   - models.QueuedTurn
   - examples.admission
+- id: chat-queued-followups.routing.active-work
+  type: behavior
+  must: With no active response or execution, use ordinary chat processing. With active work, a clearly independent
+    question can start a normal response while that work continues. A request about progress may use verified
+    status and completed output. A question that requires pending output waits for the result or explains what is
+    known so far. A named request to cancel one run is applied to the exact authorized execution once.
+    Report that cancellation was requested until the runner confirms its terminal state. Unclear targets
+    are clarified while active work continues. These rules apply to terminal and web
+    chat messages, submitted dictation and completed voice requests.
+  depends_on:
+  - examples.active_work
+- id: chat-queued-followups.steering.active-artifact
+  type: behavior
+  must: A compatible correction to one identified active artifact is saved as an ordinary user message and applied
+    at a safe boundary. Ordered corrections update the same artifact and leave the last working version available
+    until the revised version is ready. A correction racing completion applies once, either to the active artifact
+    or as a normal gated edit of the completed artifact. Existing explicit queue and steering controls retain their
+    behavior.
+  depends_on:
+  - examples.active_artifact
 - id: chat-queued-followups.editing.stable-revision
   type: invariant
   must: Edit below a queued message restores its content to the composer. Sending changed content atomically updates

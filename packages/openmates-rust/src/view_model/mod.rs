@@ -39,6 +39,10 @@ mod draft_view;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_documents;
 #[cfg(not(target_arch = "wasm32"))]
+mod project_checks;
+#[cfg(not(target_arch = "wasm32"))]
+mod project_specifications;
+#[cfg(not(target_arch = "wasm32"))]
 mod project_timeline;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_ops;
@@ -74,6 +78,10 @@ mod unowned_flows;
 mod window;
 #[cfg(not(target_arch = "wasm32"))]
 mod window_flows;
+#[cfg(not(target_arch = "wasm32"))]
+mod startup_opened;
+#[cfg(not(target_arch = "wasm32"))]
+mod modified_chat_page;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use actor::{RevocationHandle, ViewCore};
@@ -96,6 +104,16 @@ pub use project_documents::create_project_document;
 /// Project timeline page and whole-commit restore.
 #[cfg(not(target_arch = "wasm32"))]
 pub use project_timeline::{project_timeline, restore_project_commit};
+/// Project Checks: list, show, start a run, confirm a human source.
+#[cfg(not(target_arch = "wasm32"))]
+pub use project_checks::{
+    project_check_confirm_human, project_check_show, project_check_start_run, project_checks_list,
+};
+/// Project Specifications: list, open with revisions, approve one revision.
+#[cfg(not(target_arch = "wasm32"))]
+pub use project_specifications::{
+    project_specification_approve, project_specification_open, project_specifications_list,
+};
 /// Undo an assistant-created Project; run or inspect a Project source.
 #[cfg(not(target_arch = "wasm32"))]
 pub use project_ops::{
@@ -151,7 +169,11 @@ pub(crate) use socket_passthrough::{OutboundFrame, SocketPassthrough};
 #[cfg(not(target_arch = "wasm32"))]
 pub use unowned_flows::UnownedFrameSender;
 #[cfg(not(target_arch = "wasm32"))]
-pub use window_flows::{close_chat, load_older, mark_read, open_chat};
+pub use window_flows::{close_chat, load_older, mark_read, open_chat, refresh_open_chat};
+#[cfg(not(target_arch = "wasm32"))]
+pub use modified_chat_page::load_more_chat_metadata;
+#[cfg(not(target_arch = "wasm32"))]
+pub use startup_opened::{hydrate_startup_chats, paint_startup_chat, refresh_startup_cohort, resume_startup_chat, switch_team_for_startup};
 
 #[cfg(all(test, unix))]
 mod actor_tests;

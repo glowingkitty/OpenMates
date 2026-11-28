@@ -156,7 +156,7 @@ async def _run(name: str, secrets: SecretsManager, key: str) -> dict[str, Any]:
     socket = _Socket(secrets)
     socket.push({"type": "start", "speech_output_transport": route.SPEECH_OUTPUT_TRANSPORT,
                  "chat_id": str(uuid.uuid4()), "startup_audio_allowance_ms": 0})
-    task = asyncio.create_task(route.voice_call(socket, {"user_id": OWNER, "session_hash": "session"}))
+    task = asyncio.create_task(route.voice_call(socket, {"user_id": OWNER, "session_hash": "session", "logical_session_id": "session"}))
     for _ in range(500):
         if task.done() or any(event["type"] == "ready" for event in socket.sent):
             break

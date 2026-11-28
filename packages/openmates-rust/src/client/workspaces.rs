@@ -19,9 +19,9 @@ impl Client {
     }
 
     /// As [`Self::list_with_fresh_chat_inventory`], and reports whether the
-    /// proof was current so the rows are the complete chat inventory of the
-    /// scope (`true`) or came from the ordinary list path (`false`). View
-    /// shells use the flag to publish a `Complete` chat list.
+    /// reused proof proves complete scope coverage. A valid same-batch
+    /// proof can still yield a partial recent list. Only complete coverage
+    /// can mint a durable complete-list freshness receipt.
     pub async fn list_with_fresh_chat_inventory_marked(
         &mut self,
         workspace: Workspace,
@@ -38,8 +38,11 @@ impl Client {
                 return Err(Error::Cancelled);
             }
             self.require_canonical_read_profile()?;
+            let complete = proof.scope_complete();
+            // A partial proof has no clock and clears a prior complete receipt
+            // even when the bounded ciphertext happens to match that receipt.
             self.record_complete_chat_list(&proof);
-            return Ok((items.into_inner(), true));
+            return Ok((items.into_inner(), complete));
         }
         tokio::select! {
             biased;
@@ -198,7 +201,7 @@ impl Client {
                 .find(|w| {
                     text(w, "key_type") == "team"
                         && text(w, "hashed_team_id") == hash
-                        && w["team_key_epoch"] == 1
+                        && crate::work::team_epoch_ok(w)
                 })
                 .ok_or(Error::Forbidden)?;
             required(wrapper, field)?
@@ -644,9 +647,10 @@ impl Client {
             body["created_at"] = json!(now_ms() / 1000);
             body["version"] = json!(1);
             self.add_slug_with_capability(&mut body,fields.get("slug").and_then(Value::as_str).unwrap_or(title),&MasterCapability::from_native(key.clone()),&wrapping,fields.get("slug").and_then(Value::as_str).is_some(),&scope).await?;
-            if let Some(team) = self.team()? {
+            if let Some(team) = self.team()?.map(str::to_owned) {
+                let team_epoch = self.team_key_epoch(&team).await?;
                 body["team_id"] = json!(team);
-                body["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":1,(key_field):encrypted_key,"created_at":now_ms()/1000}]);
+                body["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":sha256(&team),"team_key_epoch":team_epoch,(key_field):encrypted_key,"created_at":now_ms()/1000}]);
             }
             if workspace == Workspace::Tasks {
                 body["status"] = json!("todo");

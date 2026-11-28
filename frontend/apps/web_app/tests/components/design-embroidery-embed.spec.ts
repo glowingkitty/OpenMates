@@ -12,6 +12,10 @@ import { waitForComponentPreview } from '../helpers/component-preview';
  * Downloads use the inline `previewDownloadText` of the fixture (the real app
  * fetches and decrypts the encrypted file from storage); the follow-up
  * interpretation request is intercepted and asserted, never answered by a real service.
+ *
+ * Reference PNG: none, since the Files tab uses its existing row layout.
+ * Rendered screenshot: the Files tab proof contains all five machine formats.
+ * Accepted differences: the existing Files tab now lists one row per format.
  */
 
 const PREVIEW = '/dev/preview/embeds/design/DesignEmbroideryEmbedPreview?chrome=0';
@@ -140,6 +144,62 @@ for (const width of WIDTHS) {
     await testInfo.attach(`embroidery-opened-${width}`, { body: await page.screenshot(), contentType: 'image/png' });
   });
 }
+
+test.describe('embroidery fullscreen on a phone', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  // contract-test: direct surface=gui.web assertions=design-embroidery.result.fullscreen-mobile
+  test('shows three single-line facts and pinches each view without zooming the page', async ({ page }, testInfo) => {
+    await page.goto(`${FULLSCREEN}&theme=light&background=%23dbeafe&width=390&variant=finished`);
+    await waitForComponentPreview(page);
+    const header = page.getByTestId('result-facts');
+    const facts = header.getByRole('button');
+    await expect(facts).toHaveCount(3);
+    await expect(facts).toHaveText(['90 × 74 mm', '12,840', '~29 min']);
+    for (const fact of await facts.all()) {
+      await expect(fact.locator('svg')).toHaveCount(1);
+      const value = fact.locator('strong');
+      await expect(value).toHaveCSS('white-space', 'nowrap');
+      expect(await value.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    const details = page.getByTestId('design-embroidery-detail-facts');
+    await expect(details.getByTestId('design-embroidery-hoop-fit')).toBeAttached();
+    await expect(details.getByTestId('design-embroidery-thread-changes')).toBeAttached();
+    await expect(details.getByTestId('design-embroidery-thread-length')).toBeAttached();
+    await expect(details.getByTestId('design-embroidery-fabric-info')).toBeAttached();
+    const stage = page.getByTestId('design-embroidery-stage');
+    expect((await details.boundingBox())!.y).toBeGreaterThan((await stage.boundingBox())!.y);
+    await testInfo.attach('embroidery-compact-header', { body: await page.screenshot(), contentType: 'image/png' });
+
+    const cdp = await page.context().newCDPSession(page);
+    const image = page.getByTestId('design-embroidery-image');
+    const viewSwitch = page.getByRole('group', { name: 'Preview type', exact: true });
+    for (const view of ['stitches', 'graphic']) {
+      const button = page.getByTestId(`design-embroidery-view-${view}`);
+      await button.click();
+      await expect(image).toHaveAttribute('data-view', view);
+      await expect.poll(() => image.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+      await stage.scrollIntoViewIfNeeded();
+      const frame = (await stage.boundingBox())!;
+      const controls = await viewSwitch.boundingBox();
+      expect(controls).toBeTruthy();
+      const fittedWidth = (await image.boundingBox())!.width;
+      const points = (radius: number) => [-radius, radius].map((offset, index) => ({
+        x: frame.x + frame.width / 2 + offset, y: frame.y + frame.height / 2, id: index + 1,
+      }));
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points(28) });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points(60) });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points(82) });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect.poll(async () => (await image.boundingBox())!.width).toBeGreaterThan(fittedWidth * 2);
+      expect(await stage.boundingBox()).toEqual(frame);
+      expect(await viewSwitch.boundingBox()).toEqual(controls);
+      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+      await testInfo.attach(`embroidery-zoomed-${view}`, { body: await page.screenshot(), contentType: 'image/png' });
+    }
+    await cdp.detach();
+  });
+});
 
 // contract-test: supporting surface=gui.web assertions=design-embroidery.result.view-and-download
 test('opened view translates known notes, falls back to the server text and hints at a rework', async ({ page }) => {
@@ -326,4 +386,61 @@ test('a result without a border shows no border number', async ({ page }) => {
   await waitForComponentPreview(page);
   await expect(page.getByTestId('design-embroidery-size')).toBeVisible();
   await expect(page.getByTestId('design-embroidery-border-info')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.embed-references-never-raw
+test('a saved user attachment after a model mention uses its image preview', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const params = new URLSearchParams({
+    chrome: '0', theme: 'light', background: '#dbeafe', width: '390',
+    props: JSON.stringify({
+      isFirstMessage: true,
+      content: [
+        '@ai-model:gemini-3.8-flash:google ```json',
+        JSON.stringify({ type: 'image', embed_id: 'preview-voice-artifact-source' }, null, 2),
+        '```',
+        '',
+        '  Turn this drawing into an embroidery patch.',
+      ].join('\n'),
+    }),
+  });
+  await page.goto(`/dev/preview/ChatMessage?${params}`);
+  await waitForComponentPreview(page);
+  const message = page.getByRole('article');
+  const image = message.getByRole('img', { name: /\.jpg$/ });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+  await expect(message).toContainText('Turn this drawing into an embroidery patch.');
+  await expect(message).not.toContainText('embed_id');
+  await expect(message.locator('pre')).toHaveCount(0);
+  await testInfo.attach('saved-upload-phone', { body: await message.screenshot(), contentType: 'image/png' });
+});
+
+// contract-test: supporting surface=gui.web assertions=design-embroidery.result.chat-files
+test('chat settings presents an individual download for each machine format', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/dev/preview/chats/ChatSettingsPreviewHarness?chrome=0&theme=light&background=%23dbeafe&width=390&variant=embroideryFiles');
+  await waitForComponentPreview(page);
+  const files = page.getByTestId('chat-settings-tabpanel-files');
+  const rows = files.getByTestId('chat-settings-file-row');
+  await expect(rows).toHaveCount(FORMATS.length);
+  await expect(files.getByTestId('chat-settings-download-files')).toContainText('5 downloadable items');
+  for (const format of FORMATS) {
+    await expect(rows.filter({ hasText: `fox-patch.${format}` })).toBeVisible();
+  }
+  await page.evaluate(() => {
+    document.addEventListener('click', (event) => {
+      if (event.target instanceof HTMLAnchorElement && event.target.download) {
+        document.documentElement.dataset.downloadClickBubbled = 'true';
+      }
+    });
+  });
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    rows.filter({ hasText: 'fox-patch.pes' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('fox-patch.pes');
+  expect(await download.failure()).toBeNull();
+  await expect(page.locator('html')).not.toHaveAttribute('data-download-click-bubbled', 'true');
+  await testInfo.attach('chat-settings-embroidery-files-phone', { body: await files.screenshot(), contentType: 'image/png' });
 });

@@ -28,15 +28,11 @@ fn required_id(id: &str, record: &'static str) -> Result<String, ViewModelError>
     Ok(id.to_owned())
 }
 
-/// Absent or null yields `None`; any other type is an error.
-fn optional_i64(fields: &Value, field: &'static str) -> Result<Option<i64>, ViewModelError> {
-    match fields.get(field) {
-        None | Some(Value::Null) => Ok(None),
-        Some(value) => value
-            .as_i64()
-            .map(Some)
-            .ok_or(ViewModelError::InvalidField { record: ROW, field }),
-    }
+/// REST chat metadata uses decimal Unix seconds. The typed sidebar shares
+/// the core parser so an exact REST read can coexist with sync-feed rows.
+fn optional_chat_timestamp(fields: &Value, field: &'static str) -> Result<Option<i64>, ViewModelError> {
+    crate::client::chat_metadata_timestamp(fields, field)
+        .map_err(|_| ViewModelError::InvalidField { record: ROW, field })
 }
 
 fn optional_u64(fields: &Value, field: &'static str) -> Result<Option<u64>, ViewModelError> {
@@ -92,8 +88,8 @@ pub fn chat_list_row_from_item(item: &Item) -> Result<ChatListRow, ViewModelErro
         summary: item.description.clone(),
         category: item.category.clone(),
         status,
-        created_at: optional_i64(fields, "created_at")?,
-        updated_at: optional_i64(fields, "updated_at")?,
+        created_at: optional_chat_timestamp(fields, "created_at")?,
+        updated_at: optional_chat_timestamp(fields, "updated_at")?,
         messages_v: optional_u64(fields, "messages_v")?,
         unread_count: optional_u64(fields, "unread_count")?.unwrap_or(0),
         pinned: flag(fields, "pinned")?,

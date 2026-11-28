@@ -61,7 +61,7 @@ impl From<Error> for WorkspaceMoveError {
 }
 
 /// npm `buildWorkspaceMovePayload` with explicit keys. The slug index uses
-/// the Team key; a Project also gets an epoch-1 Team key wrapper.
+/// the Team key; a Project also gets a Team key wrapper (epoch stamped by the caller).
 pub(crate) fn move_payload(
     team: &str,
     moved_at: u64,
@@ -103,8 +103,12 @@ pub(crate) fn move_result(response: &Value) -> Value {
 
 impl Client {
     /// The Team key unwrapped with this account's master key (npm `loadTeamKeyBytes`).
-    async fn move_team_key(&mut self, team: &str) -> std::result::Result<Key, WorkspaceMoveError> {
+    async fn move_team_key(
+        &mut self,
+        team: &str,
+    ) -> std::result::Result<(Key, u64), WorkspaceMoveError> {
         let master = self.work_master_key()?;
+        // `Teams::get` claims a sealed rotated wrapper, so this is master-wrapped.
         let row = self.teams().get(team).await?;
         let wrapped = row["encrypted_team_key"]
             .as_str()
@@ -112,7 +116,11 @@ impl Client {
             .ok_or(WorkspaceMoveError::TeamKeyUnavailable)?;
         let raw = crypto::decrypt_bytes(wrapped, &master)
             .map_err(|_| WorkspaceMoveError::TeamKeyUnavailable)?;
-        Ok(key_bytes(&raw)?)
+        let epoch = row["team_key_epoch"]
+            .as_u64()
+            .filter(|e| *e >= 1)
+            .unwrap_or(1);
+        Ok((key_bytes(&raw)?, epoch))
     }
 
     /// Move one personal Project, Task, Plan or Workflow into `team`.
@@ -131,7 +139,7 @@ impl Client {
             }));
         }
         let moved_at = now();
-        let team_key = self.move_team_key(team).await?;
+        let (team_key, team_epoch) = self.move_team_key(team).await?;
         let (object_id, payload) = match kind {
             WorkspaceMoveType::Project => {
                 let project = self
@@ -194,6 +202,8 @@ impl Client {
             }
             WorkspaceMoveType::Chat => return Err(WorkspaceMoveError::Sdk(Error::Protocol)),
         };
+        let mut payload = payload;
+        super::stamp_team_epoch(&mut payload, team_epoch);
         let route = kind.route(&object_id)?;
         let mut status = None;
         match self

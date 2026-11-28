@@ -123,6 +123,61 @@ function scopedChats(trx, owner) {
     .where(builder => builder.whereNull('hashed_team_id').orWhere('hashed_team_id', ''));
 }
 
+const STARTUP_CHAT_FIELDS = [...CHAT_FIELDS, 'last_message_timestamp', 'encrypted_slug', 'slug_lookup_hash'];
+
+// Both list surfaces use the same live scope and deletion predicate. Direct
+// chats are filtered by caller membership before SQL offset/limit and count.
+function visibleChatRows(trx, owner) {
+  const query = scopedChats(trx, owner)
+    .whereRaw("storage_state IS DISTINCT FROM 'deleting'")
+    .whereNotExists(trx('chat_recovery_chat_deletion_fences').whereColumn('id', 'chats.id'));
+  if (owner.team) {
+    query.where(function () {
+      this.where(function () {
+        this.whereNull('chat_visibility').orWhere('chat_visibility', 'team');
+      }).whereNull('participant_user_hashes').whereNull('participant_key_envelopes')
+        .orWhere(function () {
+          this.where('chat_visibility', 'direct')
+            .whereRaw('participant_user_hashes::jsonb @> ?::jsonb', [JSON.stringify([owner.userHash])])
+            .whereRaw('participant_key_envelopes::jsonb -> ?::text IS NOT NULL', [owner.userHash]);
+        });
+    });
+  }
+  return query;
+}
+
+export async function readOpened(database, input) {
+  const owner = validateScopes(input);
+  return database.transaction(async trx => {
+    const opened = await trx('chat_sync_opened_chats')
+      .where({ user_scope: input.user_scope, chat_scope: input.scope })
+      .orderBy('revision', 'desc').orderBy('chat_id').limit(32).pluck('chat_id');
+    const rows = opened.length
+      ? await visibleChatRows(trx, owner).whereIn('id', opened).select(STARTUP_CHAT_FIELDS) : [];
+    const byId = new Map(rows.map(row => [String(row.id), row]));
+    return { chats: opened.flatMap(id => byId.has(id) ? [byId.get(id)] : []) };
+  });
+}
+
+export async function readRecentModified(database, input) {
+  const owner = validateScopes(input);
+  if (!Number.isSafeInteger(input.offset) || input.offset < 0 ||
+      !Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 100) {
+    throw new Error('invalid_sync_scope');
+  }
+  return database.transaction(async trx => {
+    const query = visibleChatRows(trx, owner);
+    const count = await query.clone().count({ total: '*' }).first();
+    const rows = await query.select(STARTUP_CHAT_FIELDS)
+      .orderBy('last_edited_overall_timestamp', 'desc', 'last').orderBy('id')
+      .limit(input.limit).offset(input.offset);
+    const ids = rows.map(row => row.id);
+    const drafts = ids.length ? await trx('drafts').where('hashed_user_id', owner.userHash)
+      .whereIn('chat_id', ids).select('chat_id', 'encrypted_content', 'version') : [];
+    return { chats: rows, drafts, total_count: Number(count.total) };
+  });
+}
+
 /** Read the bounded saved-item memory candidates for the personal due-soon set. */
 export async function readSavedItems(trx, userHash) {
   return trx('user_app_settings_and_memories')

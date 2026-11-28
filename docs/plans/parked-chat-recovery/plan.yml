@@ -1,0 +1,9 @@
+schema_version: 2
+title: Recover parked work chats
+profile: concise
+id: parked-chat-recovery
+status: approved
+goal: "Make the transfer robust: a continuation chat can always take over a Task from a stopped, archived or duplicate chat; stale links are released automatically; a refused handoff never leaves a chat parked silently (it escalates once to Marco with a one-line reason and still continues the work)."
+scope:
+  - Preserve Task links, worktree ownership and wake events across interrupted Claude and Codex handoffs.
+  - Recover actionable parked work and verify the 30-minute dev-host watchdog.

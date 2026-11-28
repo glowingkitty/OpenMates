@@ -46,7 +46,13 @@ export interface OpenedEmbedFields {
 /** Per-row result: the opened fields, or a fixed Rust rejection code for that row only. */
 export type EmbedFieldsResult = { ok: true; fields: OpenedEmbedFields } | { ok: false; code: string };
 
+export type DesignTurnReference = { embedId: string; text: string };
+export type DesignSourceContext = { embed_id: string; base_version: number; scene: unknown };
+
 export type EmbedDataProtocol = {
+	designTurnReference: { request: { markdown: string }; response: DesignTurnReference | null };
+	designSourceContext: { request: { content: string; embedId: string; baseVersion: number }; response: DesignSourceContext | null };
+	validateDesignScene: { request: { scene: string }; response: boolean };
 	openFields: { request: { items: EmbedFieldsRequest[] }; response: EmbedFieldsResult[] };
 	/** Rust TOON decode (non-strict, as `@toon-format/toon` `decode(text, {strict:false})`):
 	 * JSON text per input, or null where TOON refused it (`toon_decode_failed`). */

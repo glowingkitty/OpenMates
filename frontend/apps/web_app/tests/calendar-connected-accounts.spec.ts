@@ -2,9 +2,11 @@
 /**
  * Calendar connected-account deterministic settings coverage.
  *
- * Exercises capability selection before Google OAuth handoff without driving the
- * live Google login UI. Live provider coverage is handled separately by the
- * optional Google Calendar smoke tests when credentials are available.
+ * The Calendar app page only lists the accounts Calendar may use and links to
+ * Settings > Account > Connected accounts. Sign-in starts from that central page
+ * in a popup (or a same-tab redirect when popups are blocked); the provider's
+ * login UI is replaced by a stubbed authorization URL. Live provider coverage is
+ * handled separately by the optional Google Calendar smoke tests.
  */
 export {};
 
@@ -18,253 +20,160 @@ const {
 } = require('./signup-flow-helpers');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
-const { openAppSettings } = require('./helpers/settings-readiness');
+const { openAppSettings, openConnectedAccountsSettings, startGoogleCalendarAdd } = require('./helpers/settings-readiness');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
+
+const HANDOFF_CLAIM = {
+	provider_id: 'google_calendar',
+	refresh_token_bundle: {
+		provider: 'google_calendar',
+		refresh_token: 'secret-refresh-token',
+		scopes: ['https://www.googleapis.com/auth/calendar.events']
+	},
+	account_hint: {
+		label: 'work@example.test',
+		account_ref: 'calendar-work',
+		provider_account_id: 'work@example.test',
+		capabilities: ['read', 'write', 'delete'],
+		scopes: ['https://www.googleapis.com/auth/calendar.events']
+	}
+};
+
+/** Stubs the connected-account endpoints; returns accessors for what the app saved. */
+async function stubConnectedAccountApi(page: any, handoffId: string, returnHash: string) {
+	const state: { row: Record<string, unknown> | null; startBody: Record<string, unknown> | null } = { row: null, startBody: null };
+	await page.route('**/v1/provider-oauth/google/calendar/start', async (route: any) => {
+		state.startBody = route.request().postDataJSON();
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				authorization_url: getE2EDebugUrl(`/?oauth_handoff_id=${handoffId}${returnHash}`),
+				state_expires_at: Math.floor(Date.now() / 1000) + 600,
+				scopes: HANDOFF_CLAIM.refresh_token_bundle.scopes
+			})
+		});
+	});
+	await page.route(`**/v1/connected-account-oauth/handoffs/${handoffId}/claim`, async (route: any) => {
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ ...HANDOFF_CLAIM, expires_at: Math.floor(Date.now() / 1000) + 300 })
+		});
+	});
+	await page.route('**/v1/connected-accounts', async (route: any) => {
+		const request = route.request();
+		if (request.method() === 'GET') {
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ rows: state.row ? [state.row] : [] }) });
+			return;
+		}
+		if (request.method() === 'POST') {
+			state.row = request.postDataJSON() as Record<string, unknown>;
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: state.row.id, sync_version: Date.now() }) });
+			return;
+		}
+		await route.continue();
+	});
+	return state;
+}
 
 test.describe('Calendar connected accounts', () => {
 	test.describe.configure({ timeout: 180000 });
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
 	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.private-reusable
-	test('shows Calendar OAuth capability toggles and sends only selected capabilities', async ({ page }: { page: any }) => {
+	test('Calendar app page lists no account, offers no connect buttons and links to Connected accounts', async ({ page }: { page: any }) => {
 		const logCheckpoint = createSignupLogger('CALENDAR_CONNECTED_ACCOUNTS');
-		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
-			filenamePrefix: 'calendar-connected-accounts',
-		});
-		let startRequestBody: Record<string, unknown> | null = null;
-
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'calendar-connected-accounts' });
 		await archiveExistingScreenshots(logCheckpoint);
-		await page.route('**/v1/connected-accounts', async (route: any) => {
-			if (route.request().method() === 'GET') {
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({ rows: [] })
-				});
-				return;
-			}
-			await route.continue();
-		});
-		await page.route('**/v1/provider-oauth/google/calendar/start', async (route: any) => {
-			startRequestBody = route.request().postDataJSON();
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					authorization_url: getE2EDebugUrl('/#settings/apps/calendar'),
-					state_expires_at: Math.floor(Date.now() / 1000) + 600,
-					scopes: ['https://www.googleapis.com/auth/calendar.events']
-				})
-			});
-		});
+		await stubConnectedAccountApi(page, 'handoff-unused', '#settings/account/connected-accounts');
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 		const settingsMenu = await openAppSettings(page, getE2EDebugUrl('/#apps/calendar'), 'calendar');
 
-		const capabilityToggles = settingsMenu.getByTestId('calendar-capability-toggles');
-		await expect(capabilityToggles).toBeVisible({ timeout: 15000 });
-		await expect(capabilityToggles.getByLabel('Read events')).toBeChecked();
-		await expect(capabilityToggles.getByLabel('Write events')).toBeChecked();
-		await expect(capabilityToggles.getByLabel('Delete events')).toBeChecked();
+		const section = settingsMenu.getByTestId('calendar-connected-accounts-section');
+		await expect(section).toBeVisible({ timeout: 15000 });
+		await expect(section).toContainText('No account connected', { timeout: 15000 });
+		await expect(section.getByTestId('app-connected-accounts-manage-link')).toContainText('Add account in Connected accounts');
+		for (const gone of ['connect-google-calendar-button', 'connected-account-manage', 'connected-account-reconnect', 'connected-account-disconnect', 'calendar-capability-toggles']) {
+			await expect(settingsMenu.getByTestId(gone)).toHaveCount(0);
+		}
+		await takeStepScreenshot(page, 'calendar-app-page-no-account');
 
-		const summary = settingsMenu.getByTestId('calendar-oauth-capability-summary');
-		await expect(summary).toContainText('Read events');
-		await expect(summary).toContainText('Write events');
-		await expect(summary).toContainText('Delete events');
-
-		await capabilityToggles.getByLabel('Delete events').click();
-		await expect(capabilityToggles.getByLabel('Delete events')).not.toBeChecked();
-		await expect(summary).toContainText('Read events');
-		await expect(summary).toContainText('Write events');
-		await expect(summary).not.toContainText('Delete events');
-
-		await settingsMenu.getByTestId('connect-google-calendar-button').click();
-		await expect.poll(() => startRequestBody, {
-			message: 'Google Calendar OAuth start request was captured',
-			timeout: 10000
-		}).not.toBeNull();
-
-		expect(startRequestBody).toEqual({
-			capabilities: ['read', 'write'],
-			return_path: '/#settings/apps/calendar'
-		});
-		await takeStepScreenshot(page, 'calendar-capability-summary');
+		await section.getByTestId('app-connected-accounts-manage-link').click();
+		await expect(page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]')).toBeVisible({ timeout: 15000 });
 	});
 
-	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.private-reusable
-	test('opens shared Privacy account details and updates only missing Calendar write access', async ({ page }: { page: any }) => {
-		const logCheckpoint = createSignupLogger('CALENDAR_PRIVACY_CONNECTED_ACCOUNTS');
-		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, {
-			filenamePrefix: 'calendar-privacy-connected-accounts',
-		});
-		let savedConnectedAccountRow: Record<string, unknown> | null = null;
-		let firstStartRequestBody: Record<string, unknown> | null = null;
-		let updateStartRequestBody: Record<string, unknown> | null = null;
-		let patchRequestBody: Record<string, unknown> | null = null;
-
+	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.private-reusable,connected-accounts.connection.popup-sign-in
+	test('signs in through a popup, keeps OpenMates open and lists the new account', async ({ page, context }: { page: any; context: any }) => {
+		const logCheckpoint = createSignupLogger('CALENDAR_CONNECTED_ACCOUNTS_POPUP');
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'calendar-connected-accounts-popup' });
 		await archiveExistingScreenshots(logCheckpoint);
-		await page.route('**/v1/provider-oauth/google/calendar/start', async (route: any) => {
-			const body = route.request().postDataJSON();
-			if (body.return_path === '/#settings/privacy/connected-accounts') {
-				updateStartRequestBody = body;
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({
-						authorization_url: getE2EDebugUrl('/?oauth_handoff_id=handoff-write#settings/privacy/connected-accounts'),
-						state_expires_at: Math.floor(Date.now() / 1000) + 600,
-						scopes: ['https://www.googleapis.com/auth/calendar.events']
-					})
-				});
-				return;
-			}
-			firstStartRequestBody = body;
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					authorization_url: getE2EDebugUrl('/?oauth_handoff_id=handoff-read#settings/apps/calendar'),
-					state_expires_at: Math.floor(Date.now() / 1000) + 600,
-					scopes: ['https://www.googleapis.com/auth/calendar.readonly']
-				})
-			});
-		});
-		await page.route('**/v1/connected-account-oauth/handoffs/handoff-read/claim', async (route: any) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					provider_id: 'google_calendar',
-					refresh_token_bundle: {
-						provider: 'google_calendar',
-						refresh_token: 'secret-read-refresh-token',
-						scopes: ['https://www.googleapis.com/auth/calendar.readonly']
-					},
-					account_hint: {
-						label: 'Work Calendar',
-						account_ref: 'calendar-work',
-						provider_account_id: 'work@example.test',
-						capabilities: ['read'],
-						scopes: ['https://www.googleapis.com/auth/calendar.readonly']
-					},
-					expires_at: Math.floor(Date.now() / 1000) + 300
-				})
-			});
-		});
-		await page.route('**/v1/connected-account-oauth/handoffs/handoff-write/claim', async (route: any) => {
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					provider_id: 'google_calendar',
-					refresh_token_bundle: {
-						provider: 'google_calendar',
-						refresh_token: 'secret-write-refresh-token',
-						scopes: ['https://www.googleapis.com/auth/calendar.events']
-					},
-					account_hint: {
-						label: 'Work Calendar',
-						account_ref: 'calendar-work',
-						provider_account_id: 'work@example.test',
-						capabilities: ['write'],
-						scopes: ['https://www.googleapis.com/auth/calendar.events']
-					},
-					expires_at: Math.floor(Date.now() / 1000) + 300
-				})
-			});
-		});
-		await page.route('**/v1/connected-accounts', async (route: any) => {
-			const request = route.request();
-			if (request.method() === 'GET') {
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({ rows: savedConnectedAccountRow ? [savedConnectedAccountRow] : [] })
-				});
-				return;
-			}
-			if (request.method() === 'POST') {
-				savedConnectedAccountRow = request.postDataJSON() as Record<string, unknown>;
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({ id: savedConnectedAccountRow.id, sync_version: Date.now() })
-				});
-				return;
-			}
-			await route.continue();
-		});
-		await page.route('**/v1/connected-accounts/*', async (route: any) => {
-			const request = route.request();
-			if (request.method() === 'PATCH') {
-				patchRequestBody = request.postDataJSON() as Record<string, unknown>;
-				savedConnectedAccountRow = { ...(savedConnectedAccountRow ?? {}), ...patchRequestBody };
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({ id: savedConnectedAccountRow.id, sync_version: Date.now() })
-				});
-				return;
-			}
-			await route.continue();
-		});
+		const api = await stubConnectedAccountApi(page, 'handoff-popup', '#settings/account/connected-accounts');
 
 		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
-		let settingsMenu = await openAppSettings(page, getE2EDebugUrl('/#apps/calendar'), 'calendar');
+		await openConnectedAccountsSettings(page, getE2EDebugUrl('/#settings/account/connected-accounts'));
+		const central = page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]');
+		const popupPromise = context.waitForEvent('page');
+		await startGoogleCalendarAdd(central);
+		const popup = await popupPromise;
+		await popup.waitForEvent('close', { timeout: 30000 });
 
-		const capabilityToggles = settingsMenu.getByTestId('calendar-capability-toggles');
-		await capabilityToggles.getByLabel('Write events').click();
-		await capabilityToggles.getByLabel('Delete events').click();
-		await settingsMenu.getByTestId('connect-google-calendar-button').click();
+		await expect.poll(() => api.row, { message: 'encrypted row saved by the opener', timeout: 15000 }).not.toBeNull();
+		await expect(central.getByTestId('connected-account-oauth-success')).toBeVisible({ timeout: 15000 });
+		expect(api.startBody).toMatchObject({ app_id: 'calendar' });
+		expect(JSON.stringify(api.row)).not.toContain('secret-refresh-token');
+		expect(JSON.stringify(api.row)).not.toContain('work@example.test');
+		await takeStepScreenshot(page, 'calendar-popup-connected');
 
-		await expect.poll(() => savedConnectedAccountRow, {
-			message: 'read-only encrypted connected-account row was created',
-			timeout: 15000
-		}).not.toBeNull();
-		expect(firstStartRequestBody).toEqual({
-			capabilities: ['read'],
-			return_path: '/#settings/apps/calendar'
+		const appMenu = await openAppSettings(page, getE2EDebugUrl('/#apps/calendar'), 'calendar');
+		await expect(appMenu.getByTestId('app-connected-account-item')).toHaveCount(1, { timeout: 15000 });
+		await expect(appMenu.getByTestId('app-connected-account-item')).toContainText('work@example.test');
+	});
+
+	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.popup-sign-in
+	test('blocked popup falls back to a same-tab redirect and returns to the same settings page with a success message', async ({ page }: { page: any }) => {
+		const logCheckpoint = createSignupLogger('CALENDAR_CONNECTED_ACCOUNTS_BLOCKED_POPUP');
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'calendar-connected-accounts-blocked-popup' });
+		await archiveExistingScreenshots(logCheckpoint);
+		await page.addInitScript(() => { window.open = () => null; });
+		const api = await stubConnectedAccountApi(page, 'handoff-redirect', '#settings/account/connected-accounts');
+
+		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await openConnectedAccountsSettings(page, getE2EDebugUrl('/#settings/account/connected-accounts'));
+		const central = page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]');
+		await startGoogleCalendarAdd(central);
+
+		await expect.poll(() => api.row, { timeout: 30000 }).not.toBeNull();
+		await expect(page).toHaveURL(/#settings\/account\/connected-accounts/, { timeout: 15000 });
+		await expect(page).not.toHaveURL(/oauth_handoff_id=/, { timeout: 15000 });
+		await expect(page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]').getByTestId('connected-account-oauth-success')).toBeVisible({ timeout: 15000 });
+		await takeStepScreenshot(page, 'calendar-blocked-popup-return');
+	});
+
+	// contract-test: direct surface=gui.web assertions=connected-accounts.connection.popup-sign-in
+	test('a provider error on return shows an error message instead of failing silently', async ({ page }: { page: any }) => {
+		const logCheckpoint = createSignupLogger('CALENDAR_CONNECTED_ACCOUNTS_PROVIDER_ERROR');
+		const takeStepScreenshot = createStepScreenshotter(logCheckpoint, { filenamePrefix: 'calendar-connected-accounts-provider-error' });
+		await archiveExistingScreenshots(logCheckpoint);
+		await page.addInitScript(() => { window.open = () => null; });
+		await page.route('**/v1/provider-oauth/google/calendar/start', async (route: any) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					authorization_url: getE2EDebugUrl('/?error=access_denied#settings/account/connected-accounts'),
+					state_expires_at: Math.floor(Date.now() / 1000) + 600,
+					scopes: []
+				})
+			});
 		});
-
-		settingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="apps/calendar"]');
-		await settingsMenu.getByTestId(/^calendar-connected-account-detail-/).click();
-		const privacySettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="privacy/connected-accounts"]');
-		await expect(privacySettingsMenu).toBeVisible({ timeout: 15000 });
-		const details = privacySettingsMenu.getByTestId('privacy-connected-account-detail');
-		await expect(details).toContainText('Work Calendar', { timeout: 15000 });
-		await expect(details).toContainText('Google Calendar');
-		await expect(details).toContainText('Read events');
-		await expect(details).not.toContainText('secret-read-refresh-token');
-		await expect(details).not.toContainText('work@example.test');
-
-		await privacySettingsMenu.getByTestId('privacy-connected-account-add-write-button').click();
-		await expect.poll(() => updateStartRequestBody, {
-			message: 'Calendar update OAuth start request was captured',
-			timeout: 10000
-		}).not.toBeNull();
-		expect(updateStartRequestBody).toEqual({
-			capabilities: ['write'],
-			return_path: '/#settings/privacy/connected-accounts'
-		});
-		await expect.poll(() => patchRequestBody, {
-			message: 'connected-account update PATCH was captured',
-			timeout: 15000
-		}).not.toBeNull();
-		expect(JSON.stringify(patchRequestBody)).not.toContain('secret-write-refresh-token');
-		expect(JSON.stringify(patchRequestBody)).not.toContain('work@example.test');
-
-		await page.evaluate(() => {
-			window.dispatchEvent(new CustomEvent('openSettingsMenu', {
-				detail: { returnTo: 'privacy/connected-accounts' }
-			}));
-		});
-		const updatedPrivacySettingsMenu = page.locator('[data-testid="settings-menu"][data-active-view="privacy/connected-accounts"]');
-		await expect(updatedPrivacySettingsMenu).toBeVisible({ timeout: 15000 });
-		const updatedDetails = updatedPrivacySettingsMenu.getByTestId('privacy-connected-account-detail');
-		await expect(updatedDetails).toContainText('Read events', { timeout: 15000 });
-		await expect(updatedDetails).toContainText('Write events', { timeout: 15000 });
-		await expect(updatedPrivacySettingsMenu.getByTestId('privacy-connected-account-add-write-button')).toHaveCount(0);
-		await takeStepScreenshot(page, 'privacy-connected-account-updated');
+		await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
+		await openConnectedAccountsSettings(page, getE2EDebugUrl('/#settings/account/connected-accounts'));
+		const central = page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]');
+		await startGoogleCalendarAdd(central);
+		await expect(page.locator('[data-testid="settings-menu"][data-active-view="account/connected-accounts"]').getByTestId('connected-account-oauth-error')).toBeVisible({ timeout: 20000 });
+		await takeStepScreenshot(page, 'calendar-provider-error');
 	});
 });

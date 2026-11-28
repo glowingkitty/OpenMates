@@ -16,6 +16,42 @@ category: creative
 last_updated: "2026-11-10"
 expose_in_api: true
 embed_types:
+  - id: document
+    category: direct
+    frontend_type: design-document
+    backend_type: design-document
+    has_children: false
+    groupable: true
+    preview_component: design/DesignDocumentEmbedPreview.svelte
+    fullscreen_component: design/DesignDocumentEmbedFullscreen.svelte
+    icon: design
+    gradient_var: "--color-app-design"
+    content_fields:
+      - name: schemaVersion
+        type: number
+        required: true
+      - name: title
+        type: string
+        required: true
+      - name: pages
+        type: array
+        required: true
+  - id: author
+    category: app-skill-use
+    skill_id: author
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: design
+    gradient_var: "--color-app-design"
+  - id: get_design
+    category: app-skill-use
+    skill_id: get_design
+    frontend_type: app-skill-use
+    backend_type: app_skill_use
+    has_children: false
+    icon: design
+    gradient_var: "--color-app-design"
   - id: search_icons
     category: app-skill-use
     skill_id: search_icons
@@ -197,6 +233,49 @@ instructions:
       what is missing from code_handoff.notes. Report a variables status of
       plan_limited or not_granted honestly instead of guessing variables.
 skills:
+  - id: author
+    anonymous_access: authenticated
+    name_translation_key: app_skills.design.author
+    description_translation_key: app_skills.design.author.description
+    icon_image: design.svg
+    class_path: backend.apps.design.skills.author_skill.AuthorSkill
+    full_model_reference: google/gemini-3.8-flash
+    providers: [Google]
+    api_config:
+      expose_get: false
+      expose_post: false
+    pricing:
+      fixed: 1
+    preprocessor_hint: >
+      Create an editable, multi-layer Design document when the user asks for a
+      flyer, poster, social post, visual layout or multi-page mockup. Pass a
+      short art direction brief including size, exact copy, imagery, and page
+      count. If the user asks to change an attached Design, set revise to true
+      and describe just the requested changes. Ask them to attach its current
+      revision when the skill reports it is missing.
+    tool_schema:
+      type: object
+      additionalProperties: false
+      properties:
+        brief:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Short visual instruction including dimensions and page count when specified.
+        revise:
+          type: boolean
+          description: True for a change to an existing Design attached to the current message.
+        exact_copy:
+          type: array
+          maxItems: 8
+          items: {type: string, minLength: 1, maxLength: 300}
+          description: Exact words the user wants visibly written on the design, in their language.
+        requirements:
+          type: array
+          maxItems: 5
+          items: {type: string, minLength: 1, maxLength: 300}
+          description: Specific layout and visual checks to perform before accepting the draft.
+      required: [brief]
   - id: search_icons
     anonymous_access: inline
     name_translation_key: app_skills.design.search_icons
@@ -401,6 +480,9 @@ skills:
     providers:
       - name: Figma
         no_api_key: true
+    pricing:
+      # Declare the existing minimum charge used by chat billing.
+      fixed: 1
     preprocessor_hint: >
       Read a Figma design from a Figma file URL or file key through the user's connected
       Figma account: pages, frames, layout, colors, text styles, components, optional

@@ -65,17 +65,17 @@ pub(in crate::client) fn cache_namespace_unavailable(status:u16,route:&str)->boo
     matches!(status,404|410)&&(route=="/v1/chats"||route.starts_with("/v1/chats/")||route=="/v1/teams"||route.starts_with("/v1/teams/"))
 }
 // Closed normal browser auth operation only; generic/old restore retain60s.
-#[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+#[cfg(any(target_arch = "wasm32", test))]
 pub(super) const NORMAL_BROWSER_SESSION_TIMEOUT:Duration=Duration::from_secs(10);
 #[derive(Clone,Copy)]
 pub(in crate::client) enum SessionRequestBudget {
-    #[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+    #[cfg(any(target_arch = "wasm32", test))]
     NormalBrowserCheck{deadline:crate::platform::time::Instant},
 }
 pub(in crate::client) fn session_request_budget_at(request:crate::platform::http::RequestBuilder,budget:Option<SessionRequestBudget>,now:crate::platform::time::Instant)->Result<crate::platform::http::RequestBuilder>{
-    let _=now; // No deadline-bearing variant exists outside the opt-in build.
+    let _=now; // Native production does not use the browser deadline.
     Ok(match budget{None=>request,Some(budget)=>match budget{
-        #[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+        #[cfg(any(target_arch = "wasm32", test))]
         SessionRequestBudget::NormalBrowserCheck{deadline}=>{
             let remaining=deadline.checked_duration_since(now).filter(|left|!left.is_zero()).ok_or(Error::Offline)?;
             request.timeout(remaining.min(NORMAL_BROWSER_SESSION_TIMEOUT))
@@ -185,6 +185,8 @@ fn plaintext_request(
     let serialized = PlaintextBytes::serialize(&source.value)?;
     Ok(request.header("Content-Type", "application/json").body(serialized.owned(source)))
 }
+const PARALLEL_CHAT_TURNS_CAPABILITY: &str = "parallel_chat_turns_v1";
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SocketSelectionPolicy {
     AnnounceActiveChat,
@@ -480,7 +482,7 @@ impl Client {
     }
     /// SAME fixed normal protocol/transport, closed original pending context.
     /// Actual request budget covers headers AND the complete streamed body.
-    #[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+    #[cfg(any(target_arch = "wasm32", test))]
     pub(super) async fn normal_browser_session_request_observed(&mut self,body:Value,status:&mut Option<u16>,deadline:crate::platform::time::Instant)->Result<Value>{
         if !self.browser_transport||self.browser_authority.is_some()||self.browser_credentials.is_some()||self.session.is_some()
             ||!self.user.is_null(){return Err(Error::Forbidden)}
@@ -490,22 +492,34 @@ impl Client {
     // Only this fixed metadata read preserves exact HTTP 404 as absence. Other
     // status codes retain their ordinary errors and credential-rotation rules.
     pub(super) async fn request_chat_metadata(&mut self, id: &str) -> Result<Option<Value>> {
+        self.request_chat_metadata_for_startup(id, None).await
+    }
+
+    pub(super) async fn request_chat_metadata_for_startup(
+        &mut self, id: &str, budget: Option<&super::StartupForegroundBudget>,
+    ) -> Result<Option<Value>> {
         uuid::Uuid::parse_str(id).map_err(|_| crate::client::send::refusal_trace::protocol_at!())?;
         self.require_credentials()?;
         let path = self.scoped("/v1/chats/metadata/batch")?;
-        self.request_task_headers_inner(
-            Method::POST,
-            &path,
-            Some(RequestBody::Ordinary(json!({"chat_ids":[id]}))),
-            None,
-            None,
-            None,
-            None,
-            true,
-            None,
-            None,
-        )
-        .await
+        self.request_startup_first_party(Method::POST, &path, Some(json!({"chat_ids":[id]})), true, budget).await
+    }
+
+    /// Yield a startup-only read waiting for headers. Once received, the
+    /// ordinary cookie, denial and body processing runs without this timeout.
+    pub(super) async fn request_startup_first_party(
+        &mut self, method: Method, path: &str, body: Option<Value>, metadata_not_found: bool,
+        budget: Option<&super::StartupForegroundBudget>,
+    ) -> Result<Option<Value>> {
+        let Some(budget) = budget else {
+            return self.request_task_headers_inner(
+                method, path, body.map(RequestBody::Ordinary), None, None, None, None,
+                metadata_not_found, None, None,
+            ).await;
+        };
+        self.in_flight_method = Some(method.as_str().to_owned());
+        let prepared = self.prepare_read(method, path, body, metadata_not_found)?;
+        let sent = budget.headers(prepared.send()).await?;
+        self.finish_read(sent).await
     }
     /// The server's stored unread counter for one chat (`read_details` of the
     /// selected metadata row); `None` when the row carries no counter.
@@ -534,7 +548,7 @@ impl Client {
     }
     /// A fixed Task readback completes an already committed ciphertext write.
     /// It grants no permission to dispatch another mutation after cancellation.
-    pub(super) async fn request_committed_task(
+    pub(crate) async fn request_committed_task(
         &mut self,
         id: &str,
         wrappers: bool,
@@ -1127,6 +1141,10 @@ impl Client {
                 capabilities.push(',');
                 capabilities.push_str(extra);
             }
+            if self.parallel_chat_turns && self.options.identity == ClientIdentity::Cli {
+                capabilities.push(',');
+                capabilities.push_str(PARALLEL_CHAT_TURNS_CAPABILITY);
+            }
             // architecture.sync@2: cold-start cursor, overview and delta feed.
             capabilities.push(',');
             capabilities.push_str(super::sync_feed::CAPABILITY);
@@ -1338,6 +1356,8 @@ enum ErrorAllowance<'a> {
     EmbedDiff,
     /// Another device of the same owner holds this exact job's lease.
     RecoveryClaim { job: &'a str, request: &'a str },
+    /// The server refused this exact `request_embed` read (`embed_not_found`).
+    EmbedRead { embed_id: &'a str },
     /// The live monitor attributes every error frame itself
     /// (`transport/monitor_error_frames.rs`).
     Monitor,
@@ -1351,6 +1371,9 @@ impl ErrorAllowance<'_> {
                 && payload["request_id"].is_string()
                 && payload["embed_id"].is_string()
                 && payload["version_number"].as_u64().is_some_and(|v| v > 0),
+            Self::EmbedRead { embed_id } => {
+                payload["code"] == "embed_not_found" && payload["embed_id"] == embed_id
+            }
             Self::RecoveryClaim { job, request } => payload["code"] == "lease_conflict"
                 && payload["job_id"] == job
                 && payload["request_id"] == request,
@@ -1465,6 +1488,21 @@ pub(super) async fn wait_recovery_claim(
             || (kind == "error" && allowance.admits(payload))
     }, allowance).await
 }
+/// Outcome of one `request_embed`: the `send_embed_data` frame, or this embed's
+/// `embed_not_found` refusal as `Error::Forbidden` (never a wait for a frame that
+/// will not come).
+pub(super) async fn wait_embed_read(ws: &mut Socket, embed_id: &str) -> Result<Value> {
+    let allowance = ErrorAllowance::EmbedRead { embed_id };
+    let (kind, payload) = wait_matching_policy(ws, |kind, payload| {
+        let inner = payload.get("payload").unwrap_or(payload);
+        (kind == "send_embed_data" && (text(payload, "embed_id") == embed_id || text(inner, "embed_id") == embed_id))
+            || (kind == "error" && allowance.admits(payload))
+    }, allowance).await?;
+    if kind == "error" {
+        return Err(Error::Forbidden);
+    }
+    Ok(payload)
+}
 pub(super) async fn wait_workflow(
     ws: &mut Socket,
     kind: &str,
@@ -1503,6 +1541,10 @@ pub(super) async fn wait_task_job(
         (received == kind || received == "error") && payload["request_id"] == request
     })
     .await?;
+    validate_task_job_reply(&received, value, job)
+}
+
+pub(super) fn validate_task_job_reply(received: &str, value: Value, job: &str) -> Result<Value> {
     if value["job_id"] != job {
         return Err(Error::Forbidden);
     }
@@ -1553,6 +1595,34 @@ pub(super) fn test_socket(inner: crate::platform::socket::Stream) -> Socket {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parallel_chat_turns_capability_serializes_only_on_opted_in_durable_terminal_sockets() {
+        let mut session = super::super::sdk_boundary_tests::session();
+        session.ws_token = Some("fixture-ws-token".into());
+        let mut client = Client::new("https://api.example.org", Some(session)).unwrap();
+        let check = |client: &Client, ephemeral, expected| {
+            let staged = client
+                .prepare_socket_connection(false, ephemeral, false, SocketSelectionPolicy::Passive, None)
+                .unwrap();
+            let url = url::Url::parse(&staged.request.uri().to_string()).unwrap();
+            let advertised = url.query_pairs().any(|(name, value)| {
+                name == "client_capabilities"
+                    && value.split(',').any(|part| part == PARALLEL_CHAT_TURNS_CAPABILITY)
+            });
+            assert_eq!(advertised, expected);
+        };
+
+        client.set_identity(ClientIdentity::Cli);
+        check(&client, false, false);
+        client.set_parallel_chat_turns(true);
+        check(&client, false, true);
+        check(&client, true, false);
+        client.reset("https://api.example.org", client.session.clone()).unwrap();
+        check(&client, false, true);
+        client.set_identity(ClientIdentity::Apple);
+        check(&client, false, false);
+    }
     // contract-test: supporting surface=sdks.rust assertions=chats.message.identity-idempotent
     #[test]
     fn only_explicit_preflight_rejections_become_turn_rejected() {

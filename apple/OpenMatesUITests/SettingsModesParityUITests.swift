@@ -208,7 +208,7 @@ final class SettingsModesParityUITests: XCTestCase {
     func testSingleTeamMenuIsTeamsOnlyAndLoadingJoinedDisablesSelection() {
         let app = launchTeamsHome(variant: "single")
         let trigger = app.buttons["team-quick-context-dropdown"].firstMatch
-        XCTAssertEqual(trigger.value as? String, "SocialHub")
+        XCTAssertEqual(trigger.value as? String, "Garden Studio")
         trigger.tap()
         let menu = app.descendants(matching: .any)["team-context-menu"].firstMatch
         let settled = NSPredicate { _, _ in abs(menu.frame.height - 106) < 2 }
@@ -216,7 +216,7 @@ final class SettingsModesParityUITests: XCTestCase {
         XCTAssertFalse(app.buttons["team-context-personal"].exists)
         XCTAssertTrue(app.buttons["team-context-option-synthetic-home-one"].isHittable)
         XCTAssertTrue(app.buttons["team-context-new-team"].isHittable)
-        attachTeamsHomeScreenshot("SocialHub only team menu", app)
+        attachTeamsHomeScreenshot("Garden Studio only team menu", app)
         trigger.tap()
         app.switches["team-quick-toggle"].tap()
         XCTAssertEqual(app.switches["team-quick-toggle"].value as? String, "1")

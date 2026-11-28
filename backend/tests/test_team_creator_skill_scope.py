@@ -5,7 +5,6 @@ from types import SimpleNamespace
 import pytest
 
 from backend.apps.projects.skills.create_skill import CreateSkill as ProjectCreateSkill
-from backend.apps.tasks.skills import create_skill as task_create
 from backend.apps.workflows.skills.create_or_modify_skill import CreateOrModifySkill
 
 
@@ -23,35 +22,6 @@ class TeamRole:
 def skill(cls, app_id, skill_id):
     return cls(app=None, app_id=app_id, skill_id=skill_id,
                skill_name=skill_id, skill_description=skill_id)
-
-
-@pytest.mark.anyio
-# contract-test: supporting surface=rest_api assertions=teams.context.full-switch-local,tasks.surface.semantic-parity
-async def test_task_creator_rejects_unsupported_team_create_before_staging(monkeypatch):
-    contexts = []
-
-    async def fake_tool_call(**kwargs):
-        contexts.append(kwargs["context"])
-        return {"event": {"task_id": "task-1", "status": "todo"}, "job": {"job_id": "job-1"}}
-
-    monkeypatch.setattr(task_create, "execute_task_tool_call", fake_tool_call)
-    creator = skill(task_create.CreateSkill, "tasks", "create")
-    stage_service = object.__new__(task_create.TaskStageService)
-    stage_service.cache_service = object()
-    stage_service.encryption_service = object()
-    stage_service.user_vault_key_id = None
-    response = await creator.execute(title="Team task", user_id="member", team_id="team-1",
-                                    chat_id="chat-1",
-                                    task_stage_service=stage_service)
-    assert not response.success
-    assert "Team tasks" in response.error
-    assert contexts == []
-    assert response.results == []
-    with pytest.raises(ValueError, match="Team tasks"):
-        await stage_service.stage_create(user_id="member", team_id="team-1", chat_id="chat-1",
-                                         message_id="message-1", title="Team task", description="",
-                                         assignee_type="user", status="todo")
-    assert contexts == []
 
 
 @pytest.mark.anyio

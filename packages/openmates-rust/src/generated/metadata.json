@@ -2863,7 +2863,7 @@
     "app_namespace_py": "health",
     "skill_method_py": "search_appointments",
     "description_key": "app_skills.health.search_appointments.description",
-    "description": "Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.",
+    "description": "Use installed sources for live medical appointment requests. If none are installed, report unavailable. For a consultation about medication, request a prescribing clinician and treat generic or unverified slots as leads whose eligibility must be confirmed.",
     "schema": {
       "type": "object",
       "properties": {
@@ -2897,7 +2897,7 @@
                   "basic": false
                 },
                 "type": "string",
-                "description": "Optional source identifier; search is currently unavailable."
+                "description": "Optional identifier of an installed appointment source."
               },
               "insurance_sector": {
                 "x-ui": {
@@ -2930,13 +2930,37 @@
                   "basic": true
                 },
                 "type": "integer",
-                "description": "Search is currently unavailable without a permitted provider.",
+                "description": "Days to check for availability. Defaults to seven. Use 30 or 60 days when the user requests a longer search.",
                 "enum": [
                   1,
                   3,
-                  7
+                  7,
+                  30,
+                  60
                 ],
                 "default": 7
+              },
+              "requires_prescribing_clinician": {
+                "type": "boolean",
+                "description": "True for visits to discuss medication with a prescribing clinician.",
+                "default": false
+              },
+              "medication_visit": {
+                "type": "string",
+                "enum": [
+                  "initiation",
+                  "continuation"
+                ],
+                "description": "Use initiation for discussing starting medication and continuation for continuing treatment."
+              },
+              "requires_external_diagnosis_acceptance": {
+                "type": "boolean",
+                "description": "True if the existing diagnosis came from another practice and must be accepted.",
+                "default": false
+              },
+              "relevance_criteria": {
+                "type": "string",
+                "description": "Optional requirements for appointment ranking. Use a short, impersonal description of the appointment and preferences. Do not include a patient's name, contact information or personal history. Omit to use provider order."
               },
               "max_doctors": {
                 "x-ui": {
@@ -5657,7 +5681,22 @@
               },
               "query": {
                 "type": "string",
-                "description": "Optional search text (subject/from/body). Empty means recent-first listing."
+                "description": "Optional search text (subject/from/body). With provider \"google\" the Gmail search syntax works (from:, subject:, has:attachment, label:). Empty means recent-first listing."
+              },
+              "provider": {
+                "type": "string",
+                "enum": [
+                  "google"
+                ],
+                "description": "Set to \"google\" to search the user's connected Gmail account (official Gmail API). Omit for the default mail provider."
+              },
+              "connected_account_id": {
+                "type": "string",
+                "description": "Optional connected Google account id when the user has several accounts"
+              },
+              "page_token": {
+                "type": "string",
+                "description": "Continuation token from a previous Gmail search (next_page_token)"
               },
               "mailbox": {
                 "type": "string",
@@ -8224,84 +8263,6 @@
       "required": [
         "requests"
       ]
-    }
-  },
-  {
-    "app_id": "tasks",
-    "skill_id": "create",
-    "app_namespace_ts": "tasks",
-    "skill_method_ts": "create",
-    "app_namespace_py": "tasks",
-    "skill_method_py": "create",
-    "description_key": "tasks.skills.create.description",
-    "description": "Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "tasks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "link_to_chat": {
-                "type": "boolean",
-                "default": true,
-                "description": "Link to the current chat; false leaves the Task unlinked."
-              },
-              "plan_id": {
-                "type": "string",
-                "description": "Link this Task to a saved Plan (overrides the top-level plan_id)."
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "assignee": {
-                "type": "string",
-                "enum": [
-                  "user",
-                  "openmates"
-                ]
-              },
-              "status": {
-                "type": "string",
-                "enum": [
-                  "backlog",
-                  "todo",
-                  "in_progress",
-                  "blocked"
-                ]
-              }
-            }
-          }
-        },
-        "link_to_chat": {
-          "type": "boolean",
-          "default": true,
-          "description": "Default chat-link choice for created Tasks; tasks[] can override it."
-        },
-        "plan_id": {
-          "type": "string",
-          "description": "Default Plan to link the created Tasks to. The Plan must belong to the user and be saved; a missing Plan fails the call.\n"
-        },
-        "title": {
-          "type": "string",
-          "description": "Single-task title when not using tasks[]."
-        },
-        "description": {
-          "type": "string"
-        },
-        "assignee": {
-          "type": "string",
-          "enum": [
-            "user",
-            "openmates"
-          ]
-        }
-      },
-      "required": []
     }
   },
   {

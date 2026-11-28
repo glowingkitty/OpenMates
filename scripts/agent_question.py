@@ -34,19 +34,24 @@ backend, security, docs and tooling pushes never need proof.
 The webhook URL comes from DISCORD_WEBHOOK_AGENT_QUESTIONS, then DISCORD_WEBHOOK_DAILY_MEETING,
 then DISCORD_WEBHOOK_DEV_NIGHTLY (environment, then the canonical checkout's ``.env``, the same
 lookup as scripts/daily_meeting_briefing.py). The URL is never printed or logged. One push of
-each kind per chat per 20 minutes unless ``--force``. A marker
+each kind per chat per 20 minutes unless ``--force`` or ``--urgent`` (owner, 23 Nov: a rate-limited
+❓ about a production problem only reached the chat text). ``--urgent`` is also inferred from
+production, outage, release and hotfix wording. A push that is rate-limited or whose delivery is
+not confirmed is never dropped: it goes to ``logs/agent-questions/queue.jsonl`` and ``flush``
+(every minute from scripts/host_resources.py) sends it when it is due. A marker
 ``logs/claude-idle-chats/questions/<chat-id>.json`` (ts, text, kind) tells
 scripts/claude_idle_nudge.py that the chat already told the user. Every confirmed push (also other
 scripts' pushes through ``record_push``) is appended to ``logs/agent-questions/pushes.jsonl``
 (time, kind, chat id and title, the text, what it asks), so the dev connector can look a push up
 by time and open its chat. An unconfirmed delivery (network error, Discord 429/5xx) is retried
-twice after 2 and 5 seconds. Failures that remain exit non-zero with a message; there is no
-silent fallback.
+twice after 2 and 5 seconds; a delivery still unconfirmed is queued and retried by ``flush``
+every QUEUE_RETRY_SECONDS (the command says so, exit 0).
 """
 
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -60,12 +65,17 @@ from urllib.parse import urlparse
 
 import discord_summary
 import discord_webhook
+import notification_log
 import push_proof
+import push_decision_guard
 from pending_work_gate import canonical_root
 
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_AGENT_QUESTIONS", "DISCORD_WEBHOOK_DAILY_MEETING",
                 "DISCORD_WEBHOOK_DEV_NIGHTLY")
 RATE_LIMIT_SECONDS = 20 * 60
+QUEUE = Path("logs") / "agent-questions" / "queue.jsonl"
+QUEUE_RETRY_SECONDS = 5 * 60
+URGENT_WORDS = re.compile(r"\b(?:production|prod|outage|outages|down|release|releases|hotfix)\b", re.I)
 PUSH_LOG = Path("logs") / "agent-questions" / "pushes.jsonl"
 RETRY_DELAYS = (2.0, 5.0)
 MAX_CHARS = 1900  # per Discord message (limit 2000); longer pushes go out as several parts
@@ -229,12 +239,15 @@ def done_asks_user(text: str) -> bool:
 def short_title(title: str) -> str:
     return discord_summary.short_title(scrub(title))
 
-def build_body(kind: str, text: str, recommendation: str = "", paused_until: str = "", title: str = "") -> str:
+def build_body(kind: str, text: str, recommendation: str = "", paused_until: str = "", title: str = "",
+               options: list[str] | None = None) -> str:
     """The cleaned, scrubbed text after the title: the result, or 'question? Recommendation: …'."""
     body = discord_summary.clean_text(scrub(text), title).rstrip()
     end = "" if body.endswith((".", "?", "!", "…")) else "."
     if kind == ASK and recommendation:
         body = f"{body}{end} Recommendation: {discord_summary.clean_text(scrub(recommendation))}"
+    if kind == ASK and not recommendation and options:
+        body = f"{body}{end} Options: {' or '.join(discord_summary.clean_text(scrub(option)) for option in options)}"
     if kind == DONE and paused_until:
         body = f"{body}{end} Paused until {scrub(paused_until)}."
     return body
@@ -297,6 +310,86 @@ def recently_sent(root: Path, chat_id: str, now: float, kind: str = ASK) -> bool
         return False
 
 
+def is_urgent(args: argparse.Namespace, text: str, recommendation: str = "") -> bool:
+    """An urgent push (production outage, release step) is never held by the rate limit."""
+    return bool(getattr(args, "urgent", False)) or bool(URGENT_WORDS.search(f"{text} {recommendation}"))
+
+
+def _queue_lines(root: Path) -> list[dict]:
+    try:
+        lines = (root / QUEUE).read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in lines if line.strip()]
+
+
+def _write_queue(root: Path, entries: list[dict]) -> None:
+    path = root / QUEUE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}")
+    tmp.write_text("".join(json.dumps(entry, ensure_ascii=False) + "\n" for entry in entries), encoding="utf-8")
+    tmp.replace(path)
+
+
+def enqueue(root: Path, entry: dict) -> None:
+    """Hold one push for `flush` (rate-limited or undelivered); it is sent at entry['due']."""
+    _write_queue(root, [*_queue_lines(root), entry])
+
+
+def flush(root: Path, now: float, post: Callable[..., dict | None] = discord_webhook.post_message,
+          sleep: Callable[[float], None] = time.sleep,
+          post_files: Callable[..., dict | None] = discord_webhook.post_files) -> list[str]:
+    """Send every queued push that is due; returns what was sent. Unconfirmed ones stay queued."""
+    entries, kept, sent = _queue_lines(root), [], []
+    for entry in entries:
+        if float(entry.get("due", 0)) > now:
+            kept.append(entry)
+            continue
+        message = entry["message"]
+        try:
+            expected = {"done": DONE, "ask": ASK}.get(entry.get("kind"))
+            first = message.splitlines()[0]
+            prefix = f"{expected} {short_title(entry.get('title', ''))}: "
+            if not expected or not first.startswith(prefix):
+                raise QuestionError("The queued icon or title does not match its push type.")
+            validate_push(root, entry["chat_id"], now, entry["kind"], entry.get("asks", ""),
+                          entry.get("recommendation", ""), entry.get("options") or [],
+                          entry.get("task", ""), entry.get("title", ""))
+            validate_rendered(entry["kind"], first.removeprefix(prefix))
+        except (QuestionError, IndexError) as error:
+            print(f"agent_question: skipped an invalid or answered queued push: {error}", file=sys.stderr)
+            marker = marker_path(root, entry["chat_id"])
+            try:
+                recorded = json.loads(marker.read_text())
+                if recorded.get("ts") == entry.get("queued_at") and recorded.get("question") == scrub(entry.get("asks", "")):
+                    marker.unlink(missing_ok=True)
+            except (OSError, ValueError):
+                pass
+            continue
+        files: list[tuple[str, bytes]] = []
+        try:
+            with push_proof.temporary_workdir() as work:
+                try:
+                    prepared = push_proof.prepare(entry.get("attach") or [], entry.get("links") or [],
+                                                  entry["chat_id"], Path(work), own_link=own_storage_link)
+                    files, message = prepared.files, "\n".join([message, *prepared.link_lines()])
+                except push_proof.ProofError as error:
+                    message += f"\n⚠️ Proof could not be attached when the queued push went out: {error}"[:300]
+                with notification_log.sending_chat(entry["chat_id"], entry.get("title", "")):
+                    deliver(webhook(root), message, post, sleep, files=files, post_files=post_files)
+        except QuestionError as error:
+            kept.append({**entry, "due": now + QUEUE_RETRY_SECONDS, "attempts": int(entry.get("attempts", 0)) + 1,
+                         "last_error": str(error)[:200]})
+            continue
+        record_push(root, message, now, chat_id=entry["chat_id"], title=entry.get("title", ""),
+                    asks=entry.get("asks", ""), recommendation=entry.get("recommendation", ""),
+                    options=entry.get("options") or [], task_id=entry.get("task", ""), kind=entry.get("kind", ""),
+                    source="agent_question_queue")
+        sent.append(message.splitlines()[0][:120])
+    _write_queue(root, kept)
+    return sent
+
+
 def deliver(url: str, message: str, post: Callable[..., dict | None],
             sleep: Callable[[float], None] = time.sleep, files: list[tuple[str, bytes]] | None = None,
             post_files: Callable[..., dict | None] = discord_webhook.post_files) -> dict:
@@ -339,6 +432,40 @@ def record_push(root: Path, message: str, now: float, *, chat_id: str = "", titl
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
     return path
 
+
+def validate_push(root: Path, chat_id: str, now: float, kind: str, text: str, recommendation: str,
+                  options: list[str], task: str, title: str = "") -> None:
+    """Validate original intent before preparing proof, posting or recording a wait."""
+    if kind == "done":
+        if done_asks_user(text):
+            raise QuestionError("A ✅ push must not ask the user anything. Send the decision separately.")
+        return
+    if kind != "ask":
+        raise QuestionError("Chat pushes must be marked as done or ask.")
+    if problem := push_decision_guard.shape_error(
+        _URL.sub("", discord_summary.clean_text(scrub(text), title)).strip(),
+        discord_summary.clean_text(scrub(recommendation)),
+        [option for raw in options if (option := discord_summary.clean_text(scrub(raw)))],
+    ):
+        raise QuestionError(problem)
+    if chat_id and push_decision_guard.already_answered(root, chat_id, text, task, now, PUSH_LOG):
+        raise QuestionError("Marco already answered or authorized this work. Use the existing decision.")
+
+
+def validate_rendered(kind: str, body: str) -> None:
+    """A shortened or queued push still has to preserve its icon's meaning."""
+    if kind == "done" and done_asks_user(body):
+        raise QuestionError("A ✅ push must not ask the user anything. Rewrite the summary.")
+    if kind == "ask":
+        question, _, answer = body.partition(" Recommendation: ")
+        options = []
+        if not answer:
+            question, _, choices = question.partition(" Options: ")
+            options = choices.split(" or ") if choices else []
+        if push_decision_guard.shape_error(_URL.sub("", question).strip(), answer, options):
+            raise QuestionError("Rewrite the ask as a short decision with a recommendation or options.")
+
+
 def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
          post: Callable[..., dict | None] = discord_webhook.post_message,
          sleep: Callable[[float], None] = time.sleep,
@@ -351,12 +478,9 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
     _, task_text = session_info(root, chat_id)
     title = os.environ.get("CLAUDE_CHAT_TITLE") or task_text
     limit = discord_summary.SUMMARY_MAX if kind == DONE else discord_summary.ASK_MAX
-    body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title)
-    if kind == DONE and done_asks_user(text):
-        raise QuestionError(
-            "a ✅ push must not ask the user anything: the user reads ✅ as nothing to do and misses it. "
-            "Send the question as its own push (agent_question.py ask --question '...' --recommendation "
-            "'...') and write the ✅ text without it, or wait with the ✅ until the answer is in.")
+    options = getattr(args, "option", None) or []
+    validate_push(root, chat_id, now, args.command, text, recommendation, options, args.task or "", title)
+    body = build_body(kind, text, recommendation, getattr(args, "paused_until", None) or "", title, options)
     rejections = rejection_count(root, chat_id, kind) if chat_id else discord_summary.MAX_REJECTIONS
     try:
         body = discord_summary.fit(
@@ -367,13 +491,20 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         if chat_id and not args.dry_run:
             write_rejections(root, chat_id, kind, rejections + 1)
         raise
+    validate_rendered(args.command, body)
     message = build_message(kind, title, body)
     attach, links = getattr(args, "attach", None) or [], getattr(args, "link", None) or []
     no_proof = (getattr(args, "no_proof", None) or "").strip()
     reasons = push_proof.proof_reasons(root, chat_id)
     if reasons and not any(push_proof.is_visual(raw) for raw in attach) and not links and not no_proof:
         raise QuestionError(push_proof.refusal(reasons))
-    if no_proof and not any(push_proof.is_visual(raw) for raw in attach) and not links:
+    videos = push_proof.video_reasons(root, chat_id)
+    has_video = any(push_proof.is_video(raw) for raw in attach) or any(push_proof.is_video_link(u) for u in links)
+    if videos and not has_video and not no_proof:
+        raise QuestionError(push_proof.video_refusal(videos))
+    if videos and not has_video and no_proof:
+        message += f"\n⚠️ No video of the Playwright run: {discord_summary.clean_text(scrub(no_proof))[:160]}"
+    elif no_proof and not any(push_proof.is_visual(raw) for raw in attach) and not links:
         message += f"\n⚠️ No screenshot or video: {discord_summary.clean_text(scrub(no_proof))[:160]}"
     if args.dry_run:
         for raw in attach:
@@ -381,34 +512,96 @@ def send(args: argparse.Namespace, root: Path, chat_id: str, now: float,
         return message + "".join(f"\n[attached: {Path(raw).name}]" for raw in attach)
     if not chat_id:
         raise QuestionError("CLAUDE_CODE_SESSION_ID is not set; cannot identify this chat")
-    if not args.force and recently_sent(root, chat_id, now, kind):
-        raise QuestionError(f"this chat already sent a {args.command} push in the last 20 minutes (use --force)")
-    with push_proof.temporary_workdir() as work:
-        prepared = push_proof.prepare(attach, links, chat_id, Path(work), own_link=own_storage_link,
-                                      **({"uploader": uploader} if uploader else {}))
-        for note in prepared.notes:
-            print(f"agent_question: {note}", file=sys.stderr)
-        message = "\n".join([message, *prepared.link_lines()])
-        deliver(webhook(root), message, post, sleep, files=prepared.files, post_files=post_files)
+    held = dict(message=message, chat_id=chat_id, kind=args.command, title=title, asks=text,
+                recommendation=recommendation, options=getattr(args, "option", None) or [], task=args.task or "",
+                links=links, queued_at=now)
+    if not args.force and not is_urgent(args, text, recommendation) and recently_sent(root, chat_id, now, kind):
+        # Never dropped (owner, 23 Nov): held until the 20 minutes are over, then flush sends it.
+        last = json.loads(marker_path(root, chat_id).read_text(encoding="utf-8"))
+        due = float(last.get("ts", now)) + RATE_LIMIT_SECONDS
+        enqueue(root, {**held, "due": due, "attach": _durable(root, attach, chat_id, now)})
+        _write_marker(root, chat_id, args, text, kind, now)
+        args.queued = True
+        print(f"agent_question: this chat sent a {args.command} push less than 20 minutes ago; this one is "
+              f"queued and goes out at {time.strftime('%H:%M UTC', time.gmtime(due))} (use --urgent for "
+              "production problems and release steps)", file=sys.stderr)
+        return message
+    url = webhook(root)  # a missing webhook is a setup error, never queued: it fails right here
+    try:
+        with push_proof.temporary_workdir() as work:
+            prepared = push_proof.prepare(attach, links, chat_id, Path(work), own_link=own_storage_link,
+                                          **({"uploader": uploader} if uploader else {}))
+            for note in prepared.notes:
+                print(f"agent_question: {note}", file=sys.stderr)
+            sent_message = "\n".join([message, *prepared.link_lines()])
+            with notification_log.sending_chat(chat_id, title):
+                deliver(url, sent_message, post, sleep, files=prepared.files, post_files=post_files)
+            message = sent_message
+    except QuestionError as error:
+        enqueue(root, {**held, "due": now + QUEUE_RETRY_SECONDS, "attach": _durable(root, attach, chat_id, now),
+                       "last_error": str(error)[:200]})
+        _write_marker(root, chat_id, args, text, kind, now)
+        args.queued = True
+        print(f"agent_question: {error}; the push is queued and retried every "
+              f"{QUEUE_RETRY_SECONDS // 60} min", file=sys.stderr)
+        return message
     proof = {"files": [name for name, _ in prepared.files], "links": [url for _, url in prepared.links]}
+    try:
+        stored = push_proof.store_copies(root, attach, chat_id, now)
+    except (OSError, push_proof.ProofError) as error:  # the push is out; a missing copy only costs the replay
+        print(f"agent_question: proof copy not kept ({error})", file=sys.stderr)
+        stored = []
+    if stored:
+        proof["stored"] = stored
     if no_proof and prepared.empty:
         proof = {"no_proof": scrub(no_proof)}
     record_push(root, message, now, chat_id=chat_id, title=title, asks=text, recommendation=recommendation,
                 options=getattr(args, "option", None) or [], task_id=args.task or "", kind=args.command,
                 proof=proof if (proof.get("files") or proof.get("links") or proof.get("no_proof")) else None)
+    _write_marker(root, chat_id, args, text, kind, now)
+    write_rejections(root, chat_id, kind, 0)
+    return message
+
+
+def _write_marker(root: Path, chat_id: str, args: argparse.Namespace, text: str, kind: str, now: float) -> None:
+    """The chat told the user (sent or queued): scripts/claude_idle_nudge.py and the lifecycle read it."""
     path = marker_path(root, chat_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     marker = {"ts": now, "question": scrub(text), "kind": kind}
     if getattr(args, "paused_until", None):
         marker["paused_until"] = args.paused_until  # parked: the chat lifecycle stops it but does not archive it
     path.write_text(json.dumps(marker), encoding="utf-8")
-    write_rejections(root, chat_id, kind, 0)
-    return message
+
+
+def _durable(root: Path, attach: list[str], chat_id: str, now: float) -> list[str]:
+    """Attachments a queued push can still send later: owner-only copies of screenshots and videos."""
+    try:
+        stored = [str(root / rel) for rel in push_proof.store_copies(root, attach, chat_id, now)]
+    except (OSError, push_proof.ProofError) as error:
+        print(f"agent_question: proof copy for the queued push not kept ({error})", file=sys.stderr)
+        stored = []
+    return stored + [raw for raw in attach if not push_proof.is_visual(raw)]
+
+
+def send_with_loop_brake(args: argparse.Namespace, root: Path, chat_id: str) -> str | None:
+    """Send at most one question for an active loop brake, including queued delivery."""
+    import ci_triage_gate
+
+    brake = ci_triage_gate.active_brake(root, chat_id)
+    if args.dry_run or args.command != "ask" or not brake:
+        return send(args, root, chat_id, time.time())
+    path = ci_triage_gate.brake_path(root, chat_id)
+    with path.with_suffix(".lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if ci_triage_gate.already_asked(root, chat_id, brake):
+            return None
+        return send(args, root, chat_id, time.time())
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("flush", help="send queued pushes that are due (scripts/host_resources.py, every minute)")
     done_parser = sub.add_parser("done", help="✅ the chat finished (or parked / paused itself); put open "
                                  "follow-ups in its Task first: a done chat is archived when its turn ends")
     done_parser.add_argument("--summary", required=True, help="one short sentence, under 110 characters: the result, no ids or markdown")
@@ -429,13 +622,27 @@ def main(argv: list[str] | None = None) -> int:
         each.add_argument("--task")
         each.add_argument("--dry-run", action="store_true")
         each.add_argument("--force", action="store_true")
+        each.add_argument("--urgent", action="store_true",
+                          help="production outage or release step: never held by the 20-minute limit")
     args = parser.parse_args(argv)
+    if args.command == "flush":
+        try:
+            for line in flush(canonical_root(), time.time()):
+                print(f"sent queued push: {line}")
+        except (OSError, ValueError) as error:
+            print(f"agent_question: queue unreadable: {error}", file=sys.stderr)
+            return 1
+        return 0
     try:
-        message = send(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""), time.time())
+        message = send_with_loop_brake(args, canonical_root(), os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
     except (QuestionError, discord_summary.SummaryTooLong, push_proof.ProofError) as error:
         print(f"agent_question: {error}", file=sys.stderr)
         return 1
-    print(message if args.dry_run else ("Done push sent." if args.command == "done" else "Question sent."))
+    if message is None:
+        print("The loop-brake question was already sent or queued.")
+        return 0
+    print(message if args.dry_run else "Push queued (see above)." if getattr(args, "queued", False)
+          else ("Done push sent." if args.command == "done" else "Question sent."))
     return 0
 
 

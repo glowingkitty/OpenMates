@@ -48,6 +48,91 @@ fullscreen.subtitle_no_project:
   en: "{category} · Specification"
   de: "{category} · Spezifikation"
   verified_by_human: []
+fullscreen.outcome:
+  context: Section heading for the intended outcome in the Specification view
+  en: "Outcome"
+  de: "Ergebnis"
+  verified_by_human: []
+fullscreen.scope:
+  context: Section heading for scope and boundaries in the Specification view
+  en: "Scope & boundaries"
+  de: "Umfang & Grenzen"
+  verified_by_human: []
+fullscreen.included:
+  context: Sub-heading listing what the Specification includes
+  en: "Included"
+  de: "Enthalten"
+  verified_by_human: []
+fullscreen.excluded:
+  context: Sub-heading listing what is outside the Specification's scope
+  en: "Outside this scope"
+  de: "Außerhalb des Umfangs"
+  verified_by_human: []
+fullscreen.other_requirements:
+  context: Heading of the chapter collecting requirements no chapter references
+  en: "Other requirements"
+  de: "Weitere Anforderungen"
+  verified_by_human: []
+fullscreen.requirements:
+  context: Sub-heading of the requirements of a chapter
+  en: "Requirements"
+  de: "Anforderungen"
+  verified_by_human: []
+fullscreen.user_flows:
+  context: Sub-heading of the user flows of a chapter
+  en: "User flows"
+  de: "Nutzerabläufe"
+  verified_by_human: []
+fullscreen.edge_cases:
+  context: Sub-heading of the edge cases of a chapter
+  en: "Edge cases"
+  de: "Sonderfälle"
+  verified_by_human: []
+fullscreen.models:
+  context: Sub-heading of the data models of a chapter
+  en: "Relevant models"
+  de: "Relevante Modelle"
+  verified_by_human: []
+fullscreen.applies_to:
+  context: Label before the surfaces a requirement applies to
+  en: "Applies to:"
+  de: "Gilt für:"
+  verified_by_human: []
+fullscreen.example_and_id:
+  context: Toggle that shows a requirement's example and ID
+  en: "Example & requirement ID"
+  de: "Beispiel & Anforderungs-ID"
+  verified_by_human: []
+fullscreen.proof_passed:
+  context: Proof label of a requirement proven by a Check
+  en: "Proven in check"
+  de: "Belegt durch Check"
+  verified_by_human: []
+fullscreen.proof_stale:
+  context: Proof label of a requirement whose proof is outdated
+  en: "Proof needs refresh"
+  de: "Beleg muss erneuert werden"
+  verified_by_human: []
+fullscreen.proof_open:
+  context: Proof label of a requirement not proven yet
+  en: "To be proven in"
+  de: "Noch zu belegen in"
+  verified_by_human: []
+fullscreen.proof_none_title:
+  context: Name shown when no Check is linked to a requirement yet
+  en: "a linked Check"
+  de: "einem verknüpften Check"
+  verified_by_human: []
+fullscreen.proof_none_explanation:
+  context: Explanation shown when no Check has proven a requirement
+  en: "No Check has proven this requirement yet."
+  de: "Noch kein Check hat diese Anforderung belegt."
+  verified_by_human: []
+fullscreen.flow_steps:
+  context: Sub-heading of the numbered steps of a flow
+  en: "Steps"
+  de: "Schritte"
+  verified_by_human: []
 revisions.heading:
   context: Heading of the revision list in the Specification view
   en: "Revisions"

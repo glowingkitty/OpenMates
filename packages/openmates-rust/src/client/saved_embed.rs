@@ -315,7 +315,11 @@ fn decode(row: &Value, id: &str, key: &Key) -> Result<Plain<Value>> {
         required(row, "encrypted_content")?,
         key,
     )?);
-    let content = Plain::new(super::toon::decode(&body)?);
+    let content = if kind.as_str() == super::design_scene::EMBED_TYPE {
+        super::design_scene::decode(&body)?
+    } else {
+        Plain::new(super::toon::decode(&body)?)
+    };
     let preview = Zeroizing::new(super::sync::decrypt_optional(
         row,
         "encrypted_text_preview",

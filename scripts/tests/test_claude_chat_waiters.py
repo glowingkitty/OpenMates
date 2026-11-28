@@ -11,6 +11,7 @@ import json
 import sqlite3
 import sys
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -170,7 +171,7 @@ def test_a_ci_job_that_ends_while_its_chat_is_closed_reopens_it(tmp_path):
     with sqlite3.connect(queue) as conn:
         conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT, created REAL, updated REAL)")
         conn.execute("INSERT INTO jobs VALUES ('b97b9ff6abcd', 'fe65', 'apple-ui', 'running', ?, ?)",
-                     (NOW - HOUR, NOW - HOUR))
+                     (NOW - 600, NOW - 600))
     src = sources(tmp_path, sessions={CHAT: ["fe65"]})
     first = cw.collect(src, NOW)
     assert [w.key for w in first[CHAT]] == ["ci:b97b9ff6abcd"] and not first[CHAT][0].ready
@@ -185,6 +186,34 @@ def test_a_ci_job_that_ends_while_its_chat_is_closed_reopens_it(tmp_path):
     assert rec.resumed and "ci_coordinator.py result b97b9ff6abcd" in rec.resumed[0][1]
     cw.remember(src.state, second, delivered)
     assert cw.collect(src, NOW + 600) == {}
+
+
+def test_a_ci_job_running_past_its_timeout_wakes_the_chat_once_and_still_delivers_the_result(tmp_path):
+    queue = tmp_path / "logs" / "ci-coordinator" / "queue.sqlite3"
+    queue.parent.mkdir(parents=True)
+    with sqlite3.connect(queue) as conn:
+        conn.execute("CREATE TABLE jobs (id TEXT, owner TEXT, mode TEXT, state TEXT, created REAL, updated REAL)")
+        conn.execute("INSERT INTO jobs VALUES ('c0ffee12abcd', 'fe65', 'e2e', 'running', ?, ?)", (NOW, NOW))
+    src = sources(tmp_path, sessions={CHAT: ["fe65"]})
+    assert [w.key for w in cw.collect(src, NOW + 29 * 60)[CHAT]] == ["ci:c0ffee12abcd"]  # under 2x a run
+    late = NOW + 31 * 60
+    found = cw.collect(src, late)
+    overdue = next(w for w in found[CHAT] if w.key == "ci-overdue:c0ffee12abcd")
+    assert overdue.ready and "not finished after 31 min" in overdue.ready_text and "(running)" in overdue.ready_text
+    assert cw.stalled_entries(found, {}, {}, late)  # housekeeping lists the chat as stalled on CI
+    rec = Recorder()
+    delivered, _ = rec.run(found, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late)
+    assert len(rec.typed) == 1 and "ci_coordinator.py status c0ffee12abcd" in rec.typed[0][1]
+    cw.remember(src.state, found, delivered)
+    again = cw.collect(src, late + 60)
+    rec.run(again, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late + 60)
+    assert len(rec.typed) == 1  # the overdue wake is sent once per job
+    cw.remember(src.state, again, set())
+    with sqlite3.connect(queue) as conn:
+        conn.execute("UPDATE jobs SET state='success', updated=?", (late + 120,))
+    done = cw.collect(src, late + 180)
+    rec.run(done, {CHAT: chat(last_activity=NOW)}, {}, src.state, now=late + 180)
+    assert len(rec.typed) == 2 and "finished: success" in rec.typed[1][1]
 
 
 def test_a_live_chat_that_already_saw_its_ci_result_is_not_woken_twice(tmp_path):
@@ -245,11 +274,13 @@ def test_run_cycle_keeps_the_waiting_chat_and_reopens_it_after_it_was_closed(tmp
     monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
     rows = [disk_wait()]
     monkeypatch.setattr(lc, "gather_waiters", lambda now: cw.collect(sources(tmp_path, rows), now))
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {})
     live = [chat(last_activity=lc.time.time() - 64 * 60)]
     monkeypatch.setattr(lc, "live_chats", lambda home, config, found=None: [
         lc.Chat(**{**c.__dict__, "waiters": (found or {}).get(c.session_id, [])}) for c in live])
     stopped, resumed = [], []
     monkeypatch.setattr(lc, "stop", lambda target: stopped.append(target.session_id) or True)
+    monkeypatch.setattr(lc, "close_dead_panes", lambda *a, **k: None)
     monkeypatch.setattr(lc, "guard_unfinished", lambda plan, *a, **k: (plan, []))
     monkeypatch.setattr(lc, "unfinished_stalled", lambda registry: [])
     import claude_dispatch
@@ -391,7 +422,7 @@ def test_the_reset_wake_reopens_a_few_chats_by_task_priority_and_results_before_
     assert len(rec.resumed) == 3  # no room left: the rest waits for a later cycle
 
 
-def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day_later(tmp_path):
+def test_an_unanswered_owner_wait_survives_its_deadline_and_the_next_day(tmp_path):
     state_dir = tmp_path / "state"
     key = cw.add(state_dir, CHAT, "handoff", "owner answer on the disk proposal", timeout_minutes=60, now=NOW - 2 * HOUR)
     found = cw.collect(sources(tmp_path), NOW)
@@ -400,10 +431,9 @@ def test_a_timed_out_handoff_shows_as_timed_out_not_stalled_and_is_dropped_a_day
     (entry,) = cw.status_entries(found, {}, {}, NOW)
     assert entry["timed_out"] and not entry["stalled"]
     assert cw.stalled_entries(found, {}, {}, NOW) == []
-    events: list = []
-    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS - 2) * 3600, events.append) == []  # not a full day past yet
-    assert cw.expire(state_dir, NOW + (cw.EXPIRE_HOURS + 1) * 3600, events.append) == [key]
-    assert events[0]["event"] == "waiter_expired" and CHAT not in cw.collect(sources(tmp_path), NOW + 26 * HOUR)
+    cw.settle_external_waits(state_dir, NOW + 26 * HOUR, {}, {CHAT})
+    (unanswered,) = cw.collect(sources(tmp_path), NOW + 26 * HOUR)[CHAT]
+    assert unanswered.key == f"reg:{key}" and not unanswered.ready
 
 
 def test_a_chat_without_a_transcript_here_is_reported_once_and_its_waiters_dropped(tmp_path):
@@ -427,3 +457,67 @@ def test_a_transient_wake_failure_is_retried(tmp_path):
     rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
     rec.run(found, {}, {CHAT: {"state": "stopped"}}, tmp_path)
     assert len(rec.resumed) == 2
+
+
+def test_watchdog_fires_completed_task_and_reopens_unconfirmed_timeout(tmp_path):
+    state = tmp_path / "state"
+    key = cw.add(state, CHAT, "handoff", "the fixture cleanup", now=NOW, task_id=OTHER)
+    late = cw.add(state, OTHER, "background", "the benchmark", now=NOW - 26 * HOUR)
+    protected = "10000000-0000-0000-0000-000000000000"
+    cw.add(state, protected, "handoff", "owner approval", now=NOW - 26 * HOUR)
+    cw.settle_external_waits(state, NOW + 10, {OTHER: "done"}, {protected})
+    values = {waiter.key: waiter for waiter in cw.registered_waiters(state)}
+    assert "dependency Task is marked done" in values[f"reg:{key}"].ready_text
+    assert "deadline passed without confirmation" in values[f"reg:{late}"].ready_text
+    assert all(not waiter.ready for waiter in values.values() if waiter.chat_id == protected)
+    registrations = cw._read_json(state / "registered.json")
+    assert registrations[key]["task_id"] == OTHER
+    assert registrations[key]["responsible"] == "linked Task"
+    assert registrations[late]["responsible"] == "registered chat"
+    assert registrations[late]["deadline_checked_at"] == NOW + 10
+    assert "deadline_checked_at" not in next(row for row in registrations.values() if row["chat_id"] == protected)
+
+
+def test_already_running_codex_accepts_a_ready_wait_with_the_cap_full(tmp_path):
+    key = cw.add(tmp_path, CHAT, "background", "benchmark", now=NOW - HOUR)
+    cw.fire(tmp_path, CHAT, key, "results uploaded", now=NOW)
+    rec = Recorder()
+    delivered, failures = cw.deliver({CHAT: cw.registered_waiters(tmp_path)}, {}, {}, tmp_path, NOW,
+                                     type_into=rec.type_into, resume=rec.resume, room=0,
+                                     log=rec.events.append, live_resume={CHAT})
+    assert delivered == {f"reg:{key}"} and not failures
+    assert "results uploaded" in rec.resumed[0][1]
+
+
+def test_handoff_routes_registered_waiter_even_when_the_source_is_archived(tmp_path):
+    key = cw.add(tmp_path, CHAT, "background", "benchmark", now=NOW - HOUR)
+    cw.fire(tmp_path, CHAT, key, now=NOW)
+    found = {CHAT: cw.registered_waiters(tmp_path)}
+    lc.redirect_handoff_waiters(found, {CHAT: {"successor": f"tab (codex chat {OTHER})"}}, {})
+    assert CHAT not in found and found[OTHER][0].key == f"reg:{key}"
+    assert found[OTHER][0].chat_id == OTHER
+
+
+def test_wake_receipts_deduplicate_an_overlapping_batch(tmp_path):
+    for key in ("benchmark", "second"):
+        cw.add(tmp_path, CHAT, "background", key, key=key, now=NOW - HOUR)
+        cw.fire(tmp_path, CHAT, key, now=NOW)
+    ready = cw.registered_waiters(tmp_path)
+    rec = Recorder()
+    rec.run({CHAT: ready}, {}, {}, tmp_path)
+    delivered, failures = rec.run({CHAT: ready[1:]}, {}, {}, tmp_path)
+    assert delivered == {ready[1].key} and not failures
+    assert len(rec.resumed) == 1
+
+
+def test_codex_start_keeps_scheduled_time_while_claude_is_low(tmp_path, monkeypatch):
+    import claude_weekly_model
+
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path))
+    now = datetime.fromtimestamp(NOW, timezone.utc)
+    claude_weekly_model.update(96, now + timedelta(days=3), now, notify=lambda _: "")
+    key = cw.add_start(tmp_path, {"verb": "start_chat", "args": {"model": "claude-opus-5-5"}},
+                      NOW + 60, ["explicit start time"], NOW)
+    assert cw.due_starts(tmp_path, NOW + 59) == {}
+    due = cw.due_starts(tmp_path, NOW + 60, usage=lambda: pytest.fail("asked for Claude usage"))
+    assert list(due) == [key]

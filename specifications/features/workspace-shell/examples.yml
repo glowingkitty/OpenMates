@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workspace-shell@5
+specification: feature.workspace-shell@6
 
 released_navigation:
   - id: released-desktop-tabs-visible
@@ -10,6 +10,22 @@ released_navigation:
     given: The same user opens OpenMates on a narrow screen.
     when: The user opens the workspace selector.
     then: Chats, Apps, Projects, Workflows, and Tasks are selectable, and Plans remain within Tasks.
+
+compact_picker:
+  - id: coloured-workspace-picker
+    given: A signed-in user opens the web app on a phone or in a narrow desktop window.
+    when: They open the workspace picker in light or dark mode.
+    then: The blue panel shows the Apple app's white icons and labels for the available workspaces, with a checkmark next to the active workspace.
+
+compact_picker_dismissal:
+  - id: tap-or-click-dismisses-compact-picker
+    given: A user opens the compact picker on a phone or in a narrow desktop window.
+    when: They tap or click a dimmed area over the sidebar or sign-up button.
+    then: The picker and backdrop fade away without opening the sidebar or sign-up screen, and focus returns to the workspace picker button.
+  - id: compact-picker-reduced-motion
+    given: A user has reduced motion enabled.
+    when: They open the compact picker and dismiss it using the backdrop.
+    then: The picker opens and closes without a fade, and the workspace behind it stays in place.
 
 start_shells:
   - id: projects-and-workflows-start-shells
@@ -37,6 +53,15 @@ visual_parity:
     then: >-
       The regions remain aligned to the mobile Chats shell with equal Apps inline gutters and each workspace
       content preserved. Chat and Workflow detail omit nonessential movement.
+guest_account_entry:
+  - id: workspace-guest-uses-chat-account-interface
+    given: A signed-out visitor uses Chat, Workflows, Apps, Projects or Tasks to perform an account-only action.
+    when: They click the action on a new device or on a device where they previously logged in.
+    then: The current tab shows the regular Chat account interface with Sign up or Login respectively, without opening another window or starting the account-only action.
+  - id: workspace-guest-control-hover
+    given: A visitor views a workspace composer on a device with a mouse.
+    when: They hover over its microphone and file controls.
+    then: Both icons grow and brighten by the same amount while the background and outline remain stable.
 figma_board_controls:
   - id: tasks-desktop-controls
     given: A user opens the Tasks board on desktop.

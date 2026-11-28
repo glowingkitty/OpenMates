@@ -109,7 +109,7 @@ final class OrderedRealtimePCMForwarder: @unchecked Sendable {
 
     init(
         client: AudioRealtimeTranscriptionClient,
-        chatID: String,
+        chatID: String?,
         beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         onFailure: @escaping @Sendable () async -> Void
     ) {
@@ -168,6 +168,7 @@ final class AudioRecordingRealtimeSession {
     private var rawTranscript: String?
 
     private(set) var usesLocalTranscription = false
+    private(set) var failure: AudioRealtimeTranscriptionError?
     private var generation = UUID()
     private var client: AudioRealtimeTranscriptionClient?
     private var pcmForwarder: OrderedRealtimePCMForwarder?
@@ -216,7 +217,8 @@ final class AudioRecordingRealtimeSession {
 
     func begin(
         authManager: AuthManager,
-        chatID: String,
+        chatID: String?,
+        purpose: AudioRealtimeTranscriptionClient.Purpose = .chat,
         beforeRemoteStart: (@MainActor @Sendable () async throws -> Void)? = nil,
         presentationHandler: @escaping PresentationHandler
     ) {
@@ -238,7 +240,7 @@ final class AudioRecordingRealtimeSession {
         rawTranscript = nil
         rawTranscriptHandler = nil
 
-        let client = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
+        let client = AudioRealtimeTranscriptionClient.live(authManager: authManager, purpose: purpose) { [weak self] event in
             guard let self, await self.generation == token else { return }
             await self.receive(event)
         }
@@ -350,7 +352,10 @@ final class AudioRecordingRealtimeSession {
         case .status(.correcting):
             isConnecting = false
             presentationHandler?(liveTranscript, false)
-        case .status(.failed), .status(.cancelled):
+        case .status(.failed(let error)):
+            failure = error
+            settle(nil)
+        case .status(.cancelled):
             settle(nil)
         case .status(.completed):
             break
@@ -558,7 +563,7 @@ final class VoiceRecorder: ObservableObject {
             }
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("recording-ui-test.m4a")
-            if isUITestGuestLocalRecording {
+            if isUITestGuestLocalRecording || ComposerDictationCapture.isFixture {
                 guard Self.writeUITestRecording(to: url) else { return nil }
             }
             return url
@@ -735,7 +740,8 @@ final class VoiceRecorder: ObservableObject {
 
     #if DEBUG
     private var isUITestSimulatedRecording: Bool {
-        ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-simulated-recording")
+        ComposerDictationCapture.isFixture
+            || ProcessInfo.processInfo.arguments.contains("--ui-test-welcome-simulated-recording")
             || ProcessInfo.processInfo.arguments.contains("--ui-test-simulated-recording")
             || isUITestGuestLocalRecording
             || isUITestFailedOutput
@@ -843,6 +849,50 @@ private struct RecordingLiveTranscriptViewport: View {
     }
 }
 
+/// Composer dictation keeps its temporary capture local. The separate
+/// explicit audio-recording route can still attach a playable capture.
+enum ComposerDictationCapture {
+    static var isFixture: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        ProcessInfo.processInfo.arguments.contains("--ui-test-composer-dictation")
+        #else
+        false
+        #endif
+    }
+
+    static let fixturePartial = "simulator dictation"
+    static let fixtureFinal = "Simulator dictation is editable."
+
+    @MainActor
+    static func finish(url: URL, realtime: AudioRecordingRealtimeSession?, editor: NativeComposerSession,
+                       isCurrent: @escaping @MainActor () -> Bool,
+                       onCompletion: @escaping @MainActor (_ inserted: Bool, _ readyToSend: Bool) -> Void) -> Task<Void, Never> {
+        let revision = editor.revision
+        removeCapture(url)
+        realtime?.finish()
+        return Task { @MainActor in
+            let result = await realtime?.awaitResult()
+            guard !Task.isCancelled, isCurrent() else {
+                await realtime?.cancel()
+                return
+            }
+            let final = isFixture ? fixtureFinal : result?.transcript
+            let readyToSend = editor.revision == revision && final?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+                && realtime?.failure == nil
+            let inserted = editor.finishDictation(final)
+            if !inserted {
+                ToastManager.shared.show(AppStrings.localized("common.try_again"), type: .error)
+            }
+            onCompletion(inserted, inserted && readyToSend)
+        }
+    }
+
+    static func removeCapture(_ url: URL) {
+        do { try FileManager.default.removeItem(at: url) }
+        catch { NativeDiagnostics.failure("dictation_file_cleanup_failed", category: "apple_composer", level: .warning, error: error) }
+    }
+}
+
 struct ComposerRecordingOverlay: View {
     static let recordingPanelHeight: CGFloat = 220
     /// RecordAudio.svelte `.record-overlay.compact` min-height (composer recording bar).
@@ -865,6 +915,7 @@ struct ComposerRecordingOverlay: View {
     /// Slim single-row bar used by the chat and welcome composers (web `compact={true}`).
     var compact = false
     let onStop: (URL) -> Void
+    var onSend: ((URL) -> Void)? = nil
     let onCancel: () -> Void
     var onFailure: () -> Void = {}
 
@@ -890,9 +941,10 @@ struct ComposerRecordingOverlay: View {
         .accessibilityIdentifier("record-overlay")
     }
 
-    private func finishRecording() {
+    private func finishRecording(send: Bool = false) {
         if let url = recorder.stopRecording() {
-            onStop(url)
+            if send, let onSend { onSend(url) }
+            else { onStop(url) }
         } else {
             onFailure()
         }
@@ -919,7 +971,7 @@ struct ComposerRecordingOverlay: View {
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: .spacing2) {
-                Button(action: finishRecording) {
+                Button(action: { finishRecording() }) {
                     RoundedRectangle(cornerRadius: .radius1)
                         .fill(Color.fontButton)
                         .frame(width: Self.compactStopIconSize, height: Self.compactStopIconSize)
@@ -928,11 +980,24 @@ struct ComposerRecordingOverlay: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.defaultAction)
                 .frame(minWidth: Self.minimumTouchTargetSize, minHeight: Self.minimumTouchTargetSize)
                 .contentShape(Rectangle())
                 .help(Text(startedFromKeyboard ? AppStrings.pressEnterToFinishRecording : AppStrings.finishRecording))
                 .accessibilityLabel(AppStrings.finishRecording)
                 .accessibilityIdentifier("record-finish-button")
+                if onSend != nil {
+                    Button { finishRecording(send: true) } label: {
+                        Icon("arrow-up", size: 20)
+                            .foregroundStyle(Color.fontButton)
+                            .frame(width: Self.compactButtonSize, height: Self.compactButtonSize)
+                            .background(Color.buttonPrimary, in: Circle())
+                            .frame(width: Self.minimumTouchTargetSize, height: Self.minimumTouchTargetSize)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.send)
+                    .accessibilityIdentifier("record-send-button")
+                }
             }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("record-action-buttons")

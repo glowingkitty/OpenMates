@@ -1,0 +1,23 @@
+schema_version: 2
+profile: concise
+id: container-non-root
+title: Move OpenMates containers to non-root
+status: implementing
+goal: Move OpenMates container images to non-root one at a time on dev, keep narrow time-limited exceptions for any image that truly requires root, and restore the Dependency Security workflow.
+scope:
+  - Inventory the images configured for dev, production core, upload, preview, status, self-hosting and CI.
+  - Verify each image with focused tests and a health check before moving to the next.
+  - Prepare normal release steps for production core, upload and preview.
+checks:
+  - id: C-INVENTORY
+    required: true
+    description: Inventory records startup and service identity with its evidence for each image and environment.
+  - id: C-DEV
+    required: true
+    description: Each migrated image has a tested non-root runtime and a healthy dev rollout or isolated dev smoke for release-only images.
+  - id: C-TRIVY
+    required: true
+    description: Dependency Security is green on dev and every remaining root exception is limited to one Dockerfile and has a reason and an expiry.
+  - id: C-RELEASE
+    required: true
+    description: Document ownership preparation, smoke checks and rollback for the normal release.

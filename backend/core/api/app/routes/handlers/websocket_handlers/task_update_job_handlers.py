@@ -16,6 +16,7 @@ from typing import Any
 
 from backend.apps.ai.processing.task_tool_executor import TASK_TOOL_JOB_CACHE_PREFIX
 from backend.core.api.app.services.directus.user_task_methods import hash_id
+from backend.core.api.app.services.task_sub_chat_link_service import apply_pending_link
 from backend.core.api.app.services.user_task_update_job_service import (
     DEFAULT_TASK_UPDATE_JOB_LEASE_TTL_SECONDS,
     TaskUpdateJobConflictError,
@@ -262,6 +263,13 @@ async def handle_task_update_job_persist(
             if await directus_service.user_task.get_task(task_id, user_id):
                 raise TaskUpdateJobConflictError("Task already exists")
             durable = await directus_service.user_task.create_task(user_id, {**encrypted_payload, "task_id": task_id})
+            if durable:
+                linked = await apply_pending_link(
+                    cache_service, directus_service, user_id=user_id,
+                    task={**durable, "task_id": task_id, "plan_id": encrypted_payload.get("plan_id")},
+                )
+                if linked:
+                    durable = {**durable, "linked_sub_chat_id": linked}
         else:
             durable = (
                 await directus_service.user_task.update_task_if_version(
@@ -290,9 +298,13 @@ async def handle_task_update_job_persist(
         if not durable:
             raise RuntimeError("Failed to persist encrypted task update")
 
-        job["state"] = "TASK_PERSISTED"
+        # A job without a chat event (Task creation from an inline task embed) has nothing
+        # left to confirm, so persisting it finishes it.
+        encrypted_event = payload.get("encrypted_task_event_message")
+        persisted_state = "TERMINAL" if operation == "create" and not encrypted_event else "TASK_PERSISTED"
+        job["state"] = persisted_state
         job["client_encrypted_payload"] = encrypted_payload
-        job["encrypted_task_event_message"] = payload.get("encrypted_task_event_message")
+        job["encrypted_task_event_message"] = encrypted_event
         job["committed_at"] = int(time.time())
         job["expires_at"] = int(time.time()) + TASK_EVENT_CONFIRMATION_RECOVERY_TTL_SECONDS
         try:
@@ -312,7 +324,7 @@ async def handle_task_update_job_persist(
             )
         await _save_job(cache_service, job)
         await manager.send_personal_message(
-            {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": "TASK_PERSISTED", "task_id": task_id}},
+            {"type": "task_update_job_persisted", "payload": {"request_id": request_id, "job_id": job_id, "state": persisted_state, "task_id": task_id}},
             user_id,
             device_fingerprint_hash,
         )

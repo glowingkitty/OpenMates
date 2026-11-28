@@ -33,6 +33,13 @@ pub struct EmbedVersionEntry {
     pub action: Option<EmbedUpdateAction>,
     /// Unix seconds the version was stored, when the server reported it.
     pub created_at: Option<i64>,
+    /// Timeline kind (`session`, `assistant`, `restore`, `named`, `commit`)
+    /// when the server reported one.
+    pub kind: Option<String>,
+    /// Client-encrypted user-given name of a named version, still sealed.
+    pub encrypted_version_name: Option<String>,
+    /// Contributors (`user_hash` or `mate_name` objects); empty when unreported.
+    pub contributors: Vec<Value>,
 }
 
 /// The whole version history of one embed, oldest first.
@@ -101,6 +108,19 @@ pub fn parse_version_history_page(embed_id: &str, page: &Value) -> Result<Versio
             origin: provenance.origin,
             action: provenance.action,
             created_at,
+            kind: row
+                .get("version_kind")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            encrypted_version_name: row
+                .get("encrypted_version_name")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            contributors: row
+                .get("contributors")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
         });
     }
     let next_cursor = match page.get("next_cursor") {

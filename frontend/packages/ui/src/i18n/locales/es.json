@@ -959,6 +959,12 @@
         "description": {
           "text": "Lee un diseño de Figma y obtén estructura, estilos y un traspaso a código."
         }
+      },
+      "author": {
+        "text": "Crear diseño",
+        "description": {
+          "text": "Crea un folleto, una publicación o una maqueta editable."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Crear tarea",
-          "description": {
-            "text": "Crea tareas con títulos, descripciones y responsables."
-          }
-        },
         "search": {
           "text": "Buscar tareas",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Chat de ejemplo"
       },
+      "sub_chat": {
+        "text": "Subchat"
+      },
       "shared_chat": {
         "text": "Chat compartido"
       },
@@ -3749,6 +3752,9 @@
     "loadMore": {
       "button": {
         "text": "Mostrar más"
+      },
+      "account_total": {
+        "text": "{count} chats en tu cuenta"
       }
     },
     "latest_news": {
@@ -7136,6 +7142,11 @@
         "text": "Contraer {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Tarea"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Diagrama Mermaid"
@@ -8101,6 +8112,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Leyendo el gráfico…"
+        },
+        "progress_checking": {
+          "text": "Revisando el diseño…"
+        },
+        "progress_adjusting": {
+          "text": "Adaptando el diseño para bordar…"
+        },
+        "progress_stitching": {
+          "text": "Creando puntadas y vista previa…"
+        },
+        "progress_saving": {
+          "text": "Guardando los archivos de máquina…"
+        },
         "threads": {
           "text": "Hilos"
         },
@@ -8633,6 +8659,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Descargar diseño"
+        },
+        "current_page": {
+          "text": "Página actual"
+        },
+        "all_pages": {
+          "text": "Todas las páginas"
+        },
+        "image_unavailable": {
+          "text": "Una imagen no está disponible en este dispositivo. Abre la página, espera a que se carguen las imágenes y vuelve a intentarlo."
+        },
+        "failed": {
+          "text": "No se pudo descargar el diseño. Inténtalo de nuevo."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21125,7 +21170,7 @@
       "text": "Probar gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Dominio de correo electrónico no permitido."
@@ -21919,9 +21964,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Las llamadas usan transcripción de Mistral, voz de ElevenLabs v4 Turbo, enrutamiento de IA habitual de OpenMates y facturación por uso."
-    },
     "privacy_description": {
       "text": "Mistral transcribe el audio de tu micrófono; ElevenLabs v4 Turbo genera la voz del asistente a partir del texto de respuesta y los ajustes de voz. La conversación usa el enrutamiento de IA y las habilidades habituales de OpenMates. Los proveedores pueden conservar datos de las solicitudes según sus políticas."
     },

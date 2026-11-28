@@ -208,8 +208,32 @@ def test_sandbox_gate(monkeypatch, decision, focus, expected):
         return {"decision": decision}
 
     monkeypatch.setattr(gate.e2b_upload_consent, "get_decision", get_decision)
-    result = asyncio.run(gate.sandbox_applies_to_command(user_id="u1", focus=focus, directus_service=None))
+    result = asyncio.run(gate.sandbox_applies_to_project(user_id="u1", focus=focus, directus_service=None))
     assert result is expected
+
+
+@pytest.mark.parametrize("epoch,pending,expected", [
+    (1, False, True),
+    (1, True, False),
+    (2, False, False),
+    (2, True, False),
+])
+# contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+def test_rotated_team_cloud_command_uses_device_snapshot(monkeypatch, epoch, pending, expected):
+    async def get_decision(user_id, directus_service):
+        return {"decision": "allowed"}
+
+    async def get_items(collection, **options):
+        assert collection == "teams" and options["no_cache"]
+        return [{"team_key_epoch": epoch, "rotation_pending": pending}]
+
+    monkeypatch.setattr(gate.e2b_upload_consent, "get_decision", get_decision)
+    directus = SimpleNamespace(get_items=get_items)
+    directus.team = SimpleNamespace(directus_service=directus)
+    allowed = asyncio.run(gate.sandbox_applies_to_project(
+        user_id="u1", focus={"project_id": "p1", "team_id": "t1"}, directus_service=directus,
+    ))
+    assert allowed is expected
 
 
 # contract-test: direct surface=rest_api assertions=code-run.cloud.commands

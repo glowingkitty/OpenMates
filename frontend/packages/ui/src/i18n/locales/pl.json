@@ -959,6 +959,12 @@
         "description": {
           "text": "Odczytuje projekt Figma i zwraca strukturę, style oraz przekazanie do kodu."
         }
+      },
+      "author": {
+        "text": "Utwórz projekt",
+        "description": {
+          "text": "Utwórz edytowalną ulotkę, post lub makietę."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Utwórz zadanie",
-          "description": {
-            "text": "Twórz zadania z tytułami, opisami i osobami odpowiedzialnymi."
-          }
-        },
         "search": {
           "text": "Szukaj zadań",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Przykładowy czat"
       },
+      "sub_chat": {
+        "text": "Podczat"
+      },
       "shared_chat": {
         "text": "Udostępniony czat"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Pokaż więcej"
+      },
+      "account_total": {
+        "text": "{count} czatów na Twoim koncie"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "Zwiń {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Zadanie"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Diagram Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Odczytywanie grafiki…"
+        },
+        "progress_checking": {
+          "text": "Sprawdzanie projektu…"
+        },
+        "progress_adjusting": {
+          "text": "Dopasowywanie projektu do haftu…"
+        },
+        "progress_stitching": {
+          "text": "Tworzenie ściegów i podglądu…"
+        },
+        "progress_saving": {
+          "text": "Zapisywanie plików maszyny…"
+        },
         "threads": {
           "text": "Nici"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Pobierz projekt"
+        },
+        "current_page": {
+          "text": "Bieżąca strona"
+        },
+        "all_pages": {
+          "text": "Wszystkie strony"
+        },
+        "image_unavailable": {
+          "text": "Jeden z obrazów jest niedostępny na tym urządzeniu. Otwórz stronę, poczekaj na wczytanie obrazów i spróbuj ponownie."
+        },
+        "failed": {
+          "text": "Nie udało się pobrać projektu. Spróbuj ponownie."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Testuj za darmo"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Domena e-mail niedozwolona."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Połączenia używają transkrypcji Mistral, głosu ElevenLabs v4 Turbo, zwykłego routingu AI OpenMates i rozliczeń według użycia."
-    },
     "privacy_description": {
       "text": "Mistral transkrybuje dźwięk mikrofonu; ElevenLabs v4 Turbo generuje głos asystenta z tekstu odpowiedzi i ustawień głosu. Rozmowa korzysta ze zwykłego routingu AI i umiejętności OpenMates. Dostawcy mogą przechowywać dane żądań zgodnie ze swoimi zasadami."
     },

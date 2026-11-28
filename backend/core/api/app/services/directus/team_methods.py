@@ -8,6 +8,7 @@ keys are returned or mutated.
 
 import hashlib
 import logging
+import os
 import time
 import re
 from uuid import uuid4
@@ -176,7 +177,7 @@ class TeamMethods:
                 params={
                     "filter[hashed_team_id][_in]": hashed_ids,
                     "filter[status][_eq]": ACTIVE_STATUS,
-                    "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,security_policy,status,created_at,updated_at",
+                    "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,security_policy,status,team_key_epoch,rotation_pending,encrypted_previous_team_keys,created_at,updated_at",
                     "limit": -1,
                 },
                 no_cache=True,
@@ -203,7 +204,14 @@ class TeamMethods:
             if isinstance(wrapper_rows, list):
                 for wrapper in wrapper_rows:
                     team_hash = wrapper.get("hashed_team_id")
-                    if team_hash in chunk and wrapper.get("hashed_user_id") == user_hash and wrapper.get("status") == ACTIVE_STATUS:
+                    team = teams_by_hash.get(team_hash)
+                    if (
+                        team_hash in chunk
+                        and team is not None
+                        and wrapper.get("hashed_user_id") == user_hash
+                        and wrapper.get("status") == ACTIVE_STATUS
+                        and wrapper.get("team_key_epoch") == (team.get("team_key_epoch") or TEAM_KEY_EPOCH_V1)
+                    ):
                         wrappers_by_hash.setdefault(team_hash, wrapper)
 
         teams: list[dict[str, Any]] = []
@@ -216,7 +224,8 @@ class TeamMethods:
                 **row,
                 "security_policy": normalize_security_policy(row.get("security_policy") or {}),
                 "role": membership.get("role"),
-                **({"team_key_epoch": wrapper.get("team_key_epoch"), "encrypted_team_key": wrapper.get("encrypted_team_key")} if wrapper else {}),
+                "team_key_epoch": row.get("team_key_epoch") or TEAM_KEY_EPOCH_V1,
+                **({"encrypted_team_key": wrapper["encrypted_team_key"]} if wrapper else {}),
             })
         return teams
 
@@ -229,35 +238,42 @@ class TeamMethods:
             params={
                 "filter[hashed_team_id][_eq]": hash_id(team_id),
                 "filter[status][_eq]": ACTIVE_STATUS,
-                "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,encrypted_billing_profile,security_policy,status,created_at,updated_at",
+                "fields": "id,team_id,hashed_team_id,slug,encrypted_name,encrypted_description,encrypted_profile_image_metadata,profile_image_s3_key,profile_image_updated_at,encrypted_billing_profile,security_policy,status,team_key_epoch,rotation_pending,encrypted_previous_team_keys,created_at,updated_at",
                 "limit": 1,
             },
             no_cache=True,
             admin_required=True,
         )
         if rows and isinstance(rows, list):
-            wrapper = await self.get_team_key_wrapper_for_user_hash(hash_id(team_id), hash_id(user_id))
-            return {**rows[0], "security_policy": normalize_security_policy(rows[0].get("security_policy") or {}), "role": membership.get("role"), **wrapper}
+            team = rows[0]
+            epoch = team.get("team_key_epoch") or TEAM_KEY_EPOCH_V1
+            wrapper = await self._get_team_key_wrapper_for_epoch(hash_id(team_id), hash_id(user_id), epoch)
+            return {
+                **team,
+                "team_key_epoch": epoch,
+                "security_policy": normalize_security_policy(team.get("security_policy") or {}),
+                "role": membership.get("role"),
+                **wrapper,
+            }
         return None
 
-    async def get_team_key_wrapper_for_user_hash(self, team_hash: str, user_hash: str) -> dict[str, Any]:
+    async def _get_team_key_wrapper_for_epoch(self, team_hash: str, user_hash: str, epoch: int) -> dict[str, Any]:
+        """Read the member's wrapper for the Team row's committed epoch."""
         wrappers = await self.directus_service.get_items(
             "team_key_wrappers",
             params={
                 "filter[hashed_team_id][_eq]": team_hash,
                 "filter[hashed_user_id][_eq]": user_hash,
                 "filter[status][_eq]": ACTIVE_STATUS,
-                "fields": "team_key_epoch,encrypted_team_key,status",
+                "filter[team_key_epoch][_eq]": epoch,
+                "fields": "encrypted_team_key",
                 "limit": 1,
             },
             no_cache=True,
             admin_required=True,
         )
         if wrappers and isinstance(wrappers, list):
-            return {
-                "team_key_epoch": wrappers[0].get("team_key_epoch"),
-                "encrypted_team_key": wrappers[0].get("encrypted_team_key"),
-            }
+            return {"encrypted_team_key": wrappers[0]["encrypted_team_key"]}
         return {}
 
     async def get_team_profile_image_private_record(self, team_id: str, user_id: str) -> dict[str, Any] | None:
@@ -574,6 +590,15 @@ class TeamMethods:
         await self.directus_service.update_item("team_invites", invite["id"], {"status": "access_requested", "accepted_at": now}, admin_required=True)
         return request
 
+    async def _current_team_key_epoch(self, hashed_team_id: str) -> int:
+        """Team's current key epoch; a new member's wrapper carries it, never a fixed 1."""
+        rows = await self.directus_service.get_items(
+            "teams", params={"filter[hashed_team_id][_eq]": hashed_team_id, "fields": "team_key_epoch", "limit": 1},
+            no_cache=True, admin_required=True,
+        )
+        epoch = rows[0].get("team_key_epoch") if isinstance(rows, list) and rows else None
+        return epoch if isinstance(epoch, int) and epoch >= 1 else TEAM_KEY_EPOCH_V1
+
     async def _create_member_from_invite(self, invite: dict[str, Any], user_id: str, encrypted_team_key: str, now: int, encrypted_member_profile: str | None) -> dict[str, Any] | None:
         membership_record = {
             "hashed_team_id": invite["hashed_team_id"], "hashed_user_id": hash_id(user_id),
@@ -584,7 +609,7 @@ class TeamMethods:
         }
         wrapper_record = {
             "hashed_team_id": invite["hashed_team_id"], "hashed_user_id": hash_id(user_id),
-            "team_key_epoch": TEAM_KEY_EPOCH_V1, "encrypted_team_key": encrypted_team_key,
+            "team_key_epoch": await self._current_team_key_epoch(invite["hashed_team_id"]), "encrypted_team_key": encrypted_team_key,
             "status": ACTIVE_STATUS, "created_at": now, "revoked_at": None,
         }
         success, membership = await self.directus_service.create_item("team_memberships", membership_record, admin_required=True)
@@ -682,7 +707,7 @@ class TeamMethods:
         wrapper_record = {
             "hashed_team_id": request["hashed_team_id"],
             "hashed_user_id": request["hashed_user_id"],
-            "team_key_epoch": TEAM_KEY_EPOCH_V1,
+            "team_key_epoch": await self._current_team_key_epoch(request["hashed_team_id"]),
             "encrypted_team_key": wrapper_ciphertext,
             "status": ACTIVE_STATUS,
             "created_at": now,
@@ -749,49 +774,30 @@ class TeamMethods:
         return bool(updated)
 
     async def remove_member(self, team_id: str, actor_user_id: str, target_user_id: str, removed_at: int | None = None) -> bool:
-        target = await self.prepare_member_removal(team_id, actor_user_id, target_user_id)
-        if not target:
-            return False
-        now = int(removed_at or time.time())
-        await self.deactivate_member(target, removed_at=now)
-        await self.revoke_member_key_wrappers(team_id, target_user_id, revoked_at=now)
-        return True
-
-    async def deactivate_member(self, membership: dict[str, Any], *, removed_at: int) -> None:
-        """Persist the fail-closed membership state before cache or wrapper cleanup."""
-        if not await self.directus_service.update_item(
-            "team_memberships",
-            membership["id"],
-            {"status": "removed", "removed_at": removed_at, "updated_at": removed_at},
-            admin_required=True,
-        ):
-            raise RuntimeError("Failed to remove team membership")
-
-    async def revoke_member_key_wrappers(
-        self, team_id: str, target_user_id: str, *, revoked_at: int
-    ) -> None:
-        wrappers = await self.directus_service.get_items(
-            "team_key_wrappers",
-            params={
-                "filter[hashed_team_id][_eq]": hash_id(team_id),
-                "filter[hashed_user_id][_eq]": hash_id(target_user_id),
-                "filter[status][_eq]": ACTIVE_STATUS,
-                "fields": "id,status",
-                "limit": -1,
+        """Remove membership and key access in the same Team transaction."""
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for Team member removal")
+        response = await self.directus_service._make_api_request(
+            "POST",
+            f"{self.directus_service.base_url.rstrip('/')}/embed-version-transaction/team-member-removal",
+            headers={"X-Internal-Service-Token": token},
+            json={
+                "team_hash": hash_id(team_id),
+                "actor_user_hash": hash_id(actor_user_id),
+                "target_user_hash": hash_id(target_user_id),
+                "removed_at": int(removed_at or time.time()),
             },
-            no_cache=True,
-            admin_required=True,
         )
-        if not isinstance(wrappers, list):
-            raise RuntimeError("Failed to list active team key wrappers")
-        for wrapper in wrappers:
-            if not await self.directus_service.update_item(
-                "team_key_wrappers",
-                wrapper["id"],
-                {"status": "revoked", "revoked_at": revoked_at},
-                admin_required=True,
-            ):
-                raise RuntimeError("Failed to revoke team key wrapper")
+        if response.status_code == 404 and response.json() == {"error": {"code": "team_member_not_found"}}:
+            return False
+        if response.status_code == 403:
+            raise TeamPermissionError("Team permission denied")
+        if response.status_code == 400:
+            raise ValueError("Invalid Team member removal")
+        if response.status_code != 200 or response.json() != {"data": {"removed": True}}:
+            raise RuntimeError("Team member removal transaction failed")
+        return True
 
     async def prepare_member_removal(
         self, team_id: str, actor_user_id: str, target_user_id: str

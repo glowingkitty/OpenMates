@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.workflows-ui
-version: 12
+version: 13
 status: approved
 title: Workflows Web UI
 summary: 'The Workflows web workspace lets signed-out visitors inspect built-in templates. Authenticated owners
@@ -934,7 +934,8 @@ assertions:
   type: behavior
   must: >-
     A signed-out visitor who activates Describe new workflow on the Workflows start screen is taken to the
-    first step of the existing signup flow, never to a broken overlay. After signing up they return to the
+    existing Chat account interface. A new device opens the first Sign up step and a device used to log in opens Login.
+    After signing up or logging in they return to the
     Workflows start screen with the describe-workflow composer focused so they can continue describing the
     new workflow.
 - id: workflows-ui.detail-header.description-clamp

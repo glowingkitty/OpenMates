@@ -1,0 +1,71 @@
+{
+ "description": "Codex chats run this repository's Claude Code hooks (.claude/settings.json) through scripts/codex_hook_adapter.py; this file stays fixed.",
+ "hooks": {
+  "PostToolUse": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event PostToolUse",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ],
+  "PreToolUse": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event PreToolUse",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ],
+  "SessionStart": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event SessionStart",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ],
+  "Stop": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event Stop",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ],
+  "SubagentStop": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event SubagentStop",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ],
+  "UserPromptSubmit": [
+   {
+    "hooks": [
+     {
+      "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/codex_hook_adapter.py\" --event UserPromptSubmit",
+      "timeout": 600,
+      "type": "command"
+     }
+    ]
+   }
+  ]
+ }
+}

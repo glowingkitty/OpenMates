@@ -34,6 +34,8 @@ export interface UnitRequestOptions { signal?: AbortSignal; timeoutMs?: number; 
 
 export interface UnitPort<P extends UnitProtocol> {
 	request<K extends keyof P & string>(op: K, payload: P[K]['request'], options?: UnitRequestOptions): Promise<P[K]['response']>;
+	/** Subscribes to unit-pushed events (`type: 'event'` messages); returns the unsubscribe. */
+	onEvent(listener: (name: string, payload: unknown) => void): () => void;
 	/** Rejects every pending request with `unit_closed` and closes the port. */
 	close(): void;
 	/** True after `close()` or after the supervisor retired the port. */
@@ -60,6 +62,7 @@ export function createUnitPort<P extends UnitProtocol>(port: MessagePort, defaul
 	let nextId = 1;
 	let closed = false;
 	let endCode: UnitPortErrorCode = 'unit_closed';
+	const eventListeners = new Set<(name: string, payload: unknown) => void>();
 
 	function settle(id: number): Pending | undefined {
 		const entry = pending.get(id);
@@ -71,6 +74,11 @@ export function createUnitPort<P extends UnitProtocol>(port: MessagePort, defaul
 
 	port.onmessage = (event: MessageEvent<unknown>) => {
 		const data = event.data as Record<string, unknown> | null;
+		if (typeof data === 'object' && data !== null && data.v === UNIT_PORT_VERSION && data.type === 'event'
+			&& typeof data.name === 'string') {
+			for (const listener of [...eventListeners]) listener(data.name, data.payload);
+			return;
+		}
 		if (typeof data !== 'object' || data === null || data.v !== UNIT_PORT_VERSION || data.type !== 'result'
 			|| typeof data.id !== 'number') return;
 		const entry = settle(data.id);
@@ -107,6 +115,10 @@ export function createUnitPort<P extends UnitProtocol>(port: MessagePort, defaul
 				port.postMessage({ v: UNIT_PORT_VERSION, id, type: 'request', op, payload }, options.transfer ?? []);
 			});
 		},
+		onEvent(listener) {
+			eventListeners.add(listener);
+			return () => { eventListeners.delete(listener); };
+		},
 		close() { end('unit_closed'); }
 	};
 
@@ -116,11 +128,17 @@ export function createUnitPort<P extends UnitProtocol>(port: MessagePort, defaul
 		endCode = code;
 		live.delete(port);
 		for (const id of [...pending.keys()]) settle(id)?.reject(new UnitPortError(code));
+		eventListeners.clear();
 		port.onmessage = null;
 		port.close();
 	}
 	live.set(port, end);
 	return unit;
+}
+
+/** Unit side: pushes one event to the page (`UnitPort.onEvent`). */
+export function postUnitEvent(port: MessagePort, name: string, payload: unknown, transfer: Transferable[] = []): void {
+	port.postMessage({ v: UNIT_PORT_VERSION, type: 'event', name, payload }, transfer);
 }
 
 /** Unit-side handler map: each handler receives an AbortSignal fired by a page `cancel`. */

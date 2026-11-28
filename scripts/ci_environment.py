@@ -3,6 +3,10 @@
 The GitHub VM supplies isolation. Images use cached dependencies and the exact
 checkout supplies source; no dev-server environment or database is loaded.
 Credentials are generated per environment and never returned in status output.
+The scoped Codex lanes seed dev-only provider values through pinned Vault.
+Reviewed backend code reads these values at runtime through its Vault policy.
+Source approval is required because the runner and its builds share Docker
+authority. The disposable network and restricted gateway bound later egress.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
@@ -11,6 +15,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 import hashlib
+from itertools import islice
 import math
 import secrets
 import shutil
@@ -269,10 +274,189 @@ REAL_INFERENCE_PROVIDERS = {
     # Jev decides routing and the fail-closed answer-safety check of every reply.
     "typesafe": ("api_key", "OPENMATES_REAL_TYPESAFE_API_KEY"),
 }
+CODEX_REAL_INFERENCE_SPECS = frozenset({
+    "real-inference-tui-chat-processing.spec.ts",
+    "real-inference-tui-artifact-steering.spec.ts",
+})
+CODEX_REAL_INFERENCE_PROVIDERS = {
+    "inception_labs": ("api_key", "OPENMATES_CODEX_REAL_INCEPTION_LABS_API_KEY"),
+    "typesafe": ("api_key", "OPENMATES_CODEX_REAL_TYPESAFE_API_KEY"),
+}
+CODEX_WEB_VOICE_SPEC = "real-inference-web-voice-processing.spec.ts"
+SCOPED_PLAYWRIGHT_OUTPUT = Path("frontend/apps/web_app/test-results/ci-0")
+SCOPED_RECIPE_SPEC = "real-inference-tui-artifact-steering.spec.ts"
+SCOPED_RECIPE_PROGRESS = "real-tui-artifact-steering-progress.json"
+SCOPED_RECIPE_PHASES = frozenset({
+    "started", "prerequisites_passed", "build_started", "build_ready",
+    "pairing_started", "pairing_offer_ready", "browser_pin_ready", "pairing_pin_submitted",
+    "pairing_completed", "initial_history_read", "terminal_started", "composer_ready",
+    "original_sent", "original_streaming", "original_card_visible", "red_sent",
+    "red_step_completed", "font_sent", "font_preview_visible", "one_chat", "all_three_user_turns",
+    "mercury_replies", "one_matching_card", "latest_source_read", "latest_header_red",
+    "latest_font_lexend", "latest_source_verified", "previous_source_read", "previous_source_verified",
+    "terminal_exit_verified", "input_plan_verified", "revised_source_visible", "passed",
+    "original_raw_html_seen", "original_code_label_seen", "original_application_label_seen",
+    "original_durable_code", "original_durable_application", "original_durable_other_reply",
+    "original_durable_reply_missing", "original_durable_read_unavailable",
+})
+SCOPED_WEB_VOICE_PROGRESS = "real-web-voice-progress.json"
+SCOPED_WEB_VOICE_PHASES = frozenset({
+    "started", "runtime_verified", "fixture_verified", "frontend_version_verified",
+    "sign_in_started", "signed_in", "second_tab_open", "capture_ready",
+    "microphone_adapter_ready", "chat_ready", "model_saved", "call_start_clicked",
+    "privacy_prompt_seen", "privacy_prompt_accepted", "listening", "mic_injection_started",
+    "mic_injection_complete", "final_transcript_visible", "reply_visible", "reply_identity_verified",
+    "pcm_input_measured", "pcm_owned_prose_start", "pcm_owned_prose_chunk",
+    "pcm_owned_media_append", "pcm_owned_non_silent_playback", "pcm_observer_error", "pcm_owned_prose_error",
+    "pcm_verified", "call_ended", "typed_sent", "typed_reply_visible",
+    "encrypted_rows_verified", "reloaded_chat_verified", "timing_written", "mux_started",
+    "mux_finished", "passed",
+})
+SCOPED_PROOF_FILES = {
+    "real-inference-tui-chat-processing.spec.ts": (
+        "rust-terminal-real-chat-processing/raw-terminal.mp4",
+    ),
+    SCOPED_RECIPE_SPEC: (
+        "rust-terminal-artifact-steering/raw-terminal.mp4",
+        "rust-terminal-artifact-revised-source/raw-terminal.mp4",
+    ),
+    CODEX_WEB_VOICE_SPEC: ("signed-in-voice-with-audio.webm", "real-web-voice-timing.json"),
+}
+CODEX_WEB_VOICE_PROVIDERS = {
+    "inception_labs": ("api_key", "OPENMATES_CODEX_WEB_VOICE_INCEPTION_LABS_API_KEY"),
+    "typesafe": ("api_key", "OPENMATES_CODEX_WEB_VOICE_TYPESAFE_API_KEY"),
+    "mistral_ai": ("api_key", "OPENMATES_CODEX_WEB_VOICE_MISTRAL_AI_API_KEY"),
+    "elevenlabs": ("api_key", "OPENMATES_CODEX_WEB_VOICE_ELEVENLABS_API_KEY"),
+}
+CODEX_WEB_VOICE_POLICY = "codex-web-voice"
+CODEX_WEB_VOICE_PROFILE = "codex-real-web-voice"
+SCOPED_CODEX_VAULT_IMAGE = (
+    "mirror.gcr.io/hashicorp/vault:1.19@sha256:"
+    "c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5"
+)
+PROVIDER_KEY_ALIASES = frozenset(
+    alias for providers in (
+        REAL_INFERENCE_PROVIDERS, CODEX_REAL_INFERENCE_PROVIDERS, CODEX_WEB_VOICE_PROVIDERS
+    ) for _field, alias in providers.values()
+)
 REAL_INFERENCE_SPEC_PREFIX = "real-inference-"
 REAL_INFERENCE_AI_QUEUES = "app_ai,app_ai_routing"
 REAL_INFERENCE_IMAGE_QUEUES = "app_images"
 STACK_START_RETRY_DELAYS = (5, 15)
+
+
+def selects_codex_real_inference(selected: list[str], real_specs: set[str], environ) -> bool:
+    """Admit exactly one reviewed terminal spec in its dedicated workflow lane."""
+    enabled = environ.get("CI_CODEX_REAL_INFERENCE") == "1"
+    if not enabled and not CODEX_REAL_INFERENCE_SPECS.intersection(selected):
+        return False
+    if (
+        not enabled or environ.get("CI_TEST_MODE") != "e2e"
+        or len(selected) != 1 or selected[0] not in CODEX_REAL_INFERENCE_SPECS
+        or selected[0] not in real_specs
+    ):
+        raise RuntimeError("Codex real inference requires one exact trusted terminal spec")
+    return True
+
+
+def selects_codex_web_voice(selected: list[str], real_specs: set[str], environ) -> bool:
+    """Admit only the reviewed signed-in voice proof under its own workflow flag."""
+    enabled = environ.get("CI_CODEX_WEB_VOICE") == "1"
+    if not enabled and CODEX_WEB_VOICE_SPEC not in selected:
+        return False
+    if (
+        not enabled or environ.get("CI_TEST_MODE") != "e2e"
+        or selected != [CODEX_WEB_VOICE_SPEC] or CODEX_WEB_VOICE_SPEC not in real_specs
+        or environ.get("CI_CODEX_REAL_INFERENCE") == "1"
+    ):
+        raise RuntimeError("Codex web voice requires one exact trusted signed-in spec")
+    return True
+
+
+def verify_web_voice_services(services: dict) -> bool:
+    """Only API transcription and the dedicated speech worker may use the WSS opt-in."""
+    required = {"api", "speech-worker"}
+    observed = {name for name, service in services.items()
+                if service.get("environment", {}).get("OPENMATES_CI_REAL_WEB_VOICE") == "1"}
+    return required == observed and all(
+        services[name]["environment"].get("CI") == "true"
+        and services[name]["environment"].get("OPENMATES_CI_ISOLATED") == "1"
+        and services[name]["environment"].get("SERVER_ENVIRONMENT") == "development"
+        and services[name]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1"
+        and services[name]["environment"].get("OPENMATES_CI_AI_FIXTURES") != "1"
+        for name in required
+    ) and services["speech-worker"]["environment"].get("CELERY_QUEUES") == "app_music"
+
+
+def scoped_codex_run() -> bool:
+    return os.environ.get("CI_CODEX_REAL_INFERENCE") == "1" or os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+
+
+def validate_real_inference_start(
+    profile: dict, environ, real_specs: set[str], *, check_credentials: bool = True,
+) -> None:
+    """Fail before Compose can load credentials for a missing or mismatched lane."""
+    selected = json.loads(environ.get("CI_SPECS_JSON", "[]"))
+    codex = selects_codex_real_inference(selected, real_specs, environ)
+    web_voice = selects_codex_web_voice(selected, real_specs, environ)
+    services = profile["services"]
+    proxy = services.get("runner-gateway", {}).get("environment", {})
+    vault = services.get("vault-init", {}).get("environment", {})
+    real = services["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1"
+    providers = (CODEX_WEB_VOICE_PROVIDERS if web_voice else
+                 CODEX_REAL_INFERENCE_PROVIDERS if codex else REAL_INFERENCE_PROVIDERS)
+    if codex or web_voice:
+        policy = CODEX_WEB_VOICE_POLICY if web_voice else "codex"
+        vault_service = services.get("vault", {})
+        vault_env = vault_service.get("environment", {})
+        vault_token = vault_env.get("VAULT_DEV_ROOT_TOKEN_ID", "")
+        if (
+            not real or profile.get("name") != "openmates-ci"
+            or set(profile) != {"name", "networks", "services", "volumes"}
+            or proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") != policy
+            or (web_voice and not verify_web_voice_services(services))
+            or proxy.get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1"
+            or profile["networks"] != {"default": {"internal": True}, "ingress": {}}
+            or any(service.get("network_mode") or set(service.get("networks", ["default"])) != {"default"}
+                   for name, service in services.items() if name != "runner-gateway")
+            or vault.get("CI_CODEX_VAULT_PRESEEDED") != "1"
+            or "CI_REAL_INFERENCE" in vault or "CI_REAL_INFERENCE_PROVIDERS" in vault
+            or any(PROVIDER_KEY_ALIASES.intersection(service.get("environment", {}))
+                   for service in services.values())
+            or not isinstance(vault_token, str) or not re.fullmatch("[a-f0-9]{48}", vault_token)
+            or vault_token != vault.get("VAULT_TOKEN")
+            or vault_env != {
+                "VAULT_DEV_ROOT_TOKEN_ID": vault_token,
+                "GOMEMLIMIT": "384MiB",
+                "VAULT_DEV_LISTEN_ADDRESS": "0.0.0.0:8200",
+                "VAULT_ADDR": "http://127.0.0.1:8200",
+                "VAULT_TOKEN": vault_token,
+            }
+            # Reject environment files, mounted configs/secrets, lifecycle hooks
+            # and any other service-level option that could affect Vault startup.
+            or set(vault_service) != {
+                "image", "mem_limit", "environment", "command", "cap_add",
+                "healthcheck", "labels", "extra_hosts", "restart", "pids_limit", "logging",
+            }
+            or vault_service.get("healthcheck") != {
+                "test": ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8200/v1/sys/health"],
+                "interval": "3s", "timeout": "3s", "retries": 30,
+            }
+            or vault_service.get("cap_add") != ["IPC_LOCK"]
+            or vault_service.get("image") != SCOPED_CODEX_VAULT_IMAGE
+            or vault_service.get("command") != ["server", "-dev", "-log-level=warn"]
+        ):
+            raise RuntimeError("Codex real inference requires the dedicated isolated provider profile")
+    elif proxy.get("OPENMATES_CI_REAL_INFERENCE_PROXY") in {"codex", CODEX_WEB_VOICE_POLICY}:
+        raise RuntimeError("Codex real inference profile cannot run outside its exact lane")
+
+    if real and check_credentials:
+        missing = [name for _field, name in providers.values() if not environ.get(name, "").strip()]
+        if missing:
+            protected = (CODEX_WEB_VOICE_POLICY if web_voice else
+                         "codex-real-inference" if codex else "real-inference")
+            raise RuntimeError(f"Real-inference keys absent (protected {protected} environment): " + ", ".join(missing))
+
 TRANSIENT_REGISTRY_FAILURE = re.compile(
     r"connection reset by peer|tls handshake timeout|i/o timeout|"
     r"timeout awaiting response headers|unexpected eof|temporary failure|"
@@ -296,7 +480,10 @@ from backend.core.api.app.utils.vault_token_check import validate_token_file
 url='http://vault:8200/v1/'
 token=os.environ['VAULT_TOKEN']
 headers={'X-Vault-Token':token}
-for mount,body in [('kv',{'type':'kv','options':{'version':'2'}}),('transit',{'type':'transit'})]:
+mounts=[('transit',{'type':'transit'})]
+if os.environ.get('CI_CODEX_VAULT_PRESEEDED') != '1':
+    mounts.insert(0,('kv',{'type':'kv','options':{'version':'2'}}))
+for mount,body in mounts:
     response=requests.post(url+'sys/mounts/'+mount,headers=headers,json=body,timeout=15)
     if response.status_code != 204: response.raise_for_status()
 data={'admin_log_api_key':os.environ['INTERNAL_API_SHARED_TOKEN']}
@@ -306,6 +493,7 @@ if os.environ.get('CI_STORAGE_ACCESS_KEY'):
     data={'s3_access_key':os.environ['CI_STORAGE_ACCESS_KEY'],'s3_secret_key':os.environ['CI_STORAGE_SECRET_KEY'],'s3_region_name':'nbg1'}
     response=requests.post(url+'kv/data/providers/hetzner',headers=headers,json={'data':data},timeout=15)
     response.raise_for_status()
+if os.environ.get('CI_VAULT_SEED_VAPID') == '1':
     # Normal API startup needs VAPID signing keys. Generate them within this
     # disposable Vault bootstrap; these are local keys, not inference secrets.
     import base64
@@ -333,8 +521,15 @@ async def policies():
 asyncio.run(policies())
 response=requests.post(url+'auth/token/create',headers=headers,json={'policies':['api-service','api-encryption'],'ttl':'2h','renewable':True},timeout=15)
 response.raise_for_status()
-pathlib.Path('/vault-data/api.token').write_text(response.json()['auth']['client_token'])
-validation=asyncio.run(validate_token_file('http://vault:8200','/vault-data/api.token'))
+api_token=pathlib.Path('/vault-data/api.token')
+api_uid=int(os.environ['CI_API_UID'])
+api_gid=int(os.environ['CI_API_GID'])
+api_token.write_text(response.json()['auth']['client_token'])
+api_token.chmod(0o600)
+os.chown(api_token, api_uid, api_gid)
+api_token.parent.chmod(0o710)
+os.chown(api_token.parent, 0, api_gid)
+validation=asyncio.run(validate_token_file('http://vault:8200',str(api_token)))
 assert validation.valid, 'Synthetic API token failed canonical startup validation: '+validation.reason
 pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 if os.environ.get('CI_UPLOADS') == '1':
@@ -346,6 +541,11 @@ if os.environ.get('CI_UPLOADS') == '1':
             await setup_vault.create_policy(client, token)
             await setup_vault.create_or_reuse_api_token(client, token)
             await renew_api_token(client, 'http://vault:8200', setup_vault.API_TOKEN_FILE)
+            # The upload app reads this scoped handoff through a read-only mount.
+            handoff = pathlib.Path(setup_vault.API_TOKEN_FILE)
+            os.chown(handoff, 10003, 10003)
+            handoff.parent.chmod(0o700)
+            os.chown(handoff.parent, 10003, 10003)
     asyncio.run(upload_token())
 """
 
@@ -367,7 +567,11 @@ try:
     stage='namespace'
     keys=response.json().get('data',{}).get('keys',[])
     assert isinstance(keys,list) and all(isinstance(key,str) for key in keys), 'Invalid provider namespace'
-    expected=['core_server','hetzner','vapid']
+    expected=['core_server']
+    if os.environ.get('CI_STORAGE_ACCESS_KEY'):
+        expected.append('hetzner')
+    if os.environ.get('CI_VAULT_SEED_VAPID') == '1':
+        expected.append('vapid')
     if os.environ.get('CI_REAL_INFERENCE') == '1':
         expected=sorted(expected+list(json.loads(os.environ['CI_REAL_INFERENCE_PROVIDERS'])))
     missing=len(set(expected)-set(keys)); unexpected=sum(key not in expected for key in keys)
@@ -933,7 +1137,7 @@ def require_target_admission(source_commit: str) -> dict:
             "Full capacity target lacks a verified zero-provider four-slot calibration pilot"
         )
     try:
-        docker_root = subprocess.check_output(
+        docker_root = docker_output(
             ["docker", "info", "--format", "{{.DockerRootDir}}"],
             text=True,
             timeout=10,
@@ -1001,8 +1205,14 @@ def compose_profile(
     web_read_fixture: bool = False,
     rust_owned_send_gate: bool = False,
     real_inference: bool = False,
+    codex_real_inference: bool = False,
+    codex_web_voice: bool = False,
 ) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    if (codex_real_inference or codex_web_voice) and not real_inference:
+        raise ValueError("Codex real inference requires an isolated real-inference profile")
+    if codex_real_inference and codex_web_voice:
+        raise ValueError("Terminal and web voice provider profiles are mutually exclusive")
     # Real inference may run the internal Workflow runtime (no outside egress),
     # never the credential-free weather workflows, whose egress is open.
     if real_inference and (
@@ -1226,10 +1436,16 @@ def compose_profile(
         source_mounts.append(
             f"{SOURCE}/test-results/ci-private/accountability:/app/ci-accountability"
         )
+    # Private fixture binds belong to the runner and retain their owner-only modes.
+    private_binds = storage_capacity or storage_accountability
+    api_uid = os.getuid() if private_binds else 1000
+    api_gid = os.getgid() if private_binds else 1000
+    api_user = f"{api_uid}:{api_gid}"
     api = {
         "build": {"context": SOURCE, "dockerfile": "backend/core/api/Dockerfile"},
         "image": "openmates-ci-api:local",
-        "environment": common,
+        "user": api_user,
+        "environment": {**common, "HOME": "/tmp"},
         "volumes": source_mounts,
         "command": ["sh", "/app/backend/core/api/wait-for-vault.sh"],
         "ports": ["8000:8000"],
@@ -1285,7 +1501,13 @@ def compose_profile(
                 "POSTGRES_USER": "openmates",
                 "POSTGRES_PASSWORD": credentials["database"],
             },
-            "volumes": ["postgres:/var/lib/postgresql/data"],
+            # Fresh database volumes inherit the image's empty, Postgres-owned data directory.
+            "volumes": [{
+                "type": "volume",
+                "source": "postgres",
+                "target": "/var/lib/postgresql/data",
+                "volume": {"nocopy": False},
+            }],
             "healthcheck": {
                 "test": [
                     "CMD",
@@ -1381,7 +1603,7 @@ def compose_profile(
             "depends_on": {"cms": {"condition": "service_started"}},
         },
         "vault": {
-            "image": "mirror.gcr.io/hashicorp/vault:1.19@sha256:c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5",
+            "image": SCOPED_CODEX_VAULT_IMAGE,
             "mem_limit": 512 * MIB,
             "environment": {
                 "VAULT_DEV_ROOT_TOKEN_ID": credentials["vault"],
@@ -1405,11 +1627,15 @@ def compose_profile(
         },
         "vault-init": {
             "image": "openmates-ci-api:local",
+            # This one-shot job prepares handoffs for the core and upload UIDs.
+            "user": "0:0",
             "mem_limit": 128 * MIB,
             "command": ["python", "-c", VAULT_INITIALIZE],
             "environment": {
                 "VAULT_TOKEN": credentials["vault"],
                 "INTERNAL_API_SHARED_TOKEN": credentials["internal"],
+                "CI_API_UID": str(api_uid),
+                "CI_API_GID": str(api_gid),
             },
             "volumes": ["vault-tokens:/vault-data"],
             "depends_on": {"vault": {"condition": "service_healthy"}},
@@ -1423,6 +1649,10 @@ def compose_profile(
         }
         for name in ("api", "core-worker"):
             services[name]["depends_on"]["mailpit"] = {"condition": "service_started"}
+    if object_storage or codex_real_inference or codex_web_voice:
+        # Bootstrap the local push fixture before API startup so the exact
+        # provider inventory does not depend on the API creating it at runtime.
+        services["vault-init"]["environment"]["CI_VAULT_SEED_VAPID"] = "1"
     if object_storage:
         # Real S3 SDK operations hit a disposable store, never shared buckets.
         services["object-storage"] = {
@@ -1593,6 +1823,7 @@ def compose_profile(
         services["cms"].pop("ports")
         services["runner-gateway"] = {
             "image": "openmates-ci-api:local",
+            "user": "1000:1000",
             "command": ["python", "/ci_tcp_gateway.py"],
             "environment": {"OPENMATES_CI_GATEWAY": "github-isolated"},
             "volumes": [
@@ -1628,32 +1859,53 @@ def compose_profile(
         ]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
-        # Image skills (images.generate draws SVGs with the Gemini vector author)
-        # run on their own queue. The AI worker waits for same-turn skill results
-        # on its single slot, so it cannot consume app_images itself.
-        images_worker = deepcopy(ai_worker)
-        images_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_IMAGE_QUEUES
-        images_worker["command"] = [
-            part.replace(
-                f"--queues={REAL_INFERENCE_AI_QUEUES}",
-                f"--queues={REAL_INFERENCE_IMAGE_QUEUES}",
-            )
-            for part in ai_worker["command"]
-        ]
-        services["images-worker"] = images_worker
-        services["runner-gateway"]["environment"][
-            "OPENMATES_CI_REAL_INFERENCE_PROXY"
-        ] = "1"
-        for service in (api, worker, ai_worker, images_worker):
+        provider_services = [api, worker, ai_worker]
+        if codex_web_voice:
+            speech_worker = deepcopy(ai_worker)
+            speech_worker["environment"]["CELERY_QUEUES"] = "app_music"
+            speech_worker["command"] = [
+                part.replace(f"--queues={REAL_INFERENCE_AI_QUEUES}", "--queues=app_music")
+                for part in speech_worker["command"]
+            ]
+            services["speech-worker"] = speech_worker
+            provider_services.append(speech_worker)
+            for service in (api, speech_worker):
+                service["environment"].update(
+                    CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_REAL_WEB_VOICE="1",
+                )
+        elif not codex_real_inference:
+            # Image skills run on a separate queue so the AI worker can wait
+            # for their same-turn outcome. Terminal text tests do not use it.
+            images_worker = deepcopy(ai_worker)
+            images_worker["environment"]["CELERY_QUEUES"] = REAL_INFERENCE_IMAGE_QUEUES
+            images_worker["command"] = [
+                part.replace(
+                    f"--queues={REAL_INFERENCE_AI_QUEUES}",
+                    f"--queues={REAL_INFERENCE_IMAGE_QUEUES}",
+                )
+                for part in ai_worker["command"]
+            ]
+            services["images-worker"] = images_worker
+            provider_services.append(images_worker)
+        services["runner-gateway"]["environment"]["OPENMATES_CI_REAL_INFERENCE_PROXY"] = (
+            CODEX_WEB_VOICE_POLICY if codex_web_voice else "codex" if codex_real_inference else "1"
+        )
+        for service in provider_services:
             service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
             service["environment"]["OPENMATES_CI_REAL_INFERENCE"] = "1"
         vault_init = services["vault-init"]["environment"]
-        vault_init["CI_REAL_INFERENCE"] = "1"
-        vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(REAL_INFERENCE_PROVIDERS)
-        for _field, name in REAL_INFERENCE_PROVIDERS.values():
-            # None: compose takes the value from the start step's environment,
-            # so the key never lands in the profile file or its artifacts.
-            vault_init[name] = None
+        if codex_real_inference or codex_web_voice:
+            vault_init["CI_CODEX_VAULT_PRESEEDED"] = "1"
+            services["vault"]["environment"].update(
+                VAULT_ADDR="http://127.0.0.1:8200",
+                VAULT_TOKEN=credentials["vault"],
+            )
+        else:
+            vault_init["CI_REAL_INFERENCE"] = "1"
+            vault_init["CI_REAL_INFERENCE_PROVIDERS"] = json.dumps(REAL_INFERENCE_PROVIDERS)
+            for _field, name in REAL_INFERENCE_PROVIDERS.values():
+                # The frozen generic lane loads its provider environment by name.
+                vault_init[name] = None
 
     if workflows or workflow_runtime:
         workflow_queues = QUEUES + ",workflow"
@@ -1668,16 +1920,23 @@ def compose_profile(
         services["workflow-scheduler"] = scheduler
     services["fixture-init"] = {
         "image": "openmates-ci-api:local",
+        "user": "0:0",
+        "environment": {"CI_API_USER": api_user},
         "mem_limit": 128 * MIB,
         "command": [
             "sh",
             "-ec",
-            "cp -a /candidate-fixtures/. /fixtures/",
+            'cp -a /candidate-fixtures/. /fixtures/ && '
+            'chown -hR "$$CI_API_USER" /fixtures && '
+            'chown "$$CI_API_USER" /runtime-logs /backend-logs /recommendations',
         ],
         # Runtime images can be reused while the candidate adds replay cassettes.
         # Seed from the verified checkout, keeping the shared writable volume.
         "volumes": [
             "api-cache:/fixtures",
+            "api-logs:/runtime-logs",
+            "backend-logs:/backend-logs",
+            "apps-recommendations-data:/recommendations",
             f"{SOURCE}/backend/apps/ai/testing/api_cache:/candidate-fixtures:ro",
         ],
     }
@@ -1755,6 +2014,7 @@ def compose_profile(
         api["depends_on"]["web-read-origin"] = {"condition": "service_healthy"}
         services["web-read-origin"] = {
             "image": "openmates-ci-api:local",
+            "user": f"{os.getuid()}:{os.getgid()}",
             "command": ["python", "/ci_web_read_fixture.py", "serve", "/tls"],
             "environment": {"OPENMATES_CI_WEB_READ_FIXTURE": "github-isolated"},
             "volumes": [
@@ -1812,17 +2072,89 @@ def require_runner():
 
 def compose(*args, capture=False, timeout=90):
     require_runner()
+    scoped = scoped_codex_run()
+    command = ["docker", "compose"]
+    if scoped:
+        command = [
+            "/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "compose",
+            "--env-file", "/dev/null", "--project-name", "openmates-ci",
+        ]
     return subprocess.run(
-        ["docker", "compose", "-f", str(COMPOSE_PATH), *args],
-        cwd=SOURCE,
+        [*command, "-f", str(COMPOSE_PATH), *args],
+        cwd=COMPOSE_PATH.parent if scoped else SOURCE,
         check=True,
         text=True,
-        capture_output=capture,
+        capture_output=capture or scoped,
         timeout=timeout,
     )
 
 
-def start_stack(*, compose_runner=None, sleep=time.sleep):
+def docker_output(args, **kwargs):
+    if scoped_codex_run():
+        args = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", *args[1:]]
+        kwargs["stderr"] = subprocess.PIPE
+    return subprocess.check_output(args, **kwargs)
+
+
+def scoped_vault_container() -> str:
+    container = compose("ps", "-q", "vault", capture=True, timeout=20).stdout.strip()
+    if not re.fullmatch("[a-f0-9]{12,64}", container):
+        raise RuntimeError("Pinned disposable Vault container is absent")
+    reported = docker_output(
+        ["docker", "inspect", "--format",
+         "{{.Image}} {{.Config.Image}} {{.State.Running}}", container],
+        text=True, timeout=20,
+    ).strip()
+    image_id = docker_output(
+        ["docker", "image", "inspect", "--format", "{{.Id}}", SCOPED_CODEX_VAULT_IMAGE],
+        text=True, timeout=20,
+    ).strip()
+    if not re.fullmatch("sha256:[a-f0-9]{64}", image_id) or reported != (
+        f"{image_id} {SCOPED_CODEX_VAULT_IMAGE} true"
+    ):
+        raise RuntimeError("Disposable Vault is not running the pinned image")
+    return container
+
+
+def scoped_vault_command(container: str, *args: str, payload: dict | None = None) -> str:
+    # Only the digest-pinned Vault CLI receives provider data. Its stdin is
+    # transient; Docker arguments, inspection metadata and Compose are keyless.
+    command = ["/usr/bin/docker", "--host", "unix:///var/run/docker.sock", "exec"]
+    if payload is not None:
+        command.append("-i")
+    result = subprocess.run(
+        [*command, container, "vault", *args],
+        input=json.dumps(payload) if payload is not None else None,
+        stdin=subprocess.DEVNULL if payload is None else None,
+        capture_output=True, text=True, check=True, timeout=25,
+    )
+    return result.stdout
+
+
+def seed_scoped_vault(provider_values: dict[str, dict[str, str]]) -> None:
+    compose("up", "-d", "--no-build", "--wait", "--wait-timeout", "120", "vault", timeout=180)
+    container = scoped_vault_container()
+    scoped_vault_command(container, "write", "sys/mounts/kv", "-", payload={
+        "type": "kv", "options": {"version": "2"},
+    })
+    for provider, fields in provider_values.items():
+        scoped_vault_command(container, "write", f"kv/data/providers/{provider}", "-",
+                             payload={"data": fields})
+
+
+def verify_scoped_vault_provider_namespace(providers: dict, *, seeded_only: bool = False) -> None:
+    container = scoped_vault_container()
+    names = json.loads(scoped_vault_command(container, "list", "-format=json", "kv/metadata/providers"))
+    expected = set(providers)
+    if not seeded_only:
+        expected.update(("core_server", "vapid"))
+    if not isinstance(names, list) or any(not isinstance(item, str) for item in names):
+        raise RuntimeError("Disposable Vault provider inventory is invalid")
+    if sorted(names) != sorted(expected):
+        raise RuntimeError("Disposable Vault provider inventory does not match the scoped profile")
+
+
+def start_stack(*, compose_runner=None, sleep=time.sleep, retain_output=True):
     """Start once, retrying only bounded registry/network pull failures."""
     compose_runner = compose if compose_runner is None else compose_runner
     attempts = len(STACK_START_RETRY_DELAYS) + 1
@@ -1841,9 +2173,9 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
         except subprocess.CalledProcessError as exc:
             stdout = exc.stdout or exc.output or ""
             stderr = exc.stderr or ""
-            if stdout:
+            if retain_output and stdout:
                 sys.stdout.write(stdout)
-            if stderr:
+            if retain_output and stderr:
                 sys.stderr.write(stderr)
             combined = stdout + "\n" + stderr
             if attempt >= len(
@@ -1858,9 +2190,9 @@ def start_stack(*, compose_runner=None, sleep=time.sleep):
             )
             sleep(delay)
             continue
-        if result.stdout:
+        if retain_output and result.stdout:
             sys.stdout.write(result.stdout)
-        if result.stderr:
+        if retain_output and result.stderr:
             sys.stderr.write(result.stderr)
         return result
     raise AssertionError("unreachable")
@@ -1920,7 +2252,7 @@ def startup_service_timings(started_at: float) -> list[dict]:
         '"status":{{json .State.Status}},"exit_code":{{json .State.ExitCode}},'
         '"health":{{if .State.Health}}{{json .State.Health.Status}}{{else}}null{{end}}}'
     )
-    output = subprocess.check_output(
+    output = docker_output(
         ["docker", "inspect", "--format", template, *containers], text=True, timeout=20
     )
     allowed = set(json.loads(COMPOSE_PATH.read_text())["services"])
@@ -1930,6 +2262,12 @@ def startup_service_timings(started_at: float) -> list[dict]:
         if state["service"] not in allowed:
             raise RuntimeError("Unexpected service in isolated container inventory")
         item = {key: state[key] for key in ("service", "status", "exit_code", "health")}
+        if scoped_codex_run() and (
+            item["status"] not in {"created", "running", "paused", "restarting", "removing", "exited", "dead"}
+            or item["health"] not in {None, "starting", "healthy", "unhealthy"}
+            or type(item["exit_code"]) is not int or not 0 <= item["exit_code"] <= 255
+        ):
+            raise ValueError("Unexpected isolated container status")
         timestamps = {}
         for field in ("started", "finished"):
             value = datetime.fromisoformat(
@@ -1946,7 +2284,7 @@ def startup_service_timings(started_at: float) -> list[dict]:
     return sorted(result, key=lambda item: item["service"])
 
 
-def start_with_evidence():
+def start_with_evidence(scoped_providers=None):
     """Retain useful phase timings even when a disposable bootstrap fails."""
     begin = time.time()
     selected = select_runtime_profile()
@@ -1960,7 +2298,13 @@ def start_with_evidence():
         "outcome": "failed",
     }
     try:
-        result = start_stack()
+        if scoped_providers is None:
+            result = start_stack()
+        else:
+            report["phase"] = "vault"
+            verify_scoped_vault_provider_namespace(scoped_providers, seeded_only=True)
+            report["phase"] = "services"
+            result = start_stack(retain_output=False)
         report["outcome"] = "ready"
         return result
     finally:
@@ -1982,7 +2326,10 @@ def redact_real_inference_logs(output: str, profile: dict, environ) -> str:
     collection runs without them, so real-inference runs also drop outgoing
     request lines and key-shaped tokens and query parameters.
     """
-    for _field, name in REAL_INFERENCE_PROVIDERS.values():
+    for _field, name in (
+        *REAL_INFERENCE_PROVIDERS.values(), *CODEX_REAL_INFERENCE_PROVIDERS.values(),
+        *CODEX_WEB_VOICE_PROVIDERS.values(),
+    ):
         value = environ.get(name, "")
         if len(value) > 8:
             output = output.replace(value, "<REDACTED>")
@@ -2035,13 +2382,30 @@ def validate_ai_worker_queues(
     return sorted(actual)
 
 
+def verify_codex_provider_egress(*, web_voice: bool = False) -> None:
+    """Confirm the running narrow gateway rejects broader provider authorities."""
+    forbidden = (
+        "generativelanguage.googleapis.com", "api.search.brave.com", "api.openai.com",
+        *(("openrouter.ai",) if web_voice else ("api.mistral.ai", "api.elevenlabs.io")),
+    )
+    compose(
+        "exec", "-T", "api", "python", "-c",
+        "import socket\n"
+        f"for host in {forbidden!r}:\n"
+        "    with socket.create_connection(('runner-gateway', 3128), timeout=3) as conn:\n"
+        "        conn.sendall(f'CONNECT {host}:443 HTTP/1.1\\r\\n\\r\\n'.encode())\n"
+        "        assert b'403 Forbidden' in conn.recv(256), 'Unexpected provider authority'\n",
+        capture=True, timeout=15,
+    )
+
+
 def inspect_ai_worker_queues(container: str, *, voice_camera: bool) -> list[str]:
     """Read only the command and named queue variable, never emit environment."""
     template = (
         "{{json .Config.Cmd}}\n{{range .Config.Env}}"
         '{{if eq (index (split . "=") 0) "CELERY_QUEUES"}}{{println .}}{{end}}{{end}}'
     )
-    raw = subprocess.check_output(
+    raw = docker_output(
         ["docker", "inspect", "--format", template, container],
         text=True,
         timeout=10,
@@ -2068,9 +2432,147 @@ def inspect_speech_worker_queues(container: str) -> list[str]:
     return queues
 
 
-def main():
+def _bounded_scoped_receipt(receipt: Path) -> dict:
+    def unique_object(pairs):
+        result = dict(pairs)
+        if len(result) != len(pairs):
+            raise ValueError("Scoped receipt has duplicate fields")
+        return result
+
+    with receipt.open("rb") as handle:
+        content = handle.read(2049)
+    if len(content) > 2048:
+        raise ValueError("Scoped receipt exceeds its size bound")
+    values = json.loads(content, object_pairs_hook=unique_object)
+    if not isinstance(values, dict):
+        raise ValueError("Scoped receipt has an invalid shape")
+    return values
+
+
+def verify_scoped_timing(receipt: Path, source_commit: str) -> None:
+    """Accept only the speech proof's numeric timing schema and exact source."""
+    required = {
+        "sourceCommit", "lastVoicedToCueMs", "lastVoicedToSubstantiveMs",
+        "sampleRate", "sameEncryptedChat",
+    }
+    milestones = {
+        "lastVoicedToFinalTranscriptMs", "lastVoicedToAdmissionMs",
+        "lastVoicedToAdmissionAckMs", "lastVoicedToProseStartMs",
+        "lastVoicedToMatchingAudioBytesMs", "lastVoicedToPlaybackMs",
+    }
+    values = _bounded_scoped_receipt(receipt)
+    if (
+        not required <= values.keys() <= required | milestones
+        or not re.fullmatch("[a-f0-9]{40}", source_commit)
+        or values["sourceCommit"] != source_commit or values["sameEncryptedChat"] is not True
+        or type(values["sampleRate"]) is not int or not 8000 <= values["sampleRate"] <= 192000
+    ):
+        raise ValueError("Scoped voice timing receipt has an invalid identity or shape")
+
+    def elapsed(value):
+        return type(value) in (int, float) and 0 <= value <= 45000
+
+    substantive = values["lastVoicedToSubstantiveMs"]
+    cue = values["lastVoicedToCueMs"]
+    if (
+        not elapsed(substantive) or (cue is not None and (not elapsed(cue) or cue > substantive))
+        or any(values[field] is not None and not elapsed(values[field])
+               for field in milestones & values.keys())
+        or ("lastVoicedToPlaybackMs" in values and values["lastVoicedToPlaybackMs"] != substantive)
+    ):
+        raise ValueError("Scoped voice timing receipt has invalid measurements")
+
+
+def _scoped_playwright_cases(source: Path, *, allow_missing: bool = False) -> list[Path]:
+    output = source
+    for part in SCOPED_PLAYWRIGHT_OUTPUT.parts:
+        output /= part
+        if allow_missing and not output.exists() and not output.is_symlink():
+            return []
+        if output.is_symlink() or not output.is_dir():
+            raise ValueError("Scoped Playwright output directory was not produced")
+    entries = tuple(islice(output.iterdir(), 65))
+    if len(entries) > 64:
+        raise ValueError("Scoped Playwright output directory exceeds its entry bound")
+    return [entry for entry in entries if not entry.is_symlink() and entry.is_dir()
+            and re.fullmatch("[A-Za-z0-9_-]{1,180}", entry.name)]
+
+
+def _scoped_proof_file(cases: list[Path], name: str, *, allow_missing: bool = False):
+    relative = Path(name)
+    matches = [case for case in cases
+               if (case / relative).exists() or (case / relative).is_symlink()]
+    if not matches and allow_missing:
+        return None, None
+    if len(matches) != 1:
+        raise ValueError("Expected one scoped proof file for each approved name")
+    case = matches[0]
+    path = case
+    for part in relative.parts:
+        path /= part
+        if path.is_symlink():
+            raise ValueError("Scoped proof file must have regular parent paths")
+    if not path.is_file() or not 0 < path.stat().st_size <= 256 * MIB:
+        raise ValueError("Scoped proof file is empty or exceeds its size bound")
+    return case, path
+
+
+def scoped_proof_paths(source: Path, spec: str, source_commit: str) -> list[Path]:
+    """Find the exact approved files in the sole successful Playwright case."""
+    cases = _scoped_playwright_cases(source)
+    paths = []
+    case_dirs = set()
+    for name in SCOPED_PROOF_FILES[spec]:
+        case, path = _scoped_proof_file(cases, name)
+        if path.suffix == ".json":
+            verify_scoped_timing(path, source_commit)
+        paths.append(path.relative_to(source))
+        case_dirs.add(case)
+    if len(case_dirs) != 1:
+        raise ValueError("Scoped proof files must belong to the same Playwright case")
+    return paths
+
+
+def _scoped_phase_progress_path(
+    source: Path, file_name: str, allowed_phases: frozenset[str], error: str,
+    *, required: bool, max_elapsed_ms: int = 3_600_000, require_zero_origin: bool = False,
+) -> Path | None:
+    """Return only a closed phase receipt, including when its test failed."""
+    cases = _scoped_playwright_cases(source, allow_missing=not required)
+    _, receipt = _scoped_proof_file(cases, file_name, allow_missing=not required)
+    if receipt is None:
+        return None
+    values = _bounded_scoped_receipt(receipt)
+    phases = values.get("phases")
+    if (
+        values.keys() != {"schemaVersion", "phases"}
+        or type(values["schemaVersion"]) is not int or values["schemaVersion"] != 1
+        or not isinstance(phases, dict) or "started" not in phases
+        or (require_zero_origin and phases["started"] != 0)
+        or not phases.keys() <= allowed_phases
+        or any(type(ms) is not int or not 0 <= ms <= max_elapsed_ms for ms in phases.values())
+        or (required and "passed" not in phases)
+    ):
+        raise ValueError(error)
+    return receipt.relative_to(source)
+
+def scoped_recipe_progress_path(source: Path, *, required: bool) -> Path | None:
+    return _scoped_phase_progress_path(
+        source, SCOPED_RECIPE_PROGRESS, SCOPED_RECIPE_PHASES,
+        "Scoped recipe progress receipt has an invalid phase or timing", required=required,
+    )
+
+
+def scoped_web_voice_progress_path(source: Path, *, required: bool) -> Path | None:
+    return _scoped_phase_progress_path(
+        source, SCOPED_WEB_VOICE_PROGRESS, SCOPED_WEB_VOICE_PHASES,
+        "Scoped web voice progress receipt has an invalid phase or timing",
+        required=required, max_elapsed_ms=180_000, require_zero_origin=True,
+    )
+
+
+def run_action(action: str):
     require_runner()
-    action = sys.argv[1]
     if action == "prepare":
         source = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
@@ -2204,6 +2706,8 @@ def main():
         needs_public_provider = bool(public_specs.intersection(selected))
         # Trusted harness list only: a candidate cannot add itself to the keyed group.
         real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        codex_real_inference = selects_codex_real_inference(selected, real_specs, os.environ)
+        codex_web_voice = selects_codex_web_voice(selected, real_specs, os.environ)
         needs_real_inference = bool(real_specs.intersection(selected))
         if needs_real_inference and not (
             set(selected).issubset(real_specs)
@@ -2252,6 +2756,8 @@ def main():
             uploads=needs_uploads,
             public_provider=needs_public_provider,
             real_inference=needs_real_inference,
+            codex_real_inference=codex_real_inference,
+            codex_web_voice=codex_web_voice,
             workflows=needs_workflows,
             workflow_runtime=needs_workflow_core,
             account_emails=account_emails,
@@ -2324,18 +2830,72 @@ def main():
         (Path(SOURCE) / "test-results/ci-environment.json").write_text(
             json.dumps(evidence)
         )
-    elif action == "start":
+    elif action == "recipe-progress":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        if (selected != [SCOPED_RECIPE_SPEC] or os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+                or not selects_codex_real_inference(selected, CODEX_REAL_INFERENCE_SPECS, os.environ)):
+            raise RuntimeError("Scoped recipe progress requires the exact terminal recipe spec")
+        progress = scoped_recipe_progress_path(
+            Path(SOURCE), required=os.environ.get("CI_SCOPED_PROOF_PASSED") == "1",
+        )
+        if progress is not None:
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                output.write(f"path=subject/{progress.as_posix()}\n")
+    elif action == "web-voice-progress":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        if not selects_codex_web_voice(selected, real_specs, os.environ):
+            raise RuntimeError("Scoped web voice progress requires the exact signed-in spec")
+        progress = scoped_web_voice_progress_path(
+            Path(SOURCE), required=os.environ.get("CI_SCOPED_PROOF_PASSED") == "1",
+        )
+        if progress is not None:
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                output.write(f"path=subject/{progress.as_posix()}\n")
+    elif action == "proof":
+        selected = json.loads(os.environ["CI_SPECS_JSON"])
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        terminal = selects_codex_real_inference(selected, real_specs, os.environ)
+        web_voice = selects_codex_web_voice(selected, real_specs, os.environ)
+        if terminal == web_voice:
+            raise RuntimeError("Proof upload requires one exact scoped Codex lane")
+        paths = scoped_proof_paths(Path(SOURCE), selected[0], os.environ["BUILD_COMMIT_SHA"])
+        with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+            output.write("paths<<OPENMATES_SCOPED_PROOF\n")
+            for path in paths:
+                output.write(f"subject/{path.as_posix()}\n")
+            output.write("OPENMATES_SCOPED_PROOF\n")
+    elif action in {"seed", "start"}:
+        scoped = scoped_codex_run()
+        if action == "seed" and not scoped:
+            raise RuntimeError("Protected Vault seeding requires a scoped Codex lane")
         profile = json.loads(COMPOSE_PATH.read_text())
-        if profile["services"]["api"]["environment"].get("OPENMATES_CI_REAL_INFERENCE") == "1":
-            missing = [name for _field, name in REAL_INFERENCE_PROVIDERS.values()
-                       if not os.environ.get(name, "").strip()]
-            if missing:
-                raise RuntimeError(
-                    "Real-inference keys absent (protected real-inference environment): "
-                    + ", ".join(missing)
-                )
-        # Compose's wait limit may not bound one-shot dependency startup.
-        start_with_evidence()
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        real_specs = set(manifest["groups"].get("real_inference", {}).get("specs", []))
+        validate_real_inference_start(profile, os.environ, real_specs, check_credentials=not scoped or action == "seed")
+        if scoped:
+            providers = (CODEX_WEB_VOICE_PROVIDERS if os.environ.get("CI_CODEX_WEB_VOICE") == "1"
+                         else CODEX_REAL_INFERENCE_PROVIDERS)
+            if action == "seed":
+                values = {provider: {field: os.environ[alias]} for provider, (field, alias) in providers.items()}
+                for alias in PROVIDER_KEY_ALIASES:
+                    os.environ.pop(alias, None)
+                report = {"outcome": "failed"}
+                try:
+                    seed_scoped_vault(values)
+                    report["outcome"] = "ready"
+                finally:
+                    values.clear()
+                    (Path(SOURCE) / "test-results/ci-vault-seed.json").write_text(json.dumps(report))
+            else:
+                if PROVIDER_KEY_ALIASES.intersection(os.environ):
+                    raise RuntimeError("Provider aliases are forbidden during candidate startup")
+                start_with_evidence(providers)
+        else:
+            # Compose's wait limit may not bound one-shot dependency startup.
+            start_with_evidence()
     elif action == "verify":
         import socket
         import urllib.request
@@ -2394,7 +2954,7 @@ def main():
                     "Formula worker lost its isolated secret-free runtime"
                 )
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     [
                         "docker",
                         "network",
@@ -2413,7 +2973,7 @@ def main():
                 "ai_authoring": "signed-fixture-only",
                 "execution_credits": 0,
             }
-        if voice_camera:
+        if voice_camera or "speech-worker" in profile["services"]:
             required.append("speech-worker")
         if "workflow-scheduler" in profile["services"]:
             required.append("workflow-scheduler")
@@ -2430,7 +2990,7 @@ def main():
         if "mailpit" in profile["services"]:
             required.append("mailpit")
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     ["docker", "network", "inspect", "openmates-ci_default"], text=True
                 )
             )[0]
@@ -2469,7 +3029,7 @@ def main():
                 )
             )
             network = json.loads(
-                subprocess.check_output(
+                docker_output(
                     ["docker", "network", "inspect", "openmates-ci_default"], text=True
                 )
             )[0]
@@ -2482,7 +3042,19 @@ def main():
                 # Names only: which dev-only keys this run's Vault holds and the
                 # only hosts its gateway lets through.
                 evidence["provider_egress"] = "real-inference-allowlist"
-                evidence["real_inference_providers"] = sorted(REAL_INFERENCE_PROVIDERS)
+                gateway = profile["services"]["runner-gateway"]["environment"]
+                policy = gateway.get("OPENMATES_CI_REAL_INFERENCE_PROXY")
+                web_voice = policy == CODEX_WEB_VOICE_POLICY
+                codex = policy == "codex"
+                providers = (CODEX_WEB_VOICE_PROVIDERS if web_voice else
+                             CODEX_REAL_INFERENCE_PROVIDERS if codex else REAL_INFERENCE_PROVIDERS)
+                evidence["real_inference_providers"] = sorted(providers)
+                if codex or web_voice:
+                    if web_voice and not verify_web_voice_services(profile["services"]):
+                        raise RuntimeError("The real web voice speech services are unverified")
+                    verify_scoped_vault_provider_namespace(providers)
+                    verify_codex_provider_egress(web_voice=web_voice)
+                    evidence["real_inference_profile"] = CODEX_WEB_VOICE_PROFILE if web_voice else "codex-real-inference"
         if (
             profile["services"]["api"]["environment"].get(
                 "OPENMATES_STORAGE_CAPACITY_FIXTURES"
@@ -2544,7 +3116,7 @@ def main():
             container = compose("ps", "-q", service, capture=True).stdout.strip()
             if not container:
                 raise RuntimeError("Required private service is missing: " + service)
-            raw = subprocess.check_output(["docker", "inspect", container], text=True)
+            raw = docker_output(["docker", "inspect", container], text=True)
             info = json.loads(raw)[0]
             if evidence.get("storage_capacity") and (
                 service in {"api", "core-worker"} or service.startswith("ai-worker")
@@ -2623,7 +3195,7 @@ def main():
                     raise RuntimeError(
                         "Target worker command differs from admitted four-slot profile"
                     )
-                children = subprocess.check_output(
+                children = docker_output(
                     [
                         "docker",
                         "exec",
@@ -2836,7 +3408,7 @@ def main():
                 ("containers", ["docker", "ps", "-aq"]),
                 ("volumes", ["docker", "volume", "ls", "-q"]),
             ):
-                remaining = subprocess.check_output(
+                remaining = docker_output(
                     [
                         *command,
                         "--filter",
@@ -2873,7 +3445,22 @@ def main():
                 )
             )
     elif action == "logs":
-        if COMPOSE_PATH.exists():
+        if not COMPOSE_PATH.exists():
+            return
+        label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
+        if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
+            raise ValueError("Invalid bounded diagnostic label")
+        filename = f"ci-stack-{label}.log" if label else "ci-stack.log"
+        destination = Path(SOURCE) / "test-results" / filename
+        if scoped_codex_run():
+            # Later diagnostic steps intentionally have no protected keys to
+            # redact. Never collect free-form logs or Docker health output.
+            try:
+                receipt = {"services": startup_service_timings(time.time())}
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError):
+                receipt = {"error": "stack_status_unavailable"}
+            destination.write_text(json.dumps(receipt))
+        else:
             result = compose("logs", "--no-color", "--tail", "150", capture=True)
             # Generated secrets are replaced before logs become uploaded artifacts.
             profile = json.loads(COMPOSE_PATH.read_text())
@@ -2892,7 +3479,7 @@ def main():
                     output += f"\n==== {service} (last 6000 lines, httpx omitted) ====\n" + "\n".join(kept)
             containers = compose("ps", "-aq", capture=True).stdout.split()
             for container in containers:
-                state = subprocess.check_output(
+                state = docker_output(
                     ["docker", "inspect", "--format", "{{json .State}}", container],
                     text=True,
                     timeout=20,
@@ -2909,13 +3496,34 @@ def main():
                     ):
                         output = output.replace(str(value), "<REDACTED>")
             output = redact_real_inference_logs(output, profile, os.environ)
-            label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
-            if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
-                raise ValueError("Invalid bounded diagnostic label")
-            filename = f"ci-stack-{label}.log" if label else "ci-stack.log"
-            (Path(SOURCE) / "test-results" / filename).write_text(output)
+            destination.write_text(output)
     else:
         raise ValueError("Unknown CI environment action")
+
+
+def main():
+    action = sys.argv[1]
+    if not scoped_codex_run() or action == "prepare":
+        run_action(action)
+        return
+    # Keep provider errors, subprocess output and exception chains out of the
+    # Actions console. The startup and status receipts retain bounded facts.
+    try:
+        if action != "seed":
+            for alias in PROVIDER_KEY_ALIASES:
+                os.environ.pop(alias, None)
+        run_action(action)
+    except Exception:
+        if action == "proof":
+            print("Scoped CI proof requires its approved recordings and timing receipt.", file=sys.stderr)
+        elif action == "recipe-progress":
+            print("Scoped CI recipe progress receipt is missing or invalid.", file=sys.stderr)
+        elif action == "web-voice-progress":
+            print("Scoped CI web voice progress receipt is missing or invalid.", file=sys.stderr)
+        else:
+            phase = action if action in {"seed", "start", "verify", "logs", "stop"} else "unknown"
+            print(f"Scoped CI {phase} failed; see the structured stack receipts.", file=sys.stderr)
+        raise SystemExit(1) from None
 
 
 if __name__ == "__main__":

@@ -47,7 +47,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set(
 		'Permissions-Policy',
-		'geolocation=(), microphone=(), camera=(), interest-cohort=()'
+		// The chat and call UI lives at / (chat IDs are URL fragments).
+		`geolocation=(), microphone=${event.url.pathname === '/' ? '(self)' : '()'}, camera=(), interest-cohort=()`
 	);
 	response.headers.set(
 		'Content-Security-Policy',

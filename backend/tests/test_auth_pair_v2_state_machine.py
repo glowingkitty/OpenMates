@@ -97,6 +97,12 @@ async def test_complete_issues_session_without_fabricated_login_lookup(relay, mo
             assert user_id == "approver"
             return True, {"username": "paired-user", "credits": 13, "vault_key_id": "vault-key"}, None
 
+        async def get_user_fields_direct(self, user_id, fields, *, no_cache):
+            assert user_id == "approver"
+            assert "default_ai_model_complex" in fields
+            assert no_cache
+            return {"default_ai_model_complex": "google/gemini-3.8-flash"}
+
     issued = AsyncMock(return_value="issued-refresh")
     registered = AsyncMock()
     monkeypatch.setattr(pair, "finalize_login_session", issued)
@@ -115,6 +121,7 @@ async def test_complete_issues_session_without_fabricated_login_lookup(relay, mo
     assert context.lookup_hash is None
     assert result.user.username == "paired-user"
     assert result.user.credits == 13
+    assert result.user.default_ai_model_complex == "google/gemini-3.8-flash"
     registered.assert_awaited_once()
     assert registered.await_args.args[:4] == (issued.await_args.args[6], relay, "issued-refresh", "approver")
     assert int(time.time()) < registered.await_args.args[4] <= int(time.time()) + 1800

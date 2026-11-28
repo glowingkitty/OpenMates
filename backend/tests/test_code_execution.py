@@ -1355,20 +1355,23 @@ def test_merge_dependency_installs_normalizes_scoped_npm_package_identity() -> N
 
 @pytest.mark.anyio
 async def test_cancel_code_run_marks_execution_cancelling() -> None:
-    cache = FakeCache([], {})
-    client = await cache.client
-    execution_id = "execution-1"
-    await client.set(
-        _execution_key(execution_id),
-        json.dumps({"execution_id": execution_id, "user_id_hash": USER_HASH, "status": "running"}),
-    )
+    from fakeredis.aioredis import FakeRedis as AtomicRedis
 
-    response = await cancel_code_run(execution_id, _user(), cache)
-    stored = json.loads((await client.get(_execution_key(execution_id))).decode())
+    async with AtomicRedis() as client:
+        cache = FakeCache([], {})
+        cache.redis = client
+        execution_id = "execution-1"
+        await client.set(
+            _execution_key(execution_id),
+            json.dumps({"execution_id": execution_id, "user_id_hash": USER_HASH, "status": "running"}),
+        )
 
-    assert response.status == "cancelling"
-    assert stored["status"] == "cancelling"
-    assert stored["cancel_requested"] is True
+        response = await cancel_code_run(execution_id, _user(), cache)
+        stored = json.loads(await client.get(_execution_key(execution_id)))
+
+        assert response.status == "cancelling"
+        assert stored["status"] == "cancelling"
+        assert stored["cancel_requested"] is True
 
 
 @pytest.mark.anyio

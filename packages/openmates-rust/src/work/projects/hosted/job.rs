@@ -7,6 +7,7 @@
 use super::io::HostedIo;
 use super::policy::{self, PERMISSIONS_PATH, PathPolicy};
 use super::*;
+use crate::client::embed_write::keys::OsNonces;
 use crate::client::upload::toon_encode::encode_fields;
 
 const SEARCH_MAX_FILES: usize = 100;
@@ -368,16 +369,7 @@ fn content_object(
             ("filename".into(), json!(path)),
         ],
     };
-    // `code === undefined && typeof content === "string"` keeps a legacy `content` field.
-    let field = match current {
-        Some(head)
-            if head.field("code").is_none()
-                && head.field("content").is_some_and(Value::is_string) =>
-        {
-            "content"
-        }
-        _ => "code",
-    };
+    let field = current.map_or("code", HostedHead::text_field);
     for (key, value) in [
         (field, json!(content)),
         ("version_number", json!(revision)),
@@ -441,6 +433,13 @@ async fn write<I: HostedIo>(
         (Some(content), _) if creating => (Zeroizing::new(content.clone()), None),
         (_, Some(patch)) if !creating => {
             let (next, stored) = apply_update_patch(&original, patch, path)?;
+            if current
+                .as_ref()
+                .is_some_and(|head| head.text_field() == "table")
+            {
+                crate::client::live::sheet::validate_formatted_snapshot(&next)
+                    .map_err(|_| HostedFileError::Refused("invalid_patch"))?;
+            }
             (Zeroizing::new(next), Some(stored))
         }
         _ => return refused("invalid_file_mutation"),
@@ -454,6 +453,12 @@ async fn write<I: HostedIo>(
         None => crypto::random_key(),
     };
     let revision = current.as_ref().map_or(0, |h| h.revision) + 1;
+    let revision_number = i64::try_from(revision).map_err(|_| Error::Protocol)?;
+    let cipher = io.revision_cipher(&embed_id).await?;
+    let seal_revision = |field, text: &str| match cipher.as_ref() {
+        Some(cipher) => Ok(cipher.seal(revision_number, field, text, &mut OsNonces)?),
+        None => seal(text, &embed_key),
+    };
     let object = content_object(current.as_ref(), path, &content, revision)?;
     let encoded = Zeroizing::new(encode_fields(
         &object
@@ -472,13 +477,26 @@ async fn write<I: HostedIo>(
         } else {
             original.as_str()
         };
-        history.push(json!({"version_number": 1, "encrypted_snapshot": seal(snapshot, &embed_key)?, "created_at": now}));
+        let sealed = if creating && cipher.is_some() {
+            seal_revision("content", &encoded)?
+        } else {
+            seal(snapshot, &embed_key)?
+        };
+        history.push(json!({"version_number": 1, "encrypted_snapshot": sealed, "created_at": now}));
     }
     if let (false, Some(patch)) = (creating, &stored_patch) {
-        let mut row = json!({"version_number": revision, "encrypted_patch": seal(patch, &embed_key)?, "created_at": now});
+        let mut row = json!({"version_number": revision, "encrypted_patch": seal_revision("patch", patch)?, "created_at": now});
         // The authorized writer already holds plaintext; checkpoint every 32
         // revisions under the existing embed key in the same CAS transaction.
-        if revision % SNAPSHOT_INTERVAL == 0 {
+        if cipher.is_some()
+            || current
+                .as_ref()
+                .is_some_and(|head| !matches!(head.text_field(), "code" | "content"))
+        {
+            // The editor stores whole typed objects in its snapshots. Preserve
+            // that representation at the boundary with the hosted writer.
+            row["encrypted_snapshot"] = json!(seal_revision("content", &encoded)?);
+        } else if revision % SNAPSHOT_INTERVAL == 0 {
             row["encrypted_snapshot"] = json!(seal(&content, &embed_key)?);
         }
         history.push(row);
@@ -489,8 +507,8 @@ async fn write<I: HostedIo>(
         "chat_id": job.chat_id, "proposal_digest": digest,
         "expected_revision": current.as_ref().map_or(0, |h| h.revision),
         "head": {
-            "encrypted_content": seal(&encoded, &embed_key)?,
-            "encrypted_text_preview": seal(&format!("{path} ({lines} lines)"), &embed_key)?,
+            "encrypted_content": seal_revision("content", &encoded)?,
+            "encrypted_text_preview": seal_revision("preview", &format!("{path} ({lines} lines)"))?,
             "status": "finished", "updated_at": now,
         },
         "history_rows": history,

@@ -1,5 +1,6 @@
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.suggestions.contextual, message-input.privacy-context
+import SwiftData
 import XCTest
 @testable import OpenMates
 
@@ -52,23 +53,34 @@ final class ChatSearchEngineTests: XCTestCase {
         XCTAssertNil(SpotlightIndexer.chatID(for: "chat-retained-team-chat", accountID: "synthetic-account", server: .development))
     }
 
-    // contract-test: supporting surface=gui.apple assertions=teams.context.full-switch-local,teams.membership.role-gated
-    func testSpotlightIncludesRetainedPersonalAndEveryReadableTeamBeyondOldGlobalCap() {
-        var chats = (0..<101).map { id in
-            Chat(id: "personal-\(id)", title: "Synthetic", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
-                updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
+    // contract-test: supporting surface=gui.apple assertions=sync.startup.recent-metadata-cap,teams.context.full-switch-local,teams.membership.role-gated
+    func testSpotlightRecentWindowIsBoundedPerReadableScopeAndOlderChatCanStillBeReadByID() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("RecentSpotlightMetadata", schema: schema, isStoredInMemoryOnly: true)
+        let store = OfflineStore(modelContainer: try ModelContainer(for: schema, configurations: [configuration]))
+        func chat(_ id: String, teamID: String?, date: String, pinned: Bool = false) -> Chat {
+            Chat(id: id, title: "Synthetic", lastMessageAt: date, createdAt: date, updatedAt: nil,
+                isArchived: false, isPinned: pinned, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil,
+                teamId: teamID)
         }
-        for (id, teamID) in [("first", "team-a"), ("second", "team-b"), ("revoked", "team-c")] {
-            var chat = Chat(id: id, title: "Synthetic", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
-                updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
-            chat.teamId = teamID; chats.append(chat)
-        }
-        chats.append(Chat(id: "example-public", title: "Public", lastMessageAt: nil, createdAt: "2026-10-07T12:00:00Z",
-            updatedAt: nil, isArchived: false, isPinned: false, appId: "ai", encryptedTitle: nil, encryptedChatKey: nil))
-        let rows = SpotlightIndexer.authorizedChats(chats, readableTeamIDs: ["team-a", "team-b"])
-        XCTAssertEqual(rows.count, 103)
-        XCTAssertEqual(Set(rows.suffix(2).map(\.id)), ["first", "second"])
-        XCTAssertFalse(SpotlightIndexer.authorizedChats(chats, readableTeamIDs: ["team-a"]).contains { $0.id == "second" })
+        let recentDate = "2026-10-07T12:00:00Z"
+        let oldDate = "2025-01-01T00:00:00Z"
+        let personal = (0..<100).map { chat("personal-\($0)", teamID: nil, date: recentDate) }
+        let team = (0..<100).map { chat("team-\($0)", teamID: "team-a", date: recentDate) }
+        store.persistChats(personal + team + [
+            chat("older-personal", teamID: nil, date: oldDate, pinned: true),
+            chat("older-team", teamID: "team-a", date: oldDate, pinned: true),
+            chat("revoked", teamID: "team-b", date: recentDate),
+        ])
+
+        let personalWindow = store.loadRecentChats(teamID: nil)
+        let teamWindow = store.loadRecentChats(teamID: "team-a")
+        XCTAssertEqual(Set(personalWindow.map(\.id)), Set(personal.map(\.id)))
+        XCTAssertEqual(Set(teamWindow.map(\.id)), Set(team.map(\.id)))
+        let candidates = personalWindow + teamWindow + store.loadRecentChats(teamID: "team-b")
+        XCTAssertEqual(SpotlightIndexer.authorizedChats(candidates, readableTeamIDs: ["team-a"]).count, 200)
+        XCTAssertEqual(store.loadChat(id: "older-personal")?.id, "older-personal")
+        XCTAssertEqual(store.loadChat(id: "older-team")?.teamId, "team-a")
     }
 
     // contract-test: supporting surface=gui.apple assertions=teams.membership.role-gated,teams.context.full-switch-local

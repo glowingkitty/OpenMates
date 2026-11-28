@@ -21,6 +21,7 @@ import sys
 
 import httpx
 import pytest
+import yaml
 
 from backend.core.api.app.utils.server_mode import resolve_runtime_deployment_mode
 from backend.scripts.runtime_health_verifier import (
@@ -49,11 +50,14 @@ def test_directus_upload_storage_preserves_bind_mount_and_drops_root_privileges(
     compose_source = (Path(__file__).parents[1] / "core/docker-compose.yml").read_text(encoding="utf-8")
     dockerfile_source = (Path(__file__).parents[1] / "core/directus/Dockerfile").read_text(encoding="utf-8")
 
-    assert "- ./directus/uploads:/directus/uploads" in compose_source
-    assert 'test: ["CMD", "su-exec", "node:node", "/usr/local/bin/openmates-directus-health"]' in compose_source
+    cms = yaml.safe_load(compose_source)["services"]["cms"]
+    assert "./directus/uploads:/directus/uploads" in cms["volumes"]
+    assert cms["user"] == "node"
+    assert cms["command"] == ["/usr/local/bin/openmates-directus-start"]
+    assert cms["healthcheck"]["test"] == ["CMD", "/usr/local/bin/openmates-directus-health"]
     assert "chown node:node /directus/uploads" in dockerfile_source
-    assert "apk add --no-cache curl postgresql-client su-exec" in dockerfile_source
-    assert "exec su-exec node:node /usr/local/bin/openmates-directus-start" in dockerfile_source
+    assert dockerfile_source.rsplit("\nUSER ", 1)[1].splitlines()[0] == "node"
+    assert 'CMD ["/usr/local/bin/openmates-directus-start"]' in dockerfile_source
 
 
 # contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts,storage-resilience.monitoring.not-configured

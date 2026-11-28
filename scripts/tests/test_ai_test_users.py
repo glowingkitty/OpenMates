@@ -80,10 +80,12 @@ def test_run_holds_the_shared_dev_stack_lease_and_releases_it(monkeypatch):
     assert calls[-1] == ("release", "ai-test-users-20261120-120000")
 
 
-def test_notify_failure_pushes_one_alert_with_the_unit_result(monkeypatch):
+def test_notify_failure_pushes_one_alert_with_the_unit_result(monkeypatch, tmp_path):
     sent = []
+    monkeypatch.setattr(ai_test_users.accounts, "HOME", tmp_path)
     monkeypatch.setattr(ai_test_users.accounts, "_push", lambda message, title: sent.append(message))
     monkeypatch.setattr(ai_test_users, "failure_detail", lambda unit: f"{unit} exit-code 1: RuntimeError: boom")
+    assert ai_test_users.main(["notify-failure"]) == 0
     assert ai_test_users.main(["notify-failure"]) == 0
     assert len(sent) == 1 and sent[0].startswith("❌") and "boom" in sent[0]
 

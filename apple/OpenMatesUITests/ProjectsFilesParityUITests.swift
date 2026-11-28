@@ -278,7 +278,7 @@ final class ProjectsFilesParityUITests: XCTestCase {
         XCTAssertFalse(element(app, "project-remote-file-error").exists)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.workspace-start-screens
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.workspace-start-screens,daily-inspiration.start-suggestions-layout
     func testProjectsStartScreenHasNoBannerAndActionsTileLast() throws {
         let app = launch(variant: "landing", extra: ["--ui-test-project-inspirations"])
         XCTAssertTrue(element(app, "projects-home-greeting").waitForExistence(timeout: 10))
@@ -297,6 +297,15 @@ final class ProjectsFilesParityUITests: XCTestCase {
         XCTAssertTrue(actions.exists)
         XCTAssertGreaterThanOrEqual(actions.frame.minX, inspiration.frame.maxX - 1, "Actions tile is the last row item")
         XCTAssertTrue(element(app, "projects-show-all").exists)
+        let suggestions = element(app, "projects-start-suggestions")
+        let composer = element(app, "project-input-composer")
+        XCTAssertTrue(suggestions.exists)
+        XCTAssertLessThanOrEqual(suggestions.frame.maxY, composer.frame.minY)
+        XCTAssertEqual(suggestions.frame.midX, composer.frame.midX, accuracy: 2)
+        let suggestion = element(app, "projects-start-suggestion-0")
+        XCTAssertTrue(suggestion.isHittable)
+        suggestion.tap()
+        XCTAssertTrue((element(app, "project-input-textarea").value as? String ?? "").contains(suggestion.label))
         let shot = XCTAttachment(screenshot: app.screenshot())
         shot.name = "apple-projects-start"; shot.lifetime = .keepAlways; add(shot)
     }

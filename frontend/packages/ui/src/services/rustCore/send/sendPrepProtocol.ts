@@ -34,11 +34,20 @@ export interface DeferredDeleteFacts {
 	hasDraft: boolean; hasPreview: boolean; draftVersion: number | null;
 }
 
+/** One server frame and the retained user turn it may end (see turn_outcome.rs). */
+export interface TurnOutcomeRequest {
+	kind: string; payload: Record<string, unknown>;
+	chatId: string; messageId: string; turnId: string;
+}
+/** `finished`: the server already answered this turn; `rejected`: it refused it for good. */
+export type TurnOutcome = 'finished' | 'rejected' | 'none';
+
 export interface SendPrepUnitProtocol extends UnitProtocol {
 	deferredDeleteReplay: { request: DeferredDeleteFacts; response: { eligible: boolean } };
 	/** `ready`: indices into `rows` in replay order; `retained`: rows with ambiguous order. */
 	orderOffline: { request: { rows: OutboxOrderRow[] }; response: { ready: number[]; retained: number } };
 	routingRestrictions: { request: RoutingProfileFields; response: RoutingRestrictionsAnswer };
+	turnOutcome: { request: TurnOutcomeRequest; response: { outcome: TurnOutcome } };
 	offlineReceipt: {
 		request: {
 			changeIds: string[]; terminalConflictDeleteIds: string[]; successfulIds: string[];
@@ -54,9 +63,10 @@ export interface SendPrepBinding {
 	send_prep_offline_receipt(input: string): string;
 	send_prep_routing_restrictions(input: string): string;
 	send_prep_deferred_delete(input: string): string;
+	send_prep_turn_outcome(input: string): string;
 }
 
-const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt', 'send_prep_routing_restrictions', 'send_prep_deferred_delete'];
+const BINDING_EXPORTS: readonly (keyof SendPrepBinding)[] = ['send_prep_order_offline', 'send_prep_offline_receipt', 'send_prep_routing_restrictions', 'send_prep_deferred_delete', 'send_prep_turn_outcome'];
 
 export function isSendPrepBinding(value: unknown): value is SendPrepBinding {
 	if (typeof value !== 'object' || value === null) return false;

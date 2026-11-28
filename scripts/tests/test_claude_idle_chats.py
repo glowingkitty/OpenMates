@@ -22,6 +22,11 @@ CONFIG = dict(lc.DEFAULTS)
 MCP = ["npm exec @remotion/mcp@latest", "node /opt/bin/figma-developer-mcp --stdio"]
 
 
+@pytest.fixture(autouse=True)
+def no_host_usage_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_USAGE_GUARD_DIR", str(tmp_path / "usage-guard"))
+
+
 def chat(**overrides) -> lc.Chat:
     values = dict(pid=1, session_id="chat-a", name="openmates-aa", status="idle", kind="pane",
                   last_activity=NOW - 2 * HOUR, children=list(MCP), last_speaker="assistant",
@@ -167,6 +172,9 @@ def test_classify_covers_remote_control_workers_and_zellij_panes_only():
     assert lc.classify(worker, {}, sessions) == "rc_worker"
     pane = {"ZELLIJ_PANE_ID": "47", "ZELLIJ_SESSION_NAME": "claude"}
     assert lc.classify(["claude", "--remote-control", "T"], pane, sessions) == "pane"
+    assert lc.classify(["claude", "--resume", "/tmp/chat.jsonl"], pane, sessions, "bg") == "rc_worker"
+    assert lc.classify(["claude bg-spare", "--bg-spare"], pane, sessions, "bg") == "terminal"
+
     assert lc.classify(["claude"], {**pane, "ZELLIJ_SESSION_NAME": "my-own"}, sessions) == "terminal"
     assert lc.classify(["claude"], {}, sessions) == "terminal"
 
@@ -182,14 +190,18 @@ def test_registry_forgets_resumed_chats_and_marks_old_stops_done():
     assert registry["old"]["state"] == "done" and registry["fresh"]["state"] == "stopped"
 
 
-def test_counts_split_working_idle_stopped_done_and_archived():
+def test_counts_split_working_idle_stopped_done_and_archived(monkeypatch):
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {"codex-1": {"pid": 9}})
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
     registry = {"a": {"state": "stopped"}, "b": {"state": "done"}, "c": {"state": "archived"}}
     live = [chat(status="busy"), chat(session_id="b2", last_activity=NOW - 60), chat(session_id="c2")]
     summary = lc.counts(live, registry, NOW, CONFIG, "other", queued=2)
-    assert (summary["running"], summary["working"], summary["idle_running"]) == (3, 2, 1)
+    assert (summary["running"], summary["working"], summary["idle_running"]) == (4, 3, 1)
     assert (summary["idle_stopped"], summary["done_to_archive"], summary["archived"]) == (1, 1, 1)
     assert summary["queued_new_chats"] == 2 and summary["max_running"] == 20
-    assert "3 running of max 20" in lc.status_line(summary)
+    assert summary["slots_held"] == 3  # the idle c2 holds none
+    assert "3 of 16 slots held by chats at work, 4 processes running" in lc.status_line(summary)
 
 
 def test_config_file_overrides_defaults_and_rejects_unknown_keys(tmp_path):
@@ -209,6 +221,20 @@ def test_mark_records_archived_and_resumed(tmp_path, monkeypatch):
     assert lc.load_registry(tmp_path)["x"]["state"] == "archived"
     assert lc.mark("x", "resumed") == 0
     assert lc.load_registry(tmp_path) == {}
+
+
+def test_mark_archive_releases_only_a_stopped_chat(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    session_id = "e01f80fe-80b5-4d8a-8530-7b5365a507bc"
+    released = []
+    monkeypatch.setattr(lc, "release_archived_bindings", lambda _, owners: released.extend(owners))
+    monkeypatch.setattr(lc, "live_chats", lambda *args, **kwargs: [])
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {session_id: {"pid": 36}})
+    assert lc.mark(session_id, "archived", tmp_path) == 0
+    assert released == []
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {})
+    assert lc.mark(session_id, "archived", tmp_path) == 0
+    assert released == [session_id]
 
 
 def test_held_prompt_detection_reads_the_input_box():
@@ -355,7 +381,7 @@ def test_stalled_pane_chat_is_woken_exactly_once_per_task_set(tmp_path, monkeypa
 
 def test_stalled_wake_clears_a_typed_input_line_first_and_logs_failures(tmp_path, monkeypatch):
     calls: list = []
-    screens = iter(["❯ half typed\n", "❯ \n"])
+    screens = iter(["❯ half typed\n", "❯ \n", "❯ \n"])
 
     def fake(session, *args):
         calls.append(args)
@@ -541,16 +567,16 @@ def test_dead_panes_empty_tabs_and_the_link_plugin_are_closed_but_live_panes_nev
     """2026-11-20: 58 dead panes, 57 empty tabs and the link plugin kept the claude zellij server at 110% CPU."""
     link = {"id": 0, "is_plugin": True, "plugin_url": "zellij:link", "tab_id": 0}
     fake = FakeZellij({"claude": [link, term(1, 0), term(2, 1), term(3, 2), term(9, 2)],
-                       "socialhub": [term(4, 0, is_held=True)]},
-                      {"claude": [0, 1, 2, 5], "socialhub": [0]})
-    owners = {"claude": {"1", "9"}, "socialhub": {"4"}}
-    first = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW, owners, fake)
+                       "partner": [term(4, 0, is_held=True)]},
+                      {"claude": [0, 1, 2, 5], "partner": [0]})
+    owners = {"claude": {"1", "9"}, "partner": {"4"}}
+    first = lc.close_dead_panes(["claude", "partner"], tmp_path, NOW, owners, fake)
     assert first == ["claude plugin_0 (zellij:link)"]  # dead panes and empty tabs wait for a second sighting
-    assert lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + 30, owners, fake) == [
+    assert lc.close_dead_panes(["claude", "partner"], tmp_path, NOW + 30, owners, fake) == [
         "claude plugin_0 (zellij:link)"]  # too soon
-    closed = lc.close_dead_panes(["claude", "socialhub"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
+    closed = lc.close_dead_panes(["claude", "partner"], tmp_path, NOW + lc.DEAD_PANE_SECONDS, owners, fake)
     assert "claude empty tab 5" in closed
-    assert "claude terminal_2" in closed and "claude terminal_3" in closed and "socialhub terminal_4" in closed
+    assert "claude terminal_2" in closed and "claude terminal_3" in closed and "partner terminal_4" in closed
     assert ("claude", "close-tab", "1") in fake.closed  # its only pane: the tab goes with it
     assert ("claude", "close-pane", "terminal_3") in fake.closed  # tab 2 keeps its live pane 9
     assert not any(target in ("terminal_1", "terminal_9") for _, _, target in fake.closed)
@@ -575,3 +601,250 @@ def test_tidy_never_closes_a_live_chats_pane_even_when_its_process_looks_gone(tm
         lc.close_dead_panes(["claude"], tmp_path, NOW + later, {"claude": set()}, fake, protected={"claude": {"2"}})
     assert ("claude", "close-tab", "0") in fake.closed  # pane 1: dead, alone in its tab
     assert not any(target in ("1", "terminal_2") for _, _, target in fake.closed)
+
+
+# --- wake-ups must be submitted, not only typed (TASK-1338, 2026-11-23) ---
+
+BOX = "────\n❯ {}\n────\n  ⏵⏵ auto mode on\n"
+
+
+def scripted_zellij(calls, screens):
+    """dump-screen returns the next screen of `screens` (the last one repeats)."""
+    queue = list(screens)
+
+    def fake(session, *args):
+        calls.append(args)
+        text = (queue.pop(0) if len(queue) > 1 else queue[0]) if args[0] == "dump-screen" else ""
+        return type("Result", (), {"returncode": 0, "stdout": text, "stderr": ""})()
+    return fake
+
+
+def test_wake_counts_only_a_submitted_prompt(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    # empty box before typing, text still shown after the first Enter, empty after the second
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [
+        BOX.format(""), BOX.format("[chat lifecycle] Background work of this"), BOX.format("")]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), "[chat lifecycle] Background work of this chat")
+    assert calls.count(("write", "--pane-id", "terminal_7", "13")) == 2
+
+
+def test_wake_left_in_the_box_is_logged_without_its_own_alert(tmp_path, monkeypatch):
+    calls: list = []
+    posted: list = []
+    transcript = tmp_path / "chat.jsonl"
+    transcript.write_text("\n".join(json.dumps(entry) for entry in [
+        {"type": "assistant", "message": {"content": "waiting"}},
+        {"type": "system", "subtype": "informational", "content": "UserPromptSubmit operation blocked by hook:\n"
+         "[command hook 2]: python3: can't open file '/w/agent-1/scripts/chat_mailbox.py'\n\nOriginal prompt: x"},
+    ]) + "\n")
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    import chat_usage_watch
+    monkeypatch.setattr(chat_usage_watch, "send", lambda text: posted.append(text) or True)
+    stuck = chat(pane_id="7", zellij_session="claude", transcript=str(transcript), title="Live collab")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("[chat lifecycle] Back")]))
+    assert not lc.wake(stuck, "[chat lifecycle] Background work of this chat")
+    assert calls.count(("write", "--pane-id", "terminal_7", "13")) == lc.WAKE_SUBMIT_TRIES
+    events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
+    assert events[-1]["event"] == "wake_unsent" and "chat_mailbox.py" in events[-1]["reason"]
+    assert posted == []  # The watchdog owns any user-facing alert.
+
+
+def test_wake_ignores_a_suggestion_after_submit(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), BOX.format("run the tests again")]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), "[chat lifecycle] Background work of this chat")
+
+
+def test_block_reason_ignores_blocks_before_a_later_turn(tmp_path):
+    transcript = tmp_path / "chat.jsonl"
+    transcript.write_text("\n".join(json.dumps(entry) for entry in [
+        {"type": "system", "content": "UserPromptSubmit operation blocked by hook: old"},
+        {"type": "user", "message": {"content": "hi"}},
+    ]) + "\n")
+    assert lc.submit_block_reason(str(transcript)) == ""
+
+
+def test_wake_sees_unsent_text_in_a_box_taller_than_the_pane(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(lc, "_sleep", lambda seconds: None)
+    monkeypatch.setattr(lc, "state_dir", lambda: tmp_path)
+    import chat_usage_watch
+    monkeypatch.setattr(chat_usage_watch, "send", lambda text: True)
+    text = "[chat lifecycle] Background work of this chat finished; output /tmp/x/tasks/b1oqw8apj.output. Read it."
+    tall = ("  finished; output /tmp/x/tas\n  ks/b1oqw8apj.output. Read it.\n"
+            "────────────────────────────────────────────────\n  ⏵⏵ auto mode on\n")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), tall]))
+    assert not lc.wake(chat(pane_id="7", zellij_session="claude"), text)
+    submitted = ("❯ " + text + "\n  ⎿ working\n────\n❯ \n────\n  ⏵⏵ auto mode on\n")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [BOX.format(""), submitted]))
+    assert lc.wake(chat(pane_id="7", zellij_session="claude"), text)
+
+
+def test_wake_does_not_submit_into_new_session_composer(monkeypatch):
+    calls = []
+    screen = BOX.format("describe a task for a new session")
+    monkeypatch.setattr(lc, "zellij", scripted_zellij(calls, [screen]))
+    assert not lc.wake(chat(pane_id="7", zellij_session="partner"), "Continue")
+    assert calls == [("dump-screen", "--pane-id", "terminal_7")]
+
+
+def test_ci_billing_block_is_an_owner_wait_even_with_finished_background_work():
+    blocked = chat(last_speaker="assistant", last_text="CI is blocked by GitHub billing.",
+                   undelivered=[{"task_id": "ci"}])
+    decision = lc.decide(blocked, blocked.last_activity + 3600, dict(lc.DEFAULTS), "")
+    assert decision.action == "stop"
+    assert not decision.reopen
+    assert lc.open_question(blocked) == lc.BILLING_QUESTION
+
+
+
+def test_billing_wait_survives_worker_restarts_and_does_not_age_into_done():
+    blocked = chat(last_speaker="assistant", last_text="GitHub Actions did not start because of the spending limit.")
+    registry = {}
+    lc.record_stop(registry, blocked, "stopped", lc.BILLING_QUESTION)
+    now = blocked.last_activity + 48 * 3600
+    lc.refresh_registry(registry, [blocked], now, dict(lc.DEFAULTS))
+    assert registry[blocked.session_id]["state"] == "stopped"
+    assert registry[blocked.session_id]["open_question"] == lc.BILLING_QUESTION
+    blocked.last_speaker = "user"
+    lc.refresh_registry(registry, [blocked], now, dict(lc.DEFAULTS))
+    assert blocked.session_id not in registry
+
+def test_reserve_never_types_a_wake_into_claude(monkeypatch):
+    monkeypatch.setattr(lc.claude_weekly_model, "needs_handoff", lambda _, **kw: True)
+    monkeypatch.setattr(lc, "zellij", lambda *args: pytest.fail("Claude received a wake"))
+    assert not lc.wake(chat(pane_id="7", zellij_session="claude"), "Continue")
+
+
+def test_reap_main_reaches_lifecycle(tmp_path, monkeypatch):
+    calls = []
+
+    def run(args, config):
+        calls.append((args.command, args.dry_run))
+        return [], 0
+
+    monkeypatch.setattr(lc, "run_cycle", run)
+    assert lc.main(["reap", "--dry-run", "--claude-home", str(tmp_path)]) == 0
+    assert calls == [("reap", True)]
+
+
+
+def test_zellij_cleanup_timeout_does_not_abort_chat_admission(tmp_path):
+    import subprocess
+
+    calls = []
+
+    def unresponsive_listing(session, *args):
+        calls.append((session, args[0]))
+        raise subprocess.TimeoutExpired(args, 30)
+
+    assert lc.close_dead_panes(["fixture"], tmp_path, NOW, {}, unresponsive_listing) == []
+    events = [json.loads(line) for line in (tmp_path / "events.jsonl").read_text().splitlines()]
+    assert events[-1]["event"] == "zellij_tidy_skipped"
+    assert calls == [("fixture", "list-panes")]
+
+
+
+def test_admission_reserves_last_slot_for_production(monkeypatch):
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: None)
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: {str(i): {} for i in range(15)})
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
+    requests = []
+
+    def reap(args, config, room):
+        requests.append(room)
+        return [], 0
+
+    monkeypatch.setattr(lc, "run_cycle", reap)
+    assert lc.main(["admit"]) == lc.EXIT_NO_ROOM
+    assert lc.main(["admit", "--production"]) == 0
+    assert requests == [6, 5]
+
+
+def test_chat_admission_holds_for_load_before_reaping(monkeypatch, capsys):
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: "host overload")
+    monkeypatch.setattr(lc, "run_cycle", lambda *args: pytest.fail("reaping during admission"))
+    assert lc.main(["admit", "--production"]) == lc.EXIT_NO_ROOM
+    assert "host overload" in capsys.readouterr().out
+
+
+def test_only_production_waiter_may_use_last_free_slot(tmp_path, monkeypatch):
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    running = {str(i): {} for i in range(15)}
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: running)
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW, "working"))
+    observed = []
+
+    def deliver(waiters, *args, room, **kwargs):
+        observed.append((set(waiters), room))
+        return set(), []
+
+    monkeypatch.setattr(lc.claude_chat_waiters, "deliver", deliver)
+    config = dict(CONFIG, production_chat_ids=["release"])
+    lc.wake_waiting({"release": [], "ordinary": [], "1": []}, [], {}, tmp_path, NOW, config)
+    assert observed == [({"release", "1"}, 1)]
+
+
+def test_admission_counts_only_chats_at_work_and_lists_them(tmp_path, monkeypatch, capsys):
+    """2026-11-27: start_chat refused with "15 chats run (admission limit 15)" while 2 chats worked;
+    11 idle Codex chats, refused for Codex's usage limit, and an idle terminal chat filled the count."""
+    monkeypatch.setenv("OPENMATES_CHAT_LIFECYCLE_DIR", str(tmp_path))
+    monkeypatch.setattr(lc, "load_config", lambda: dict(CONFIG))
+    monkeypatch.setattr(lc.os, "cpu_count", lambda: 16)
+    monkeypatch.setattr(lc.host_load_guard, "gate", lambda _: None)
+    monkeypatch.setattr(lc.time, "time", lambda: NOW)
+    at_work = [chat(session_id="busy", status="busy", title="Apple notifications"),
+               chat(session_id="recent", last_activity=NOW - 60),
+               chat(session_id="ci", children=[*MCP, "/bin/bash -c cargo test"])]
+    idle = [chat(session_id="asks", pushed_question="Ship it?"), chat(session_id="term", kind="terminal"),
+            chat(session_id="pinned", protected=True), chat(session_id="between-continues")]
+    codex = {f"codex-{n}": {"pid": 100 + n} for n in range(11)}
+    codex["codex-working"] = {"pid": 200}
+    monkeypatch.setattr(lc.codex_chats, "live", lambda: codex)
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda cid: (
+        (NOW - 10, "working") if cid == "codex-working" else (NOW - 90 * 60, "idle")))
+    monkeypatch.setattr(lc, "_children", lambda pid: [])
+    left = at_work + idle
+    monkeypatch.setattr(lc, "run_cycle", lambda args, config, room: (left, 0))
+    holding, not_counted = lc.slot_holders(left, NOW, CONFIG, tmp_path)
+    assert sorted(row["session_id"] for row in holding) == ["busy", "ci", "codex-working", "recent"]
+    assert len(not_counted) == 15
+    assert lc.main(["admit"]) == 0  # 4 of 15 slots held: start_chat works again
+
+    left = at_work + [chat(session_id=f"busy-{n}", status="busy") for n in range(11)] + idle
+    assert lc.main(["admit"]) == lc.EXIT_NO_ROOM
+    out = capsys.readouterr().out
+    assert out.startswith("no room: 15 chats hold a slot (admission limit 15); counted:")
+    assert "busy claude/pane 'Apple notifications': state is busy" in out
+    assert "codex-wo codex/codex '(untitled)': turn running" in out
+    assert "running but idle, not counted (15):" in out and "asks claude/pane" in out
+
+
+def test_codex_chat_with_a_pending_message_holds_its_slot(tmp_path, monkeypatch):
+    monkeypatch.setattr(lc.codex_chats, "turn_activity", lambda _: (NOW - HOUR, "idle"))
+    monkeypatch.setattr(lc, "_children", lambda pid: [])
+    assert lc.codex_slot_reason("c", 1, NOW, CONFIG, tmp_path) == ""
+    (tmp_path / "connector-deliveries.json").write_text(json.dumps({"c": {}}))
+    assert lc.codex_slot_reason("c", 1, NOW, CONFIG, tmp_path) == "a message or background process is pending"
+
+
+def test_codex_chats_that_reported_done_are_archived_without_a_reopen():
+    """28 stopped Codex chats sat in "done to archive": the connector reopens a Claude chat to
+    /exit it, which a Codex chat has no use for (no app session, cwd gone)."""
+    registry = {"done": {"state": "stopped", "kind": "codex", "reason": "reported done", "last_activity": iso(NOW)},
+                "old": {"state": "done", "kind": "codex", "reason": "reported done", "last_activity": iso(NOW)},
+                "asked": {"state": "done", "kind": "codex", "reason": "asked the owner",
+                          "last_activity": iso(NOW - 30 * HOUR)},
+                "claude": {"state": "stopped", "kind": "pane", "reason": "reported done with a ✅ push",
+                           "last_activity": iso(NOW - 30 * HOUR)}}
+    lc.refresh_registry(registry, [], NOW, CONFIG)
+    assert registry["done"]["state"] == registry["old"]["state"] == "archived"
+    assert registry["asked"]["state"] == "done"  # waits on Marco: left for him
+    assert registry["claude"]["state"] == "done"

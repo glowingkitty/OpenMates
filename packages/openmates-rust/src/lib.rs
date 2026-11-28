@@ -9,6 +9,8 @@ pub mod client;
 pub mod crypto;
 pub mod embed_read;
 pub mod error;
+#[doc(hidden)]
+pub mod startup_diagnostics;
 pub mod local_cache;
 pub mod mentions;
 pub mod mentions_list;

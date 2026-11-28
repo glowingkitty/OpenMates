@@ -69,6 +69,7 @@
     import CameraView from './CameraView.svelte';
     import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import CompactSendButton from './CompactSendButton.svelte';
+    import ComposerIconButton from '../workspace/ComposerIconButton.svelte';
     import GuestAccessReason from './GuestAccessReason.svelte';
     import { loadGuestAccessPhase, resolveGuestComposerState, type GuestAccessPhase } from './guestComposerState';
     import MapsView from './MapsView.svelte';
@@ -103,6 +104,7 @@
     import { generateUUID } from '../../message_parsing/utils';
     import { extractEmbedReferences } from '../../services/embedResolver';
     import { getLastAuthMethod, type LastAuthMethod } from '../../utils/lastAuthMethod';
+    import { openGuestAccountEntry } from '../../utils/guestAccountEntry';
     import { AnonymousTranscriptionUsageError, type AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { createLiveTranscriptController, LIVE_TRANSCRIPT_META, type LiveTranscriptController } from './services/liveTranscriptInsertion';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
@@ -118,6 +120,7 @@
     import { buildProjectMentionSyntax } from './services/projectMentionSyntax';
     import {
         extractMentionQuery,
+        MEMORY_MENTION_GRADIENT,
         resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
@@ -445,6 +448,7 @@
         live: LiveTranscriptController;
         realtime: AudioRealtimeTranscriptionHandle | null;
         sendRequested: boolean;
+        editorReturned: boolean;
         overlayRemoved: Promise<void>;
         resolveOverlayRemoved: () => void;
         releaseEmptyDraftProtection: () => void;
@@ -764,6 +768,7 @@
     let anonymousTextSendEnabled = $derived(guestComposerState?.kind === 'send');
     let guestAccessRequest = 0;
     let lastGuestAccessRetryAt = 0;
+    let guestMediaCheckPending = false;
     /** A retry keeps showing Sign up with its reason until it succeeds; only the first check shows loading. */
     async function checkGuestAccess(retry = false): Promise<void> {
         const request = ++guestAccessRequest;
@@ -771,6 +776,29 @@
         if (!retry) guestAccessPhase = 'pending';
         const phase = await loadGuestAccessPhase();
         if (request === guestAccessRequest && !composerDestroyed && (!retry || phase === 'loaded')) guestAccessPhase = phase;
+    }
+
+    /** Use the Send access decision before any guest microphone or call setup. */
+    export async function allowGuestMediaStart(): Promise<boolean> {
+        if (guestMediaCheckPending) return false;
+        guestMediaCheckPending = true;
+        const chatId = currentChatId;
+        try {
+            if (guestComposerState?.kind !== 'account') {
+                // Recheck advertised access before starting. Another tab or
+                // visitor can use up the shared allowance after this page loads.
+                const request = ++guestAccessRequest;
+                const phase = await loadGuestAccessPhase();
+                if (request !== guestAccessRequest || composerDestroyed ||
+                    currentChatId !== chatId || $authStore.isAuthenticated) return false;
+                guestAccessPhase = phase;
+            }
+            if (guestComposerState?.kind === 'send') return true;
+            if (guestComposerState?.kind === 'account') await handleSignUpClick();
+            return false;
+        } finally {
+            guestMediaCheckPending = false;
+        }
     }
     // A failed check retries when the visitor comes back to the field (on focus, not
     // while focused) or the network returns.
@@ -1171,30 +1199,6 @@
     let hasNoCredits = $derived($authStore.isAuthenticated && $userProfile.credits <= 0 && !$demoMode);
 
     // --- AI Task State ---
-    let isCurrentSubChat = $state(false);
-    let broadcastToSiblings = $state(false);
-
-    async function checkIsSubChat() {
-        if (!currentChatId) {
-            isCurrentSubChat = false;
-            return;
-        }
-        try {
-            const { getChat } = await import('../../services/db/chatCrudOperations');
-            const { chatDB } = await import('../../services/db');
-            await chatDB.init();
-            const chat = await getChat(chatDB, currentChatId);
-            isCurrentSubChat = !!(chat && (chat.parent_id || chat.is_sub_chat));
-        } catch (e) {
-            console.error('[MessageInput] Error checking is sub-chat:', e);
-            isCurrentSubChat = false;
-        }
-    }
-
-    $effect(() => {
-        void checkIsSubChat();
-    });
-
     let activeAITaskId = $state<string | null>(null);
     // CRITICAL: Must use $state() for Svelte 5 reactivity - otherwise store subscription updates
     // won't trigger re-evaluation of reactive statements that depend on this variable
@@ -2077,7 +2081,7 @@
                         break;
                     }
                     case 'video':
-                        // YouTube videos should always use red color (#A70B09)
+                        // YouTube videos use the video highlight color.
                         className = 'unclosed-block-video';
                         console.debug('[MessageInput] Video block detected, using video highlight color (red):', block.content?.substring(0, 50));
                         break;
@@ -2381,7 +2385,7 @@
                 'max-height: none',
                 'max-width: none',
                 'z-index: 200',
-                'border-radius: 20px',
+                'border-radius: var(--radius-8)',
             ].join('; ') + ';';
         }
         if (isFullscreen) {
@@ -2410,9 +2414,9 @@
     );
 
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
-    let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        (anonymousFileAttachmentPending || anonymousUsageExhausted) ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        guestComposerState?.kind === 'account' && guestComposerState.action === 'login'
+            ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -4146,7 +4150,17 @@
         }
     }
 
-    function handleAiTaskOrChatChange() {
+    function handleAiTaskOrChatChange(event?: Event) {
+        const detail = (event as CustomEvent<{ chat_id?: string; independent_reply?: boolean }> | undefined)?.detail;
+        if (detail?.independent_reply === true) {
+            if (detail.chat_id === currentChatId && awaitingAITaskStart) {
+                // The admitted response has its own transcript row and Stop control.
+                awaitingAITaskStart = false;
+                if (awaitingAITaskTimeoutId) clearTimeout(awaitingAITaskTimeoutId);
+                awaitingAITaskTimeoutId = null;
+            }
+            return;
+        }
         console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
 
@@ -4185,7 +4199,8 @@
      * Handle AI task ended event - fade out stop button when task completes
      */
     function handleAiTaskEnded(event: CustomEvent) {
-        const { chatId, taskId, status } = event.detail;
+        const { chatId, taskId, status, independentReply } = event.detail;
+        if (independentReply === true) return;
         console.debug('[MessageInput] handleAiTaskEnded received:', {
             chatId,
             taskId,
@@ -5448,6 +5463,7 @@
             textAtCapture: activeEditor.getText(),
             realtime: null as AudioRealtimeTranscriptionHandle | null,
             sendRequested: false,
+            editorReturned: false,
             overlayRemoved,
             resolveOverlayRemoved,
             releaseEmptyDraftProtection: () => {},
@@ -5490,12 +5506,26 @@
         return current;
     }
 
+    function returnEditorAfterRecording(context: NonNullable<typeof recordingContext>) {
+        if (context.editorReturned || !context.realtime || context.sendRequested ||
+            !$authStore.isAuthenticated || !context.live.hasText()) return;
+        // Once there is a draft to edit, keep trailing words at their original
+        // dictated range and return control of the caret to the user.
+        context.editorReturned = true;
+        isMessageFieldFocused = true;
+        isFocused = true;
+        void tick().then(() => {
+            if (isCurrentRecordingContext(context) && !context.sendRequested) context.editor.view.focus();
+        });
+    }
+
     // contract-test: direct surface=gui.web assertions=message-input.audio.live-editor-transcript
     function handleLiveTranscript(event: CustomEvent<{ transcript: string }>) {
         const context = recordingContext;
         if (!context || !isCurrentRecordingContext(context)) return;
-        if (!context.live.apply(event.detail.transcript)) return;
+        if (!context.live.apply(event.detail.transcript, !context.editorReturned)) return;
         recordingHasLiveText = true;
+        returnEditorAfterRecording(context);
         scheduleLivePIIDetection(context.editor);
     }
 
@@ -5570,6 +5600,7 @@
         }
 
         try {
+            returnEditorAfterRecording(context);
             const result = await realtime.correction;
             recordRecordingDiagnostic('correction-arrived', context);
             if (!isCurrentRecordingContext(context)) return;
@@ -5578,7 +5609,7 @@
             context.live.setProcessing(false);
             // One untouched dictation segment becomes the corrected text. Text
             // the user redirected or edited while speaking stays as arranged.
-            const outcome = transcript ? context.live.applyCorrection(transcript) : 'kept';
+            const outcome = transcript ? context.live.applyCorrection(transcript, context.editorReturned) : 'kept';
             recordRecordingDiagnostic('transcript-inserted', context, outcome);
             hasContent = editorHasSendableText(context.editor);
             refreshDraftPreviewState(context.editor);
@@ -5603,11 +5634,10 @@
                 }
                 return;
             }
-            // Finish reveals the corrected editor only after the overlay outro.
             await context.overlayRemoved;
             recordRecordingDiagnostic('post-frame', context);
             if (!isCurrentRecordingContext(context)) return;
-            context.editor.view.focus();
+            if (!context.editorReturned) context.editor.view.focus();
             recordRecordingDiagnostic('focus-restored', context);
             if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
         } catch (error) {
@@ -5615,12 +5645,15 @@
                 if (!(error instanceof AnonymousTranscriptionUsageError)) console.error('[MessageInput] Recording transcription failed:', error);
                 void showTranscriptionError(error);
                 context.live.setProcessing(false);
-                if (error instanceof AnonymousTranscriptionUsageError) {
-                    // Guest dictation without admitted allowance yields no transcript.
+                if (error instanceof AnonymousTranscriptionUsageError && error.signupRequired) {
                     context.live.discard();
-                } else if (context.live.hasText() && !queuedEdit) {
-                    // Already streamed words stay editable; persist them as the draft.
-                    triggerSaveDraft(currentChatId, context.editor);
+                } else if (context.live.hasText()) {
+                    // A failed completion cannot send, but already streamed
+                    // words from this recording stay editable in the draft.
+                    await context.overlayRemoved;
+                    if (isCurrentRecordingContext(context) && !queuedEdit) {
+                        triggerSaveDraft(currentChatId, context.editor);
+                    }
                 }
             }
         } finally {
@@ -5644,7 +5677,7 @@
                 actionLabel: $text('signup.sign_up'),
                 duration: 10000,
                 dedupeKey: 'anonymous-daily-credits-exhausted',
-                onAction: () => window.dispatchEvent(new CustomEvent('openSignupInterface')),
+                onAction: openGuestAccountEntry,
             });
         } else {
             notificationStore.error($text('common.try_again'));
@@ -5915,6 +5948,10 @@
         }
     }
     function handleFileSelect() {
+        if (!$authStore.isAuthenticated) {
+            void handleSignUpClick();
+            return;
+        }
         openNativeAttachmentPicker(fileInput);
     }
     /**
@@ -6395,7 +6432,7 @@
             },
             currentChatId,
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
-            broadcastToSiblings,
+            false, // sub-chat broadcast is no longer a user option; the old default
             (chatId) => cancelledNewChatSendIds.has(chatId),
             getE2EServerContentOverride(event),
             projectFocusDocumentAtSendRequest,
@@ -6555,12 +6592,11 @@
     }
 
     async function handleSignUpClick() {
-        const authEvent = (anonymousFileAttachmentPending || anonymousUsageExhausted) ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
             setPendingAnonymousFileAttachment(false);
-            window.dispatchEvent(new CustomEvent(authEvent));
+            openGuestAccountEntry();
             return;
         }
 
@@ -6609,7 +6645,7 @@
         
         console.debug('[MessageInput] Cleared editor content after saving draft for sign-up');
 
-        window.dispatchEvent(new CustomEvent(authEvent));
+        openGuestAccountEntry();
     }
 
     function _handleInsertSpace() {
@@ -6664,6 +6700,10 @@
         const action = event.detail.action;
         if (action === 'start') {
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) {
+                window.dispatchEvent(new Event('recordingShortcutFinished'));
+                return;
+            }
             prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
             prepareEditorForRecording();
             await tick();
@@ -6743,16 +6783,19 @@
 
     function handleStopRecordingCleanup() {
         recordRecordingDiagnostic('recording-close', recordingContext);
-        const revealCorrectedDraft = !!recordingContext && !recordingContext.sendRequested &&
-            !!recordingContext.realtime && isCurrentRecordingContext(recordingContext);
+        const context = recordingContext;
+        const revealCorrectedDraft = !!context && !context.sendRequested &&
+            !!context.realtime && isCurrentRecordingContext(context);
         if (recordingContext && !recordingContext.realtime) invalidateRecordingContext('recording-close-without-realtime');
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
         recordingLayoutPending = false;
         cleanupRecordingState();
-        isMessageFieldFocused = revealCorrectedDraft;
-        isFocused = revealCorrectedDraft;
+        if (!revealCorrectedDraft || !context?.editorReturned) {
+            isMessageFieldFocused = revealCorrectedDraft;
+            isFocused = revealCorrectedDraft;
+        }
     }
 
     export function stopRecordingForVoiceCall(): void {
@@ -6767,7 +6810,7 @@
             if (!isCurrentRecordingContext(context)) return;
             // Direct Send keeps the composer collapsed through the overlay outro.
             // Finish still restores the editor for review and editing.
-            if (context.sendRequested) return;
+            if (context.sendRequested || context.editorReturned) return;
             // The collapsed composer hides TipTap, so view.focus() cannot work
             // until its expanded DOM has rendered after the overlay outro.
             isMessageFieldFocused = true;
@@ -6811,6 +6854,8 @@
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        if (callOwnsAudio || event.detail.originalEvent.button !== 0) return;
+        if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) return;
         if (callOwnsAudio) return;
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
@@ -6840,6 +6885,8 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        if (callOwnsAudio) return;
+        if (!$authStore.isAuthenticated && !await allowGuestMediaStart()) return;
         if (callOwnsAudio) return;
         prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
@@ -7629,8 +7676,6 @@
                             // Memories mentions use the dedicated memory gradient,
                             // not the app's icon gradient, for visual consistency with the memory icon style.
                             const isMemory = !!memoryMatch || isMemoryEntry;
-                            const MEMORY_GRADIENT_START = '#dd03b5';
-                            const MEMORY_GRADIENT_END = '#cb00a5';
 
                             editor
                                 .chain()
@@ -7639,8 +7684,8 @@
                                     mentionType: isSkill ? 'skill' : (isFocus ? 'focus_mode' : (isMemoryEntry ? 'settings_memory_entry' : 'settings_memory')),
                                     displayName,
                                     mentionSyntax: mention,
-                                    colorStart: isMemory ? MEMORY_GRADIENT_START : app.icon_colorgradient?.start,
-                                    colorEnd: isMemory ? MEMORY_GRADIENT_END : app.icon_colorgradient?.end,
+                                    colorStart: isMemory ? MEMORY_MENTION_GRADIENT.start : app.icon_colorgradient?.start,
+                                    colorEnd: isMemory ? MEMORY_MENTION_GRADIENT.end : app.icon_colorgradient?.end,
                                     autoInserted: true,
                                 })
                                 .insertContent(' ')
@@ -7747,13 +7792,6 @@
         onUndoAll={handlePIIUndoAll}
     />
     
-    {#if isCurrentSubChat}
-        <div class="sub-chat-broadcast-toggle" style="display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 4px 8px; font-size: 12px; color: var(--fontSecondary);" data-testid="sub-chat-broadcast-toggle">
-            <span>Share with sibling sub-chats</span>
-            <Toggle bind:checked={broadcastToSiblings} />
-        </div>
-    {/if}
-
     {#if guestComposerState?.kind === 'account' && (shouldShowActionButtons || hasSendableDraft)}
         <GuestAccessReason reason={guestComposerState.reason} />
     {/if}
@@ -7803,23 +7841,24 @@
         {/if}
 
         {#if showEmptyInputAffordances && !callOwnsAudio}
-			<button
+			<ComposerIconButton
                 class="empty-input-attachment-button"
-                type="button"
-                data-testid="composer-attachment-shortcut"
+                testId="composer-attachment-shortcut"
+                icon={quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}
+                insetIcon
                 aria-label={$text(quickAttachmentUsesCamera ? 'enter_message.attachments.take_photo' : 'enter_message.attachments.attach_files')}
                 onpointerdown={(event) => event.preventDefault()}
                 onclick={handleQuickAttachment}
-            ><span class="clickable-icon {quickAttachmentUsesCamera ? 'icon_camera' : 'icon_files'}" aria-hidden="true"></span></button>
-			<button
-				class="clickable-icon icon_recordaudio empty-input-mic-button"
-				type="button"
-				data-testid="guest-cta-mic-button"
+            />
+			<ComposerIconButton
+				class="empty-input-mic-button"
+				icon="icon_recordaudio"
+				testId="guest-cta-mic-button"
 				data-record-audio-trigger="true"
 				aria-label={$text('enter_message.attachments.record_audio')}
 				onmousedown={(event) => onRecordMouseDown(new CustomEvent('recordMouseDown', { detail: { originalEvent: event } }))}
 				ontouchstart={(event) => onRecordTouchStart(new CustomEvent('recordTouchStart', { detail: { originalEvent: event } }))}
-			></button>
+			/>
 		{/if}
 
         <!-- Focus mode pill: shown when a focus mode is active.
@@ -8157,7 +8196,9 @@
     @import './EmbeddPreview.styles.css';
 
     .ideabucket-pill {
-        background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;
+        /* This gradient identifies the idea bucket in every theme. */
+        --color-ideabucket-pill: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%);
+        background: var(--color-ideabucket-pill) !important;
         --focus-pill-gradient: none;
     }
 
@@ -8166,14 +8207,14 @@
     }
 
     .ideabucket-pill-body:hover {
-        background: rgba(255, 255, 255, 0.06) !important;
+        background: color-mix(in srgb, white 6%, transparent) !important;
     }
 
     .ideabucket-pill-dot {
         width: 11px;
         height: 11px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.95);
+        background: color-mix(in srgb, white 95%, transparent);
         box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
         flex-shrink: 0;
     }
@@ -8203,7 +8244,7 @@
 	.message-field.empty-welcome-field {
 		min-height: 64px;
 		padding: 0 64px;
-		border-radius: 32px;
+		border-radius: calc(2 * var(--radius-7));
 	}
 
     .message-field.inline-compact.empty-welcome-field {
@@ -8211,7 +8252,7 @@
         min-height: 48px;
         max-height: 48px;
         padding: 0 56px;
-        border-radius: 24px;
+        border-radius: calc(2 * var(--radius-5));
     }
 
     .message-field.empty-welcome-field .scrollable-content {
@@ -8258,7 +8299,7 @@
         line-height: 48px;
     }
 
-    .empty-input-attachment-button {
+    .message-field :global(.empty-input-attachment-button) {
         position: absolute;
         top: 50%;
         left: 14px;
@@ -8280,22 +8321,12 @@
         cursor: pointer;
     }
 
-    .empty-input-attachment-button span {
-        width: 24px;
-        height: 24px;
-        /* Use the shared clickable-icon gradient, matching the microphone. */
-    }
-
-    .empty-input-attachment-button:hover {
-        background: var(--color-grey-10);
-    }
-
-    .empty-input-attachment-button:focus-visible {
+    .message-field :global(.empty-input-attachment-button:focus-visible) {
         outline: 2px solid var(--color-primary);
         outline-offset: 2px;
     }
 
-	.empty-input-mic-button {
+	.message-field :global(.empty-input-mic-button) {
 		position: absolute;
 		top: 50%;
 		right: 24px;
@@ -8305,17 +8336,13 @@
 		background: var(--color-primary);
 	}
 
-	.empty-input-mic-button:hover {
-		transform: translateY(-50%) scale(1.05);
-	}
-
     /* Edit message banner — shown above the editor when editing a previous message */
     .edit-banner {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: var(--spacing-3) var(--spacing-6);
-        background: var(--color-grey-10, rgba(255, 255, 255, 0.06));
+        background: var(--color-grey-10, color-mix(in srgb, white 6%, transparent));
         border-radius: var(--radius-3) 8px 0 0;
         margin: 0 8px;
     }
@@ -8363,7 +8390,7 @@
     }
 
     .edit-banner-cancel:hover {
-        background: var(--color-grey-20, rgba(255, 255, 255, 0.1));
+        background: var(--color-grey-20, color-mix(in srgb, white 10%, transparent));
     }
 
     .anonymous-terms-reminder {

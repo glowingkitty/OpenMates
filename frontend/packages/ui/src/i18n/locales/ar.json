@@ -959,6 +959,12 @@
         "description": {
           "text": "يقرأ تصميم Figma ويعيد البنية والأنماط وتسليمًا للبرمجة."
         }
+      },
+      "author": {
+        "text": "إنشاء تصميم",
+        "description": {
+          "text": "أنشئ منشورًا أو ملصقًا أو نموذجًا قابلًا للتعديل."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "إنشاء مهمة",
-          "description": {
-            "text": "أنشئ مهامًا بعناوين وأوصاف ومكلفين."
-          }
-        },
         "search": {
           "text": "البحث في المهام",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "محادثة نموذجية"
       },
+      "sub_chat": {
+        "text": "محادثة فرعية"
+      },
       "shared_chat": {
         "text": "دردشة مشتركة"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "عرض المزيد"
+      },
+      "account_total": {
+        "text": "{count} محادثة في حسابك"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "طي {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "مهمة"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "مخطط Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "جارٍ قراءة الرسم…"
+        },
+        "progress_checking": {
+          "text": "جارٍ فحص التصميم…"
+        },
+        "progress_adjusting": {
+          "text": "جارٍ تعديل التصميم للتطريز…"
+        },
+        "progress_stitching": {
+          "text": "جارٍ إنشاء الغرز والمعاينة…"
+        },
+        "progress_saving": {
+          "text": "جارٍ حفظ ملفات الآلة…"
+        },
         "threads": {
           "text": "الخيوط"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "تنزيل التصميم"
+        },
+        "current_page": {
+          "text": "الصفحة الحالية"
+        },
+        "all_pages": {
+          "text": "كل الصفحات"
+        },
+        "image_unavailable": {
+          "text": "إحدى الصور غير متاحة على هذا الجهاز. افتح الصفحة وانتظر تحميل الصور ثم حاول مجددًا."
+        },
+        "failed": {
+          "text": "تعذر تنزيل التصميم. حاول مجددًا."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "جرّب مجانًا"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "نطاق البريد الإلكتروني غير مسموح به."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "تستخدم المكالمات نسخ Mistral وصوت ElevenLabs v4 Turbo وتوجيه الذكاء الاصطناعي المعتاد في OpenMates والفوترة حسب الاستخدام."
-    },
     "privacy_description": {
       "text": "تُحوّل Mistral صوت الميكروفون إلى نص؛ وتُنشئ ElevenLabs v4 Turbo صوت المساعد من نص الرد وإعدادات الصوت. تستخدم المحادثة توجيه الذكاء الاصطناعي ومهارات OpenMates المعتادة. قد يحتفظ المزوّدون ببيانات الطلبات وفق سياساتهم."
     },

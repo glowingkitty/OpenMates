@@ -283,7 +283,7 @@ impl<'a> Tasks<'a> {
                     if let Some(team) = team {
                         w["key_type"] == "team"
                             && w["hashed_team_id"] == hash(team)
-                            && w["team_key_epoch"] == 1
+                            && crate::work::team_epoch_ok(w)
                     } else {
                         w["key_type"] == "master"
                     }
@@ -312,7 +312,16 @@ impl<'a> Tasks<'a> {
                 raw["key_wrappers"] = json!(rows);
             }
         }
-        decrypt(raw, master, wrapping, self.filters.team_id.as_deref())
+        let Some(team) = self.filters.team_id.clone() else {
+            return decrypt(raw, master, wrapping, None, &[]);
+        };
+        match decrypt(raw.clone(), master, wrapping, Some(&team), &[]) {
+            Err(Error::Crypto) => {
+                let previous = self.backend.team_previous_keys(&team).await?;
+                decrypt(raw, master, wrapping, Some(&team), &previous)
+            }
+            other => other,
+        }
     }
     pub(super) async fn resolve(&mut self, id: &str) -> Result<Resolved> {
         if uuid::Uuid::parse_str(id).is_ok()
@@ -441,7 +450,7 @@ impl<'a> Tasks<'a> {
                                 rows.iter().find(|w| {
                                     w["key_type"] == "team"
                                         && w["hashed_team_id"] == hash(team)
-                                        && w["team_key_epoch"] == 1
+                                        && crate::work::team_epoch_ok(w)
                                 })
                             })
                             .and_then(|w| w["encrypted_project_key"].as_str())
@@ -615,6 +624,10 @@ impl<'a> Tasks<'a> {
         let (master, wrapping) = self.keys().await?;
         let mut payload =
             encrypt_create(&input, &master, &wrapping, self.filters.team_id.as_deref())?;
+        if let Some(team) = self.filters.team_id.clone() {
+            let epoch = self.backend.team_epoch(&team).await?;
+            super::stamp_team_epoch(&mut payload, epoch);
+        }
         let headers = self.owner_headers(None, input.external_chat.is_some())?;
         if payload["assignee_type"] == "openmates" {
             payload["plaintext_title"] = json!(input.title);
@@ -1150,7 +1163,12 @@ impl Tasks<'_> {
     ) -> Result<TaskDelivery> {
         let input = self.canonical_create(input).await?;
         let (master, wrapping) = self.keys().await?;
-        let payload = encrypt_create(&input, &master, &wrapping, self.filters.team_id.as_deref())?;
+        let mut payload =
+            encrypt_create(&input, &master, &wrapping, self.filters.team_id.as_deref())?;
+        if let Some(team) = self.filters.team_id.clone() {
+            let epoch = self.backend.team_epoch(&team).await?;
+            super::stamp_team_epoch(&mut payload, epoch);
+        }
         let id = string(&payload, "task_id")?.to_owned();
         let headers = self.owner_headers(None, input.external_chat.is_some())?;
         self.prepare(delivery_id, TaskMutationKind::Create, id, payload, headers)
@@ -1311,6 +1329,7 @@ impl Tasks<'_> {
                 &master,
                 &wrapping,
                 self.filters.team_id.as_deref(),
+                &[],
             )?;
             payload["plaintext_title"] = task.public["title"].clone();
             payload["plaintext_description"] = task.public["description"].clone();
@@ -1773,7 +1792,7 @@ impl Tasks<'_> {
                         r.iter().find(|w| {
                             w["key_type"] == "team"
                                 && w["hashed_team_id"] == hash(team)
-                                && w["team_key_epoch"] == 1
+                                && crate::work::team_epoch_ok(w)
                         })
                     })
                     .and_then(|w| w["encrypted_project_key"].as_str())

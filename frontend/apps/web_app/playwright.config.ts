@@ -38,6 +38,12 @@ if (videoMode && videoMode !== 'on' && videoMode !== 'off') {
 	throw new Error('PLAYWRIGHT_VIDEO_MODE only supports "on" or "off" in this config.');
 }
 
+// Every Playwright run in GitHub CI or E2B (both set CI) records a video: it is the proof the
+// chat attaches to its push (owner rule, 23 Nov 2026; scripts/push_proof.py video check).
+if (process.env.CI && videoMode === 'off') {
+	throw new Error('PLAYWRIGHT_VIDEO_MODE=off is not allowed in CI or E2B: every run records a proof video.');
+}
+
 const resolvedVideoMode = (videoMode || 'on') as 'on' | 'off';
 const proofVideoProfile = process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE;
 if (proofVideoProfile && !['web-phone', 'web-laptop'].includes(proofVideoProfile)) {

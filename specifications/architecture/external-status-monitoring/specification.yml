@@ -16,7 +16,7 @@ scope:
     - Five-minute real AI chats (Gemini Flash Lite) with and without an account, and a 30-minute real web-search skill.
     - Five-minute checks of external providers through their free official status pages.
     - A public page with components, external providers, 90-day daily uptime bars and incident history.
-    - Escalating alerts after two consecutive failures, reminders at 15 minutes, 1 hour and then every 3 hours, and one resolved message.
+    - Escalating alerts for sustained service outages, including the production smoke, email and TLS checks owned by the dev host.
     - Production integration states from the existing health endpoint as alert-only checks, replacing the backend's own transition alerts when delegated.
     - Monitor probe traffic excluded from billing, free-usage allowances, usage entries and growth statistics.
     - A dev-server cross-check that alerts when the status page is unreachable or stale.
@@ -49,23 +49,27 @@ models:
 assertions:
   - id: external-status-monitoring.alerts.confirmed-failures
     type: behavior
-    must: A check alerts only after two consecutive failed results; a single failure, or a failure followed by a success, sends nothing. A check whose newest result is older than three intervals plus two minutes counts as failed, so a stopped checker cannot look healthy.
-    depends_on: [examples.alerts]
+    must: A service alerts once consecutive real failures establish an outage lasting at least ten minutes. Checker failures and stale or missing results are recorded separately and do not confirm an outage.
+    depends_on: [examples.confirmation]
   - id: external-status-monitoring.alerts.escalation
     type: behavior
-    must: While a confirmed failure lasts, reminders say how long it has been down and are sent 15 minutes and 1 hour after the first notice, then every 3 hours; checks failing at the same time are grouped into one message per channel.
-    depends_on: [examples.alerts]
+    must: A short Discord message begins with 🚨 for a new or ongoing outage. The configurable cadence defaults to a first notice after ten minutes, a reminder thirty minutes after that notice, and hourly reminders after that when a fresh failed check confirms the outage continues.
+    depends_on: [examples.escalation]
   - id: external-status-monitoring.alerts.resolved
     type: behavior
-    must: The first successful result after a notified failure sends exactly one resolved message with the total down time and closes the alert.
-    depends_on: [examples.alerts]
+    must: Confirmed recovery closes the incident and sends one ✅ message if an outage alert was delivered. The message gives the service, outage duration, start and end times. Failures within a brief recovery window remain part of the same incident.
+    depends_on: [examples.recovery]
   - id: external-status-monitoring.alerts.restart-safe
     type: invariant
-    must: Alert state is persisted after each evaluation, so restarting the checker neither repeats a sent notice nor loses an open alert.
-    depends_on: [examples.alerts]
+    must: The monitor persists incidents and successfully delivered notices across restarts. A service has one open incident in its monitor, and closed incidents retain the start, end, duration, failing check and error.
+    depends_on: [examples.history]
+  - id: external-status-monitoring.alerts.checker-errors
+    type: behavior
+    must: The production smoke check retries a runner or dispatch failure once. Production email health uses the outcomes of real production sends and Brevo account requests. An unavailable statistics endpoint or missing development credentials are recorded as checker diagnostics.
+    depends_on: [examples.checker_errors]
   - id: external-status-monitoring.page.public-safe
     type: privacy
-    must: The public status data contains only component and provider names, status words, daily uptime counts and incident times; no hostnames, URLs of internal checks, error text, tokens or user data. Visitor IPs are not logged.
+    must: The public status data contains only component and provider names, status words, daily uptime counts, aggregate short-blip totals and incident times; no hostnames, URLs of internal checks, error text, tokens or user data. Visitor IPs are not logged.
     depends_on: [examples.public_page]
   - id: external-status-monitoring.page.overall-honest
     type: behavior
@@ -111,4 +115,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [alerts, public_page, probe_traffic, liveness, deploy]
+  required_groups: [confirmation, escalation, recovery, history, checker_errors, public_page, probe_traffic, liveness, deploy]

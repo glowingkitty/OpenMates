@@ -68,7 +68,7 @@
 
 <style>
   .summary { display: flex; flex-direction: column; justify-content: center; gap: var(--spacing-3); min-height: 100%; min-width: 0; }
-  .query { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: var(--color-font-primary); font-size: var(--font-size-small); }
+  .query { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; word-break: normal; color: var(--color-font-primary); font-size: var(--font-size-small); }
   p { margin: 0; }
   .count { color: var(--color-font-primary); font-size: var(--font-size-small); }
   .meta, .notice { color: var(--color-font-tertiary); font-size: var(--font-size-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

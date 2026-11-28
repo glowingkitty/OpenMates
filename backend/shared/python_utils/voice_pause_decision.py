@@ -1,9 +1,10 @@
-"""Fast pause decision for a voice call: is the user done, and what do they ask of the assistant.
+"""Fast pause decision for a voice call: completion, hold intent and optional feedback.
 
-One Jev call judges, by meaning only (no keyword lists), two typed questions
+One Jev call judges, by meaning only (no keyword lists), typed questions
 about the transcript so far:
   verdict: finished | still_thinking | unsure | wait
   intent:  none | wait | resume | repeat
+On opted-in web calls, the same decision also provides a feedback category and locale.
 The verdict maps to how long the call waits before submitting the turn. The
 provider order is configuration (`VOICE_PAUSE_DECISION_PROVIDERS`, a comma list
 of names from PROVIDER_SETTINGS), so the model behind it can be swapped without
@@ -12,17 +13,25 @@ code changes. The check is bounded to PAUSE_DECISION_TIMEOUT_SECONDS.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from backend.shared.providers.typesafe.client import PROVIDER_SETTINGS, JevDecisionClient
+import httpx
+
+from backend.shared.providers.transcript_correction_accounting import (
+    admitted_correction, correction_dispatch_transport, settle_correction,
+)
+from backend.shared.providers.typesafe.client import (
+    PROVIDER_SETTINGS, TYPESAFE_MODEL, DecisionProviderError, JevDecisionClient,
+)
 from backend.shared.providers.typesafe.models import ChoiceAnswer
 from backend.shared.python_utils.voice_turn_completion import MAX_COMPLETION_CHARACTERS, _client
 
 PauseVerdict = Literal["finished", "still_thinking", "unsure", "wait", "unavailable"]
-PauseIntent = Literal["none", "wait", "resume", "repeat"]
+PauseIntent = Literal["none", "wait", "resume", "repeat", "pause_playback"]
 VERDICTS = ("finished", "still_thinking", "unsure", "wait")
 INTENTS = ("none", "wait", "resume", "repeat")
 
@@ -36,6 +45,16 @@ PAUSE_DECISION_TIMEOUT_SECONDS = 0.25
 PAUSE_CONFIDENCE = 0.7
 PROVIDERS_ENV = "VOICE_PAUSE_DECISION_PROVIDERS"
 logger = logging.getLogger(__name__)
+
+
+def instant_feedback_enabled(start: dict[str, Any]) -> bool:
+    """Opt in supported web clients and keep a server-side rollout switch."""
+    return start.get("instant_feedback") is True and os.getenv("VOICE_CALL_INSTANT_FEEDBACK", "1") == "1"
+
+
+def voice_feedback_key(call_id: str, turn_id: str) -> str:
+    """Address ephemeral feedback metadata for a server-issued voice turn."""
+    return f"voice_call_feedback:{call_id}:{turn_id}"
 
 # Maps onto the existing completion gate vocabulary used by voice_call.py.
 _LEGACY_COMPLETION = {"finished": "complete", "still_thinking": "incomplete", "unsure": "uncertain",
@@ -72,6 +91,28 @@ _QUESTIONS = {
     },
 }
 
+_FEEDBACK_CATEGORIES = ("answering", "working", "none")
+_FEEDBACK_LANGUAGES = ("en", "de", "es", "fr", "zh")
+_FEEDBACK_QUESTIONS = _QUESTIONS | {
+    "feedback": {
+        "type": "choice",
+        "instructions": "Classify the desired reply to this complete utterance. Choose a category only.",
+        "criteria": {
+            "answering": "The speaker wants an explanation, information or an answer.",
+            "working": "The speaker asks the assistant to carry out a task, make something or take action.",
+            "none": "Ordinary conversation, a brief acknowledgment, waiting, resuming or no useful spoken cue.",
+        },
+    },
+    "feedback_language": {
+        "type": "choice",
+        "instructions": "Choose the expected reply language. Use an explicitly requested reply language or the main language spoken.",
+        "criteria": {
+            "en": "English", "de": "German", "es": "Spanish", "fr": "French", "zh": "Mandarin Chinese",
+            "other": "Any other language, or unknown",
+        },
+    },
+}
+
 
 @dataclass(frozen=True)
 class PauseDecision:
@@ -79,6 +120,8 @@ class PauseDecision:
     verdict: PauseVerdict
     intent: PauseIntent
     wait_seconds: float | None
+    feedback: str = "none"
+    feedback_language: str | None = None
 
     @property
     def completion(self) -> str:
@@ -108,7 +151,7 @@ def _unavailable() -> PauseDecision:
     return PauseDecision("unavailable", "none", PAUSE_WAIT_SECONDS["unavailable"])
 
 
-def parse_pause_decision(answers: dict[str, Any]) -> PauseDecision:
+def parse_pause_decision(answers: dict[str, Any], *, playback_control: bool = False) -> PauseDecision:
     """Turn model answers into a decision; anything low-confidence or unknown is unsure / none."""
     def pick(name: str, allowed: tuple[str, ...], fallback: str) -> str:
         answer = answers.get(name)
@@ -117,8 +160,11 @@ def parse_pause_decision(answers: dict[str, Any]) -> PauseDecision:
             return answer.choice
         return fallback
     verdict = pick("verdict", VERDICTS, "unsure")
-    intent = pick("intent", INTENTS, "none")
-    return PauseDecision(verdict, intent, PAUSE_WAIT_SECONDS[verdict])  # type: ignore[arg-type]  # narrowed by pick()
+    intent = pick("intent", (*INTENTS, "pause_playback") if playback_control else INTENTS, "none")
+    feedback = pick("feedback", _FEEDBACK_CATEGORIES, "none")
+    language = pick("feedback_language", _FEEDBACK_LANGUAGES, "")
+    return PauseDecision(verdict, intent, PAUSE_WAIT_SECONDS[verdict],  # type: ignore[arg-type]  # narrowed by pick()
+                         feedback, language or None)
 
 
 def configured_providers() -> list[str]:
@@ -130,11 +176,24 @@ def configured_providers() -> list[str]:
     return names or list(PROVIDER_SETTINGS)
 
 
-async def _first_valid(text: str, secrets_manager: Any) -> Any:
+def _pause_questions(with_feedback: bool, playback_control: bool) -> dict[str, Any]:
+    questions = _FEEDBACK_QUESTIONS if with_feedback else _QUESTIONS
+    if not playback_control:
+        return questions
+    intent = questions["intent"]
+    criteria = intent["criteria"] | {
+        "pause_playback": "Only asks for quiet or a moment, such as 'give me a second'. There is no request to save for later.",
+        "wait": "The speaker explicitly asks to hold a substantive unfinished request or keep listening until they say to resume.",
+    }
+    return questions | {"intent": intent | {"criteria": criteria}}
+
+
+async def _first_valid(text: str, secrets_manager: Any, *, with_feedback: bool = False, playback_control: bool = False) -> Any:
     tasks = [asyncio.create_task(JevDecisionClient(
         secrets_manager=secrets_manager, http_client=_client(),
         timeout_seconds=PAUSE_DECISION_TIMEOUT_SECONDS, max_retries=0, provider=provider,
-    ).evaluate(state={"speech": text}, questions=_QUESTIONS)) for provider in configured_providers()]
+    ).evaluate(state={"speech": text}, questions=_pause_questions(with_feedback, playback_control)))
+             for provider in configured_providers()]
     last_error: Exception | None = None
     try:
         for finished in asyncio.as_completed(tasks):
@@ -152,18 +211,49 @@ async def _first_valid(text: str, secrets_manager: Any) -> Any:
 
 
 async def classify_voice_pause(text: str, secrets_manager: Any,
-                               timeout: float | None = None) -> PauseDecision:
+                               timeout: float | None = None, *, with_feedback: bool = False, playback_control: bool = False) -> PauseDecision:
     """Judge verdict and intent of the transcript so far with one bounded model call."""
     if not text.strip() or len(text) > MAX_COMPLETION_CHARACTERS:
         return PauseDecision("unsure", "none", PAUSE_WAIT_SECONDS["unsure"])
     timeout = PAUSE_DECISION_TIMEOUT_SECONDS if timeout is None else timeout
     try:
         async with asyncio.timeout(timeout):
-            result = await _first_valid(text, secrets_manager)
+            options = {}
+            if with_feedback:
+                options["with_feedback"] = True
+            if playback_control:
+                options["playback_control"] = True
+            result = await _first_valid(text, secrets_manager, **options)
     except TimeoutError:
         logger.warning("VOICE_PAUSE_DECISION timeout after=%.2fs", timeout)
         return _unavailable()
     except Exception as exc:
         logger.warning("VOICE_PAUSE_DECISION unavailable category=%s", type(exc).__name__)
         return _unavailable()
+    return parse_pause_decision(result.answers, playback_control=playback_control)
+
+
+async def classify_metered_voice_pause(text: str, secrets_manager: Any, *, with_feedback: bool = False) -> PauseDecision:
+    """Run the same pause check with one explicitly admitted guest provider attempt."""
+    if not text.strip() or len(text) > MAX_COMPLETION_CHARACTERS:
+        return _unavailable()
+    state = {"speech": text}
+    questions = _FEEDBACK_QUESTIONS if with_feedback else _QUESTIONS
+    payload = {"model": TYPESAFE_MODEL, "state": state, "questions": questions}
+    input_bound = len(json.dumps(payload, ensure_ascii=False).encode("utf-8")) + 512
+    attempts: list[dict[str, Any]] = []
+    async with admitted_correction(TYPESAFE_MODEL, input_bound, 1) as operation:
+        try:
+            async with asyncio.timeout(PAUSE_DECISION_TIMEOUT_SECONDS):
+                async with httpx.AsyncClient(transport=correction_dispatch_transport(operation)) as client:
+                    result = await JevDecisionClient(
+                        secrets_manager=secrets_manager, http_client=client,
+                        timeout_seconds=PAUSE_DECISION_TIMEOUT_SECONDS, max_retries=0,
+                        provider="typesafe", allow_gemini=False, accounting=attempts,
+                        telemetry_purpose="guest_voice_pause",
+                    ).evaluate(state=state, questions=questions)
+        except (DecisionProviderError, TimeoutError, httpx.HTTPError):
+            return _unavailable()
+        usage = attempts[-1] if attempts else {}
+        await settle_correction(operation, usage.get("input_tokens"), usage.get("output_tokens"))
     return parse_pause_decision(result.answers)

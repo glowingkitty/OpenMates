@@ -111,10 +111,10 @@ project_focus:
 - id: focus-limits-awareness
   assertion_ids:
   - chat-awareness.project-focus.metadata-awareness
-  given: Alice works under the live "SocialHub" Project focus, and she also has chats in the "Garden" Project.
+  given: Alice works under the live "Harbor" Project focus, and she also has chats in the "Garden" Project.
   when: She asks about yesterday's retry bug without any mention.
-  then: The assistant may see SocialHub chats' metadata, not Garden chats; reading a SocialHub transcript asks her
-    first. After she leaves the focus, no SocialHub metadata is added automatically.
+  then: The assistant may see Harbor chats' metadata, not Garden chats; reading a Harbor transcript asks her
+    first. After she leaves the focus, no Harbor metadata is added automatically.
 voice_consent:
 - id: explicit-request-canonicalized
   assertion_ids:

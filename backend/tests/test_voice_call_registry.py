@@ -8,7 +8,7 @@ import fakeredis.aioredis
 import pytest
 
 from backend.shared.python_utils.voice_call_registry import (
-    finalize_active_call, issue_message_id, register_active_call,
+    active_call_session, finalize_active_call, issue_message_id, register_active_call,
     require_active_call, renew_active_call,
 )
 
@@ -28,7 +28,9 @@ async def test_registry_rejects_forged_identity_and_keeps_issued_retry() -> None
     cache = Cache()
     call_id = uuid.uuid4().hex
     base = dict(user_id="owner", session_id="session-hash", chat_id="personal-chat", call_id=call_id)
-    await register_active_call(cache, **base)
+    await register_active_call(cache, **base, instant_feedback=True)
+    lookup = {"user_id": base["user_id"], "chat_id": base["chat_id"], "call_id": call_id}
+    assert await active_call_session(cache, **lookup, require_instant_feedback=True) == "session-hash"
     await issue_message_id(cache, **base, message_id="transcript-1", role="assistant")
     binding = await require_active_call(cache, **base, message_id="transcript-1", role="assistant")
     assert binding.state == "active"
@@ -39,8 +41,15 @@ async def test_registry_rejects_forged_identity_and_keeps_issued_retry() -> None
         with pytest.raises(ValueError, match="not authorized"):
             await require_active_call(cache, **{**base, "message_id": "transcript-1", "role": "assistant", **changed})
     await finalize_active_call(cache, **base, grace_seconds=30)
+    assert await active_call_session(cache, **lookup, require_instant_feedback=True) is None
     retry = await require_active_call(cache, **base, message_id="transcript-1", role="assistant")
     assert retry.state == "finalizing" and retry.grace_expires_at is not None
+    # Ciphertext already issued by the older server still has its original
+    # authenticated credential binding until the existing retry grace expires.
+    upgraded = {**base, "session_id": "logical-session", "message_id": "transcript-1", "role": "assistant"}
+    assert await require_active_call(cache, **upgraded, legacy_session_hash=base["session_id"]) == retry
+    with pytest.raises(ValueError, match="not authorized"):
+        await require_active_call(cache, **upgraded, legacy_session_hash="another-login-hash")
     with pytest.raises(ValueError, match="not authorized"):
         await issue_message_id(cache, **base, message_id="late-forgery", role="assistant")
 
@@ -61,13 +70,24 @@ async def test_registry_lease_loss_fails_closed() -> None:
 # contract-test: supporting surface=gui.web assertions=video-call.audio.single-owner,video-call.privacy
 @pytest.mark.asyncio
 async def test_status_session_lookup_requires_active_owner_chat_binding():
-    from backend.shared.python_utils.voice_call_registry import active_call_session
     cache = Cache()
     base = dict(user_id="owner", session_id="call-session", chat_id="call-chat", call_id=uuid.uuid4().hex)
     await register_active_call(cache, **base)
     lookup = {key: base[key] for key in ("user_id", "chat_id", "call_id")}
     assert await active_call_session(cache, **lookup) == "call-session"
+    assert await active_call_session(cache, **lookup, require_instant_feedback=True) is None
     for changed in ({"user_id": "other"}, {"chat_id": "different"}, {"call_id": "malformed"}, {"call_id": uuid.uuid4().hex}):
         assert await active_call_session(cache, **{**lookup, **changed}) is None
     await finalize_active_call(cache, **base)
     assert await active_call_session(cache, **lookup) is None
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.provider.boundary
+@pytest.mark.asyncio
+async def test_state_cue_capability_is_bound_to_registered_call():
+    cache = Cache()
+    base = dict(user_id="owner", session_id="session", chat_id="chat", call_id=uuid.uuid4().hex)
+    await register_active_call(cache, **base, state_cues=True)
+    await issue_message_id(cache, **base, message_id="turn", role="user")
+    binding = await require_active_call(cache, **base, message_id="turn", role="user")
+    assert binding.state_cues is True

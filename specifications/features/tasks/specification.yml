@@ -253,6 +253,10 @@ assertions:
     type: behavior
     must: The Task backend appends lifecycle_update entries with system attribution for successful Task creation and status transitions on every client surface, reuses the canonical created and status event types, stores previous and next status as safe metadata, and never requires client-specific lifecycle logic.
     depends_on: [models.TaskActivityEntry, models.TaskActivityLifecycle, examples.task_activity_lifecycle]
+  - id: tasks.activity.updates-task-time
+    type: behavior
+    must: Creating a new Activity entry moves the Task's updated_at to the creation time without bumping its version, so date filters over updated time include Tasks that only received notes; an idempotent retry of an existing entry does not move it.
+    depends_on: [models.TaskActivityEntry, examples.task_activity_lifecycle]
   - id: tasks.activity.deletion-tombstone
     type: behavior
     must: Deleting a comment hides its text, embed previews, and attachments from normal Activity rendering but preserves a tombstone naming the original author and deleting user; mate-authored comments use OpenMates instead of the mate's actual name.

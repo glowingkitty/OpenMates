@@ -96,7 +96,7 @@
 
 <style>
   .jobs-search-preview { display: flex; flex-direction: column; gap: var(--spacing-2); min-width: 0; padding-top: var(--spacing-4); }
-  .query { color: var(--color-font-primary); font-size: var(--font-size-p); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .query { color: var(--color-font-primary); font-size: var(--font-size-p); font-weight: 600; line-height: 1.3; overflow-wrap: break-word; word-break: normal; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .scope, .provider, .state, .company, .warning { color: var(--color-font-secondary); font-size: var(--font-size-small); overflow-wrap: anywhere; }
   .count, .first-title { color: var(--color-font-primary); font-size: var(--font-size-small); font-weight: 600; }
   .first-result { display: flex; flex-direction: column; min-width: 0; }

@@ -15,7 +15,7 @@ use crossterm::{
 use futures_util::StreamExt;
 use openmates::{
     client::{
-        CachedChatPublication, CachedChatViews, CachedChatWindow,
+        CachedChatFilePublication, CachedChatFileReader, CachedChatWindow,
         ChatInvalidation, ChatMonitorAccessDenial, ChatSelectionUpdate,
         Client, FreshChatInventory,
     },
@@ -44,6 +44,13 @@ use zeroize::{Zeroize, Zeroizing};
 mod core_host;
 #[path = "runtime_send_stream.rs"]
 mod send_stream;
+#[path = "runtime_offline.rs"]
+mod offline;
+#[cfg(target_os = "linux")]
+#[path = "runtime_benchmark_identity.rs"]
+mod benchmark_identity;
+#[path = "runtime_saved_send_admissions.rs"]
+mod saved_send_admissions;
 
 struct TerminalGuard {
     was_raw: bool,
@@ -88,16 +95,16 @@ impl Drop for TerminalGuard {
     }
 }
 
-// The UI receives only bounded immutable plaintext models and read-only guards,
-// never the live Client, Store, Session, wrapping keys or effect authority.
+// The UI receives an opaque, read-only file lane and bounded publications.
+// It never receives the live Client, credentials or file/key authority.
 #[derive(Clone)]
 struct NativeCachedChatViews {
-    views: std::sync::Arc<CachedChatViews>,
+    views: std::sync::Arc<CachedChatFileReader>,
     store_generation: RuntimeStoreGeneration,
     security: u64,
 }
 struct NativeCachedChatPublication {
-    publication: CachedChatPublication,
+    publication: CachedChatFilePublication,
     store_generation: RuntimeStoreGeneration,
 }
 // Only Actor::authorized creates this after actual session/monitor admission
@@ -120,13 +127,13 @@ impl NativeAuthPublication {
     }
 }
 #[derive(Clone, Copy)]
-enum MonitorAdmission { Ready, Offline, Denied(Error) }
+enum MonitorAdmission { Ready, Offline(Error), Denied(Error) }
 impl NativeCachedChatViews {
-    fn publish(&self, id: &str, epoch: Stamp, cancel: CancellationToken) -> Result<Option<Reply>> {
+    async fn publish(&self, id: &str, epoch: Stamp, cancel: CancellationToken) -> Result<Option<Reply>> {
         if self.security != epoch.security || !self.store_generation.is_current() {
             return Err(Error::Cancelled);
         }
-        let Some(publication) = self.views.publish(id, cancel)? else { return Ok(None); };
+        let Some(publication) = self.views.clone().read(id.to_owned(), cancel).await? else { return Ok(None); };
         if !self.store_generation.is_current() { return Err(Error::Cancelled); }
         Ok(Some(Reply { epoch, view: View::CachedChat(NativeCachedChatPublication {
             publication, store_generation: self.store_generation.clone(),
@@ -151,10 +158,20 @@ fn close_cached_views(receiver: &watch::Receiver<Option<NativeCachedChatViews>>)
 fn apply_window(ui: &mut Ui, window: core_host::Fenced<core_view::ChatWindowRecord>) {
     use core_view::ChatWindowSource as Source;
     let source=window.value.source;
-    match window.into_inner().and_then(|record|core_host::chat_from_window(&record)) {
+    match window.into_inner().and_then(|record| {
+        let chat = core_host::chat_from_window(&record)?;
+        if matches!(source, Source::Canonical | Source::Live | Source::LiveSettled) {
+            ui.update_saved_queue_labels(&record);
+        }
+        Ok(chat)
+    }) {
         Ok(chat)=>match source {
             Source::Cached|Source::FirstPage=>ui.set_cached_chat(chat),
             Source::CacheSettled=>ui.set_settled_chat(chat),
+            Source::Canonical if chat.messages.is_empty() => {
+                ui.set_chat(chat);
+                ui.set_status("This saved chat has no messages");
+            }
             Source::Canonical=>ui.set_chat(chat),
             Source::CachedOffline=>ui.set_cached_chat_offline(chat),
             Source::Live=>ui.apply_live_selection(ChatSelectionUpdate::Updated(chat)),
@@ -164,11 +181,25 @@ fn apply_window(ui: &mut Ui, window: core_host::Fenced<core_view::ChatWindowReco
         Err(_)=>{},
     }
 }
-fn apply_cached_chat(ui: &mut Ui, publication: NativeCachedChatPublication) {
+/// Monitor denials apply only to the original security epoch and monitor.
+fn apply_monitor_denial(ui: &mut Ui, current: Stamp, origin: Stamp, error: Error, lifetime: &CancellationToken) -> bool {
+    if current.security != origin.security || lifetime.is_cancelled()
+        || !matches!(error, Error::Expired | Error::Authentication | Error::Forbidden)
+    {
+        return false;
+    }
+    ui.clear_private();
+    ui.set_error(&error.to_string());
+    true
+}
+fn apply_cached_chat(ui: &mut Ui, publication: NativeCachedChatPublication) -> bool {
     // Optional cache display never suppresses the queued canonical read. An old
     // owner/lifetime/generation is simply ineligible for this immediate preview.
     if let Ok(window) = publication.into_window() {
         ui.set_cached_chat(window.chat);
+        true
+    } else {
+        false
     }
 }
 
@@ -177,6 +208,9 @@ enum View {
     Greeting(String),
     Inspirations(Vec<openmates_sdk::client::overview::inspirations::Inspiration>),
     AdmittedAuth(NativeAuthPublication),
+    OfflineAuth(NativeAuthPublication, Vec<Item>, Option<u64>),
+    OfflineWindow(NativeCachedChatPublication),
+    RetryOffline,
     #[cfg(test)]
     Auth {
         username: String,
@@ -184,22 +218,23 @@ enum View {
     },
     SignedOut,
     Unlock,
-    Items(Workspace, Vec<Item>),
+    Items(Workspace, Vec<Item>, Option<u64>),
     /// A core chat window (cached, first page, strict, offline or live).
     Window(core_host::Fenced<core_view::ChatWindowRecord>),
     /// The chat list of a live update (selection kept by id).
-    LiveItems(core_host::Fenced<Vec<Item>>),
+    LiveItems(core_host::Fenced<(Vec<Item>, Option<u64>)>),
     /// The open chat became unreadable.
     ChatUnavailable(String),
     CachedChat(NativeCachedChatPublication),
     ChatOpenFailed(Error),
-    Sent(Chat),
-    /// A follow-up the server saved behind the active reply (`Queued` receipt).
-    SendQueued { chat_id: String, message_id: Option<String> },
+    Sent { request: RequestId, chat: Chat, message_ids: [Option<String>; 2] },
+    SendQueued { request: RequestId, chat_id: String, message_id: Option<String>, mode: Option<openmates_sdk::SendQueueMode> },
+    SendFailed { request: RequestId, error: Error },
+    StopResult { request: RequestId, result: Result<()> },
     Monitor(Error, CancellationToken),
     AccessDenied(ChatMonitorAccessDenial, CancellationToken),
     Item(Workspace, Item),
-    Stream(StreamUpdate),
+    Stream { request: RequestId, update: StreamUpdate },
     PairUri(String),
     PairPin,
     Share(String),
@@ -217,8 +252,16 @@ struct Stamp {
 }
 // One opportunistic cached paint for an admitted Open that had no reader yet.
 // This stores selectors/lifetime only; SDK publications retain actual authority.
+type CachedRead = futures_util::future::BoxFuture<'static, Result<Option<Reply>>>;
 struct PendingCachedSelection { id:String,epoch:Stamp,request:CancellationToken }
+impl Drop for PendingCachedSelection {
+    fn drop(&mut self) { self.request.cancel(); }
+}
 impl PendingCachedSelection {
+    fn read(&self, reader: NativeCachedChatViews) -> CachedRead {
+        let (id, epoch, token) = (self.id.clone(), self.epoch, self.request.clone());
+        Box::pin(async move { reader.publish(&id, epoch, token).await })
+    }
     fn is_current(&self,current:Stamp,authenticated:bool)->bool {authenticated&&self.epoch==current&&!self.request.is_cancelled()}
     fn is_completed_by(&self,reply:&Reply)->bool {
         // Any accepted global denial/error closes the opportunity. Successful
@@ -230,7 +273,7 @@ impl PendingCachedSelection {
             _=>{},
         }
         self.epoch==reply.epoch&&(matches!(&reply.view,View::Window(window) if completes_open(window.value.source))
-            ||matches!(&reply.view,View::ChatOpenFailed(_)|View::Sent(_)|View::Item(..)|View::MutationSucceeded|View::Done))
+            ||matches!(&reply.view,View::ChatOpenFailed(_)|View::Sent { .. }|View::Item(..)|View::MutationSucceeded|View::Done))
     }
 }
 /// Window sources that settle an open (a cached or first page still refreshes).
@@ -250,7 +293,7 @@ impl Stamp {
         let view_bound = match &reply.view {
             View::ChatOpenFailed(Error::Expired | Error::Authentication | Error::Forbidden) => false,
             View::Window(window) => !is_live(window.value.source),
-            View::CachedChat(_) | View::ChatOpenFailed(_) | View::Item(..) | View::Share(_) | View::MutationSucceeded => true,
+            View::CachedChat(_) | View::OfflineWindow(_) | View::ChatOpenFailed(_) | View::Item(..) | View::Share(_) | View::MutationSucceeded => true,
             _ => false,
         };
         reply.epoch.security == self.security && (reply.epoch.view == self.view || !view_bound)
@@ -258,6 +301,7 @@ impl Stamp {
 }
 enum Work {
     Boot,
+    OfflineExpired,
     /// The slow part of boot (global recovery + list). Runs only when the
     /// request queue is idle and yields to a chat Open/Send (preempted).
     BootSync,
@@ -269,20 +313,37 @@ enum Work {
     Monitor,
     Live,
     /// A streamed send ended: publish its sent chat or settle its error.
-    SendFinished(Box<Result<openmates_sdk::view_model::SendReceipt>>),
+    Send { request: RequestId, chat_id: Option<String>, text: String, turn_cancel: CancellationToken },
+    StopReply { request: RequestId, chat_id: String, task_id: String },
+    SendFinished(RequestId, Box<Result<openmates_sdk::view_model::SendReceipt>>),
 }
-type BootSyncPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
-/// Commands the user is waiting on run before the background boot sync.
-fn preempts_boot_sync(command: &UiCommand) -> bool {
+type BackgroundReadPreempt = std::sync::Arc<std::sync::Mutex<Option<CancellationToken>>>;
+/// Interactive chat reads and sends take priority over optional background reads.
+fn preempts_background_read(command: &UiCommand) -> bool {
     matches!(
         command,
-        UiCommand::Open(Workspace::Chats, _) | UiCommand::Refresh(Workspace::Chats) | UiCommand::Send { .. }
+        UiCommand::Open(Workspace::Chats, _) | UiCommand::Refresh(Workspace::Chats) | UiCommand::LoadMoreChats | UiCommand::Send { .. }
     )
 }
-fn preempt_boot_sync(slot: &BootSyncPreempt) {
+fn track_background_read(slot: &BackgroundReadPreempt, token: &CancellationToken) {
+    if let Ok(mut slot) = slot.lock() {
+        *slot = Some(token.clone());
+    }
+}
+fn preempt_background_read(slot: &BackgroundReadPreempt) {
     if let Some(token) = slot.lock().ok().and_then(|mut slot| slot.take()) {
         token.cancel();
     }
+}
+fn register_boot_sync(slot: &BackgroundReadPreempt, requests: &mpsc::Receiver<Request>) -> CancellationToken {
+    let token = CancellationToken::new();
+    track_background_read(slot, &token);
+    // The actor might have observed an empty queue before this branch won.
+    // A request queued before the token was published already takes priority.
+    if !requests.is_empty() {
+        token.cancel();
+    }
+    token
 }
 struct Request {
     epoch: Stamp,
@@ -333,6 +394,8 @@ async fn run_terminal(args: Args) -> Result<()> {
     };
     let mut epoch = Stamp::default();
     let mut active = CancellationToken::new();
+    let mut send_cancellations = std::collections::HashMap::<RequestId, CancellationToken>::new();
+    let mut send_admissions = saved_send_admissions::SavedSendAdmissions::default();
     let (requests, receiver) = mpsc::channel(32);
     let (priority, controls) = mpsc::unbounded_channel();
     let (consent, decisions) = mpsc::unbounded_channel();
@@ -341,8 +404,8 @@ async fn run_terminal(args: Args) -> Result<()> {
     let stop = CancellationToken::new();
     let demo = args.demo;
     // Cancels a running background BootSync so a chat Open/Send runs first.
-    let boot_sync_preempt: BootSyncPreempt = Default::default();
-    let actor_preempt = boot_sync_preempt.clone();
+    let background_read_preempt: BackgroundReadPreempt = Default::default();
+    let actor_preempt = background_read_preempt.clone();
     let worker = if demo {
         None
     } else {
@@ -372,10 +435,16 @@ async fn run_terminal(args: Args) -> Result<()> {
     let mut pair_poll_pending = false;
     let mut expires_at: Option<u64> = None;
     let mut authenticated = false;
+    let mut authenticated_frame_reported = false;
+    #[cfg(target_os = "linux")]
+    let mut benchmark_identity = benchmark_identity::BenchmarkIdentity::from_private_environment();
+    let mut offline_personal = false;
+    let mut staged_chat_items = None;
     let mut monitor_retry = None;
     let mut membership_check = None;
     let mut clipboard = None;
     let mut pending_cached_selection:Option<PendingCachedSelection>=None;
+    let mut pending_cached_read: Option<CachedRead> = None;
     let mut cached_channel_open=true;
     let interrupt = tokio::signal::ctrl_c();
     tokio::pin!(interrupt);
@@ -393,7 +462,11 @@ async fn run_terminal(args: Args) -> Result<()> {
                 pending_cached_selection=None;
                 close_cached_views(&cached_views);
                 authenticated=false;expires_at=None;ui.clear_private();ui.set_error(&Error::Expired.to_string());
-                vec![UiCommand::Logout]
+                if std::mem::take(&mut offline_personal) {
+                    monitor_retry=None;membership_check=None;ui.set_authenticated(false);ui.set_unlock_required(true);
+                    let _=priority.send(Request{epoch,work:Work::OfflineExpired,cancel:active.clone()});
+                    Vec::new()
+                } else { vec![UiCommand::Logout] }
             },
             _ = async { #[cfg(unix)] { terminate.recv().await; } #[cfg(not(unix))] { std::future::pending::<()>().await; } } => break,
             _ = async { #[cfg(unix)] { hangup.recv().await; } #[cfg(not(unix))] { std::future::pending::<()>().await; } } => break,
@@ -403,16 +476,26 @@ async fn run_terminal(args: Args) -> Result<()> {
                 if dirty {
                     execute!(terminal.backend_mut(), BeginSynchronizedUpdate)?;
                     let painted_result = terminal.draw(|frame| ui.draw(frame)).map(|_|());
+                    // Queue the private tag before releasing this frame to the
+                    // PTY. The harness joins it only after seeing the end marker.
+                    #[cfg(target_os = "linux")]
+                    if painted_result.is_ok() && let Some(probe) = benchmark_identity.as_mut() {
+                        probe.painted(authenticated.then(|| ui.selected_chat_id()).flatten());
+                    }
                     let ended = execute!(terminal.backend_mut(), EndSynchronizedUpdate);
                     painted_result?; ended?;
                     terminal.backend_mut().flush()?;
+                    if authenticated && !authenticated_frame_reported {
+                        openmates_sdk::startup_diagnostics::StartupPhase::AuthenticatedFrame.record(&Ok(()));
+                    }
+                    authenticated_frame_reported = authenticated;
                     dirty=false; painted=true;
                 }
                 // Read detection runs while painting (feature.chat-unread@1).
                 ui.take_deferred_commands()
             },
             _ = auth_tick.tick(), if !demo => {
-                if expires_at.is_some_and(|deadline| deadline <= now_ms()) {
+                if !offline_personal && expires_at.is_some_and(|deadline| deadline <= now_ms()) {
                     ui.clear_private(); ui.set_error(&Error::Expired.to_string()); expires_at=None;
                     vec![UiCommand::Logout]
                 } else {
@@ -429,13 +512,26 @@ async fn run_terminal(args: Args) -> Result<()> {
                 else {
                     let current=cached_views.borrow_and_update().clone();
                     if pending_cached_selection.as_ref().is_some_and(|selection|!selection.is_current(epoch,authenticated)){pending_cached_selection=None;}
-                    if let (Some(selection),Some(current))=(pending_cached_selection.as_ref(),current) {
-                        if let Ok(Some(reply))=current.publish(&selection.id,selection.epoch,selection.request.clone()) {
-                            // Disarm BEFORE consuming the opaque publication;
-                            // no late watch update can demote canonical content.
-                            pending_cached_selection=None;
-                            if epoch.accepts(&reply)&&let View::CachedChat(publication)=reply.view {apply_cached_chat(&mut ui,publication);dirty=true;}
-                        }
+                    pending_cached_read = pending_cached_selection.as_ref().zip(current)
+                        .map(|(selection, reader)| selection.read(reader));
+                }
+                Vec::new()
+            },
+            result = async {
+                match pending_cached_read.as_mut() {
+                    Some(read) => read.await,
+                    None => std::future::pending().await,
+                }
+            }, if !demo && pending_cached_read.is_some() => {
+                pending_cached_read = None;
+                if pending_cached_selection.as_ref().is_some_and(|selection| selection.is_current(epoch, authenticated))
+                    && let Ok(Some(reply)) = result
+                    && epoch.accepts(&reply)
+                    && let View::CachedChat(publication) = reply.view
+                {
+                    if apply_cached_chat(&mut ui, publication) {
+                        pending_cached_selection = None;
+                        dirty = true;
                     }
                 }
                 Vec::new()
@@ -445,29 +541,74 @@ async fn run_terminal(args: Args) -> Result<()> {
                 if !epoch.accepts(&reply){continue}
                 if pending_cached_selection.as_ref().is_some_and(|selection|selection.is_completed_by(&reply)){pending_cached_selection=None;}
                 let mut effects=Vec::new();
+                let mut ready_send = None;
                 match reply.view {
                     View::AdmittedAuth(publication)=>{
                         let Ok((username,deadline))=publication.into_auth() else { continue; };
+                        if let Some((items,total))=staged_chat_items.take(){ ui.set_chat_total(total);ui.set_items(Workspace::Chats,items); }
+                        offline_personal=false;
                         authenticated=true;ui.set_authenticated(true);ui.set_username(&username);ui.set_settings_restricted(deadline.is_some());expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");
                     },
+                    View::OfflineAuth(publication, items, total)=>{
+                        let Ok((username,deadline))=publication.into_auth() else { continue; };
+                        staged_chat_items=None;
+                        offline_personal=true;authenticated=true;ui.set_authenticated(true);ui.set_username(&username);
+                        ui.set_settings_restricted(true);ui.set_chat_total(total);ui.set_items(Workspace::Chats,items);
+                        expires_at=deadline;ui.set_status("Offline · saved chats are read-only");
+                        monitor_retry=Some(tokio::time::Instant::now()+Duration::from_secs(3));
+                    },
+                    View::OfflineWindow(publication)=>if let Ok(window)=publication.into_window(){ui.set_cached_chat_offline(window.chat);},
+                    View::RetryOffline=>if offline_personal {monitor_retry=Some(tokio::time::Instant::now()+Duration::from_secs(3));},
                     #[cfg(test)]
                     View::Auth{username,expires_at:deadline}=>{authenticated=true;ui.set_authenticated(true);ui.set_username(&username);expires_at=deadline;pairing=false;membership_check=Some(tokio::time::Instant::now()+Duration::from_secs(30));ui.set_status("Signed in · native encrypted session");},
-                    View::SignedOut=>{close_cached_views(&cached_views);authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
-                    View::Unlock=>ui.set_unlock_required(true),
-                    View::Greeting(name)=>ui.set_username_hint(&name),
+                    View::SignedOut=>{offline_personal=false;staged_chat_items=None;close_cached_views(&cached_views);drop(send_admissions.clear());authenticated=false;ui.clear_private();ui.set_authenticated(false);ui.set_status("Signed out");expires_at=None;pairing=false;monitor_retry=None;membership_check=None;},
+                    View::Unlock => {
+                        if !authenticated {
+                            ui.set_unlock_required(true);
+                        }
+                    },
+                    View::Greeting(name)=>if authenticated {ui.set_username_hint(&name);},
                     View::Inspirations(list)=>ui.set_inspirations(list),
-                    View::Items(workspace,items)=>ui.set_items(workspace,items),
+                    View::Items(workspace, items, total_count) => {
+                        if workspace == Workspace::Chats && !authenticated {
+                            staged_chat_items=Some((items,total_count));
+                        } else {
+                            if workspace == Workspace::Chats { ui.set_chat_total(total_count); }
+                            ui.set_items(workspace, items);
+                        }
+                    },
                     View::Window(window)=>{
                         // Disarm opportunistic old-cache paint before accepting
                         // a fresh first page. This remains read-only/loading.
                         if window.value.source==core_view::ChatWindowSource::FirstPage {pending_cached_selection=None;}
                         apply_window(&mut ui,window);
                     },
-                    View::LiveItems(items)=>{if let Ok(items)=items.into_inner(){ui.apply_live_chat_items(items);}},
+                    View::LiveItems(list) => {
+                        if let Ok((items, total_count)) = list.into_inner() {
+                            ui.set_chat_total(total_count);
+                            ui.apply_live_chat_items(items);
+                        }
+                    },
                     View::ChatUnavailable(chat_id)=>ui.apply_live_selection(ChatSelectionUpdate::Unavailable{chat_id}),
-                    View::CachedChat(publication)=>apply_cached_chat(&mut ui, publication),
-                    View::SendQueued{chat_id,message_id}=>ui.followup_queued(&chat_id,message_id.as_deref()),
-                    View::Sent(chat)=>{ui.send_succeeded();if reply.epoch.view==epoch.view{ui.set_chat(chat);}},
+                    View::CachedChat(publication)=>{ apply_cached_chat(&mut ui, publication); },
+                    View::SendQueued{request,chat_id,message_id,mode}=>{
+                        send_cancellations.remove(&request);
+                        ui.send_queued(request,&chat_id,message_id.as_deref(),mode);
+                        ready_send = send_admissions.complete(request);
+                    },
+                    View::Sent{request,chat,message_ids}=>{
+                        send_cancellations.remove(&request);
+                        ui.send_finished(request,chat,reply.epoch.view==epoch.view,&message_ids);
+                        ready_send = send_admissions.complete(request);
+                    },
+                    View::StopResult{request,result}=>{if reply.epoch.view==epoch.view{ui.stop_result(request,result);}},
+                    View::SendFailed{request,error}=>{
+                        send_cancellations.remove(&request);
+                        if matches!(error,Error::Unavailable{code:"completion_recovery_checkpoint_invalid",..}) {
+                            ui.send_failed(request,"Local completion checkpoint is invalid; encrypted data was preserved.");
+                        } else { ui.send_failed(request,&error.to_string()); }
+                        saved_send_admissions::retain_waiting_after_failure(&mut send_admissions, &mut ui, &mut send_cancellations, request);
+                    },
                     View::AccessDenied(denial,lifetime)=>{
                         if lifetime.is_cancelled(){continue}
                         match denial {
@@ -483,23 +624,40 @@ async fn run_terminal(args: Args) -> Result<()> {
                     },
                     View::Monitor(error,lifetime)=>{
                         if lifetime.is_cancelled(){continue}
-                        if matches!(error,Error::Expired|Error::Forbidden){close_cached_views(&cached_views);authenticated=false;ui.clear_private();ui.set_error(&error.to_string());effects.push(UiCommand::Logout);}
-                        else{ui.mark_cached_chat_offline();ui.set_status("Offline · reconnecting…");monitor_retry=Some(tokio::time::Instant::now()+Duration::from_secs(3));}
+                        if apply_monitor_denial(&mut ui,epoch,reply.epoch,error,&lifetime){close_cached_views(&cached_views);authenticated=false;effects.push(UiCommand::Logout);}
+                        else {
+                            ui.mark_cached_chat_offline();
+                            ui.set_status("Offline · reconnecting…");
+                            // A failed unlock drops its passphrase. Only an already
+                            // admitted shell can reconnect without another unlock.
+                            monitor_retry = authenticated.then(|| tokio::time::Instant::now() + Duration::from_secs(3));
+                        }
                     },
                     View::Item(workspace,item)=>ui.set_item(workspace,item),
-                    View::Stream(update)=>{if reply.epoch.view==epoch.view{ui.stream(update)}else{ui.background_stream(update)}},
+                    View::Stream{request,update}=>{
+                        ready_send = send_admissions.observe(request, &update);
+                        ui.stream_for(request,update,reply.epoch.view==epoch.view);
+                    },
                     View::PairUri(uri)=>{pairing=true;ui.set_pairing(&uri);},
                     View::PairPin=>ui.set_pair_pin_required(),
                     View::Share(uri)=>ui.set_share_url(&uri),
                     View::MutationSucceeded=>ui.mutation_succeeded(),
                     View::Status(message)=>ui.set_status(message),
                     View::Failed(error)|View::ChatOpenFailed(error)=>{
+                        if !authenticated { staged_chat_items=None; }
                         if matches!(error,Error::Unavailable{code:"completion_recovery_checkpoint_invalid",..}) {
                             ui.set_error("Local completion checkpoint is invalid; encrypted data was preserved.");
                         } else {ui.set_error(&error.to_string());}
                         if matches!(error,Error::Expired|Error::Authentication|Error::Forbidden){pairing=false}
                     },
                     View::Done=>{ui.set_busy(false);pair_poll_pending=false;},
+                }
+                if let Some(work) = ready_send
+                    && saved_send_admissions::dispatch_released(
+                        &mut send_admissions, &mut ui, &mut send_cancellations, &requests, work,
+                    )
+                {
+                    preempt_background_read(&background_read_preempt);
                 }
                 dirty=true;
                 effects
@@ -557,9 +715,28 @@ async fn run_terminal(args: Args) -> Result<()> {
                     }
                 }
                 command if demo => demo_command(&mut ui, command),
+                UiCommand::StopSend { request, task } => {
+                    if let Some((chat_id, task_id)) = task {
+                        let stop = Request {
+                            epoch, work: Work::StopReply { request, chat_id, task_id },
+                            cancel: active.clone(),
+                        };
+                        if priority.send(stop).is_err() { ui.stop_result(request, Err(Error::Offline)); }
+                    } else if send_admissions.cancel_waiting(request) {
+                        send_cancellations.remove(&request);
+                        ui.send_failed(request, "Follow-up stopped before sending.");
+                    } else if let Some(cancel) = send_cancellations.get(&request) {
+                        cancel.cancel();
+                        ui.set_status("Stopping this local response…");
+                    }
+                }
                 UiCommand::Cancel => {
                     ui.hide_cached_chat();
                     active.cancel();
+                    send_cancellations.clear();
+                    for pending in send_admissions.clear() {
+                        ui.send_failed(pending, "Follow-up cancelled before sending.");
+                    }
                     active = CancellationToken::new();
                     if !authenticated {
                         epoch.security = epoch.security.wrapping_add(1);
@@ -591,9 +768,7 @@ async fn run_terminal(args: Args) -> Result<()> {
                     ) {
                         epoch.view = epoch.view.wrapping_add(1);
                     }
-                    if preempts_boot_sync(&command) {
-                        preempt_boot_sync(&boot_sync_preempt);
-                    }
+                    let preempt_background = preempts_background_read(&command);
                     if matches!(
                         command,
                         UiCommand::Logout
@@ -603,7 +778,10 @@ async fn run_terminal(args: Args) -> Result<()> {
                             | UiCommand::Unlock { .. }
                     ) {
                         close_cached_views(&cached_views);
+                        staged_chat_items=None;
                         active.cancel();
+                        send_cancellations.clear();
+                        drop(send_admissions.clear());
                         active = CancellationToken::new();
                         epoch.security = epoch.security.wrapping_add(1);
                         epoch.view = epoch.view.wrapping_add(1);
@@ -616,39 +794,64 @@ async fn run_terminal(args: Args) -> Result<()> {
                             monitor_retry = None;
                         }
                     }
-                    // Consume cached data synchronously BEFORE enqueuing the
-                    // canonical Open. This lane does not borrow or wait for the
-                    // actor, so in-flight background reads cannot delay first
-                    // content. Nothing async can later demote a canonical view.
+                    // Race the selected file against canonical open on independent
+                    // lanes. A removed selection cancels its own file read only.
                     pending_cached_selection=None;
+                    pending_cached_read=None;
                     if let UiCommand::Open(Workspace::Chats, id) = &command {
-                        if authenticated {pending_cached_selection=Some(PendingCachedSelection{id:id.clone(),epoch,request:active.clone()});}
                         ui.hide_cached_chat();
-                        let cached = cached_views.borrow().clone();
-                        if authenticated && let Some(cached) = cached {
-                            if let Ok(Some(reply)) = cached.publish(id, epoch, active.clone()) {
-                                pending_cached_selection=None;
-                                if epoch.accepts(&reply) && let View::CachedChat(publication) = reply.view {
-                                    apply_cached_chat(&mut ui, publication);
-                                }
-                            }
+                        ui.set_status("Opening saved chat…");
+                        if authenticated {
+                            let selection = PendingCachedSelection { id: id.clone(), epoch, request: active.child_token() };
+                            pending_cached_read = cached_views.borrow().clone().map(|reader| selection.read(reader));
+                            pending_cached_selection = Some(selection);
                         }
                     }
                     if !matches!(command, UiCommand::MarkRead(_)) { ui.set_busy(true); }
                     let critical = matches!(command, UiCommand::Logout | UiCommand::SwitchTeam(_));
-                    let request = Request {
-                        epoch,
-                        work: Work::Command(command),
-                        cancel: active.clone(),
+                    #[cfg(target_os = "linux")]
+                    let benchmark_selection = match &command {
+                        UiCommand::Open(Workspace::Chats, id) if authenticated && benchmark_identity.is_some() => Some(id.clone()),
+                        _ => None,
+                    };
+                    let (work, send_id) = match command {
+                        UiCommand::Send { chat_id, text } => {
+                            let request = RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+                            ui.register_send(request, chat_id.as_deref(), &text, followup);
+                            let turn_cancel = active.child_token();
+                            send_cancellations.insert(request, turn_cancel.clone());
+                            (Work::Send { request, chat_id, text, turn_cancel }, Some(request))
+                        }
+                        other => (Work::Command(other), None),
+                    };
+                    let request = Request { epoch, work, cancel: active.clone() };
+                    let Some(request) = send_admissions.stage(request) else {
+                        dirty = true;
+                        continue;
                     };
                     let delivered = if critical {
                         priority.send(request).is_ok()
                     } else {
                         requests.try_send(request).is_ok()
                     };
+                    if delivered && preempt_background {
+                        preempt_background_read(&background_read_preempt);
+                    }
+                    #[cfg(target_os = "linux")]
+                    if delivered && let (Some(probe), Some(id)) = (&benchmark_identity, benchmark_selection) {
+                        probe.selected(&id);
+                    }
                     if !delivered {
                         pending_cached_selection=None;
-                        ui.set_error("The client is busy. Cancel the current operation and retry.");
+                        let error = "The client is busy. Cancel the current operation and retry.";
+                        if let Some(request) = send_id {
+                            send_cancellations.remove(&request);
+                            ui.send_failed(request, error);
+                            saved_send_admissions::retain_waiting_after_failure(
+                                &mut send_admissions, &mut ui, &mut send_cancellations, request,
+                            );
+                        }
+                        else { ui.set_error(error); }
                     }
                 }
             }
@@ -829,6 +1032,7 @@ struct Actor {
     live_epoch: Stamp,
     live_cancel: CancellationToken,
     live_retry_at: Option<tokio::time::Instant>,
+    live_retry_delay: Duration,
     // Root merges the explicit foreground recovery-pump adapter at this seam.
     // These bounded IDs grant no claim/lease and are never interpreted by UI.
     recovery_hints: std::collections::BTreeSet<String>,
@@ -838,7 +1042,36 @@ struct Actor {
     last_live_hint: Option<ChatInvalidation>,
     cached_views: watch::Sender<Option<NativeCachedChatViews>>,
     cached_views_blocked: bool,
+    offline_personal: Option<offline::OfflinePersonal>,
+    offline_expected: Option<openmates_sdk::client::NativePersonalOfflineReceipt>,
 }
+async fn finish_admitted_startup_cohort(
+    reconciled: Result<()>,
+    current: impl Fn() -> bool,
+    hydration: impl std::future::Future<Output = Result<()>>,
+) -> Result<()> {
+    use openmates_sdk::startup_diagnostics::StartupPhase;
+
+    if !matches!(reconciled, Ok(()) | Err(Error::Protocol | Error::Offline)) {
+        return reconciled;
+    }
+    if !current() {
+        return Err(Error::Cancelled);
+    }
+    let hydrated = hydration.await;
+    StartupPhase::Hydrate.record(&hydrated);
+    if matches!(
+        hydrated,
+        Err(Error::Authentication | Error::Expired | Error::Forbidden | Error::VerificationRequired | Error::Cancelled)
+    ) {
+        return hydrated;
+    }
+    if !current() {
+        return Err(Error::Cancelled);
+    }
+    reconciled.and(hydrated)
+}
+
 async fn actor(
     args: Args,
     mut requests: mpsc::Receiver<Request>,
@@ -847,7 +1080,7 @@ async fn actor(
     replies: mpsc::Sender<Reply>,
     cached_views: watch::Sender<Option<NativeCachedChatViews>>,
     stop: CancellationToken,
-    boot_sync_preempt: BootSyncPreempt,
+    background_read_preempt: BackgroundReadPreempt,
 ) {
     let (send_finished, mut finished) = mpsc::unbounded_channel();
     let initial = async {
@@ -870,6 +1103,7 @@ async fn actor(
         let mut client = Client::new(&api, None)?;
         client.set_identity(openmates_sdk::ClientIdentity::Cli);
         client.set_interactive(true);
+        client.set_parallel_chat_turns(true);
         client.set_app_origin(openmates::profile::application_origin(
             &api,
             explicit_app.clone(),
@@ -887,8 +1121,10 @@ async fn actor(
         .map_err(|_| Error::Forbidden)?;
         let store = RuntimeStore::new(Some(profile.state_dir), args.encrypted_vault).await?;
         let passphrase = SharedPassphrase::default();
-        let core = ViewCore::new(client, store.shell().clone(),
+        let mut core = ViewCore::new(client, store.shell().clone(),
             openmates::session_runtime::shared_credentials(&store, passphrase.clone()));
+        core.set_eager_cached_content(false);
+        core.enable_recently_opened_chats();
         Ok::<_, Error>(Actor {
             core: send_stream::CoreCell::new(core),
             send_finished,
@@ -900,6 +1136,7 @@ async fn actor(
             live_epoch: Stamp::default(),
             live_cancel: CancellationToken::new(),
             live_retry_at: None,
+            live_retry_delay: Duration::from_secs(2),
             recovery_hints: Default::default(),
             recovery_start_needed: true,
             recovery_blocked: false,
@@ -907,6 +1144,8 @@ async fn actor(
             last_live_hint: None,
             cached_views,
             cached_views_blocked: false,
+            offline_personal: None,
+            offline_expected: None,
             store,
             passphrase,
             pair_phase: 0,
@@ -944,30 +1183,60 @@ async fn actor(
         request=requests.recv()=>request,
         // Only when no command is queued: a chat Open never waits behind it.
         _=std::future::ready(()), if boot_sync.is_some() => {
-            let token = CancellationToken::new();
-            if let Ok(mut slot) = boot_sync_preempt.lock() { *slot = Some(token.clone()); }
+            let token = register_boot_sync(&background_read_preempt, &requests);
             boot_sync.take().map(|epoch| Request { epoch, work: Work::BootSync, cancel: token })
         },
-        _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() =>
-            inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: state.live_cancel.clone() }),
-        outcome = finished.recv() => outcome.map(|(epoch, result)| Request {
-            epoch, work: Work::SendFinished(Box::new(result)), cancel: CancellationToken::new() }),
-        _=live_tick.tick(), if state.core.monitor_valid() && !state.live_cancel.is_cancelled()
-            =>Some(Request{epoch:state.live_epoch,work:Work::Live,cancel:state.live_cancel.clone()}),
+        _=std::future::ready(()), if inspirations.is_some() && boot_sync.is_none() => {
+            let token = state.live_cancel.child_token();
+            track_background_read(&background_read_preempt, &token);
+            inspirations.take().map(|epoch| Request { epoch, work: Work::Inspirations, cancel: token })
+        },
+        outcome = finished.recv() => outcome.map(|(epoch, request, result)| Request {
+            epoch, work: Work::SendFinished(request, Box::new(result)), cancel: CancellationToken::new() }),
+        _=live_tick.tick(), if state.core.monitor_valid() && !state.live_cancel.is_cancelled() => {
+            let token = state.live_cancel.child_token();
+            track_background_read(&background_read_preempt, &token);
+            Some(Request { epoch: state.live_epoch, work: Work::Live, cancel: token })
+        },
     } } {
+        let preemptible = matches!(&request.work, Work::BootSync | Work::Inspirations | Work::Live);
+        // Cover input arriving between the ready branch and token registration.
+        if preemptible && !requests.is_empty() {
+            request.cancel.cancel();
+        }
         state.core.acquire().await;
         let background = matches!(&request.work, Work::Live | Work::Inspirations | Work::Command(UiCommand::MarkRead(_)));
-        let booting = matches!(&request.work, Work::Boot);
+        let unlocking_vault = state.pair_phase == 0
+            && matches!(&request.work, Work::Command(UiCommand::Unlock { .. }));
+        let booting = unlocking_vault || matches!(
+            &request.work,
+            Work::Boot | Work::Command(UiCommand::Login { .. })
+        );
         let syncing = matches!(&request.work, Work::BootSync);
+        let loading_inspirations = matches!(&request.work, Work::Inspirations);
         let opening_chat = matches!(&request.work, Work::Command(UiCommand::Open(Workspace::Chats, _)));
+        let send_id = match &request.work {
+            Work::Send { request, .. } | Work::SendFinished(request, _) => Some(*request),
+            _ => None,
+        };
+        let stop_id = if let Work::StopReply { request, .. } = &request.work { Some(*request) } else { None };
         let epoch = request.epoch;
         let cancel = request.cancel.clone();
+        let was_offline = state.offline_personal.is_some();
         let mut result = state.dispatch(request, &replies).await;
         // A send now streams on its own task beside this loop; its end returns
         // as `Work::SendFinished` and is settled below like any request.
         if std::mem::take(&mut state.send_streaming) && result.is_ok() { continue; }
+        if preemptible {
+            if let Ok(mut slot) = background_read_preempt.lock() { slot.take(); }
+        }
+        if background && preemptible && result == Err(Error::Cancelled) && cancel.is_cancelled() {
+            if loading_inspirations {
+                inspirations = Some(epoch);
+            }
+            continue;
+        }
         if syncing {
-            if let Ok(mut slot) = boot_sync_preempt.lock() { slot.take(); }
             // A preempted background sync resumes once the queue is idle again.
             if result == Err(Error::Cancelled) && cancel.is_cancelled() && state.core.client_mut().session().is_some() {
                 boot_sync = Some(epoch);
@@ -975,8 +1244,14 @@ async fn actor(
             }
             if state.core.client_mut().session().is_some() { inspirations = Some(epoch); }
         }
-        if booting && result.is_ok() && state.core.client_mut().session().is_some() {
+        if booting && result.is_ok() && state.offline_personal.is_none() && state.core.client_mut().session().is_some() {
             boot_sync = Some(epoch);
+        }
+        if opening_chat && !was_offline && matches!(result, Err(Error::Forbidden)) {
+            let previous = state.core.client().clone_session();
+            if let Err(error) = state.invalidate_vault_receipt(previous).await {
+                result = Err(error);
+            }
         }
         if result.is_err() {
             // Retire this optional presentation on every failed read. Known
@@ -995,7 +1270,12 @@ async fn actor(
         if let Some(relay) = relay {
             let _ = relay.await;
         }
+        // Completed unlock failures already cleared the passphrase. Only a
+        // cancelled future that left an eligible save in flight may drain it.
+        let drain_unlock = unlocking_vault && cancel.is_cancelled() && state.passphrase.is_some()
+            && (state.trusted_path.is_none() || state.trusted_verified);
         if result.is_err()
+            && !was_offline && (!unlocking_vault || drain_unlock)
             && result != Err(Error::Expired)
             && state.core.client_mut().session().is_some()
             && state.pair_phase == 0
@@ -1007,11 +1287,18 @@ async fn actor(
             // old write from publishing after logout.
             if let Err(storage_error) =
                 finish_or_cancel(state.persist(), &cancel, Duration::from_secs(2)).await
+                && !unlocking_vault
             {
                 result = Err(storage_error);
             }
         }
+        if opening_chat {
+            openmates_sdk::startup_diagnostics::StartupPhase::OpenSelectionCompleted.record(&result);
+        }
         if let Err(mut error) = result {
+            if unlocking_vault {
+                state.passphrase.set(None);
+            }
             if matches!(error, Error::Expired) {
                 state.passphrase.set(None);
                 state.pair_phase = 0;
@@ -1026,11 +1313,18 @@ async fn actor(
                 if let Err(cleanup_error) = cleanup {
                     error = cleanup_error;
                 }
+            } else if unlocking_vault {
+                // Submission consumed the form and its secret. Offer a fresh
+                // empty form before showing the original failure.
+                let _ = replies.send(Reply { epoch, view: View::Unlock }).await;
             }
             let _ = replies
                 .send(Reply {
                     epoch,
-                    view: if opening_chat { View::ChatOpenFailed(error) } else { View::Failed(error) },
+                    view: if let Some(request) = send_id { View::SendFailed { request, error } }
+                        else if let Some(request) = stop_id { View::StopResult { request, result: Err(error) } }
+                        else if opening_chat { View::ChatOpenFailed(error) }
+                        else { View::Failed(error) },
                 })
                 .await;
         }
@@ -1107,7 +1401,9 @@ impl Actor {
         // and retains any known monitor denial when a witness exists.
         let monitor = self.core.chat_monitor();
         let generation = self.store.generation_guard();
-        let staged = self.core.client().stage_cached_chat_views(monitor, CancellationToken::new());
+        let staged = self.core.client().stage_cached_chat_file_reader(
+            monitor, self.store.shell().cache().clone(), CancellationToken::new(),
+        );
         let next = match staged {
             Ok(views) if generation.is_current() => Some(NativeCachedChatViews {
                 views: std::sync::Arc::new(views), store_generation: generation, security: epoch.security,
@@ -1156,68 +1452,24 @@ impl Actor {
         self.recover_before_view_with_inventory(replies, epoch, None, false, inventory)
             .await.map(|outcome| outcome.fresh_inventory)
     }
-    async fn authorized_admission(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        // This can start monitors and foreground recovery. Remove any restored
-        // receipt durably before those effects, including a crash before a
-        // recovery checkpoint/final save. Failure refuses their dispatch.
-        self.core.revoke_list_freshness_before_dispatch(&self.live_cancel).await?;
-        let generation = self.store.generation_guard();
-        let request = self.live_cancel.clone();
-        // Reuse the already-required first monitor's authenticated session read
-        // and exact persistence BEFORE the initial greeting. No extra request.
-        let admission = self.monitor_admission(replies, epoch).await?;
-        if let MonitorAdmission::Denied(error) = admission { return Err(error); }
-        let storage = match self.store.storage_mode().await? {
-            Some(openmates::storage::StorageMode::OsKeyring) => {
-                "Signed in · credentials protected by OS keyring"
-            }
-            Some(openmates::storage::StorageMode::RestrictedLocalFile) => {
-                "Signed in · credentials protected by owner-only local files"
-            }
-            Some(openmates::storage::StorageMode::EncryptedVault) => {
-                "Signed in · credentials protected by passphrase vault"
-            }
-            None => "Signed in · credentials not stored",
-        };
-        // A newly admitted monitor has already staged this exact owner once.
-        // Reuse it instead of decoding another cache projection.
-        let staged = self.cached_views.borrow().clone();
-        if staged.as_ref().is_none_or(|current| current.security != epoch.security
-            || !current.store_generation.is_current() || !current.views.is_owner_current()) {
-            self.stage_cached_views(epoch);
-        }
-        let owner = self.cached_views.borrow().clone().ok_or(Error::Offline)?;
-        if !generation.is_current() || request.is_cancelled() || !owner.views.is_owner_current() {
-            return Err(Error::Cancelled);
-        }
-        let session = self.core.client().session().ok_or(Error::Authentication)?;
-        // The SDK stage above requires the principal established by actual
-        // authentication. A raw restored Session cannot issue this greeting.
-        let username = ["username", "display_name"].into_iter()
-            .filter_map(|key| self.core.client().user()[key].as_str())
-            .find(|name| !name.is_empty()).unwrap_or("OpenMates").to_owned();
-        let publication = NativeAuthPublication { owner, request, username,
-            expires_at: session.paired_session_expires_at };
-        Self::emit(replies, epoch, View::AdmittedAuth(publication)).await?;
-        let status = if matches!(admission, MonitorAdmission::Offline) {
-            "Offline · reconnecting…"
-        } else { storage };
-        Self::emit(replies, epoch, View::Status(status)).await
-    }
     async fn monitor(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
         self.monitor_admission(replies, epoch).await.map(|_| ())
     }
     async fn monitor_admission(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<MonitorAdmission> {
-        self.core.client_mut().set_operation_cancel(self.live_cancel.clone());
+        self.core.begin_client_operation(&self.live_cancel);
         // Periodic membership checks do not reconnect a healthy monitor or
         // manufacture another initial full-refresh event every 30 seconds.
         if self.core.chat_monitor().is_some_and(|m| m.is_valid()) {
+            let previous = self.core.client().clone_session();
             let checked = self.core.validate_chat_monitor().await;
             let security = matches!(checked, Err(Error::Expired | Error::Authentication | Error::Forbidden));
+            if security || matches!(checked, Err(Error::VerificationRequired)) {
+                self.invalidate_vault_receipt(previous).await?;
+            }
             let admission = match checked {
                 Ok(()) => MonitorAdmission::Ready,
                 Err(error) if security => MonitorAdmission::Denied(error),
-                Err(_) => MonitorAdmission::Offline,
+                Err(error) => MonitorAdmission::Offline(error),
             };
             if security {
                 let error = checked.err().ok_or(Error::Protocol)?;
@@ -1259,12 +1511,23 @@ impl Actor {
                 }
             }
         });
+        let previously_stored = self.core.client().clone_session();
         let started = async {
             let mut grant = ForegroundRecoveryGrant::new(self.core.client_mut())?;
             grant.start_chat_monitor(lifetime.clone(), events).await
         }
         .await;
+        if matches!(started, Err(Error::Offline)) && self.offline_expected.is_some() {
+            return Ok(MonitorAdmission::Offline(Error::Offline));
+        }
+        if let Ok(monitor) = &started && !self.offline_principal_matches() {
+            monitor.close();
+            return Err(Error::Expired);
+        }
         let security = matches!(&started, Err(Error::Expired | Error::Authentication | Error::Forbidden));
+        if security || matches!(started, Err(Error::VerificationRequired)) {
+            self.invalidate_vault_receipt(previously_stored).await?;
+        }
         if security {
             let error = started.as_ref().err().copied().ok_or(Error::Protocol)?;
             Self::emit(replies, epoch, View::Monitor(error, lifetime.clone())).await?;
@@ -1281,6 +1544,7 @@ impl Actor {
                 // the initial canonical list can occupy the actor.
                 self.stage_cached_views(epoch);
                 self.live_retry_at = None;
+                self.live_retry_delay = Duration::from_secs(2);
                 self.recovery_start_needed = true;
                 self.recovery_blocked = false;
                 self.recovery_retry_at = None;
@@ -1290,7 +1554,7 @@ impl Actor {
             Err(error) if security => Ok(MonitorAdmission::Denied(error)),
             Err(error) => {
                 Self::emit(replies, epoch, View::Monitor(error, lifetime)).await?;
-                Ok(MonitorAdmission::Offline)
+                Ok(MonitorAdmission::Offline(error))
             },
         }
     }
@@ -1336,7 +1600,7 @@ impl Actor {
         // Existing Team/Direct recovery keeps its original ordinary policy.
         let inventory = inventory && self.core.client_mut().supports_cached_default_chat_list();
         let cancel = self.live_cancel.clone();
-        self.core.client_mut().set_operation_cancel(cancel.clone());
+        self.core.begin_client_operation(&cancel);
         let mut canonical = RecoveryPersistence::new(self)?;
         let store = self.store.clone();
         let pumped = async {
@@ -1507,11 +1771,17 @@ impl Actor {
         };
         // Core live read: the open chat is the selected chat; read, exact
         // cache+session save and ACK, commit, then list and window events.
+        self.core.begin_client_operation(&self.live_cancel);
         let sink = core_host::TerminalSink::new(replies, self.live_epoch, self.store.generation_guard(), &self.live_cancel).live()
             .owned_by(&self.core, self.core.open_chat_id());
         let refreshed = self.core.refresh_live(hint, &sink, &self.live_cancel).await;
+        if refreshed.is_err() {
+            openmates::native_chat_open_trace::phase("live.refresh", refreshed);
+        }
         match refreshed {
             Ok(()) => {
+                self.live_retry_at = None;
+                self.live_retry_delay = Duration::from_secs(2);
                 self.stage_cached_views(self.live_epoch);
                 self.last_live_hint = self.live_pending.take();
                 Ok(())
@@ -1532,6 +1802,7 @@ impl Actor {
                     if let ChatMonitorAccessDenial::ChatUnavailable { chat_id } = &denial {
                         self.core.close_chat(chat_id);
                     }
+                    self.invalidate_vault_receipt(self.core.client().clone_session()).await?;
                     let lifetime = self.live_lifetime.clone().unwrap_or_default();
                     Self::emit(
                         replies,
@@ -1565,13 +1836,18 @@ impl Actor {
                 Ok(())
             }
             Err(error @ (Error::Offline | Error::Protocol | Error::Io)) => {
+                openmates_sdk::startup_diagnostics::StartupPhase::LiveCanonicalRead
+                    .record(&Err::<(), _>(error));
                 // A failed read has no write retry. Preserve hint until a
                 // bounded later canonical read; rotated cookies remain durable.
                 self.core
                     .chat_monitor()
                     .ok_or(Error::Cancelled)?
                     .requeue(self.live_pending.take().ok_or(Error::Cancelled)?)?;
-                self.live_retry_at = Some(tokio::time::Instant::now() + Duration::from_secs(2));
+                // A retained hint can repeat the same failed response on every
+                // retry. Increase the delay until a read or new admission succeeds.
+                self.live_retry_at = Some(tokio::time::Instant::now() + self.live_retry_delay);
+                self.live_retry_delay = (self.live_retry_delay * 2).min(Duration::from_secs(30));
                 self.persist().await?;
                 Self::emit(
                     replies,
@@ -1587,41 +1863,6 @@ impl Actor {
                 Err(error)
             }
         }
-    }
-    async fn boot(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        let session = match self.store.load(self.passphrase.get()).await {
-            Ok(value) => value,
-            Err(Error::Locked)
-                if self.store.storage_mode().await?
-                    == Some(openmates::storage::StorageMode::EncryptedVault) =>
-            {
-                Self::emit(replies, epoch, View::Unlock).await?;
-                return Ok(());
-            }
-            Err(Error::Expired) => {
-                self.core.clear_credentials().await?;
-                None
-            }
-            Err(error) => return Err(error),
-        };
-        if let Some(session) = session {
-            // Core Start: credentials, trusted account, cached index and list
-            // before any other network request, then admission. Global
-            // recovery and the list refresh follow as a preemptible BootSync.
-            let cancel = self.live_cancel.clone();
-            let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
-            core_view::handle(self, ViewCommand::Start { credentials: Box::new(session) }, &sink, &cancel).await?;
-        } else {
-            Self::emit(replies, epoch, View::SignedOut).await?;
-        }
-        Ok(())
-    }
-    /// Background half of boot (core `boot_sync`): global recovery with
-    /// inventory, then the list, persisted before it is published.
-    async fn boot_sync(&mut self, replies: &mpsc::Sender<Reply>, epoch: Stamp) -> Result<()> {
-        let cancel = self.live_cancel.clone();
-        let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
-        core_view::boot_sync(self, &sink, &cancel).await
     }
     /// The home banner is optional: a failed read leaves the banner empty and
     /// never fails the actor request.
@@ -1704,7 +1945,7 @@ impl Actor {
         self.authorized(replies, epoch).await?;
         let items = self.core.client_mut().list(Workspace::Chats).await?;
         self.persist().await?;
-        Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items))).await
+        Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items), self.core.client().chat_total_count())).await
     }
     async fn abort_pair(&mut self) -> Result<()> {
         let prepared = self.pair_phase == 4;
@@ -1725,6 +1966,13 @@ impl Actor {
         cancelled
     }
     async fn dispatch(&mut self, request: Request, replies: &mpsc::Sender<Reply>) -> Result<()> {
+        if self.offline_personal.is_some() {
+            if matches!(request.work, Work::Command(UiCommand::Unlock { .. })) {
+                self.close_offline_personal();
+            } else {
+                return self.offline_dispatch(request, replies).await;
+            }
+        }
         if matches!(&request.work, Work::Command(
             UiCommand::Logout | UiCommand::SwitchTeam(_) | UiCommand::Login { .. }
             | UiCommand::BeginPair | UiCommand::PairPin { .. } | UiCommand::Unlock { .. }
@@ -1732,7 +1980,7 @@ impl Actor {
             self.retire_cached_views();
         }
         let logout = matches!(&request.work, Work::Command(UiCommand::Logout));
-        if !matches!(&request.work, Work::Live | Work::SendFinished(_)) {
+        if !matches!(&request.work, Work::Live | Work::Inspirations | Work::SendFinished(..)) {
             self.live_cancel = request.cancel.clone();
         }
         if matches!(
@@ -1788,13 +2036,23 @@ impl Actor {
         // operation through the existing admission/cancellation boundary.
         // A preempted background sync yields at once; its effects are fenced
         // like any other dropped operation and it reruns from the start.
-        let grace = if matches!(&request.work, Work::BootSync) { Duration::ZERO } else { Duration::from_secs(2) };
+        let grace = if matches!(&request.work, Work::BootSync | Work::Inspirations | Work::Live) {
+            Duration::ZERO
+        } else {
+            Duration::from_secs(2)
+        };
+        let previous_live = matches!(&request.work, Work::Live)
+            .then(|| std::mem::replace(&mut self.live_cancel, cancel.clone()));
         let operation = self.process(request, replies);
-        if admission {
+        let result = if admission {
             operation.await
         } else {
             finish_or_cancel(operation, &cancel, grace).await
+        };
+        if let Some(previous_live) = previous_live {
+            self.live_cancel = previous_live;
         }
+        result
     }
     // Select one operation before polling. Each action has its own coroutine
     // instead of sharing one monolithic match poll frame across every action.
@@ -1808,16 +2066,31 @@ impl Actor {
         let epoch = request.epoch;
         let cancel = request.cancel;
         match request.work {
+            Work::OfflineExpired => Box::pin(async { Ok(()) }),
             Work::Boot => Box::pin(async move {
                 let _request_cancel = &cancel;
                 self.boot(replies, epoch).await
             }),
             Work::BootSync => Box::pin(async move {
-                let _request_cancel = &cancel;
-                self.boot_sync(replies, epoch).await
+                self.core.begin_client_operation(&cancel);
+                let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
+                    .owned_by(&self.core, None);
+                let request = RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+                use openmates_sdk::startup_diagnostics::StartupPhase;
+                let generation = self.core.shell().ops().guard();
+                let resumed = core_view::resume_startup_chat(self, request, &sink, &cancel).await;
+                StartupPhase::Resume.record(&resumed);
+                let offline = resumed?;
+                let reconciled = self.boot_sync(replies, epoch).await;
+                StartupPhase::Reconcile.record(&reconciled);
+                finish_admitted_startup_cohort(
+                    reconciled,
+                    || generation.is_current() && !cancel.is_cancelled(),
+                    core_view::hydrate_startup_chats(self, offline, &cancel),
+                ).await
             }),
             Work::Inspirations => Box::pin(async move {
-                let _request_cancel = &cancel;
+                self.core.begin_client_operation(&cancel);
                 self.home_inspirations(replies, epoch).await
             }),
             Work::PairPoll => Box::pin(async move {
@@ -1831,14 +2104,40 @@ impl Actor {
                     .await
                     .map(|_| ())
             }),
-            Work::SendFinished(result) => Box::pin(async move {
+            Work::Send { request, chat_id, text, turn_cancel } => Box::pin(async move {
+                // Bind the stable request parent after any cancelled startup
+                // sync. A send child only stops its own turn, and an existing
+                // stream keeps its operation parent.
+                self.core.begin_client_operation(&cancel);
+                // Core admission completes here. The reply streams beside the
+                // actor so another encrypted send can be admitted meanwhile.
+                let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
+                    .sending(&self.relay);
+                let lease = self.core.lease();
+                let stream = core_view::begin_send_with(self, request, chat_id, text,
+                    core_view::SendTurnOptions::default(), sink, &turn_cancel, lease).await?;
+                self.core.release();
+                self.send_streaming = true;
+                send_stream::spawn(stream, self.send_finished.clone(), epoch, request);
+                Ok(())
+            }),
+            Work::StopReply { request, chat_id, task_id } => Box::pin(async move {
+                self.core.client_mut().cancel_ai_task(&chat_id, &task_id).await?;
+                self.persist().await?;
+                Self::emit(replies, epoch, View::StopResult { request, result: Ok(()) }).await
+            }),
+            Work::SendFinished(request, result) => Box::pin(async move {
                 let _request_cancel = &cancel;
                 let receipt = (*result)?;
                 if receipt.status == openmates_sdk::SendStatus::Queued {
                     return Self::emit(replies, epoch, View::SendQueued {
-                        chat_id: receipt.chat_id, message_id: receipt.user_message_id }).await;
+                        request, chat_id: receipt.chat_id, message_id: receipt.user_message_id,
+                        mode: receipt.queue_mode }).await;
                 }
-                Self::emit(replies, epoch, View::Sent(core_host::chat_from_window(&receipt.window)?)).await
+                Self::emit(replies, epoch, View::Sent {
+                    request, chat: core_host::chat_from_window(&receipt.window)?,
+                    message_ids: [receipt.user_message_id, receipt.assistant_message_id],
+                }).await
             }),
             Work::Live => Box::pin(async move {
                 let _request_cancel = &cancel;
@@ -1892,10 +2191,10 @@ impl Actor {
                         cleanup?;
                         return Err(Error::Cancelled);
                     }
-                    self.authorized(replies, epoch).await?;
-                    let items = self.core.client_mut().list(Workspace::Chats).await?;
-                    self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items))).await
+                    // Paint the authenticated shell and let the same
+                    // preemptible Rust startup sync used for returning
+                    // sessions fetch the list once the UI is ready.
+                    self.authorized_admission(replies, epoch).await
                 }),
                 UiCommand::Unlock { passphrase } => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -1926,7 +2225,7 @@ impl Actor {
                     if self.core.client().session().is_some() {
                         self.authorized(replies, epoch).await?;
                         if let Ok(items) = self.core.client_mut().cached_chat_items() {
-                            Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items)))
+                            Self::emit(replies, epoch, View::Items(Workspace::Chats, core_view::arrange_chat_list(self.core.client(), items), self.core.client().chat_total_count()))
                                 .await?;
                         }
                     } else {
@@ -1966,6 +2265,12 @@ impl Actor {
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::SwitchTeam { team_id: team }, &sink, &cancel).await
                 }),
+                UiCommand::LoadMoreChats => Box::pin(async move {
+                    self.core.begin_client_operation(&cancel);
+                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel).live()
+                        .owned_by(&self.core, None);
+                    core_view::load_more_chat_metadata(self, 0, &sink, &cancel).await
+                }),
                 UiCommand::Refresh(Workspace::Chats) => Box::pin(async move {
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel);
                     core_view::handle(self, ViewCommand::RefreshChats, &sink, &cancel).await
@@ -1974,13 +2279,20 @@ impl Actor {
                     let _request_cancel = &cancel;
                     let items = self.core.client_mut().list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, items)).await
+                    Self::emit(replies, epoch, View::Items(workspace, items, self.core.client().chat_total_count())).await
                 }),
                 UiCommand::Open(Workspace::Chats, id) => Box::pin(async move {
+                    // A preempted background read can leave its cancelled operation
+                    // on the client. Bind this request before acquiring its owner lease.
+                    self.core.begin_client_operation(&cancel);
                     let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
                         .owned_by(&self.core, Some(&id));
                     let command = ViewCommand::OpenChat { request: RequestId(SEND_REQUEST_IDS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)), chat_id: id };
-                    core_view::handle(self, command, &sink, &cancel).await
+                    use openmates::native_chat_open_trace::phase;
+                    phase("open.start", Ok(()));
+                    let result = core_view::handle(self, command, &sink, &cancel).await;
+                    phase("open.finish", result);
+                    result
                 }),
                 UiCommand::Open(workspace, id) => Box::pin(async move {
                     let _request_cancel = &cancel;
@@ -2014,20 +2326,7 @@ impl Actor {
                     }
                     let items = self.core.client_mut().list(workspace).await?;
                     self.persist().await?;
-                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items })).await
-                }),
-                UiCommand::Send { chat_id, text } => Box::pin(async move {
-                    // Core send: mentions and admission run here; the reply streams
-                    // on its own task so a follow-up send is accepted meanwhile.
-                    let sink = core_host::TerminalSink::new(replies, epoch, self.store.generation_guard(), &cancel)
-                        .sending(&self.relay);
-                    let lease = self.core.lease();
-                    let stream = core_view::begin_send_with(self, RequestId(epoch.view), chat_id, text,
-                        core_view::SendTurnOptions::default(), sink, &cancel, lease).await?;
-                    self.core.release();
-                    self.send_streaming = true;
-                    send_stream::spawn(stream, self.send_finished.clone(), epoch);
-                    Ok(())
+                    Self::emit(replies, epoch, View::Items(workspace, if workspace == Workspace::Chats { core_view::arrange_chat_list(self.core.client(), items) } else { items }, self.core.client().chat_total_count())).await
                 }),
                 UiCommand::Share {
                     chat_id,
@@ -2083,6 +2382,41 @@ fn now_ms() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn admitted_startup_cohort_hydrates_after_recoverable_reconciliation() {
+        for recoverable in [Error::Protocol, Error::Offline] {
+            let called = std::cell::Cell::new(false);
+            let result = finish_admitted_startup_cohort(Err(recoverable), || true, async {
+                called.set(true);
+                Ok(())
+            })
+            .await;
+            assert!(called.get());
+            assert_eq!(result, Err(recoverable));
+        }
+        assert_eq!(
+            finish_admitted_startup_cohort(Err(Error::Protocol), || true, async { Err(Error::Expired) }).await,
+            Err(Error::Expired),
+        );
+    }
+
+    #[tokio::test]
+    async fn admitted_startup_cohort_skips_hydration_after_denial_or_invalid_generation() {
+        for (reconciled, current, expected) in [
+            (Err(Error::Forbidden), true, Error::Forbidden),
+            (Err(Error::Expired), true, Error::Expired),
+            (Err(Error::Cancelled), true, Error::Cancelled),
+            (Err(Error::Protocol), false, Error::Cancelled),
+        ] {
+            let result = finish_admitted_startup_cohort(reconciled, || current, async {
+                panic!("startup hydration requires current authority");
+            })
+            .await;
+            assert_eq!(result, Err(expected));
+        }
+    }
+
     fn fixture_session() -> Session {
         Session {
             api_url: "https://api.example.com".into(),
@@ -2130,6 +2464,7 @@ mod tests {
             live_epoch: Stamp::default(),
             live_cancel: CancellationToken::new(),
             live_retry_at: None,
+            live_retry_delay: Duration::from_secs(2),
             recovery_hints: Default::default(),
             recovery_start_needed: true,
             recovery_blocked: false,
@@ -2137,6 +2472,8 @@ mod tests {
             last_live_hint: None,
             cached_views: watch::channel(None).0,
             cached_views_blocked: false,
+            offline_personal: None,
+            offline_expected: None,
         };
         (directory, actor)
     }
@@ -2180,7 +2517,7 @@ mod tests {
                 security: 4,
                 view: 11
             },
-            view: View::Items(Workspace::Tasks, vec![])
+            view: View::Items(Workspace::Tasks, vec![], None)
         }));
     }
     #[tokio::test]

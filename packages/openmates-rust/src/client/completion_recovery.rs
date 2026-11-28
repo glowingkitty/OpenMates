@@ -220,6 +220,14 @@ impl RecoveryFence {
                 deadline.min(Instant::now() + Duration::from_millis(at.saturating_sub(now_ms())))
         }
         let result = tokio::select! {biased;_=self.authority.cancel.cancelled()=>Err(Error::Cancelled),_=self.mode.cancelled()=>Err(Error::Cancelled),_=self.caller.cancelled()=>Err(Error::Cancelled),_=self.operation.cancelled()=>Err(Error::Cancelled),result=crate::platform::time::timeout_at(deadline,operation)=>match result {Ok(result)=>result,Err(_)=>Err(Error::Offline)}};
+        // Authoritative validation can forget the session inside the owned
+        // future before returning its typed denial. This invalidates the
+        // internal authority/operation tokens; preserve Expired so the live
+        // shell retires its plaintext. A superseded caller still cannot
+        // publish a denial, and every successful result is rechecked.
+        if matches!(result, Err(Error::Expired)) && !self.caller.is_cancelled() {
+            return result;
+        }
         self.check()?;
         result
     }
@@ -493,17 +501,18 @@ impl Client {
             .await
             .map(|(jobs, _)| jobs)
     }
-    /// Discover recovery work and retain optional proof of the same fully
-    /// completed fresh sync. Partial discovery still returns jobs, never proof.
+    /// Discover recovery work and retain optional same-batch sync proof.
+    /// Incomplete recovery discovery still returns jobs without proof. A
+    /// successful discovery can carry only the recent chat-list window.
     /// Keep this opaque value in memory; persist credentials/ciphertext through
     /// the caller's existing durability contract before publishing private output.
     pub async fn completion_recovery_jobs_with_inventory(
         &mut self,
         cancel: &CancellationToken,
     ) -> Result<(Vec<CompletionRecoveryJob>, Option<FreshChatInventory>)> {
-        let (jobs, complete) = self.discover_completion_recovery(cancel, true).await?;
-        let inventory = if complete {
-            self.fresh_chat_inventory(cancel)?
+        let (jobs, reusable) = self.discover_completion_recovery(cancel, true).await?;
+        let inventory = if let Some(scope_complete) = reusable {
+            self.fresh_chat_inventory_with_scope(cancel, scope_complete)?
         } else {
             None
         };
@@ -513,7 +522,7 @@ impl Client {
         &mut self,
         cancel: &CancellationToken,
         inventory: bool,
-    ) -> Result<(Vec<CompletionRecoveryJob>, bool)> {
+    ) -> Result<(Vec<CompletionRecoveryJob>, Option<bool>)> {
         let fence = self.recovery_fence(cancel)?;
         self.completion_recovery_jobs.clear();
         self.metadata_recovery_jobs.clear();
@@ -521,7 +530,7 @@ impl Client {
             if inventory {
                 self.refresh_chat_metadata_for_inventory().await
             } else {
-                self.refresh_chat_metadata(0).await.map(|_| false)
+                self.refresh_chat_metadata(0).await.map(|_| None)
             }
         };
         let complete = match fence.run(refresh).await {
@@ -532,7 +541,7 @@ impl Client {
                 // The sync transaction already published fenced job discovery.
                 // An independently durable typed-output replay can be deferred
                 // until main persistence; it must not hide the only main job.
-                false
+                None
             }
             Err(error) => return Err(error),
         };
@@ -1195,6 +1204,8 @@ fn validate_recovery_wrapper(wrapper: &Value, team: bool, now: u64) -> Result<()
     } {
         match wrapper.get(*field).filter(|v| !v.is_null()) {
             Some(value) if value.as_u64() == Some(1) => {}
+            // Any rotation epoch is supported; the key is chosen by epoch.
+            Some(value) if *field == "team_key_epoch" && value.as_u64().is_some_and(|e| e >= 1) => {}
             None if !team => {}
             Some(value) if value.as_u64().is_none() => return Err(Error::Protocol),
             _ => return Err(Error::Conflict),

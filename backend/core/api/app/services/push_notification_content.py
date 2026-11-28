@@ -1,16 +1,27 @@
 """What a chat-completion push shows, decided server-side before sealing.
 
 Everything returned here that is not generic text is sealed to the device key
-(iOS notification service extension decrypts it); APNs, FCM and push services
-only ever see the generic alert and ciphertext. The two switches live in the
-user's `push_notification_preferences`:
+(iOS/macOS notification service extension decrypts it); APNs, FCM and push
+services only ever see the generic alert and ciphertext.
 
-* `includeChatTitle` (default on): title = "<icon> <summary>", body = `in "<chat title>"`.
-  Without a summary the title falls back to "<Mate> in <chat title>", and without a
-  title to the generic text.
-* `includePreview` (default off): the first lines of the answer are added to the body.
+Layout (owner decision, 27 Nov: the chat and the answer are what matter, not
+which Mate answered):
 
-Hidden chats never get content notifications.
+* title: the chat title (one bold line on the iOS lock screen and in macOS
+  Notification Center).
+* body: the first lines of the answer as plain text (its line breaks kept), as
+  many as the 4096-byte APNs payload allows; the last line that only partly
+  fits is cut at a word boundary with an ellipsis. iOS shows the first lines
+  collapsed and the whole body when expanded.
+
+The user's `push_notification_preferences` switches:
+
+* `includeAnswerText` (default on): the answer excerpt is the body.
+* `includeChatTitle` (default on): the chat title is the title; otherwise
+  "OpenMates".
+
+Without an excerpt the body is the localized "New message received" text, so
+the notification is never empty. Hidden chats never get content notifications.
 """
 
 from __future__ import annotations
@@ -19,48 +30,55 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from backend.core.api.app.services.notification_email_preferences import (
-    notification_headline,
     push_chat_title_enabled,
     push_preview_enabled,
 )
 
 GENERIC_PUSH_TITLE = "OpenMates"
-PREVIEW_CHARS = 160  # about two lines on a phone lock screen
+CHAT_TITLE_CHARS = 120
+# Upper bound before the byte-exact APNs fit; iOS expanded notifications show
+# roughly this much, more is cut by the system anyway.
+EXCERPT_CHARS = 1200
 
 
 @dataclass(frozen=True)
 class PushContent:
-    """`body` is the answer preview only (empty unless opted in); `context` and
-    `sealed_title` are sealed separately so a chat title is never run through
-    the answer-text projection."""
+    """`title` is what non-sealing channels show; `sealed_title` (the chat title)
+    and `body` (the answer excerpt, empty when off or missing) are sealed to the
+    device. `context` is an optional extra last body line, unused for chat replies."""
     title: str
     body: str
     sealed_title: Optional[str]
     context: Optional[str]
 
 
-def _short_preview(text: str) -> str:
-    text = " ".join((text or "").split())
-    if len(text) <= PREVIEW_CHARS:
+def truncate_at_word(text: str, limit: int) -> str:
+    """Cut `text` to at most `limit` characters at a word boundary, adding "…".
+
+    Line breaks count as word boundaries, so whole leading lines are kept.
+    """
+    if len(text) <= limit:
         return text
-    return text[:PREVIEW_CHARS].rsplit(" ", 1)[0].rstrip(" ,;:-") + "…"
+    if limit <= 1:
+        return ""
+    cut = text[: limit - 1]
+    boundary = max(cut.rfind(" "), cut.rfind("\n"))
+    if boundary >= 0 and not text[limit - 1].isspace():
+        head = cut[:boundary]
+        # Keep a hard cut for one very long word instead of dropping everything.
+        if len(head) >= limit // 2:
+            cut = head
+    return cut.rstrip(" \n,;:-–—") + "…"
 
 
 def compose_push_content(
-    *, preferences: Any, headline: Optional[str], chat_title: Optional[str],
-    mate_name: str, preview_text: str, hidden: bool,
+    *, preferences: Any, chat_title: Optional[str], preview_text: str, hidden: bool,
 ) -> PushContent:
     """Return what to seal, or the generic text when nothing is allowed."""
     if hidden:
         return PushContent(GENERIC_PUSH_TITLE, "", None, None)
-    title = " ".join((chat_title or "").split())[:60]
-    sealed_title: Optional[str] = None
-    context: Optional[str] = None
-    if push_chat_title_enabled(preferences):
-        if headline:
-            sealed_title = headline
-            context = f'in "{title}"' if title else None
-        elif title:
-            sealed_title = notification_headline(mate_name, title) or None
-    body = _short_preview(preview_text) if push_preview_enabled(preferences) else ""
-    return PushContent(sealed_title or GENERIC_PUSH_TITLE, body, sealed_title, context)
+    title = " ".join((chat_title or "").split())
+    sealed_title = truncate_at_word(title, CHAT_TITLE_CHARS) if title and push_chat_title_enabled(preferences) else None
+    body = preview_text.strip() if push_preview_enabled(preferences) and preview_text else ""
+    body = truncate_at_word(body, EXCERPT_CHARS)
+    return PushContent(sealed_title or GENERIC_PUSH_TITLE, body, sealed_title, None)

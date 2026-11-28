@@ -132,6 +132,7 @@ def digest_data(store: Store, now: datetime, *, stale_roles: list[str] | None = 
         "last_run_started": utc(last) if (last := store.last_run_started()) else None,
         "fix_plan": _fix_plan(store),
         "images": _image_report(store),
+        "github_alerts": _github_alerts(store),
     }
 
 
@@ -139,6 +140,12 @@ def _image_report(store: Store) -> dict[str, Any]:
     from security_monitoring import image_report  # noqa: PLC0415 - optional daily report
 
     return dict(image_report.last_report(store) or {})
+
+
+def _github_alerts(store: Store) -> dict[str, Any]:
+    from security_monitoring import github_alerts  # noqa: PLC0415 - imports the source fetch layer
+
+    return dict(github_alerts.last_snapshot(store) or {})
 
 
 def _fix_plan(store: Store) -> dict[str, Any]:
@@ -181,6 +188,11 @@ def render_digest(data: dict[str, Any]) -> notify.Rendered:
             lines.append(("Decide", notify.bounded(text, 300)))
         for text in plan.get("waiting", [])[:40]:
             lines.append(("Waiting", notify.bounded(text, 300)))
+    alerts = data.get("github_alerts") or {}
+    if alerts:
+        from security_monitoring import github_alerts  # noqa: PLC0415 - see _github_alerts
+
+        lines += [(label, notify.bounded(text, 1200)) for label, text in github_alerts.digest_lines(alerts)]
     images = data.get("images") or {}
     if images:
         lines.append(("RUNNING IMAGES", f"{images.get('images', 0)} scanned at {notify.bounded(str(images.get('at', '?')), 40)}; "
@@ -191,6 +203,7 @@ def render_digest(data: dict[str, Any]) -> notify.Rendered:
             lines.append(("Not checked", notify.bounded(text, 300)))
         for text in images.get("runtimes", [])[:40]:
             lines.append(("Runtimes", notify.bounded(text, 300)))
+    lines += [(label, notify.bounded(text, 300)) for label, text in data.get("apple_packages", [])]
     gaps = sorted(name for name, entry in data["coverage"].items() if entry["unsupported"] and not entry["ok"] and not entry["failed"])
     failed = sorted(name for name, entry in data["coverage"].items() if entry["failed"])
     lines += [
@@ -215,7 +228,8 @@ def watcher_is_stale(store: Store, now: datetime, hours: int) -> bool:
 
 
 def run_digest(settings: Settings, store: Store, notifier: notify.Notifier, *, now: datetime | None = None,
-               sender: Callable[[dict[str, str]], SendResult] | None = None) -> dict[str, Any]:
+               sender: Callable[[dict[str, str]], SendResult] | None = None,
+               apple_packages: list[tuple[str, str]] | None = None) -> dict[str, Any]:
     """Check watcher liveness, then deliver the once-per-day digest email."""
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     result: dict[str, Any] = {}
@@ -231,6 +245,7 @@ def run_digest(settings: Settings, store: Store, notifier: notify.Notifier, *, n
     else:
         store.resolve_incident_key("health:watcher_stopped", current)
     data = digest_data(store, current)
+    data["apple_packages"] = apple_packages or []
     rendered = render_digest(data)
     notification_id = stable_notification_id("security-monitoring-digest", "dev", current.date().isoformat())
     if settings.dry_run:

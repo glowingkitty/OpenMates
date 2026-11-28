@@ -1,3 +1,4 @@
+//! Exercise encrypted Task job writes, turn binding and receipt recovery.
 // contract-test: supporting surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible
 use super::*;
 use futures_util::{SinkExt, StreamExt};
@@ -36,9 +37,14 @@ fn summary(revision: u64) -> Value {
 fn jobs(revision: u64) -> BTreeMap<String, Value> {
     BTreeMap::from([(JOB.into(), summary(revision))])
 }
+fn inline_jobs(revision: u64, message_id: &str) -> BTreeMap<String, Value> {
+    let mut row = summary(revision);
+    row["message_id"] = json!(message_id);
+    BTreeMap::from([(JOB.into(), row)])
+}
 fn events() -> Vec<Value> {
     vec![
-        json!({"event_id":"event-1","task_id":TASK,"chat_id":CHAT,"message_id":USER,"event_type":"created","title":"Private Task","created_at":now_ms()/1000,"task_update_job_id":JOB}),
+        json!({"event_id":"event-1","task_id":TASK,"chat_id":CHAT,"message_id":USER,"event_type":"updated","title":"Private Task","created_at":now_ms()/1000,"task_update_job_id":JOB}),
     ]
 }
 fn claim(revision: u64) -> Value {
@@ -63,7 +69,12 @@ async fn sockets() -> (Socket, ServerSocket) {
     )
 }
 async fn receive(ws: &mut ServerSocket) -> Value {
-    serde_json::from_str(ws.next().await.unwrap().unwrap().to_text().unwrap()).unwrap()
+    let frame = tokio::time::timeout(Duration::from_secs(5), ws.next())
+        .await
+        .expect("expected a task job frame")
+        .unwrap()
+        .unwrap();
+    serde_json::from_str(frame.to_text().unwrap()).unwrap()
 }
 async fn reply(ws: &mut ServerSocket, kind: &str, request: &Value, mut payload: Value) {
     payload["request_id"] = request["payload"]["request_id"].clone();
@@ -177,7 +188,7 @@ async fn readback_http(
     (api, tx, server)
 }
 #[tokio::test]
-async fn create_encrypts_task_before_persist_and_confirms_event_after_receipt_even_on_cancel() {
+async fn inline_create_encrypts_task_and_finishes_without_an_event_even_on_cancel() {
     let (api, tx, http) = readback_http(false).await;
     let mut client = client(&api);
     let cancel = CancellationToken::new();
@@ -191,6 +202,11 @@ async fn create_encrypts_task_before_persist_and_confirms_event_after_receipt_ev
         let persist = receive(&mut server).await;
         assert_eq!(persist["type"], "task_update_job_persist");
         assert!(!persist.to_string().contains("Private"));
+        assert!(
+            persist["payload"]
+                .get("encrypted_task_event_message")
+                .is_none()
+        );
         let task = &persist["payload"]["encrypted_task_payload"];
         let key = key_from_bytes(
             &crypto::decrypt_bytes(task["encrypted_task_key"].as_str().unwrap(), &[7; 32]).unwrap(),
@@ -217,17 +233,21 @@ async fn create_encrypts_task_before_persist_and_confirms_event_after_receipt_ev
             &mut server,
             "task_update_job_persisted",
             &persist,
-            json!({"job_id":JOB,"task_id":TASK,"state":"TASK_PERSISTED"}),
+            json!({"job_id":JOB,"task_id":TASK,"state":"TERMINAL"}),
         )
         .await;
         cancel.cancel();
-        event_acks(&mut server).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(250), server.next())
+                .await
+                .is_err()
+        );
     });
     let handled = client
         .persist_task_jobs(
             &mut socket,
-            &jobs(0),
-            &events(),
+            &inline_jobs(0, USER),
+            &[],
             Some((CHAT, &[8; 32], USER)),
             &CancellationToken::new(),
         )
@@ -342,6 +362,19 @@ async fn events_from_another_turn_never_authorize_a_claim() {
         client
             .persist_task_jobs(
                 &mut socket,
+                &inline_jobs(0, "another-turn"),
+                &[],
+                Some((CHAT, &[8; 32], USER)),
+                &CancellationToken::new()
+            )
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        client
+            .persist_task_jobs(
+                &mut socket,
                 &jobs(0),
                 &[],
                 Some((CHAT, &[8; 32], USER)),
@@ -353,7 +386,7 @@ async fn events_from_another_turn_never_authorize_a_claim() {
     );
 }
 #[tokio::test]
-async fn lost_task_receipt_replays_only_the_event_without_regenerating_task_ciphertext() {
+async fn lost_inline_create_receipt_never_rewrites_terminal_task_ciphertext() {
     let mut first = client("http://127.0.0.1:1");
     let (mut socket, mut server) = sockets().await;
     let server = tokio::spawn(async move {
@@ -361,49 +394,59 @@ async fn lost_task_receipt_replays_only_the_event_without_regenerating_task_ciph
         reply(&mut server, "task_update_job_claimed", &request, claim(0)).await;
         let persisted = receive(&mut server).await;
         assert_eq!(persisted["type"], "task_update_job_persist");
-        let saved = persisted["payload"]["encrypted_task_payload"].clone();
+        assert!(
+            persisted["payload"]
+                .get("encrypted_task_event_message")
+                .is_none()
+        );
         server.close(None).await.unwrap();
-        saved
     });
     assert_eq!(
         first
             .persist_task_jobs(
                 &mut socket,
-                &jobs(0),
-                &events(),
+                &inline_jobs(0, USER),
+                &[],
                 Some((CHAT, &[8; 32], USER)),
                 &CancellationToken::new()
             )
             .await,
         Err(Error::Offline)
     );
-    let saved = server.await.unwrap();
-    let (api, http) = task_http(saved.clone()).await;
-    let mut fresh = client(&api);
+    server.await.unwrap();
+    let mut fresh = client("http://127.0.0.1:1");
     let (mut socket, mut server) = sockets().await;
     let server = tokio::spawn(async move {
         let request = receive(&mut server).await;
-        let mut recovered = claim(0);
-        recovered["state"] = json!("TASK_PERSISTED");
-        recovered["lease_expires_at"] = json!(1);
-        recovered["safe_metadata"]["updated_at"] = saved["updated_at"].clone();
-        reply(&mut server, "task_update_job_claimed", &request, recovered).await;
-        event_acks(&mut server).await;
+        // The original write committed before the socket closed.
+        reply(
+            &mut server,
+            "error",
+            &request,
+            json!({
+                "job_id":JOB, "code":"TaskUpdateJobConflictError"
+            }),
+        )
+        .await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(250), server.next())
+                .await
+                .is_err()
+        );
     });
     assert!(
         fresh
             .persist_task_jobs(
                 &mut socket,
-                &jobs(0),
-                &events(),
+                &inline_jobs(0, USER),
+                &[],
                 Some((CHAT, &[8; 32], USER)),
                 &CancellationToken::new()
             )
             .await
             .unwrap()
-            .contains(JOB)
+            .is_empty()
     );
-    http.await.unwrap();
     server.await.unwrap();
 }
 #[test]

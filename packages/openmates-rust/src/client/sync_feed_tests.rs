@@ -35,6 +35,26 @@ fn page(changes: Value, next: &str) -> Value {
     json!({"reset":false,"has_more":false,"next_cursor":next,"changes":changes,"overview":null,"team_id":null})
 }
 
+// contract-test: supporting surface=sdks.rust assertions=sync.startup.bounded-phases
+#[test]
+fn recent_rest_rows_preserve_scope_and_normalize_timestamps() {
+    let client = seeded();
+    let response = |hash: String| json!({
+        "chats":[{"id": C, "created_at": "1", "updated_at": "2",
+            "last_edited_overall_timestamp": "2", "messages_v": 1,
+            "chat_key_wrappers":[{"hashed_chat_id": hash, "encrypted_chat_key": "wrapped"}]}]
+    });
+    let (rows, wrappers) = client.decode_recent_chat_rows(&response(super::hashed(C)), STARTUP_RECENT_LIMIT).unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, C);
+    assert_eq!(rows[0].1["created_at"], 1);
+    assert_eq!(rows[0].1["updated_at"], 2);
+    assert!(rows[0].1.get("chat_key_wrappers").is_none());
+    assert_eq!(wrappers.len(), 1);
+    assert_eq!(client.decode_recent_chat_rows(&response(super::hashed(A)), STARTUP_RECENT_LIMIT), Err(Error::Protocol));
+    assert_eq!(client.chat_sync_feed.cursor.as_deref(), Some("e1:5|e2:1"));
+}
+
 // contract-test: direct surface=sdks.rust assertions=sync.delta.cursor-gap-free,sync.delta.metadata-only
 #[test]
 fn pages_apply_idempotently_with_version_guards() {

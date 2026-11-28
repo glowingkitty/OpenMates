@@ -29,6 +29,7 @@
 -->
 
 <script lang="ts">
+  import { contentZoomSurface } from '../../../actions/contentZoomSurface';
   import { onDestroy, onMount, untrack } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
@@ -52,7 +53,13 @@
   import { hydrateEmbedLinks, hydrateWikiLinks, replaceEmbedRefsWithUrls } from '../../../utils/embedLinkUtils';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import DocsEditor from './DocsEditor.svelte';
+  import DocsLiveEditor from './DocsLiveEditor.svelte';
+  import { isLiveCollaborationEnabled } from '../../../config/liveCollaborationFlag';
+  import { userProfile } from '../../../stores/userProfile';
+  import LiveHeaderStatus from '../shared/LiveHeaderStatus.svelte';
+  import type { LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { buildEditedContent } from './docsEditorHtml';
+  import { liveItemClient } from '../../../services/live/liveItemClient';
   import { EMBED_EDITS_ENABLED } from '../../../services/rustCore/embeds/embedEditSession';
   import { chatTeamOf, contentEditScope, saveContentEdit } from '../../../services/rustCore/embeds/embedContentEdit';
   import type { EmbedEditScope } from '../../../services/rustCore/embeds/embedEditProtocol';
@@ -181,19 +188,26 @@
 
   // ── Manual editing (saved as the next version through the client core) ─────
   let editing = $state(false);
+  // Live collaboration (flag live_collaboration): the core saves every change, so there is no Save step.
+  const liveMode = isLiveCollaborationEnabled();
+  let liveStatus = $state<LiveStatus>('saving');
+  let livePeers = $state<LivePeer[]>([]);
+  let liveSelf = $derived({ display_name: $userProfile.username || 'You', color: '#6364FF' });
   let docsSaving = $state(false);
   let docsEditor = $state<ReturnType<typeof DocsEditor> | undefined>(undefined);
   let editScope = $state<EmbedEditScope | null>(null);
   let canEdit = $derived(
     // Editable where it is saved: as a Project file opened from its Project (stored at
     // creation, so editable at once), or in its own chat once the message is sent.
-    EMBED_EDITS_ENABLED && !!embedId && !!editScope && (editScope.kind === 'project' || !isDraftEmbed)
+    // Live mode edits through the server-checked live session, so Team Project files are editable too.
+    EMBED_EDITS_ENABLED && !!embedId && (liveMode && !!projectId || !!editScope && (editScope.kind === 'project' || !isDraftEmbed))
       && !hasPII && includedOriginalHtmlContent === null
   );
 
   /** The header Edit button: opens the editor; while editing it is the check mark that saves and closes it. */
   function toggleDocsEdit(): void {
     // A save closes the editor before its saving flag is reset, so start each edit clean.
+    if (liveMode) { editing = !editing; return; }
     if (!editing) { docsSaving = false; editing = true; return; }
     void docsEditor?.save();
   }
@@ -209,6 +223,50 @@
     })();
     return () => { cancelled = true; };
   });
+
+  /** Live mode: a version the core just stored (e.g. on leaving the editor) shows at once in the
+   *  read view and the version timeline, before the embed data catches up. */
+  $effect(() => {
+    if (!liveMode || !embedId) return;
+    const id = embedId;
+    return liveItemClient().on('liveVersion', ({ itemId, version, text }) => {
+      if (itemId !== id) return;
+      savedContent = buildEditedContent(savedContent ?? data.decodedContent ?? {}, text, version);
+      artifactPageUrls = {};
+    });
+  });
+
+  async function restoreLiveDocument(_content: string, source: number): Promise<{ version: number; content: string }> {
+    if (!embedId) throw new Error('live_restore_unavailable');
+    const id = embedId;
+    const head = versionNumber;
+    const client = liveItemClient();
+    if (editing) return client.liveRestoreDocument(id, source, head);
+
+    // Version history can be open while the document has no typing mirror.
+    // Subscribe before opening the replica so an immediate state is never missed.
+    let stop = () => {};
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const ready = new Promise<void>((resolve, reject) => {
+        stop = client.on('liveStatus', ({ itemId, status }) => {
+          if (itemId !== id) return;
+          if (status === 'saved') resolve();
+          if (status === 'offline' || status === 'read_only' || status === 'access_revoked') {
+            reject(new Error('live_restore_unavailable'));
+          }
+        });
+        timeout = setTimeout(() => reject(new Error('live_restore_unavailable')), 10_000);
+        void client.liveOpen(id, 'doc', projectId, teamId ?? undefined).catch(reject);
+      });
+      await ready;
+      return await client.liveRestoreDocument(id, source, head);
+    } finally {
+      clearTimeout(timeout);
+      stop();
+      await client.liveClose(id);
+    }
+  }
 
   /** Clear the optimistic saved content once the embed data carries that version. */
   $effect(() => {
@@ -363,6 +421,11 @@
   /** Reset zoom to the auto-fit level for the current container width */
   function resetZoom() {
     zoomPercent = calculateFitZoomPercent();
+  }
+
+  function toggleGestureZoom() {
+    const fit = calculateFitZoomPercent();
+    zoomPercent = zoomPercent > fit + 1 ? fit : Math.min(ZOOM_MAX, fit * 2);
   }
 
   /** Display text for zoom — round to nearest integer */
@@ -804,13 +867,17 @@
   onDownloadPdf={pdfS3Key && aesKey ? handlePdfDownload : undefined}
 >
   {#snippet content()}
-    {#if editing}
+    {#if editing && liveMode && embedId}
+      <LiveHeaderStatus status={liveStatus} peers={livePeers} />
+      <DocsLiveEditor itemId={embedId} {projectId} teamId={teamId ?? undefined} self={liveSelf} bind:status={liveStatus} bind:peers={livePeers} onCancel={() => { editing = false; }} />
+    {:else if editing}
       <DocsEditor bind:this={docsEditor} bind:saving={docsSaving} html={latestHtmlContent} onSave={saveEditedDocument} onCancel={() => { editing = false; }} />
     {:else if Object.keys(displayedArtifactPageUrls).length > 0 && !htmlHasPII}
       <div class="doc-viewer-canvas" data-testid="doc-artifact-pages" data-download-ready={preparedDocxDownloadUrl ? 'true' : 'false'}>
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
+          use:contentZoomSurface={{ toggle: toggleGestureZoom, includesImages: true }}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}
@@ -853,6 +920,7 @@
         <div
           class="doc-canvas-scroll"
           bind:this={canvasScrollEl}
+          use:contentZoomSurface={{ toggle: toggleGestureZoom }}
           ontouchstart={handleTouchStart}
           ontouchmove={handleTouchMove}
           ontouchend={handleTouchEnd}
@@ -924,9 +992,10 @@
         {teamId}
         currentVersion={versionNumber}
         currentContent={latestHtmlContent}
+        onRestoreVersion={liveMode ? restoreLiveDocument : undefined}
         buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}
         onVersionSelect={(version, content) => {
-          includedOriginalHtmlContent = content;
+          includedOriginalHtmlContent = liveMode && savedContent?.version_number === version ? null : content;
           console.log('[DocsEmbedFullscreen] Version selected:', version);
         }}
       />

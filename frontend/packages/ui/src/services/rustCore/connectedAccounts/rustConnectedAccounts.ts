@@ -162,3 +162,24 @@ export async function rustMergeTurnTokenRefs(
 	if (outcome.kind === 'error') throw failure(outcome);
 	return outcome.refs;
 }
+
+/**
+ * Accounts due for an encrypted last-use write. The page decrypts each row's
+ * `encrypted_last_used_at` first; Rust decides which accounts are due (at most
+ * once per 10 minutes) and the value to record.
+ */
+export async function rustPlanLastUsedTouches(input: {
+	now: number;
+	usedAccountIds: string[];
+	accounts: { id: string; last_used_at: number | null }[];
+}): Promise<{ id: string; last_used_at: number }[]> {
+	const outcome = await connectedAccountsCall('lastUsedPlan', {
+		input: JSON.stringify({
+			now: input.now,
+			used_account_ids: input.usedAccountIds,
+			accounts: input.accounts
+		})
+	});
+	if (outcome.kind === 'error') throw failure(outcome);
+	return outcome.touches;
+}

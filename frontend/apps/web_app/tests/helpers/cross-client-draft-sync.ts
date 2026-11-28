@@ -92,13 +92,20 @@ function installWebSocketFrameTracker(page: any): WebSocketFrameRecord[] {
 	return frames;
 }
 
-/** Pass every frame to the real backend; disconnect both halves when emulating offline. */
+/**
+ * Pass every frame to the real backend; disconnect both halves when emulating offline.
+ * `withholdReceived(types)` records but does not deliver server frames of those types,
+ * emulating a connection that drops after the server applied a change but before
+ * its receipt reached the browser.
+ */
 async function installOfflineWebSocketControl(page: Page): Promise<{
 	frames: WebSocketFrameRecord[];
 	setOffline(offline: boolean): Promise<void>;
+	withholdReceived(types: string[]): void;
 }> {
 	const { frames, record } = createWebSocketFrameRecorder();
 	let offline = false;
+	let withheldTypes = new Set<string>();
 	const routes = new Set<WebSocketRoute>();
 	await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, async (socket) => {
 		if (offline) {
@@ -116,12 +123,17 @@ async function installOfflineWebSocketControl(page: Page): Promise<{
 		});
 		server.onMessage((raw) => {
 			record('received', raw);
+			const lastType = frames[frames.length - 1]?.type;
+			if (lastType && withheldTypes.has(lastType)) return;
 			socket.send(raw);
 		});
 		// Keep the default bidirectional forwarding of close events.
 	});
 	return {
 		frames,
+		withholdReceived(types: string[]): void {
+			withheldTypes = new Set(types);
+		},
 		async setOffline(disconnected: boolean): Promise<void> {
 			offline = disconnected;
 			await page.context().setOffline(disconnected);

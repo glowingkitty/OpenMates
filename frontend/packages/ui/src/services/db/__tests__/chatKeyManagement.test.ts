@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   clearAll: vi.fn(),
   keys: new Map<string, Uint8Array>(),
   forcedLogout: false,
+  teamId: null as string | null,
 }));
 
 vi.mock("../../cryptoService", () => ({
@@ -21,6 +22,9 @@ vi.mock("../../encryption/ChatKeyManager", () => ({
     clearAll: mocks.clearAll,
   },
 }));
+vi.mock("../../../stores/teamStore", () => ({
+  getActiveTeamContextSnapshot: () => ({ teamId: mocks.teamId }),
+}));
 vi.mock("../../../stores/signupState", () => ({
   forcedLogoutInProgress: {
     subscribe: (callback: (value: boolean) => void) => {
@@ -33,6 +37,7 @@ vi.mock("../../../stores/signupState", () => ({
 import {
   clearAllChatKeys,
   getCachedChatVersionMap,
+  getCachedPinnedChatIds,
   loadChatKeysFromDatabase,
 } from "../chatKeyManagement";
 
@@ -42,40 +47,31 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function databaseWithChat(chatId: string) {
-  const request: { result: unknown; onsuccess?: (event: unknown) => void } = {
-    result: null,
-  };
-  const chat = {
-    chat_id: chatId,
-    encrypted_chat_key: `encrypted-${chatId}`,
-    messages_v: 2,
-    title_v: 1,
-    draft_v: 0,
-  };
-  const cursor = {
-    value: chat,
-    continue: () => queueMicrotask(() => {
-      request.result = null;
-      request.onsuccess?.({ target: request });
-    }),
-  };
+function chatWithKey(chatId: string, extra: Record<string, unknown> = {}) {
+  return { chat_id: chatId, encrypted_chat_key: `encrypted-${chatId}`, messages_v: 2, title_v: 1, draft_v: 0, ...extra };
+}
+
+function databaseWithChats(chats: ReturnType<typeof chatWithKey>[]) {
+  const request: { result: unknown; onsuccess?: (event: unknown) => void } = { result: null };
+  let next = 0;
+  const read = () => queueMicrotask(() => {
+    request.result = next < chats.length ? { value: chats[next++], continue: read } : null;
+    request.onsuccess?.({ target: request });
+  });
   const db = {
     CHATS_STORE_NAME: "chats",
     getChat: vi.fn(),
     db: {
       transaction: () => ({
-        objectStore: () => ({ openCursor: () => {
-          queueMicrotask(() => {
-            request.result = cursor;
-            request.onsuccess?.({ target: request });
-          });
-          return request;
-        } }),
+        objectStore: () => ({ openCursor: () => { read(); return request; } }),
       }),
     },
   };
   return db as unknown as Parameters<typeof loadChatKeysFromDatabase>[0];
+}
+
+function databaseWithChat(chatId: string) {
+  return databaseWithChats([chatWithKey(chatId)]);
 }
 
 describe("bulk chat key loading across logout", () => {
@@ -90,6 +86,7 @@ describe("bulk chat key loading across logout", () => {
     });
     mocks.clearAll.mockImplementation(() => mocks.keys.clear());
     mocks.forcedLogout = false;
+    mocks.teamId = null;
     mocks.hasKey.mockReturnValue(false);
     mocks.getKeyFromStorage.mockResolvedValue(masterKey);
     mocks.decryptChatKeyWithMasterKey.mockResolvedValue(key);
@@ -132,6 +129,32 @@ describe("bulk chat key loading across logout", () => {
 
     expect(mocks.injectKey).toHaveBeenCalledExactlyOnceWith("new-chat", key, "bulk_init");
     expect(mocks.decryptChatKeyWithMasterKey).toHaveBeenCalledExactlyOnceWith("encrypted-new-chat", masterKey);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.recent-metadata-cap,sync.deletion.partial-window-not-authoritative
+  it("bounds eager key unwrap while retaining versions and pins from the full cursor", async () => {
+    const rows = Array.from({ length: 105 }, (_, index) =>
+      chatWithKey(`parent-${index}`, {
+        updated_at: index + 1,
+        ...(index === 0 ? { pinned: true } : {}),
+      }),
+    );
+    rows.splice(30, 0,
+      chatWithKey("child", { last_edited_overall_timestamp: 1000, parent_id: "parent-104" }),
+      chatWithKey("team-chat", { last_edited_overall_timestamp: 1000, team_id: "other-team", pinned: true }),
+    );
+    mocks.hasKey.mockImplementation(id => id === "parent-104");
+
+    await loadChatKeysFromDatabase(databaseWithChats(rows));
+
+    expect(mocks.decryptChatKeyWithMasterKey).toHaveBeenCalledTimes(99);
+    expect(mocks.decryptChatKeyWithMasterKey).toHaveBeenCalledWith("encrypted-parent-5", masterKey);
+    expect(mocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalledWith("encrypted-parent-4", masterKey);
+    expect(mocks.keys.has("child")).toBe(false);
+    expect(mocks.keys.has("team-chat")).toBe(false);
+    expect(getCachedChatVersionMap().size).toBe(107);
+    expect(getCachedPinnedChatIds(null)).toEqual(["parent-0"]);
+    expect(getCachedPinnedChatIds("other-team")).toEqual(["team-chat"]);
   });
 
   // contract-test: infrastructure

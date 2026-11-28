@@ -402,6 +402,7 @@ def test_non_recovery_metadata_update_publishes_through_cache_once() -> None:
     directus = _MetadataDirectus()
     cache = _PersistCache()
     cache.increment_chat_component_version = AsyncMock(return_value=13)
+    cache.update_chat_list_item_field = AsyncMock()
 
     asyncio.run(
         stream_consumer._update_chat_metadata(
@@ -422,6 +423,9 @@ def test_non_recovery_metadata_update_publishes_through_cache_once() -> None:
 
     cache.increment_chat_component_version.assert_awaited_once_with(
         request_data.user_id, request_data.chat_id, "messages_v",
+    )
+    cache.update_chat_list_item_field.assert_awaited_once_with(
+        request_data.user_id, request_data.chat_id, "last_mate_category", "general_knowledge",
     )
     assert directus.updates[0]["messages_v"] == 13
     assert len(cache.saved_messages) == 1
@@ -843,6 +847,10 @@ def test_sub_chat_parent_continuation_inherits_legacy_admission_as_root(monkeypa
     assert continuation.root_legacy_cutover_task_id == legacy_identity
     assert continuation.legacy_cutover_task_id is None
     assert (continuation.chat_id, continuation.message_id) == (chat_id, message_id)
+    # Real spec run 2026-11-23: a legacy parent's children are never marked
+    # delivered (no sealed result), so consuming them refused the continuation
+    # with child_parent_not_consumed and the parent never answered.
+    assert continuation.recovery_consumed_child_ids == []
 
 
 # contract-test: supporting surface=rest_api assertions=chats.rendering.inline-entity-interaction
@@ -1300,6 +1308,9 @@ def test_partial_text_followed_by_terminal_failure_is_failed_and_not_billed(monk
         is_anonymous=failure_reason == "anonymous_usage_limit",
     )
 
+    # App logging can replace the root handler during suite initialization.
+    monkeypatch.setattr(stream_consumer.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(stream_consumer.logger, "propagate", False)
     with caplog.at_level(logging.WARNING, logger=stream_consumer.logger.name):
         result = asyncio.run(stream_consumer._consume_main_processing_stream(
             task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
@@ -1348,6 +1359,9 @@ def test_aggregated_output_log_level_follows_expected_failure(monkeypatch, caplo
     from backend.apps.ai.utils import llm_utils
 
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
+    # App logging can replace the root handler during suite initialization.
+    monkeypatch.setattr(llm_utils.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(llm_utils.logger, "propagate", False)
     with caplog.at_level(logging.WARNING, logger=llm_utils.logger.name):
         llm_utils.log_main_llm_stream_aggregated_output(
             "task-1", "partial", error_message="Main processing failed: x.", expected_failure=expected_failure,
@@ -1394,7 +1408,7 @@ def test_app_skill_output_followed_by_stream_exception_is_failed_and_not_billed(
     result = asyncio.run(stream_consumer._consume_main_processing_stream(
         task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
         base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
-        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(),
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=SimpleNamespace(set=AsyncMock()),
     ))
 
     assert app_skill_reference.strip() in result[0]
@@ -1421,7 +1435,7 @@ def test_app_skill_output_followed_by_stream_exception_is_failed_and_not_billed(
 
 
 # contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
-def test_normal_text_with_usage_remains_successful_and_billable(monkeypatch):
+def test_incognito_reply_completes_and_bills_without_saved_chat_metadata(monkeypatch):
     async def successful_stream(**kwargs):
         yield "Complete answer."
         yield stream_consumer.MistralUsage(
@@ -1432,9 +1446,13 @@ def test_normal_text_with_usage_remains_successful_and_billable(monkeypatch):
 
     billing = AsyncMock(return_value={"total_credits": 22})
     aggregate_log = Mock()
+    publish = AsyncMock()
+    update_metadata = AsyncMock()
     monkeypatch.setattr(stream_consumer, "handle_main_processing", successful_stream)
     monkeypatch.setattr(stream_consumer, "_handle_normal_billing", billing)
     monkeypatch.setattr(stream_consumer, "log_main_llm_stream_aggregated_output", aggregate_log)
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", publish)
+    monkeypatch.setattr(stream_consumer, "_update_chat_metadata", update_metadata)
     monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
     request = AskSkillRequest(
         chat_id="chat-1",
@@ -1447,13 +1465,18 @@ def test_normal_text_with_usage_remains_successful_and_billable(monkeypatch):
 
     result = asyncio.run(stream_consumer._consume_main_processing_stream(
         task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
-        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
-        all_mates_configs=[], discovered_apps_metadata={}, cache_service=None,
+        base_instructions={}, directus_service=_MetadataDirectus(), encryption_service=_Encryption(),
+        user_vault_key_id="vault-key", all_mates_configs=[], discovered_apps_metadata={},
+        cache_service=_PersistCache(),
     ))
 
     assert result[0] == "Complete answer."
     billing.assert_awaited_once()
+    update_metadata.assert_not_awaited()
     assert aggregate_log.call_args.kwargs["error_message"] is None
+    final_payload = publish.await_args.args[2]
+    assert final_payload["is_final_chunk"] is True
+    assert final_payload["full_content_so_far"] == "Complete answer."
 
 
 # contract-test: direct surface=cli assertions=chat-processing-feedback.turn-lifecycle
@@ -1755,6 +1778,9 @@ def test_research_verifier_delayed_initial_callback_cannot_clobber_verifier_or_d
                 "chat_id": child, "parent_id": request.chat_id, "owner_hash": request.user_id_hash,
                 "root_chat_id": request.root_chat_id, "root_turn_id": request.root_turn_id,
                 "orchestration_id": request.orchestration_id})
+        # A normal follow-up can become the latest foreground parent turn
+        # while the independent child callbacks still belong to the first turn.
+        await cache.set(f"async_skill_latest_user_turn:{request.user_id}:{request.chat_id}", "independent-turn")
         cache.pause_task, cache.pause_key = "stale-angle-a", key
         claims = {"research_ack": False, "synthesis_ack": False}
         binding = {"root_chat_id": request.chat_id, "root_turn_id": request.root_turn_id}

@@ -707,7 +707,8 @@ impl ViewModelCore {
     /// call), `text_preview` the new preview when the type keeps one,
     /// `operation_id` the idempotency key of a resend of the same edit
     /// (`nil`: fresh). The head is the core's cached head (fetched once when
-    /// not cached). Writes the chat's `embed_updated` event when the embed
+    /// not cached); `base_version` (when set) is the version the edit was
+    /// made on and a newer head is a `VersionConflict`. Writes the chat's `embed_updated` event when the embed
     /// has a chat (`event`).
     ///
     /// # Errors
@@ -721,6 +722,7 @@ impl ViewModelCore {
         content: String,
         text_preview: Option<String>,
         operation_id: Option<String>,
+        base_version: Option<i64>,
         cancellation: Option<Arc<CoreCancellation>>,
     ) -> std::result::Result<EmbedRevisionOutcomeRecord, EmbedEditError> {
         let content = Zeroizing::new(content);
@@ -729,6 +731,9 @@ impl ViewModelCore {
         self.embed_command(cancellation, move |client| {
             Box::pin(async move {
                 let (head, _) = client.embed_user_edit_head(&embed_id).await?;
+                if let Some(base) = base_version {
+                    head.require_version(base)?;
+                }
                 let request = UserRevisionRequest::content_edit(
                     head,
                     scope,

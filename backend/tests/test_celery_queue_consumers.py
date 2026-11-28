@@ -2,9 +2,9 @@
 """
 Every Celery queue a task is routed to has a consuming worker in every runtime.
 
-Production runs the CLI self-host template, not the source Compose file. On
-20 Nov 2026 the focus-mode auto-confirm timer moved to the `app_ai_routing`
-queue, which only the source Compose files consumed. In production the timer
+Production runs the packaged CLI self-host template. On 20 Nov 2026 the
+focus-mode auto-confirm timer moved to the `app_ai_routing` queue, which only
+the source Compose files consumed. In production the timer
 was never picked up, so answers that activated a focus mode stayed empty
 (TASK-7184). This guard parses the routing table and the worker commands, so a
 queue without a consumer fails here instead of in production.
@@ -23,6 +23,7 @@ COMPOSE_FILES = (
     ROOT / "backend/core/docker-compose.yml",
     ROOT / "backend/core/docker-compose.selfhost.yml",
     ROOT / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
+    ROOT / "frontend/packages/openmates-tui-native/assets/selfhost/core/docker-compose.selfhost.yml",
 )
 QUEUE_LIST = r"[a-z0-9_,]+"
 

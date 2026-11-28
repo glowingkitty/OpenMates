@@ -699,7 +699,8 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    word-break: break-word;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
   
   /* Two lines for title when no custom status text is present (e.g., websites) */

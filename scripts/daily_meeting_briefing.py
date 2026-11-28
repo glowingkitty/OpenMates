@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build the weekday daily meeting briefing, upload it privately, post the link to Discord.
 
-Pipeline (weekdays 11:30 Europe/Berlin via the dev-server crontab):
+Pipeline (weekdays 08:30 Europe/Berlin via the dev-server meeting timer):
   1. scripts/daily_meeting_context.py collect — deterministic evidence: Claude chats,
      git (incl. marketing repo), OpenMates Tasks, nightly tests, FOCUS.md, and Apple
      Reminders (live, or the copy `mac_reminders.py sync` refreshes every 30 minutes).
@@ -22,6 +22,7 @@ import re
 import os
 from pathlib import Path
 import subprocess
+import tempfile
 import time
 import sys
 from zoneinfo import ZoneInfo
@@ -30,6 +31,8 @@ SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import daily_meeting_context as context  # noqa: E402 - sibling scripts, path set above
 import mac_reminders  # noqa: E402
+from daily_meeting_accountability import BRIEFING_TIME  # noqa: E402 - sibling scripts, path set above
+import daily_meeting_morning  # noqa: E402 - sibling scripts, path set above
 import daily_meeting_growth  # noqa: E402
 import daily_meeting_marketing  # noqa: E402
 import decision_log  # noqa: E402
@@ -41,7 +44,6 @@ import worktree_wip  # noqa: E402
 TZ = ZoneInfo("Europe/Berlin")
 WEBHOOK_KEYS = ("DISCORD_WEBHOOK_DAILY_MEETING", "DISCORD_WEBHOOK_DEV_NIGHTLY")
 LINK_SECONDS = 48 * 3600
-SCHEDULED_AT = (11, 30)  # Berlin time of the cron run; the crontab fires at 09:30 and 10:30 UTC
 
 
 def configured_value(root: Path, key: str) -> str:
@@ -489,7 +491,14 @@ def _chat_lifecycle_line(path: Path | None = None) -> list[str]:
         summary = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return ["_Chat lifecycle counts unavailable: the lifecycle timer has not written its status yet._", ""]
-    return [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
+    lines = [f"_{claude_idle_chats.status_line(summary)} As of {summary['at'][11:16]} UTC._", ""]
+    try:
+        recovery = json.loads(path.with_name("watchdog-daily-list.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return lines
+    if recovery.get("items"):
+        lines.extend(["**Work chats to check**", "", *[f"- {item}" for item in recovery["items"]], ""])
+    return lines
 
 
 def _waited(hours: float) -> str:
@@ -630,6 +639,19 @@ def _reminders_banner(rem: dict) -> list[str]:
             "start of the meeting.", ""]
 
 
+
+def _forgotten_task_list(data: dict) -> list[str]:
+    count = data.get("count", 0)
+    if not count:
+        return []
+    items = data.get("items") or []
+    lines = ["", f"## Forgotten Tasks ({count})", "", "_Open Tasks whose linked chat stopped over 24 hours ago._", ""]
+    lines.extend(f"- {item['title']} ({item['id'] or 'Task'}) — stopped {item['days']}d ago" for item in items)
+    if count > len(items):
+        lines.append(f"- {count - len(items)} more in OpenMates Tasks.")
+    return lines + [""]
+
+
 def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> str:
     rem = ev.get("reminders") or {}
     tasks = ev.get("tasks") or {}
@@ -663,9 +685,11 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
         out += ["", "**Claude subscription:** weekly usage unavailable (see data gaps)."]
     tri = triage.Triage(ev.get("focus_file", ""), ev.get("git", {}).get("commits_on_dev", []), today)
     out += _alerts_section(ev.get("alerts") or {}, tri)
+    out += daily_meeting_morning.render(ev.get("morning_accountability") or {})
     out += daily_meeting_growth.render(ev.get("growth"))
     out += daily_meeting_marketing.render(ev.get("marketing_block"))
     out += _waiting_section(ev.get("waiting_chats") or {}, tri)
+    out += _forgotten_task_list(ev.get("forgotten_tasks") or {})
     out += _dropped_recheck(ev)
     out += ["", "## Unfinished work in worktrees (dev→main readiness)", "", *worktree_wip.briefing_lines()]
     product = ev.get("product") or {}
@@ -680,6 +704,14 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
             out += ["", "Core features:"] + [f"- {feature}" for feature in product["features"]]
     out += ["", MEETING_SCRIPT.replace("{date}", today.isoformat()), "", *_meeting_adjustments(ev.get("goals") or {})]
     focus_text = re.sub(r"^(#{1,2}) ", "### ", ev.get("focus_file", "").strip(), flags=re.M)
+    out += [
+        "## Product video recording gate", "",
+        "Ask Marco to record a flow only after reviewing a clean, sound-on end-to-end video of that flow "
+        "on production. Sign up a clearly marked throwaway production account with an AI test user gift "
+        "card code, exclude it from stats and delete it after the run, including failed runs. Check for "
+        "broken behavior, slow responses, UI glitches and wrong embeds. Assign each failing flow to "
+        "a Task owner for a fix and rerun.", "",
+    ]
     out += ["## 1. Focus file (FOCUS.md)", "", focus_text or "_FOCUS.md missing._", ""]
     out += _goals_section(ev.get("goals") or {}, today)
     ideas = tasks.get("idea_inbox") or []
@@ -711,6 +743,11 @@ def render(ev: dict, chats_summary: dict, today: date, generated: datetime) -> s
     for item in ev.get("parked_code_at_risk") or []:
         out.append(f"**⚠ Parked code purged {item['purged']}:** unlanded worktree {item['worktree']} "
                    f"(archive {item['archive']}) — recover it or decide to drop it.")
+    if (blips := ev.get("production_blips")) is not None:
+        coverage = " (host checks only)" if blips.get("host_only") else ""
+        minutes = f"{blips['seconds'] / 60:.2f}".rstrip("0").rstrip(".")
+        out.append(f"**Production uptime** — {blips['count']} short blips, "
+                   f"total {minutes} minutes in the last 24 hours{coverage}.")
     if last:
         out.append(f"**Nightly tests** ({last.get('date')}): {last.get('passed_count')} passed, "
                    f"{last.get('failed_count')} failed, {last.get('not_run_count')} not run.")
@@ -833,15 +870,14 @@ def _collect(root: Path, out: Path, today: date) -> dict:
 
 
 def in_scheduled_slot(local: datetime) -> bool:
-    """Cron fires at 09:30 and 10:30 UTC to cover CET and CEST; only the weekday 11:30 Berlin run proceeds."""
-    hour, minute = SCHEDULED_AT
-    return local.weekday() < 5 and local.hour == hour and local.minute >= minute
+    """Allow a weekday morning timer run to start within the 08:30 slot."""
+    return local.weekday() < 5 and local.hour == BRIEFING_TIME.hour and local.minute >= BRIEFING_TIME.minute
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--scheduled", action="store_true",
-                        help="cron mode: weekdays, only from 11:30 to 11:59 Berlin, once per day")
+                        help="weekday timer mode, from 08:30 to 08:59 Berlin, once per day")
     parser.add_argument("--force", action="store_true", help="rebuild even if today's briefing was sent")
     parser.add_argument("--no-send", action="store_true", help="build and upload, skip Discord")
     parser.add_argument("--no-upload", action="store_true", help="build only")
@@ -877,8 +913,12 @@ def main(argv: list[str] | None = None) -> int:
             evidence["opportunities"] = daily_meeting_opportunities.collect(today, evidence["gaps"])
         except (OSError, ValueError) as error:
             evidence["gaps"].append(f"opportunities unavailable ({context.clean(str(error), 200)})")
-        path.write_text(render(evidence, summary, today, now))
-        path.chmod(0o600)
+        evidence["morning_accountability"] = daily_meeting_morning.collect(root, out, evidence, now)
+        # Connector refresh and the timer can overlap. Readers see a complete private file.
+        text = render(evidence, summary, today, now)
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=out, delete=False) as handle:
+            handle.write(text)
+        Path(handle.name).replace(path)
         result: dict = {"briefing": str(path)}
         if not args.no_upload:
             import daily_meeting_pdf

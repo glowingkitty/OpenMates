@@ -300,6 +300,29 @@ div.clickable-icon {
   transition: background-color 0.3s ease-out;
 }
 
+/* Composer actions brighten and grow their glyph without changing the hit area. */
+.composer-action-icon,
+.composer-action-icon > .clickable-icon {
+  transition: scale var(--duration-fast), filter var(--duration-fast);
+}
+
+.composer-action-icon > .clickable-icon {
+  width: 25px;
+  height: 25px;
+}
+
+.composer-action-icon:has(> .clickable-icon) {
+  scale: 1;
+}
+
+@media (hover: hover) {
+  .composer-action-icon:not(:disabled):hover:not(:has(> .clickable-icon)),
+  .composer-action-icon:not(:disabled):hover > .clickable-icon {
+    scale: 1.05;
+    filter: brightness(1.12);
+  }
+}
+
 .clickable-icon.icon_download {
   -webkit-mask-image: url("@openmates/ui/static/icons/download.svg");
   mask-image: url("@openmates/ui/static/icons/download.svg");

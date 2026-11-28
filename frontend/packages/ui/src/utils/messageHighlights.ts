@@ -30,10 +30,26 @@ const CONTEXT_LEN = 20;
  *      on the embed instead of the intended text.
  *   2. Embed text preceding the selection pollutes prefix/suffix so the
  *      anchor depends on embed content that can re-render independently.
+ * Large preview cards (`[!](embed:ref)`) are embed NodeViews too.
  * Activity disclosures are also presentation-only: their summary and
  * response-wide thinking are not part of the answer's text-quote anchors.
  */
-const EMBED_SKIP_SELECTOR = ".embed-full-width-wrapper, .assistant-activity-group";
+export const EMBED_SKIP_SELECTOR =
+  ".embed-full-width-wrapper, .embed-preview-large-node, .assistant-activity-group";
+
+/**
+ * True when `range` is a ProseMirror node selection: it wraps exactly one
+ * element and nothing else. The read-only message editor creates one when an
+ * atom node (an embed card or chip) is clicked, and writes it into the page
+ * selection, sometimes seconds later on a re-render. That is a click, not
+ * text the user selected, so it must not open the selection toolbar.
+ */
+export function isNodeSelectionRange(range: Range): boolean {
+  if (range.startContainer !== range.endContainer) return false;
+  if (range.endOffset !== range.startOffset + 1) return false;
+  const node = range.startContainer.childNodes[range.startOffset];
+  return node?.nodeType === Node.ELEMENT_NODE;
+}
 
 function isInsideSkippedSubtree(node: Node): boolean {
   const parent = (node as Text).parentElement;

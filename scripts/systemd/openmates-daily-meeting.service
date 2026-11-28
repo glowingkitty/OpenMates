@@ -1,0 +1,14 @@
+[Unit]
+Description=Send the OpenMates daily meeting Discord push
+StartLimitIntervalSec=5min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/projects/OpenMates
+Environment=PATH=%h/.npm-global/bin:/usr/local/bin:/usr/bin:/bin
+UMask=0077
+TimeoutStartSec=35min
+Restart=on-failure
+RestartSec=45s
+ExecStart=/usr/bin/python3 scripts/daily_meeting_accountability.py

@@ -87,6 +87,8 @@ COPY --from=builder /app/frontend/apps/web_app/build /app/build
 # Set working directory to the build directory
 WORKDIR /app/build
 
+USER node
+
 # Expose port 5173 (Vite's default port, commonly used for frontend apps)
 # Note: Port 3000 is used by Grafana
 EXPOSE 5173

@@ -82,7 +82,7 @@ class MetricsService:
         """Initialize metrics with correct values on startup"""
         try:
             # Get actual user count from Directus
-            total_users = await directus_service.get_total_users_count()
+            total_users = await directus_service.get_total_users_count(exclude_test_accounts=True)
             logger.info(f"Initializing metrics with {total_users} total users")
             
             # Use the gauge directly - not a counter that needs incrementing

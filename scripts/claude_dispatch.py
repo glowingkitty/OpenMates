@@ -18,9 +18,11 @@ with a ``claude remote-control`` bridge tab), from the canonical checkout. It
 appears in the owner's Claude app and stays online while it waits for the
 admin's input. ``--bg`` is not used: background jobs retire after ~8h idle.
 
-Model policy: every chat started here defaults to Opus; while the weekly Claude usage is at
-or above 70% every NEW chat starts on Sonnet until the weekly reset, unless the owner named a
-model (scripts/claude_weekly_model.py). Running and resumed chats keep their model. Fable is much more
+Model policy: every chat started here defaults to Claude Opus; while 30% or less of the weekly
+Claude usage is left every NEW chat goes to Codex (gpt-6.2-sol) until the weekly reset, except
+security and encryption work, unless the owner named a model (scripts/claude_weekly_model.py).
+Codex chats run in zellij tabs like Claude chats and share the slot cap (scripts/codex_chats.py).
+Running and resumed chats keep their engine and model. Fable is much more
 expensive and runs only when a caller passes ``explicit_model=True`` for a user's
 explicit request (e.g. the voice connector's ``start_chat`` with model Fable);
 ``launch_claude_chat`` refuses it otherwise, including from environment overrides.
@@ -34,6 +36,7 @@ Tests: scripts/tests/test_claude_dispatch.py
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
 import re
@@ -48,6 +51,8 @@ from typing import Any, Callable
 if str(Path(__file__).resolve().parent) not in sys.path:  # imported as scripts.claude_dispatch by the tests
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 import claude_weekly_model  # noqa: E402 - sibling script, found through the path line above
+import codex_chats  # noqa: E402 - sibling script (Codex engine: registry, command, transcripts)
+import host_load_guard  # noqa: E402 - sibling script, found through the path line above
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 STATE_ROOT = Path(os.getenv("CLAUDE_DISPATCH_ROOT", REPO_ROOT / "logs" / "claude-dispatch"))
@@ -171,6 +176,8 @@ def _chat_command(*claude_args: str) -> list[str]:
     """Command for a zellij tab. Tabs inherit the zellij server's environment, and a
     server started from cron has only the system PATH, so the chat could not find
     user-installed tools (the `openmates` CLI). Put the user bin folders first."""
+    if claude_args[:1] == ("--resume",) and claude_weekly_model.reserve_active():
+        raise DispatchError("Claude usage is in reserve. This chat needs a Task handover to Codex before it can continue.")
     home = Path.home()
     user_bins = [str(home / ".npm-global/bin"), str(home / ".local/bin")]
     inherited = [part for part in os.environ.get("PATH", os.defpath).split(os.pathsep)
@@ -245,53 +252,82 @@ def check_chat_model(model: str, explicit_model: bool = False) -> str:
     return model
 
 
-def admit_new_chat() -> str | None:
+def admit_new_chat(*, production: bool = False) -> str | None:
     """None when one more chat may start now; else why not. Suspends the longest-idle chat
     when the cap of running chats is reached (scripts/claude_idle_chats.py admit)."""
+    command = [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"]
+    if production:
+        command.append("--production")
     result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "claude_idle_chats.py"), "admit"],
+        command,
         capture_output=True, text=True, timeout=ADMIT_TIMEOUT_SECONDS, check=False,
     )
     if result.returncode == 0:
         return None
     if result.returncode == 3:
-        return (result.stdout.strip().splitlines() or ["the running-chat cap is reached"])[-1]
+        # The whole refusal: its first line says why, the rest lists the chats it counted, so a
+        # wrong count is visible in start_chat's answer (2026-11-27).
+        return result.stdout.strip() or "the running-chat cap is reached"
     raise DispatchError(f"chat admission check failed (exit {result.returncode}): {result.stderr.strip()[-300:]}")
 
 
 def queue_launch(title: str, prompt: str, model: str, effort: str, explicit_model: bool, why: str,
-                 change_scope: str = "") -> Path:
+                 change_scope: str = "", engine: str = "claude", *, live_voice: bool = False,
+                 images: tuple[str, ...] = ()) -> Path:
     PENDING_DIR.mkdir(parents=True, exist_ok=True)
     path = PENDING_DIR / f"{_now():%Y%m%dT%H%M%S%f}.json"
-    path.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
-                                "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why,
-                                "change_scope": change_scope}),
-                    encoding="utf-8")
+    staged = path.with_suffix(".tmp")
+    staged.write_text(json.dumps({"title": title, "prompt": prompt, "model": model, "effort": effort,
+                                  "explicit_model": explicit_model, "queued_at": _now().isoformat(), "why": why,
+                                  "change_scope": change_scope, "engine": engine, "live_voice": live_voice,
+                                  "images": images}),
+                      encoding="utf-8")
+    staged.replace(path)
     _record_launch({"kind": "queued", "title": title, "model": model, "why": why, "file": path.name})
     return path
 
 
-def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN) -> list[dict[str, Any]]:
-    """Start queued chats, oldest first, while the cap has room."""
+def start_pending(limit: int = MAX_ISSUE_LAUNCHES_PER_RUN, force: bool = False) -> list[dict[str, Any]]:
+    """Start queued chats oldest first. Force skips the slot check."""
+    if not PENDING_DIR.is_dir():
+        return []
+    with (PENDING_DIR.parent / "pending.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _start_pending(limit, force)
+
+
+def _start_pending(limit: int, force: bool) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
-    for path in sorted(PENDING_DIR.glob("*.json"))[:limit] if PENDING_DIR.is_dir() else []:
+    for path in sorted(PENDING_DIR.glob("*.json"))[:limit]:
         entry = json.loads(path.read_text(encoding="utf-8"))
-        why = admit_new_chat()
+        why = host_load_guard.gate("starting a queued chat") or (None if force else admit_new_chat())
         if why:
             results.append({"file": path.name, "status": "still queued", "why": why})
             break
-        where = _open_chat_tab(entry["title"], entry["prompt"], entry["model"], entry["effort"],
-                               entry.get("change_scope", ""))
+        explicit = bool(entry.get("explicit_model"))
+        media = {"images": tuple(entry["images"])} if entry.get("images") else {}
+        engine, model = claude_weekly_model.queued_route(entry["model"])
+        if engine == "codex":
+            unavailable = codex_wait_reason()
+            if unavailable:
+                results.append({"file": path.name, "status": "still queued", "why": unavailable})
+                continue
+            where = _open_codex_tab(entry["title"], entry["prompt"], model, explicit, entry.get("change_scope", ""), **media)
+        else:
+            where = _open_chat_tab(entry["title"], entry["prompt"], model, entry["effort"],
+                                   entry.get("change_scope", ""), explicit_model=explicit,
+                                   live_voice=bool(entry.get("live_voice")), **media)
         path.unlink()
         outcome = {"file": path.name, "status": "launched", "session": where, "title": entry["title"]}
-        _record_launch({"kind": "pending", "model": entry["model"], **outcome})
+        _record_launch({"kind": "pending", "engine": engine, "model": model, "forced": force, **outcome})
         results.append(outcome)
     return results
 
 
 def launch_claude_chat(
     title: str, prompt: str, model: str = CLAUDE_MODEL, effort: str = CLAUDE_EFFORT, explicit_model: bool = False,
-    change_scope: str = "",
+    change_scope: str = "", force: bool = False, *, live_voice: bool = False, admitted: bool = False,
+    images: tuple[str, ...] = (), queue_if_unavailable: bool = True,
 ) -> str:
     """Open the chat as an interactive Remote Control session in its own tab of the
     persistent zellij session; returns `<session>/<tab title>`.
@@ -304,19 +340,53 @@ def launch_claude_chat(
     Interactive sessions stay connected until the tab is closed.
 
     When the cap of running chats is reached and no idle chat may be suspended, the
-    chat is queued (PENDING_DIR) and ChatQueued says so; the `issues` cron run starts
+    chat is queued (PENDING_DIR) and ChatQueued says so; the lifecycle starts
     it once a slot frees. A chat is never dropped.
+
+    `force` (the owner's emergency start: connector run="now", scripts/force_chat.py) skips the
+    slot check entirely; the launch log records it.
     """
-    check_chat_model(model, explicit_model)
-    model = claude_weekly_model.new_chat_model(model, explicit_model)
-    effort = cap_effort(effort)
+    engine, model = claude_weekly_model.route(model, explicit_model, f"{title}\n{prompt}", live_voice=live_voice)
+    return _launch_routed_chat(
+        title, prompt, engine, model, effort, explicit_model, change_scope,
+        force=force, live_voice=live_voice, admitted=admitted, images=images,
+        queue_if_unavailable=queue_if_unavailable,
+    )
+
+
+def _launch_routed_chat(title: str, prompt: str, engine: str, model: str, effort: str,
+                        explicit_model: bool = False, change_scope: str = "", *,
+                        force: bool = False, live_voice: bool = False, admitted: bool = False,
+                        images: tuple[str, ...] = (), queue_default: tuple[str, str] | None = None,
+                        queue_if_unavailable: bool = True) -> str:
+    """Apply the shared admission and durable queue after the caller selects a route."""
+    unavailable = codex_wait_reason() if engine == "codex" else ""
+    if engine == "codex":
+        model = codex_chats.check_model(model, explicit_model)
+        effort = codex_chats.MAX_EFFORT
+    else:
+        check_chat_model(model, explicit_model)
+        model = claude_weekly_model.new_chat_model(model, explicit_model)
+        effort = cap_effort(effort)
     prompt = with_push_rule(prompt)
-    why = admit_new_chat()
+    why = (host_load_guard.gate("starting a new chat") or unavailable
+           or (None if force or admitted else admit_new_chat()))
+    if force and not why:
+        _record_launch({"kind": "forced", "title": title, "model": model, "why": "owner force: slot limit skipped"})
     if why:
-        path = queue_launch(title, prompt, model, effort, explicit_model, why, change_scope)
-        raise ChatQueued(f"queued, not started yet ({why}); it starts by itself within minutes of a slot "
-                         f"freeing up (queue entry {path.name})")
-    return _open_chat_tab(title, prompt, model, effort, change_scope)
+        if not queue_if_unavailable:
+            raise DispatchError(why)
+        media = {"images": images} if images else {}
+        pending_model, pending_effort = queue_default or (model, effort)
+        path = queue_launch(title, prompt, pending_model, pending_effort, explicit_model, why, change_scope, engine,
+                            live_voice=live_voice, **media)
+        raise ChatQueued(f"queued, not started yet ({why}); it starts once its engine and a slot are available "
+                         f"(queue entry {path.name})")
+    media = {"images": images} if images else {}
+    if engine == "codex":
+        return _open_codex_tab(title, prompt, model, explicit_model, change_scope, **media)
+    return _open_chat_tab(title, prompt, model, effort, change_scope,
+                          explicit_model=explicit_model, live_voice=live_voice, **media)
 
 
 def chat_effort(transcript: Path) -> str:
@@ -337,8 +407,16 @@ def chat_effort(transcript: Path) -> str:
     return CLAUDE_EFFORT
 
 
+def admit_resume(chat_id: str) -> str | None:
+    import claude_idle_chats
+
+    if chat_id in claude_idle_chats.load_config()["production_chat_ids"]:
+        return admit_new_chat(production=True)
+    return admit_new_chat()
+
+
 def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, title: str = "",
-                admitted: bool = False) -> str:
+                admitted: bool = False, *, force: bool = False) -> str:
     """Reopen a stopped chat in a new tab with `prompt` as its next message; 'ok' or why not.
 
     Used by scripts/worktree_wip.py to wake the owner of unfinished worktree work and by
@@ -351,6 +429,14 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     """
     if not UUID_RE.match(chat_id):
         raise DispatchError(f"not a chat id: {chat_id!r}")
+    if codex_chats.is_codex_chat(chat_id):
+        options = {"force": True} if force else {}
+        return resume_codex_chat(chat_id, prompt, title, admitted, **options)
+    if claude_weekly_model.reserve_active():
+        from chat_compaction_handoff import resume_on_codex
+
+        options = {"force": True} if force else {}
+        return resume_on_codex(chat_id, prompt, admitted=admitted, **options)
     projects = (claude_home or Path.home() / ".claude") / "projects"
     transcripts = sorted(projects.glob(f"*/{chat_id}.jsonl"))
     if not transcripts:
@@ -369,7 +455,7 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     if not cwd or not Path(cwd).is_dir():
         return f"its folder is gone ({cwd or 'unknown'})"
     model = model if model.startswith("claude-") and not is_fable(model) else CLAUDE_MODEL
-    why = None if admitted else admit_new_chat()
+    why = None if admitted or force else admit_resume(chat_id)
     if why:
         return f"no free chat slot ({why})"
     title = title or f"finish {chat_id[:8]}"
@@ -384,11 +470,24 @@ def resume_chat(chat_id: str, prompt: str, claude_home: Path | None = None, titl
     return "ok"
 
 
-def _open_chat_tab(title: str, prompt: str, model: str, effort: str, change_scope: str = "") -> str:
+def attachment_prompt(prompt: str, images: tuple[str, ...]) -> str:
+    """Give a chat that received text-only input a way to open the original image files."""
+    if not images:
+        return prompt
+    paths = json.dumps(images, ensure_ascii=False)
+    return f"{prompt}\n\nOpen these attached images with your image viewing tool before answering: {paths}"
+
+
+def _open_chat_tab(title: str, prompt: str, model: str, effort: str, change_scope: str = "",
+                   *, explicit_model: bool = False, live_voice: bool = False, images: tuple[str, ...] = ()) -> str:
     effort = cap_effort(effort)  # queued entries written before the cap run at most medium too
     command = _chat_command(
-        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto", prompt,
+        "--remote-control", title, "--model", model, "--effort", effort, "--permission-mode", "auto",
+        attachment_prompt(prompt, images),
     )
+    if explicit_model or live_voice:
+        exemption = "owner-model" if explicit_model else "live-voice"
+        command.insert(2, f"{claude_weekly_model.RESERVE_EXEMPT_ENV}={exemption}")
     command.insert(2, f"CLAUDE_CHAT_TITLE={title}")  # the chat's ✅/❓ pushes carry its title (agent_question.py)
     if change_scope:
         # sessions.py start records it; sessions.py deploy refuses changes above the scope limit.
@@ -401,6 +500,80 @@ def _open_chat_tab(title: str, prompt: str, model: str, effort: str, change_scop
     return f"{ZELLIJ_SESSION}/{title}"
 
 
+def codex_not_ready() -> str:
+    """'' when a Codex chat may start here; else what is missing (instructions, hooks, host config, login)."""
+    check = subprocess.run([sys.executable, str(REPO_ROOT / "scripts" / "codex_setup.py"), "check"], cwd=REPO_ROOT,
+                           capture_output=True, text=True, timeout=90, check=False)
+    return "" if check.returncode == 0 else (check.stdout.strip() or check.stderr.strip())[-400:]
+
+
+def codex_wait_reason() -> str:
+    """Hold work when Codex is unavailable and notify once per exhausted limit window."""
+    exhausted = codex_chats.exhausted_windows()
+    if exhausted:
+        state = claude_weekly_model.state_path().with_name("codex-exhausted.json")
+        state.parent.mkdir(parents=True, exist_ok=True)
+        with state.with_suffix(".lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            try:
+                reported = json.loads(state.read_text())
+            except (OSError, ValueError):
+                reported = []
+            if not set(exhausted) & set(reported):
+                if not claude_weekly_model.push("Codex has no usage left, so work is waiting for its limit to reset."):
+                    state.write_text(json.dumps(exhausted))
+        return "Codex has no usage left"
+    return codex_not_ready()
+
+
+def _codex_ready() -> None:
+    """Refuse a Codex start when its instructions, hooks, host config or login are not in place."""
+    why = codex_not_ready()
+    if why:
+        raise DispatchError(f"Codex is not ready: {why}")
+
+
+def _open_codex_tab(title: str, prompt: str, model: str, explicit_model: bool, change_scope: str = "",
+                    *, images: tuple[str, ...] = ()) -> str:
+    """Start a Codex chat in its own tab of the zellij session; returns `<session>/<tab title>`."""
+    _codex_ready()
+    record = codex_chats.new_record(title, model, codex_chats.MAX_EFFORT, str(REPO_ROOT), explicit_model)
+    record["prompt"] = prompt[:4000]
+    codex_chats.save(record)
+    command = codex_chats.tab_command(record, prompt, images=images)
+    if change_scope:
+        command.insert(2, f"OPENMATES_CHANGE_SCOPE={change_scope}")
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(REPO_ROOT), "--", *command)
+    _record_launch({"kind": "codex", "title": title, "model": model, "chat": record["chat_id"]})
+    return f"{ZELLIJ_SESSION}/{title} (codex chat {record['chat_id']})"
+
+
+def resume_codex_chat(chat_id: str, prompt: str, title: str = "", admitted: bool = False,
+                      *, images: tuple[str, ...] = (), force: bool = False) -> str:
+    """Reopen a stopped Codex chat with `prompt` as its next message ('ok' or why not)."""
+    if why := codex_wait_reason():
+        return why
+    record = codex_chats.load(chat_id) or {}
+    if chat_id in codex_chats.live():
+        return codex_chats.type_into(chat_id, prompt, images=images)
+    thread = str(record.get("thread_id") or "")
+    if not thread:
+        return "its Codex thread is unknown (it never ran a turn)"
+    if not Path(str(record.get("cwd") or "")).is_dir():
+        return f"its folder is gone ({record.get('cwd') or 'unknown'})"
+    why = None if admitted or force else admit_resume(chat_id)
+    if why:
+        return f"no free chat slot ({why})"
+    _codex_ready()
+    title = title or f"finish {chat_id[:8]}"
+    ensure_zellij_session()
+    _zellij("--session", ZELLIJ_SESSION, "action", "new-tab", "--name", title, "--cwd", str(record["cwd"]), "--",
+            *codex_chats.tab_command(record, prompt, resume_thread=thread, images=images))
+    _record_launch({"kind": "codex-resume", "title": title, "model": record.get("model"), "chat": chat_id, "forced": force})
+    return "ok"
+
+
 def _record_launch(entry: dict[str, Any]) -> None:
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
     with LAUNCH_LOG.open("a", encoding="utf-8") as handle:
@@ -410,10 +583,15 @@ def _record_launch(entry: dict[str, Any]) -> None:
 # ── Admin issue reports (dev) ────────────────────────────────────────────────
 
 def launch_issue_chat(title: str, prompt: str, change_scope: str = "") -> str:
-    """Issue chats investigate and fix a reported issue end to end, so they run on
-    the issue model and effort instead of the dispatcher default."""
-    return launch_claude_chat(title, prompt, model=ISSUE_CLAUDE_MODEL, effort=ISSUE_CLAUDE_EFFORT,
-                              change_scope=change_scope)
+    """Investigate an issue using the same weekly policy as scheduled and pending starts."""
+    default_model = check_chat_model(ISSUE_CLAUDE_MODEL)
+    engine, model = claude_weekly_model.queued_route(default_model)
+    session = _launch_routed_chat(
+        title, prompt, engine, model, ISSUE_CLAUDE_EFFORT, change_scope=change_scope,
+        queue_default=(default_model, ISSUE_CLAUDE_EFFORT),
+    )
+    _record_launch({"kind": "issue-launch", "engine": engine, "model": model, "session": session})
+    return session
 
 
 def parse_issue_request(raw: str) -> tuple[str, str]:
@@ -466,6 +644,39 @@ def _count_test_user_chat() -> None:
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
     (STATE_ROOT / "test-user-issues-state.json").write_text(json.dumps({"day": f"{_now():%Y-%m-%d}", "count": ai_user_chats_today() + 1}),
                                     encoding="utf-8")
+
+
+def test_user_chat_title(short_id: str) -> str:
+    return f"AI test user issue {short_id}: investigate"
+
+
+def launch_test_user_chat(issue_id: str, short_id: str, env: str, launcher: Launcher = launch_issue_chat,
+                          record: bool = True, ignore_cap: bool = False) -> dict[str, Any]:
+    """Start the investigation chat for one AI test-user report (owner, 23 Nov 2026: functional errors start
+    one by themselves, others once Marco approves them). Returns status started | queued | deferred | failed,
+    the chat title and a note. `ignore_cap` is for chats Marco approved; the daily cap covers automatic ones."""
+    if not UUID_RE.match(issue_id) or not SHORT_ID_RE.match(short_id) or env not in TEST_USER_ENVS:
+        raise DispatchError("invalid test-user issue request")
+    title = test_user_chat_title(short_id)
+    outcome: dict[str, Any] = {"chat_title": title}
+    if not ignore_cap and ai_user_chats_today() >= MAX_TEST_USER_CHATS_PER_DAY:
+        outcome.update(status="deferred", note=f"daily cap of {MAX_TEST_USER_CHATS_PER_DAY} automatic chats reached")
+    else:
+        try:
+            outcome.update(status="started",
+                           session=launcher(title, ai_user_issue_prompt(issue_id, short_id, env),
+                                            change_scope=CHANGE_SCOPE_SMALL_FIX))
+        except ChatQueued as exc:
+            outcome.update(status="queued", note=str(exc))
+        except (DispatchError, subprocess.TimeoutExpired) as exc:
+            outcome.update(status="failed", note=str(exc)[:200])
+        if outcome["status"] in ("started", "queued") and not ignore_cap:
+            _count_test_user_chat()
+    if record:
+        _record_launch({"kind": "issue", "origin": TEST_USER_ORIGIN, "env": env,
+                        "issue_id": issue_id, "short_issue_id": short_id,
+                        **{k: v for k, v in outcome.items() if k != "chat_title"}})
+    return outcome
 
 
 def ai_user_issue_prompt(issue_id: str, short_id: str, env: str) -> str:
@@ -523,28 +734,22 @@ def dispatch_issues(launcher: Launcher = launch_issue_chat, dry_run: bool = Fals
                 results.append(outcome)
                 continue
             if origin == TEST_USER_ORIGIN:
-                if ai_user_chats_today() >= MAX_TEST_USER_CHATS_PER_DAY:
-                    outcome.update(status="deferred", note="daily cap of AI test-user investigation chats reached")
-                else:
-                    outcome["session"] = launcher(
-                        f"AI test user issue {short_id}: investigate",
-                        ai_user_issue_prompt(issue_id, short_id, env),
-                        change_scope=CHANGE_SCOPE_SMALL_FIX)
-                    outcome["status"] = "launched"
-                    _count_test_user_chat()
+                started = launch_test_user_chat(issue_id, short_id, env, launcher, record=False)
+                outcome.update(status={"started": "launched"}.get(started["status"], started["status"]),
+                               **{k: v for k, v in started.items() if k in ("session", "note")})
+                if started["status"] == "queued":
+                    raise ChatQueued(started["note"])
             else:
                 outcome["session"] = launcher(f"Issue {short_id}: investigate & fix", issue_prompt(issue_id, short_id))
                 outcome["status"] = "launched"
         except ChatQueued as exc:
             outcome.update(status="queued", note=str(exc))  # moved to PENDING_DIR; starts from there
-            if outcome.get("origin") == TEST_USER_ORIGIN:
-                _count_test_user_chat()
         except (DispatchError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
             outcome.update(status="failed", error=str(exc))
         target = PROCESSED_DIR / {"launched": "ok", "queued": "ok", "deferred": "deferred"}.get(outcome["status"], "failed")
         target.mkdir(parents=True, exist_ok=True)
         path.replace(target / f"{_now():%Y%m%dT%H%M%S}-{path.name}")
-        _record_launch({"kind": "issue", "model": ISSUE_CLAUDE_MODEL, **outcome})
+        _record_launch({"kind": "issue", **outcome})
         results.append(outcome)
     return results
 
@@ -658,11 +863,19 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     issues = sub.add_parser("issues", help="Dispatch queued admin issue reports (dev)")
     issues.add_argument("--dry-run", action="store_true")
+    drain = sub.add_parser("drain", help="Start queued chats while the slot cap has room (the lifecycle runs it every minute)")
+    drain.add_argument("--force", action="store_true", help="start them whatever the cap says")
+    drain.add_argument("--limit", type=int, default=MAX_ISSUE_LAUNCHES_PER_RUN)
     prod = sub.add_parser("prod-errors", help="Hourly production chat-failure check")
     prod.add_argument("--since-minutes", type=int, default=70)
     prod.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
 
+    if args.command == "drain":
+        results = start_pending(args.limit, args.force)
+        if results:
+            print(json.dumps(results))
+        return 1 if any(r["status"] == "failed" for r in results) else 0
     if args.command == "issues":
         results = [] if args.dry_run else start_pending()
         results += dispatch_issues(dry_run=args.dry_run)

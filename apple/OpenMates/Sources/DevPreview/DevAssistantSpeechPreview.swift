@@ -77,3 +77,81 @@ struct DevAssistantSpeechPreview: View {
     }
 }
 #endif
+
+#if DEBUG && os(iOS)
+import AVFoundation
+
+/// Starts the production call audio (`NativeVoiceCallAppleAudio`) on the device
+/// microphone and speaker with no account or server: permission, session,
+/// voice-processing engine, microphone and playback taps, one played buffer.
+/// AVFoundation runs those callbacks on its audio threads, which is where the
+/// call crashed on start; the status reports how many callbacks really ran.
+struct DevVoiceCallAudioEnginePreview: View {
+    @State private var status = "starting"
+    @State private var audio: NativeVoiceCallAppleAudio?
+    private let counter = DevVoiceCallAudioCounter()
+
+    var body: some View {
+        VStack(spacing: .spacing4) {
+            Text(status).font(.omSmall)
+                .accessibilityIdentifier("voice-call-audio-engine-status")
+            Text("captured \(counter.capturedChunks)").font(.omSmall)
+                .accessibilityIdentifier("voice-call-audio-engine-captured")
+        }
+        .task {
+            let audio = NativeVoiceCallAppleAudio(invalidated: {})
+            self.audio = audio
+            let scope = NativeVoiceCallScope(accountID: "preview", profileID: "preview",
+                                             workspaceGeneration: UUID(), chatID: "preview-call",
+                                             mateCategory: "software_development")
+            var stage = "reserve"
+            do {
+                try await audio.reserve(scope: scope)
+                stage = "start"
+                let counter = counter
+                try await audio.start(input: { _ in await counter.capture() },
+                                      failure: { error in await counter.fail(error) })
+                stage = "engine"
+                // The engine can report running a moment after start(); wait for
+                // it (or the first microphone buffer) before playing.
+                for _ in 0..<30 where !audio.isEngineRunning && counter.capturedChunks == 0 {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard audio.isEngineRunning else { throw NativeVoiceCallError.audioUnavailable }
+                stage = "play"
+                // 0.25 s of silence at 24 kHz exercises playback and its completion handler.
+                try audio.play(Data(count: 24_000 / 2), sampleRate: 24_000)
+                stage = "callback"
+                status = "running"
+                // The played-back completion runs on an audio thread and hops to
+                // the main actor; it empties the playback queue when it ran.
+                for _ in 0..<40 {
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                    if let failure = counter.failure { status = "failed callback \(failure.rawValue)"; break }
+                    if audio.smokeDiagnostics.hasSuffix("queued=0") { break }
+                }
+                if status == "running" {
+                    let playedBack = audio.smokeDiagnostics.hasSuffix("queued=0")
+                    // Played-back completions need a rendering output device; a
+                    // hosted CI virtual machine can have none, which is reported.
+                    let outputs = AVAudioSession.sharedInstance().currentRoute.outputs.count
+                    status = "running \(counter.capturedChunks > 0 ? "with" : "without") microphone input, " +
+                        "outputs \(outputs), playback \(playedBack ? "completed" : "pending")"
+                }
+            } catch {
+                let code = (error as? NativeVoiceCallError)?.rawValue ?? "\(type(of: error)) \((error as NSError).code)"
+                status = "failed \(stage) \(code) \(audio.smokeDiagnostics)"
+            }
+            audio.stop()
+        }
+    }
+}
+
+@MainActor
+private final class DevVoiceCallAudioCounter: Sendable {
+    private(set) var capturedChunks = 0
+    private(set) var failure: NativeVoiceCallError?
+    func capture() { capturedChunks += 1 }
+    func fail(_ error: NativeVoiceCallError) { failure = error }
+}
+#endif

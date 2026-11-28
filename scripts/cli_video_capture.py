@@ -21,7 +21,7 @@ import signal
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, Callable
 import unicodedata
 
 
@@ -76,7 +76,7 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
         raise CliCaptureError(f"Terminal input plan must contain 1–{MAX_INPUT_STEPS} steps")
     names: set[str] = set()
     for step in steps:
-        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "click", "resize", "repeat", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
+        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "click", "resize", "repeat", "wait_for", "wait_for_absent", "wait_for_also", "wait_timeout_ms", "hold_ms", "capture_code_card"}:
             raise CliCaptureError("Terminal input plan contains an invalid step")
         name = step.get("name")
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) or name in names:
@@ -122,6 +122,13 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
             raise CliCaptureError(f"Step {name} has invalid wait_for marker")
         if "wait_for_absent" in step and ("wait_for" not in step or not isinstance(step["wait_for_absent"], str) or not 1 <= len(step["wait_for_absent"]) <= 120):
             raise CliCaptureError(f"Step {name} has invalid wait_for_absent marker")
+        if "wait_for_also" in step and ("wait_for" not in step or not isinstance(step["wait_for_also"], str)
+                or not 1 <= len(step["wait_for_also"]) <= 120):
+            raise CliCaptureError(f"Step {name} has invalid wait_for_also marker")
+        if "capture_code_card" in step and (step["capture_code_card"] is not True
+                or step.get("wait_for") != "/embed "
+                or "wait_for_absent" in step or "wait_for_also" in step):
+            raise CliCaptureError(f"Step {name} has invalid code-card observation")
         for field, maximum, default in (("wait_timeout_ms", MAX_STEP_WAIT_MS, 10_000), ("hold_ms", MAX_STEP_HOLD_MS, 0)):
             value = step.get(field, default)
             if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= maximum:
@@ -129,7 +136,8 @@ def load_input_plan(path: Path) -> list[dict[str, Any]]:
     return steps
 
 
-def input_step_ready(output: str, marker: str, absent_marker: str | None = None) -> bool:
+def input_step_ready(output: str, marker: str, absent_marker: str | None = None,
+                     also_marker: str | None = None) -> bool:
     """Check markers against the current TUI screen, not historical row writes.
 
     Historical output still contains earlier loading messages, and an unfinished
@@ -145,14 +153,15 @@ def input_step_ready(output: str, marker: str, absent_marker: str | None = None)
         except CliCaptureError:
             return False
         output = "\n".join(rows)
-    elif absent_marker is not None:
+    elif absent_marker is not None or also_marker is not None:
         start = output.rfind("\x1b[?2026h")
         end = output.rfind("\x1b[?2026l")
         if start < 0 or end < start:
             return False
         output = output[start:end]
     plain = ANSI_ESCAPE_RE.sub("", output).replace("\r", "")
-    return marker in plain and (absent_marker is None or absent_marker not in plain)
+    return (marker in plain and (absent_marker is None or absent_marker not in plain)
+            and (also_marker is None or also_marker in plain))
 
 
 def _cell_width(text: str) -> int:
@@ -365,6 +374,28 @@ def _latest_screen(output: str) -> tuple[list[str], int, int]:
     return rows, width, height
 
 
+def visible_code_card(output: str) -> str | None:
+    """Read the unique native Code card alias from the completed screen."""
+    if output.rfind("\x1b[?2026l") <= output.rfind("\x1b[?2026h"):
+        return None
+    try:
+        rows, _, _ = _latest_screen(output)
+    except CliCaptureError:
+        return None
+    cards = set()
+    for headings, shortcuts in zip(rows, rows[1:]):
+        columns = {
+            _cell_width(headings[:heading.start()])
+            for heading in re.finditer(r"│ +Embed · Code +│", headings)
+        }
+        cards.update(
+            shortcut[1]
+            for shortcut in re.finditer(r"│ +/embed +(emb-v-[1-9][0-9]{0,5}) +│", shortcuts)
+            if _cell_width(shortcuts[:shortcut.start()]) in columns
+        )
+    return next(iter(cards)) if len(cards) == 1 else None
+
+
 def resolve_click_cell(output: str, target: dict[str, Any]) -> tuple[int, int, int, int]:
     """Resolve visible text or an explicit 1-based cell against the latest frame."""
     rows, width, height = _latest_screen(output)
@@ -406,6 +437,7 @@ def drive_terminal_inputs(
     *, steps: list[dict[str, Any]], transcript_path: Path, display: str,
     terminal: subprocess.Popen[str], started_at: float, xdotool_binary: str | None = None,
     timeout_seconds: float = 120,
+    input_progress: Callable[[int, bool, str | None], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Send XTEST keys to the actual graphical terminal and record checkpoints."""
     xdotool = xdotool_binary or shutil.which("xdotool")
@@ -490,8 +522,12 @@ def drive_terminal_inputs(
             sent = subprocess.run(command, env=process_env, capture_output=True, text=True, check=False, timeout=8)
             if sent.returncode != 0:
                 raise CliCaptureError(f"Terminal input {step['name']} failed: {sent.stderr[-500:]}")
+        if input_progress is not None:
+            input_progress(index, False, None)
         marker = step.get("wait_for")
         absent_marker = step.get("wait_for_absent")
+        also_marker = step.get("wait_for_also")
+        card_id = None
         if marker:
             stop_at = min(capture_deadline, time.monotonic() + step.get("wait_timeout_ms", 10_000) / 1000)
             while time.monotonic() < stop_at:
@@ -502,12 +538,18 @@ def drive_terminal_inputs(
                         transcript = handle.read()
                     current_screen = b"\x1b[?2026h" in transcript
                     output = (transcript if current_screen else transcript[start_offset:]).decode("utf-8", errors="replace")
-                    if input_step_ready(output, marker, absent_marker):
+                    if step.get("capture_code_card"):
+                        card_id = visible_code_card(output)
+                        if card_id is not None:
+                            break
+                    elif input_step_ready(output, marker, absent_marker, also_marker):
                         break
                 time.sleep(0.05)
             else:
                 raise CliCaptureError(f"Terminal output did not reach checkpoint {step['name']}: {marker}")
         time.sleep(step.get("hold_ms", 0) / 1000)
+        if input_progress is not None:
+            input_progress(index, True, card_id)
         checkpoints.append({
             "name": step["name"],
             "at_ms": round((time.monotonic() - started_at) * 1000),
@@ -743,6 +785,7 @@ def capture_cli_video(
     timeout_seconds: float = 120,
     env: dict[str, str] | None = None,
     input_plan: Path | None = None,
+    input_progress: Callable[[int, bool, str | None], None] | None = None,
 ) -> dict[str, Any]:
     steps = load_input_plan(input_plan) if input_plan else None
     plan = build_capture_plan(argv=argv, output_dir=output_dir, display_number=display_number, interactive=steps is not None)
@@ -774,7 +817,7 @@ def capture_cli_video(
                 checkpoints = drive_terminal_inputs(
                     steps=steps, transcript_path=plan.transcript_path, display=plan.display,
                     terminal=terminal, started_at=started_at,
-                    timeout_seconds=timeout_seconds,
+                    timeout_seconds=timeout_seconds, input_progress=input_progress,
                 )
             except (CliCaptureError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
                 input_error = str(exc)
@@ -838,6 +881,15 @@ def capture_cli_video(
                     process.kill()
 
 
+def _send_input_progress(index: int, completed: bool, card_id: str | None) -> None:
+    # FD 3 belongs only to the owning test process. The card is used by its
+    # identity assertion and never enters its exported progress receipt.
+    try:
+        os.write(3, (json.dumps([index, completed, card_id], separators=(",", ":")) + "\n").encode("ascii"))
+    except OSError:
+        pass  # A stopped test need not keep reading this pipe.
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record a real OpenMates CLI E2E terminal video")
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -846,6 +898,7 @@ def main() -> int:
     parser.add_argument("--display-number", type=int, default=91)
     parser.add_argument("--timeout-seconds", type=float, default=120)
     parser.add_argument("--input-plan", type=Path, help="Bounded JSON key and checkpoint plan for an interactive CLI TUI")
+    parser.add_argument("--input-progress", action="store_true", help="Send reviewed input checkpoints to the owning test on FD 3")
     parser.add_argument("--no-response-media", action="store_true", help="Do not upload the latest CLI E2E video for agent embedding")
     parser.add_argument("--response-media-dry-run", action="store_true", help="Validate response-media output without Docker/S3")
     parser.add_argument("argv", nargs=argparse.REMAINDER)
@@ -860,6 +913,7 @@ def main() -> int:
             display_number=args.display_number,
             timeout_seconds=args.timeout_seconds,
             input_plan=args.input_plan,
+            input_progress=_send_input_progress if args.input_progress else None,
         )
         if not args.no_response_media:
             try:

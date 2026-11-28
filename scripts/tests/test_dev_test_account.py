@@ -161,3 +161,18 @@ def test_delete_account_reraises_other_failures(monkeypatch):
     monkeypatch.setattr(dta, "_docker", fake_docker)
     with pytest.raises(dta.ThrowawayAccountError):
         dta.delete_account("devtest-x@example.org")
+
+
+def test_throwaway_credits_default_and_low_balance_override(monkeypatch):
+    monkeypatch.delenv(dta.THROWAWAY_CREDITS_ENV, raising=False)
+    assert dta.throwaway_credits() == dta.GIFTED_CREDITS
+    monkeypatch.setenv(dta.THROWAWAY_CREDITS_ENV, "400")
+    assert dta.throwaway_credits() == 400
+    sent: list[list[str]] = []
+    monkeypatch.setattr(dta, "_docker", lambda *args, **kwargs: sent.append(list(args)))
+    dta.grant_credits({"OPENMATES_TEST_ACCOUNT_EMAIL": "devtest@example.org"})
+    assert sent[0][-4:] == ["--minimum", "400", "--target", "400"]
+    for bad in ("0", "-5", "abc", str(dta.GIFTED_CREDITS + 1)):
+        monkeypatch.setenv(dta.THROWAWAY_CREDITS_ENV, bad)
+        with pytest.raises(dta.ThrowawayAccountError):
+            dta.throwaway_credits()

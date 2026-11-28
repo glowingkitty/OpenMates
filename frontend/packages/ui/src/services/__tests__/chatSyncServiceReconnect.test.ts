@@ -66,8 +66,11 @@ const mocks = vi.hoisted(() => {
       isConnected: vi.fn(() => false),
       forceReconnect: vi.fn(),
       notifyDataActivity: vi.fn(),
+      getConnectionForSend: vi.fn(),
     },
+    getAllEmbedIds: vi.fn(async () => ["cached-embed"]),
     chatDB: {
+      getAllNewChatSuggestions: vi.fn(async () => []),
       getAllMessages: vi.fn(async () => []),
       getChat: vi.fn(),
       getMessage: vi.fn(),
@@ -85,7 +88,9 @@ const mocks = vi.hoisted(() => {
       removeNotificationsByDedupeKey: vi.fn(),
     },
     aiTypingStore: {
+      clearTypingForTurn: vi.fn(),
       clearTypingForChat: vi.fn(),
+      clearTypingForTurn: vi.fn(),
       clearTyping: vi.fn(),
     },
     aiTypingByChatStore: createReadable({}),
@@ -201,11 +206,15 @@ vi.mock("../chatSyncServiceHandlersRecovery", () => ({
   resetRecoveryLifecycleImpl: vi.fn(),
 }));
 vi.mock("../chatSyncServiceHandlersAI", async importOriginal => ({ ...await importOriginal<typeof import("../chatSyncServiceHandlersAI")>(), clearPendingQueuedRevisionsImpl: vi.fn() }));
-vi.mock("../embedStore", () => ({ embedStore: { cancelProcessingEmbeds: vi.fn(() => []) } }));
+vi.mock("../embedStore", () => ({
+  embedStore: { cancelProcessingEmbeds: vi.fn(() => []), getAllEmbedIds: mocks.getAllEmbedIds },
+}));
 vi.mock("../composerGhostSuggestion", () => ({ persistComposerGhostSuggestion: vi.fn(async () => undefined) }));
 vi.mock("../chatSyncServiceHandlersChatUpdates", () => ({}));
 vi.mock("../chatSyncServiceHandlersCoreSync", () => ({}));
-vi.mock("../chatSyncServiceHandlersPhasedSync", () => ({}));
+vi.mock("../chatSyncServiceHandlersPhasedSync", () => ({
+  handlePhasedSyncCompleteImpl: vi.fn(async () => undefined),
+}));
 vi.mock("../chatSyncServiceHandlersAppSettings", () => ({}));
 vi.mock("../chatSyncServiceHandlersConnectedAccounts", () => ({}));
 vi.mock("../chatSyncServiceHandlersWebhooks", () => ({}));
@@ -270,14 +279,17 @@ describe('uncertain queued snapshot during an outbound user send', () => {
 
   async function startHeldSend(service: ChatSynchronizationService, messageId = message.message_id) {
     let finish!: () => void;
-    let signal!: () => void;
-    const sender = vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
-      signal = args[7] as () => void;
+    let signal: (() => void) | undefined;
+    vi.mocked(sendNewMessageImpl).mockImplementationOnce(async (...args) => {
+      signal = args[7];
       await new Promise<void>(resolve => { finish = resolve; });
     });
     const sending = service.sendNewMessage({ ...message, message_id: messageId }, undefined, {}, undefined, false);
-    await vi.waitFor(() => expect(sender).toHaveBeenCalled());
-    return { sending, finish: () => finish(), signal: () => signal() };
+    await vi.waitFor(() => {
+      expect(finish).toBeTypeOf('function');
+      expect(signal).toBeTypeOf('function');
+    });
+    return { sending, finish: () => finish(), signal: signal! };
   }
 
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,message-input.send.ownership
@@ -599,6 +611,72 @@ describe("Team and Personal context cache handoff", () => {
     mocks.emitWebSocketStatus("connected");
     expect(startSync).toHaveBeenCalledTimes(2);
     expect(mocks.webSocketService.sendMessage).not.toHaveBeenCalledWith("request_cache_status", {});
+  });
+});
+
+describe("Personal reconnect embed inventory", () => {
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+  it.each([
+    { previous: true, current: true, teamId: null, skip: true },
+    { previous: true, current: false, teamId: null, skip: false },
+    { previous: false, current: true, teamId: null, skip: false },
+    { previous: true, current: true, teamId: "team-a", skip: false },
+  ])("uses current socket negotiation and prior completion ($previous, $current, $teamId)", async ({ previous, current, teamId, skip }) => {
+    const registered = mocks.webSocketService.on.mock.calls.length;
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    const sync = service as unknown as {
+      webSocketConnected: boolean;
+      socketEpoch: number;
+      clearPhasedSyncTimeout(): void;
+    };
+    const handle = (name: string, payload: unknown) => {
+      const callback = mocks.webSocketService.on.mock.calls.slice(registered)
+        .find(([event]) => event === name)?.[1];
+      expect(callback).toBeTypeOf("function");
+      callback(payload);
+    };
+    const open = mocks.webSocketService.addEventListener.mock.calls
+      .findLast(([event]) => event === "open")?.[1];
+    const capability = { capabilities: ["chat_startup_opened_v1"] };
+    const connection = {};
+    mocks.webSocketService.isConnected.mockReturnValue(true);
+    mocks.webSocketService.getConnectionForSend.mockReturnValue(connection);
+    mocks.getAllEmbedIds.mockClear();
+    mocks.getCachedChatVersionMap.mockReturnValue(new Map([["fixture-chat", {
+      team_id: teamId, messages_v: 1, title_v: 1, draft_v: 0,
+    }]]));
+    mocks.webSocketService.sendMessage.mockClear();
+    sync.webSocketConnected = true;
+    sync.socketEpoch = 1;
+    try {
+      if (previous) {
+        handle("server_capabilities", capability);
+        handle("phased_sync_complete", { phase: "all", team_id: null, context_epoch: 0 });
+        sync.socketEpoch = 3;
+        open();
+      }
+      if (current) handle("server_capabilities", capability);
+      mocks.activeTeamContext.set({ team: null, teamId, epoch: teamId ? 1 : 0 });
+
+      await service.startPhasedSync();
+
+      expect(mocks.getAllEmbedIds).toHaveBeenCalledTimes(skip ? 0 : 1);
+      const request = mocks.webSocketService.sendMessage.mock.calls
+        .find(([event]) => event === "phased_sync_request");
+      expect(request).toBeDefined();
+      if (skip) {
+        expect(request![1]).not.toHaveProperty("client_embed_ids");
+        expect(request![2]).toEqual({ expectedConnection: connection });
+      } else {
+        expect(request![1]).toMatchObject({ client_embed_ids: ["cached-embed"] });
+      }
+    } finally {
+      sync.clearPhasedSyncTimeout();
+      mocks.activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+      mocks.webSocketService.isConnected.mockReturnValue(false);
+      mocks.getCachedChatVersionMap.mockReturnValue(new Map());
+    }
   });
 });
 
@@ -985,6 +1063,49 @@ describe('cancellation preserves encrypted reply dependencies', () => {
       chatId: first.chatId, userMessageId: first.messageId, status,
     } }));
     await expect(waiting).rejects.toThrow('previous encrypted reply has not been saved');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.routing.active-work
+  it.each(["final", "stop"])("settles only the independent web response on %s", async (outcome) => {
+    const service = new ChatSynchronizationService();
+    await Promise.resolve();
+    const chat = "same-chat";
+    const foreground = { taskId: "artifact-task", userMessageId: "artifact-user" };
+    service.activeAITasks.set(chat, foreground);
+    const lifecycle = vi.fn();
+    const chunks = vi.fn();
+    service.addEventListener("aiTaskEnded", lifecycle);
+    service.addEventListener("aiMessageChunk", chunks);
+    const initiated = {
+      chat_id: chat, ai_task_id: "question-task", user_message_id: "question-user",
+      status: "processing_started" as const, independent_reply: true,
+    };
+    handlers.handleAITaskInitiatedImpl(service, initiated);
+    expect(service.getIndependentReplyViews(chat)).toEqual([{
+      chatId: chat, taskId: "question-task", userMessageId: "question-user",
+    }]);
+    handlers.handleAITypingEndedImpl(service, { chat_id: "elsewhere", message_id: "question-task" });
+    expect(service.getIndependentReplyViews(chat)).toHaveLength(1);
+    expect(service.activeAITasks.get(chat)).toEqual(foreground);
+
+    const final = {
+      type: "ai_message_chunk" as const, chat_id: chat, task_id: "question-task",
+      message_id: "question-task", user_message_id: "question-user", independent_reply: true,
+      is_final_chunk: true, full_content_so_far: "Cache reuses completed output.", sequence: 2,
+      recovery_job_id: "question-recovery", recovery_protocol_version: 1,
+    };
+    if (outcome === "stop") {
+      await handlers.handleAITaskCancelRequestedImpl(service, { task_id: "question-task", status: "revocation_sent" });
+    }
+    handlers.handleAIMessageUpdateImpl(service, final);
+    handlers.handleAITaskInitiatedImpl(service, initiated); // A delayed ACK cannot reopen the row.
+    expect(service.activeAITasks.get(chat)).toEqual(foreground);
+    expect(service.getIndependentReplyViews(chat)).toEqual([]);
+    expect(chunks).toHaveBeenCalledOnce();
+    expect(lifecycle).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      detail: { chatId: chat, taskId: "question-task", userMessageId: "question-user",
+        status: outcome === "stop" ? "cancellation_requested" : "completed", independentReply: true },
+    }));
   });
 
   // contract-test: direct surface=gui.web assertions=chats.completion.lease-fenced,video-call.audio.intentional-interruption

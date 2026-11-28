@@ -13,7 +13,7 @@
           "encrypted_account_label": "enc:Work",
           "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-1\",\"scopes\":[\"b\"]}",
           "encrypted_capabilities": "enc:[\"read\",\"write\"]",
-          "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"read\",\"write\",\"update\"],\"scopes\":[\"s1\"]}",
+          "encrypted_app_permissions": "enc:{\"apps\":{\"calendar\":{\"allowed_actions\":[\"read\",\"write\",\"update\"],\"scopes\":[\"s1\"]}}}",
           "encrypted_account_directory_hint": "enc:{\"account_ref\":\"ref-1\",\"label\":\"Work\",\"capabilities\":[\"read\",\"write\"],\"runtime_modes\":{\"read\":\"allow_automatically\",\"write\":\"always_ask\",\"update\":\"always_ask\"}}",
           "provider_account_id_hash": "sha:pa-1",
           "encrypted_provider_account_display": "enc:pa-1"
@@ -47,7 +47,7 @@
           "encrypted_account_label": "enc:Cal \"Q\"\n",
           "encrypted_refresh_token_bundle": "enc:{\"refresh_token\":\"placeholder-refresh-3\"}",
           "encrypted_capabilities": "enc:[\"delete\",\"write\",\"write\"]",
-          "encrypted_app_permissions": "enc:{\"app_id\":\"calendar\",\"allowed_actions\":[\"delete\",\"write\",\"update\"],\"scopes\":[]}",
+          "encrypted_app_permissions": "enc:{\"apps\":{\"calendar\":{\"allowed_actions\":[\"delete\",\"write\",\"update\"],\"scopes\":[]}}}",
           "encrypted_account_directory_hint": "enc:{\"account_ref\":\"acct-3\",\"label\":\"Cal \\\"Q\\\"\\n\",\"capabilities\":[\"delete\",\"write\",\"write\"],\"runtime_modes\":{\"delete\":\"always_ask\",\"write\":\"always_ask\",\"update\":\"always_ask\"}}"
         }}
     },

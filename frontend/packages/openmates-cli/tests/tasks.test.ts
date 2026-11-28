@@ -35,6 +35,7 @@ import {
   renderTaskActivityList,
   taskEditLookupScope,
   taskLookupScopes,
+  taskTimestampsToJson,
   type DecryptedUserTask,
   workflowProjectionDeleteGuidance,
 } from "../src/tasksCli.ts";
@@ -502,6 +503,20 @@ describe("OpenMatesClient user tasks", () => {
 
     assert.match(guidance, /openmates tasks delete WF-123456 --confirm/);
     assert.match(guidance, /openmates workflows disable workflow-1/);
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
+  it("exposes task lifecycle times in JSON output", () => {
+    const task = {
+      encrypted: { created_at: 1795000000, updated_at: 1795086400, started_at: null },
+    } as unknown as DecryptedUserTask;
+
+    assert.deepEqual(taskTimestampsToJson(task), {
+      created_at: 1795000000,
+      updated_at: 1795086400,
+      started_at: null,
+      completed_at: null,
+    });
   });
 
   // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity

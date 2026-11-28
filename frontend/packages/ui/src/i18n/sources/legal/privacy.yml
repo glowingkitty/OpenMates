@@ -9245,7 +9245,10 @@ providers.ai_models.typesafe.description:
   context: Direct TypeSafe Jev text/image decisions, minimization, retention and text-only fallback disclosure
   en: OpenMates primarily sends bounded decision requests directly to TypeSafe Jev on US-hosted services. Jev receives bounded
     recent chat context and candidate metadata to make internal routing, model-tier, skill, focus-mode, language, and safety
-    decisions. It also checks external text for prompt injection. For optional search relevance ranking, it receives the stated
+    decisions. It also checks external text for prompt injection. For text-only composer dictation, TypeSafe checks short
+    transcript parts for needed corrections. It receives the raw transcript, which may include personal data, and the detected
+    language when available, without the audio or OpenMates user identifiers. The dictation check uses TypeSafe directly.
+    For optional search relevance ranking, it receives the stated
     relevance criteria, search parameters, and minimized candidate data from supported public searches. For optional shopping
     visual matching, only when reference images are provided, TypeSafe receives up to three authorized user-uploaded or assistant-generated
     reference images and bounded public product photos. These images are resized to a maximum dimension of 336 pixels and
@@ -9260,6 +9263,9 @@ providers.ai_models.typesafe.description:
   de: 'OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten.
     Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen
     zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection.
+    Beim Diktieren im Texteingabefeld prüft TypeSafe kurze Transkriptabschnitte auf Korrekturbedarf. TypeSafe erhält den
+    Rohtext, der personenbezogene Daten enthalten kann, und die erkannte Sprache, sofern verfügbar. Die Audiodaten und
+    OpenMates-Nutzerkennungen werden dabei nicht übermittelt. Diese Prüfung läuft direkt über TypeSafe.
     Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter
     und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder,
     wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte

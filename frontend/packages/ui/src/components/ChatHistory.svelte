@@ -1641,6 +1641,8 @@ import { storageArchiveFetch } from "../config/api";
     processingPhase = null,
     pendingAssistantResponse = null,
     activeAssistantTurn = null,
+    independentAssistantTurns = [],
+    onStopIndependentReply = undefined,
     thinkingContentByTask = new Map(),
     // Chat header props: shown at the top of new chats only.
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
@@ -1662,6 +1664,7 @@ import { storageArchiveFetch } from "../config/api";
     isExampleChat = false,
     isSharedChat = false,
     isDirectChat = false,
+    isSubChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -1686,11 +1689,14 @@ import { storageArchiveFetch } from "../config/api";
     voiceCallBridge = undefined,
     timelineOverlayOpen = $bindable(false),
     timelinePanelId = undefined,
+    belowHeader = undefined,
   }: {
     disablePointerEvents?: boolean;
     timelineOverlayOpen?: boolean;
     timelinePanelId?: string;
     voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
+    /** Rendered in the scroll flow right below the chat header (e.g. a sub-chat's work link). */
+    belowHeader?: Snippet;
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
@@ -1701,6 +1707,8 @@ import { storageArchiveFetch } from "../config/api";
       modelName?: string | null; serverRegion?: string | null;
     } | null;
     activeAssistantTurn?: { taskId: string; userMessageId: string } | null;
+    independentAssistantTurns?: { chatId: string; taskId: string; userMessageId: string }[];
+    onStopIndependentReply?: (chatId: string, taskId: string) => void;
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
 
     /** Decrypted title to show in the permanent header card (new chats only). */
@@ -1746,6 +1754,8 @@ import { storageArchiveFetch } from "../config/api";
     /** True when the active chat was opened from a shared-chat link. */
     isSharedChat?: boolean;
     isDirectChat?: boolean;
+    /** True when the active chat is a sub-chat; the ChatHeader shows a "Sub-chat" pill. */
+    isSubChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -3474,6 +3484,7 @@ import { storageArchiveFetch } from "../config/api";
                 {isExampleChat}
                 {isSharedChat}
                 {isDirectChat}
+                {isSubChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}
@@ -3491,6 +3502,8 @@ import { storageArchiveFetch } from "../config/api";
             {/key}
         </div>
     {/if}
+
+    {#if belowHeader}{@render belowHeader()}{/if}
 
     {#if voiceCallBridge}
       <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>
@@ -3635,6 +3648,10 @@ import { storageArchiveFetch } from "../config/api";
                         <EmbedUpdatedEventNotice group={updatedGroup} onOpen={() => openUpdatedEmbed(updatedGroup.embed_id)} />
                       </div>
                     {:else}
+                    {@const independentTurn = msg.role === 'assistant' ? independentAssistantTurns.find((turn) =>
+                      turn.chatId === currentChatId && turn.taskId === msg.id
+                      && turn.userMessageId === msg.original_message?.user_message_id
+                    ) : undefined}
                     {#if msg.role === 'assistant'}
                       {@const createdProject = readProjectCreatedEvent(msg.original_message?.content ?? msg.content)}
                       {#if createdProject}
@@ -3663,8 +3680,12 @@ import { storageArchiveFetch } from "../config/api";
                           ? pendingAssistantResponse.serverRegion : undefined}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
+                        deferVoiceCallIdentity={!!voiceCallBridge && (msg.status === 'streaming' || msg.status === 'processing')}
+                        onStopIndependentReply={independentTurn && onStopIndependentReply
+                          ? () => onStopIndependentReply(independentTurn.chatId, independentTurn.taskId) : undefined}
                         assistantTurnActive={msg.role === 'assistant' && (
-                          (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
+                          !!independentTurn
+                          || (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
                             || (!!msg.original_message?.user_message_id
                               && msg.original_message.user_message_id === activeAssistantTurn.userMessageId)))
                           || (!!pendingAssistantResponse && (msg.id === pendingAssistantResponse.taskId
@@ -3723,7 +3744,7 @@ import { storageArchiveFetch } from "../config/api";
                   messageId={pendingAssistantResponse.taskId}
                   userMessageId={pendingAssistantResponse.userMessageId}
                   loadedMemories={loadedMemoryAssociation.byAssistantId.get(pendingAssistantResponse.taskId) ?? []}
-                  containerWidth={containerWidth} isTransientResponse={true} />
+                  containerWidth={containerWidth} isTransientResponse={true} deferVoiceCallIdentity={!!voiceCallBridge} />
               </div>
             {/if}
 

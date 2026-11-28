@@ -435,7 +435,8 @@ impl<'a> Specifications<'a> {
         match &self.team {
             Some(team) => {
                 let team_key = self.backend.wrapping(Some(team)).await?;
-                wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"encrypted_specification_key":wrap(&team_key)?}));
+                let epoch = self.backend.team_epoch(team).await?;
+                wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":epoch,"encrypted_specification_key":wrap(&team_key)?}));
             }
             None => {
                 let master = self.backend.master().await?;

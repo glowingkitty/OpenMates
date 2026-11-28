@@ -750,38 +750,6 @@ export async function sendLoadMoreChatsImpl(
 	}
 }
 
-// ─── Metadata-only chats sync (positions 101–1000) ──────────────────────────
-
-/**
- * Request metadata-only chat records for positions 101–1000 from the server.
- * Called automatically after Phase 3 completes when total_chat_count > 100.
- * These chats are stored in IndexedDB (metadata only, no messages) to enable
- * expanded sidebar display and search across up to 1000 chats.
- *
- * @param existingChatIds - Chat IDs already in IndexedDB (skipped by server to save bandwidth)
- */
-export async function sendSyncMetadataChatsImpl(
-	serviceInstance: ChatSynchronizationService,
-	existingChatIds: string[] = []
-): Promise<void> {
-	try {
-		const context = get(activeTeamContext);
-		await webSocketService.sendMessage("sync_metadata_chats", {
-			existing_chat_ids: existingChatIds,
-			context_epoch: context.epoch,
-			...(context.teamId ? { team_id: context.teamId } : {})
-		});
-		console.info(
-			`[ChatSyncService:Senders] Requested metadata chats sync (existing_on_client=${existingChatIds.length})`
-		);
-	} catch (error) {
-		console.error(
-			"[ChatSyncService:Senders] Error requesting metadata chats sync:",
-			error
-		);
-	}
-}
-
 // ─── Inspiration chat sync ─────────────────────────────────────────────────
 
 /**

@@ -300,6 +300,43 @@ impl RuntimeStore {
     pub async fn anonymous_identity(&self) -> Result<String> {
         self.blocking(move |store| store.anonymous_identity()).await
     }
+    /// Access the vault-bound offline proof under the current durable
+    /// credential generation without exposing keys to the terminal actor.
+    #[doc(hidden)]
+    pub async fn read_personal_offline_receipt(
+        &self, session: Session, passphrase: Option<Zeroizing<String>>,
+    ) -> Result<Option<openmates_sdk::client::NativePersonalOfflineReceipt>> {
+        self.personal_offline_record(session, passphrase, None).await?
+            .map(serde_json::from_value).transpose().map_err(Error::from)
+    }
+
+    /// Write only an opaque issuance from genuine online admission.
+    #[doc(hidden)]
+    pub async fn seal_personal_offline_receipt(
+        &self, session: Session, passphrase: Option<Zeroizing<String>>,
+        issuance: openmates_sdk::client::NativePersonalOfflineIssuance,
+    ) -> Result<()> {
+        self.personal_offline_record(session, passphrase, Some(issuance.into_vault_record()?)).await?;
+        Ok(())
+    }
+
+    /// Retire a previously sealed grant without changing the vault mode.
+    #[doc(hidden)]
+    pub async fn revoke_personal_offline_receipt(
+        &self, session: Session, passphrase: Option<Zeroizing<String>>,
+    ) -> Result<()> {
+        self.personal_offline_record(session, passphrase, Some(Value::Null)).await?;
+        Ok(())
+    }
+
+    async fn personal_offline_record(
+        &self, session: Session, passphrase: Option<Zeroizing<String>>, replacement: Option<Value>,
+    ) -> Result<Option<Value>> {
+        self.blocking_current(move |store| {
+            store.personal_offline_record(&session, passphrase.as_deref().map(String::as_str), replacement)
+        }).await
+    }
+
     pub async fn update_private_record<T: Send + 'static>(
         &self,
         owner: String,

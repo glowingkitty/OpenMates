@@ -122,3 +122,25 @@ search.how_to_use.3:
   sv: Visa olästa e-postmeddelanden från idag
   he: "הצג לי **מיילים שלא נקראו** מהיום"
   verified_by_human: [en, de]
+
+read_thread:
+  context: Skill name for reading an email thread in a connected Gmail account
+  en: Read Email Thread
+  de: E-Mail-Verlauf lesen
+  verified_by_human: []
+read_thread.description:
+  context: Description for the skill that reads a Gmail thread (read-only)
+  en: Read a conversation from your connected Gmail account.
+  de: Lies eine Unterhaltung aus deinem verbundenen Gmail-Konto.
+  verified_by_human: []
+
+create_draft:
+  context: Skill name for creating an email draft in a connected Gmail account
+  en: Create Email Draft
+  de: E-Mail-Entwurf erstellen
+  verified_by_human: []
+create_draft.description:
+  context: Description for the skill that saves a Gmail draft; it never sends the email
+  en: Save an email draft in your connected Gmail account. Nothing is sent.
+  de: Speichere einen E-Mail-Entwurf in deinem verbundenen Gmail-Konto. Es wird nichts gesendet.
+  verified_by_human: []

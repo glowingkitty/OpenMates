@@ -148,7 +148,7 @@ def test_intrusion_signal_alerts_immediately_once_without_triage(cfg, store):
     assert "192.0.2.10" not in channels.email[0]["text"] and "upload" in channels.email[0]["subject"]
 
 
-# Monitoring coverage: security-monitoring.health.no-silent-failure
+# Monitoring coverage: security-monitoring.health.no-silent-failure, security-monitoring.apple-packages.daily-report
 # contract-test: infrastructure
 def test_daily_digest_confirms_runs_coverage_and_carried_incidents(cfg, store):
     world = fx.World(observations=[fx.observation(disposition="suppressed_not_used", suppression_reason="not used: no Drupal or PHP")],
@@ -158,15 +158,19 @@ def test_daily_digest_confirms_runs_coverage_and_carried_incidents(cfg, store):
     for hour in range(3):
         fx.run(cfg, world, store, channels, now=fx.NOW + timedelta(hours=hour))
     sender = fx.notifier(cfg, store, channels)
-    result = health.run_digest(cfg, store, sender, now=fx.NOW + timedelta(hours=3), sender=channels.email_sender)
+    apple_packages = [("Update available", "github.com/example/swift-sodium 0.9.1 → 0.10.0")]
+    result = health.run_digest(cfg, store, sender, now=fx.NOW + timedelta(hours=3), sender=channels.email_sender,
+                               apple_packages=apple_packages)
     assert result["digest"] == "accepted"
     text = channels.email[-1]["text"]
+    assert "Update available: github.com/example/swift-sodium 0.9.1 → 0.10.0" in text
     assert "3/24" in text and "Sources failed: cisa_kev" in text
     assert "not used: no Drupal or PHP: 1" in text
     assert text.index("NEW since last email") < text.index("STILL OPEN") < text.index("Watcher runs")
     assert "New: [high] source_failed" in text
     sent = len(channels.email)
-    again = health.run_digest(cfg, store, sender, now=fx.NOW + timedelta(hours=3), sender=channels.email_sender)
+    again = health.run_digest(cfg, store, sender, now=fx.NOW + timedelta(hours=3), sender=channels.email_sender,
+                              apple_packages=apple_packages)
     assert again["digest"] == "accepted" and len(channels.email) == sent  # same daily id: never sent twice
 
 

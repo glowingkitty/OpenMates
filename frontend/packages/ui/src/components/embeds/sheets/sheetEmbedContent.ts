@@ -6,6 +6,9 @@
  */
 
 import { evaluateSheet, isFormulaText } from "./sheetFormulaEngine";
+import { splitSheetFormatting } from "./sheetFormattingText";
+import type { SheetFormatting } from "./sheetFormattingTypes";
+import { createXlsxStyles, xlsxNumericValue, xlsxSheetLayout } from "./sheetXlsxExport";
 
 /**
  * Parsed table cell with alignment info
@@ -34,7 +37,7 @@ export interface ParsedTable {
  * @returns Parsed table structure
  */
 export function parseMarkdownTable(markdownTable: string): ParsedTable {
-  const lines = markdownTable
+  const lines = splitSheetFormatting(markdownTable).table
     .trim()
     .split("\n")
     .filter((line) => line.trim());
@@ -207,7 +210,7 @@ function parseAlignments(
 export function parseSheetEmbedContent(
   content: string | Record<string, unknown>,
   overrides?: { title?: string },
-): { markdown: string; title?: string; parsedTable: ParsedTable } {
+): { markdown: string; title?: string; parsedTable: ParsedTable; formatting?: SheetFormatting } {
   let markdown = "";
   let title = overrides?.title;
 
@@ -238,9 +241,10 @@ export function parseSheetEmbedContent(
     }
   }
 
-  const parsedTable = computeTableFormulas(parseMarkdownTable(markdown));
+  const { table, formatting } = splitSheetFormatting(markdown);
+  const parsedTable = computeTableFormulas(parseMarkdownTable(table));
 
-  return { markdown, title, parsedTable };
+  return { markdown, title, parsedTable, formatting };
 }
 
 /**
@@ -273,6 +277,16 @@ export function tableToTSV(headers: TableCell[], rows: TableCell[][]): string {
   return lines.join("\n");
 }
 
+/** CSV carries cell values, with quoting for commas, quotes and line breaks. */
+export function tableToCSV(headers: TableCell[], rows: TableCell[][]): string {
+  return [headers, ...rows].map((row) => headers.map((_, column) => {
+    const value = row[column]?.content ?? "";
+    const numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?$/i.test(value.trim());
+    const literal = !numeric && /^[\s]*[=+@-]/.test(value) ? `'${value}` : value;
+    return /[",\r\n]/.test(literal) ? `"${literal.replaceAll('"', '""')}"` : literal;
+  }).join(",")).join("\r\n");
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // XLSX export — minimal Office Open XML generator, zero external dependencies.
 //
@@ -297,6 +311,7 @@ export async function tableToXlsx(
   headers: TableCell[],
   rows: TableCell[][],
   sheetName = "Sheet1",
+  formatting?: SheetFormatting,
 ): Promise<Blob> {
   // 1. Build shared string table (all unique cell values)
   const sharedStrings: string[] = [];
@@ -319,7 +334,8 @@ export async function tableToXlsx(
   }
 
   // 2. Build sheet XML
-  const sheetXml = buildSheetXml(headers, rows, getStringIndex);
+  const styles = createXlsxStyles(escapeXml);
+  const sheetXml = buildSheetXml(headers, rows, getStringIndex, styles.styleId, formatting);
 
   // 3. Build shared strings XML
   const sharedStringsXml = buildSharedStringsXml(sharedStrings);
@@ -330,7 +346,7 @@ export async function tableToXlsx(
     "_rels/.rels": relsXml(),
     "xl/workbook.xml": workbookXml(sheetName),
     "xl/_rels/workbook.xml.rels": workbookRelsXml(),
-    "xl/styles.xml": stylesXml(),
+    "xl/styles.xml": styles.xml(),
     "xl/worksheets/sheet1.xml": sheetXml,
     "xl/sharedStrings.xml": sharedStringsXml,
   };
@@ -370,41 +386,41 @@ function buildSheetXml(
   headers: TableCell[],
   rows: TableCell[][],
   getStringIndex: (value: string) => number,
+  styleId: ReturnType<typeof createXlsxStyles>["styleId"],
+  formatting: SheetFormatting | undefined,
 ): string {
-  const colCount = headers.length;
-  const lastCol = colIndexToLetter(colCount - 1);
-  const lastRow = rows.length + 1; // +1 for header row
+  const columns = headers.map((_, index) => colIndexToLetter(index));
+  const lastCol = columns.at(-1) ?? "A";
+  const lastRow = rows.length + 1;
+  const layout = xlsxSheetLayout(formatting, columns, lastRow, colIndexToLetter);
 
   let xml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
     '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' +
     ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">\n' +
     `<dimension ref="A1:${lastCol}${lastRow}"/>\n` +
+    layout.pane +
+    layout.columns +
     "<sheetData>\n";
 
-  // Header row (row 1) with bold style (s="1")
-  xml += '<row r="1">\n';
-  for (let c = 0; c < colCount; c++) {
-    const ref = `${colIndexToLetter(c)}1`;
-    const si = getStringIndex(headers[c].content);
-    xml += `<c r="${ref}" t="s" s="1"><v>${si}</v></c>\n`;
-  }
-  xml += "</row>\n";
-
-  // Data rows (row 2+)
-  for (let r = 0; r < rows.length; r++) {
-    const rowNum = r + 2;
-    xml += `<row r="${rowNum}">\n`;
-    for (let c = 0; c < colCount; c++) {
-      const ref = `${colIndexToLetter(c)}${rowNum}`;
-      const cellContent = rows[r][c]?.content ?? "";
-      const si = getStringIndex(cellContent);
-      xml += `<c r="${ref}" t="s"><v>${si}</v></c>\n`;
+  const grid = [headers, ...rows];
+  for (let index = 0; index < grid.length; index++) {
+    const row = index + 1;
+    xml += `<row r="${row}"${layout.rowHeight(row)}>\n`;
+    for (const [column, letter] of columns.entries()) {
+      const ref = `${letter}${row}`;
+      const content = grid[index][column]?.content ?? "";
+      const style = formatting?.cells?.[ref];
+      const id = styleId(style, index === 0);
+      const numeric = style?.numberFormat ? xlsxNumericValue(content, style.numberFormat) : undefined;
+      xml += numeric === undefined
+        ? `<c r="${ref}" t="s" s="${id}"><v>${getStringIndex(content)}</v></c>\n`
+        : `<c r="${ref}" s="${id}"><v>${numeric}</v></c>\n`;
     }
     xml += "</row>\n";
   }
 
-  xml += "</sheetData>\n</worksheet>";
+  xml += `</sheetData>\n${layout.merges}</worksheet>`;
   return xml;
 }
 
@@ -465,30 +481,6 @@ function workbookRelsXml(): string {
     '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
     '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>' +
     "</Relationships>"
-  );
-}
-
-/**
- * Minimal styles.xml — defines two cell formats:
- *   index 0 = default (normal text)
- *   index 1 = bold (for header row)
- */
-function stylesXml(): string {
-  return (
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
-    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    "<fonts>" +
-    '<font><sz val="11"/><name val="Calibri"/></font>' +
-    '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
-    "</fonts>" +
-    '<fills><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>' +
-    "<borders><border/></borders>" +
-    '<cellStyleXfs count="1"><xf/></cellStyleXfs>' +
-    "<cellXfs>" +
-    "<xf/>" +
-    '<xf fontId="1" applyFont="1"/>' +
-    "</cellXfs>" +
-    "</styleSheet>"
   );
 }
 

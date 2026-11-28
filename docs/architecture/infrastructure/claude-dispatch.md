@@ -21,8 +21,12 @@ zellij --session claude action new-tab --name "<title>" -- \
   claude --remote-control "<title>" --model <model> --effort <effort> --permission-mode auto "<prompt>"
 ```
 
-Issue chats run on `claude-opus-5-5` at `medium` effort
-(`CLAUDE_DISPATCH_ISSUE_MODEL`, `CLAUDE_DISPATCH_ISSUE_EFFORT`). Production
+Admin issue reports and AI test-user investigations share the scheduled-chat
+usage policy. Above 30% Claude usage remaining, the issue default is
+`claude-opus-5-5` at `medium` effort (`CLAUDE_DISPATCH_ISSUE_MODEL`,
+`CLAUDE_DISPATCH_ISSUE_EFFORT`). At 30% or less, they use `gpt-6.2-sol`.
+If Codex is exhausted, the issue waits in the pending queue and the owner gets
+one capacity notice per exhausted limit window. Production
 chat-failure chats and every other chat started through `launch_claude_chat`
 (the private voice connector, daily-meeting decision handovers) default to
 `claude-opus-5-5` at `medium` effort (`CLAUDE_DISPATCH_MODEL`, `CLAUDE_DISPATCH_EFFORT`).
@@ -32,14 +36,61 @@ Effort cap (owner, 2026-11-22): no chat runs above `medium`. `cap_effort` lowers
 queued starts. A resumed chat (waiter, WIP wake-up, connector reopen) keeps its
 original effort from its transcript (`chat_effort`), capped at `medium`.
 
-Weekly usage model switch (owner, 2026-11-22): from 70% weekly Claude usage until
-the weekly reset, every new chat started through `launch_claude_chat` or the
-connector starts on `claude-sonnet-5-5`, unless the owner named a model
-(`explicit_model`). Running and resumed chats keep their model. The usage guard
-service (`scripts/claude_usage_guard.py`) records each reading in
-`scripts/claude_weekly_model.py` (state `~/.cache/openmates/usage-guard/weekly-model.json`)
-and sends one short push to the owner when the switch starts and one when it
-ends at the reset; `python3 scripts/claude_weekly_model.py status` shows it.
+Engine routing uses the weekly Claude reading from `scripts/claude_usage_guard.py`
+and the owner’s explicit model choice. With more than 30% left, the host keeps Opus
+for complex work and Sonnet for simple work. At 30% or less, new chats default to
+`gpt-6.2-sol`. Security and encryption stay on Claude above 10% remaining. A model
+the owner names always wins.
+
+Below 10% remaining, active Claude work writes its handover on the Task at the
+next turn boundary. The lifecycle suppresses Claude wake-ups and sends stopped
+work with a saved handover to a fresh Codex chat. It keeps the workspace and Task
+and archives the source chat. A stopped chat without a saved handover waits.
+The live voice call is exempt. The host can designate one already-running job
+to finish in the current weekly window. That designation expires at reset.
+
+Codex work waits when Codex is unavailable. When a rate-limit window reaches
+zero, the dispatcher sends a single short capacity notice and resumes queue
+draining after capacity returns. The usage guard stores its reading in
+`~/.cache/openmates/usage-guard/weekly-model.json`.
+
+Codex chats (`scripts/codex_chats.py`): `gpt-6.2-sol` by default, `gpt-6.2-astra` only
+when named, effort fixed at `medium`, opened as a tab of the `claude` zellij session with
+`OPENMATES_CHAT_ID` (= `CLAUDE_CODE_SESSION_ID`) so sessions, waiters, pushes and Task
+links work unchanged. They share the running-chat cap (`claude_idle_chats admit`), are
+stopped by the lifecycle after their ✅/❓ push like Claude chats (`codex_chats.reap`), and
+are mirrored as Claude-format transcripts (`~/.openmates/codex-chats/transcripts/`) for
+list_chats, chat_detail and the briefing. They obey the same rules: `AGENTS.md` is
+generated from `CLAUDE.md`, rules and skills (`scripts/agents_md.py`; `sessions.py deploy`
+regenerates it in every deploy, so a rule change never leaves it stale on dev; CI
+`agents-md-sync.yml` fails on drift), and the fixed `.codex/hooks.json` sends every Codex
+hook event to `scripts/codex_hook_adapter.py`, which runs the matching hooks of
+`.claude/settings.json` (apply_patch is split into one Edit/Write payload per file) plus
+two built-in guards (sub-agents keep model and medium effort; the Codex hooks and config
+cannot be changed or switched off from a chat). Git hooks, the deploy freeze and the push
+rules in `agent_question.py` are engine-independent already. `codex_setup.py check`
+must pass before a Codex chat starts; a stale `AGENTS.md` only warns there, it never
+refuses a start (owner, 23 Nov).
+
+### Screenshot delivery
+
+Claude Code's app uses its Remote Control connection to submit image blocks.
+The connector reads those blocks and saved push proof through `view_attachment`.
+Connector starts and follow-ups can take inline image bytes or a reference to an
+existing push or chat attachment. The broker keeps the original upload in the
+host owner's private attachment directory. Claude Code can open those files with
+`Read` when the connector uses its text-only launch or relay.
+
+Codex starts and resumes attach the files with the CLI's `--image` option. For
+a running terminal chat the connector pastes each local path separately, which
+the Codex composer turns into an image attachment. App-server clients can submit
+`image` or `localImage` items in a turn. The Codex transcript mirror exposes
+embedded image blocks to the connector's existing attachment viewer. When a
+client can only send a path, Codex can open the original with its image viewer.
+
+The Claude app's Remote Control sessions belong to Claude Code. Forward images
+from that app to a Codex chat through the connector. Native Codex app access uses
+the Codex host connection.
 
 Fable (`claude-fable-5-2`) is never a default: `launch_claude_chat` refuses it
 unless the caller relays an explicit user request (`explicit_model=True`), also
@@ -60,7 +111,10 @@ or exited, the dispatcher recreates it with a `remote-control` tab running the
 Before a tab opens, `launch_claude_chat` asks the chat lifecycle for room
 (`claude_idle_chats.py admit`, cap of running chat processes). When the cap is
 full, the chat waits in `logs/claude-dispatch/pending/` and the caller gets
-`ChatQueued`; the `issues` cron run starts queued chats oldest first. Details:
+`ChatQueued`. The lifecycle timer drains that queue oldest first when slots
+open. The cap counts both Claude and Codex chats. An owner can skip the cap
+with the connector's `start_chat` using `run="now"` or with
+`python3 scripts/force_chat.py start --title T --prompt P`. Details:
 [dev-host-resources.md](dev-host-resources.md).
 
 Prompts are built only from validated identifiers and server-defined labels.
@@ -144,8 +198,27 @@ server with `zellij attach claude` and switch to its tab. Close the tab (or
 
 ## AI test-user reports
 
-Issue requests in `queue/` may carry `"origin": "ai_test_user"` and `"env": "dev"|"prod"`
-(any other origin is rejected). The AI test-user orchestrator writes them with
+Owner, 23 Nov 2026: after each daily run, `scripts/ai_test_users_triage.py` sorts every
+issue (kept findings grouped by cause per environment):
+
+- Clear functional errors start a chat by themselves: console errors or exceptions, hangs
+  or timeouts, raw JSON or code shown instead of an embed, failed sends, crashes, broken
+  flows. The run calls `claude_dispatch.launch_test_user_chat(issue_id, short_id, env)`
+  directly (same title, prompt, small-fix scope and daily cap as the queue path).
+- Subjective UI, design or wording findings, slow but finished answers and findings the
+  environment may explain (suspect) never start a chat. The run message lists them as
+  waiting for Marco's approval; `python3 scripts/ai_test_users.py debug --env <env> --issue
+  <short>` starts the chat once he approves (outside the daily cap).
+- Before a chat starts, open OpenMates Tasks, running Claude chats (`agent_peers.peers`) and
+  the debug chats the pipeline started in the last 2 days
+  (`~/.openmates/ai-test-users/debug-chats.jsonl`) are checked for the same issue id, short
+  id or a similar title; a match is linked in the message instead of a new chat. When the
+  Tasks cannot be listed, no chat starts and the message says so.
+- `python3 scripts/ai_test_users.py message --run <run-id>` is a dry run of a run's message
+  (routes and coverage are real; nothing starts).
+
+Issue requests in `queue/` may also carry `"origin": "ai_test_user"` and `"env": "dev"|"prod"`
+(any other origin is rejected), written with
 `claude_dispatch.queue_test_user_issue(issue_id, short_id, env)` (atomic write).
 
 Rule: an AI test user never triggers feature work or large changes. Its investigation chat
@@ -157,7 +230,7 @@ the owner questions mid-chat.
 
 - Cap: at most 3 such chats per UTC day (`test-user-issues-state.json` next to the launch
   log). Above it the queue file moves to `processed/deferred/` and the launch log records a
-  `deferred` line; the orchestrator lists deferred ones in its summary.
+  `deferred` line; the run message shows a deferred issue as "no debug chat yet".
 - Enforcement: the chat starts with `OPENMATES_CHANGE_SCOPE=small-fix`. `sessions.py start`
   stores `change_scope` on the session (never dropped afterwards) and `sessions.py deploy`
   refuses when `scripts/change_scope.py` finds more than 6 changed files, more than 150

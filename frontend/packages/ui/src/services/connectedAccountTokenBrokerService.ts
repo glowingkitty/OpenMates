@@ -109,7 +109,14 @@ export async function createConnectedAccountTurnTokenRefs(params: {
 		}>;
 	};
 	const rust = rustConnectedAccounts();
-	if (rust) return (await rust).rustMergeTurnTokenRefs(params.refs, payload);
+	if (rust) {
+		const merged = await (await rust).rustMergeTurnTokenRefs(params.refs, payload);
+		// Fire-and-forget: the send never waits for, or fails on, the last-use record.
+		void import('./connectedAccountStorageService')
+			.then((storage) => storage.recordConnectedAccountsLastUsed(merged.map((ref) => ref.connected_account_id)))
+			.catch((error) => console.warn('[ConnectedAccountTokenBroker] Last-use record failed.', error));
+		return merged;
+	}
 	if (!Array.isArray(payload.refs)) {
 		throw new Error('Token broker response did not include refs');
 	}

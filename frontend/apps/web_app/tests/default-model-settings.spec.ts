@@ -8,7 +8,7 @@
  * 2. Navigate to Settings → AI
  * 3. Open the Simple requests tier editor → select "Mistral Small 4"
  * 4. Close settings, send "Capital of Germany?" and verify Mistral Small 4 is used
- * 5. Re-open settings, verify the selection persisted, switch back to Auto
+ * 5. Reload, verify the saved selection in the session response and Settings, then switch back to Auto
  * 6. Start new chat, send same question, verify a different model is used (not Mistral Small 4)
  * 7. Cleanup: reset to auto-select, delete test chats
  *
@@ -55,8 +55,22 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const MISTRAL_MODEL_NAME = 'Mistral Small 4';
+const MISTRAL_MODEL_ID = 'mistral/mistral-small-latest';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
+
+async function reloadAndWaitForSession(page: import('@playwright/test').Page) {
+	const [response] = await Promise.all([
+		page.waitForResponse(
+			(response) =>
+				new URL(response.url()).pathname === '/v1/auth/session' &&
+				response.request().method() === 'POST' &&
+				response.ok()
+		),
+		page.reload()
+	]);
+	return response;
+}
 
 /**
  * Navigate to AI settings via the settings menu.
@@ -315,19 +329,34 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 	// PHASE 4: Switch back to auto-select
 	// =========================================================================
 	logCheckpoint('Phase 4: Switching back to auto-select...');
+	// Refresh account settings from the new-chat screen so the test does not
+	// also exercise the WebSocket reconnection for the previous chat.
+	await startNewChat(page, logCheckpoint);
+	// Reload so the account preference is restored from the authenticated session response.
+	const sessionResponse = await reloadAndWaitForSession(page);
+	const session = await sessionResponse.json();
+	expect(session.user.default_ai_model_simple).toBe(MISTRAL_MODEL_ID);
 	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '04');
 	const settingsMenu2 = page.locator('[data-testid="settings-menu"].visible');
 	const aiSettings2 = settingsMenu2.getByTestId('ai-settings');
 
-	// The selection persisted across closing and re-opening settings.
+	// The overview reflects the saved choice after the reload.
 	await expect(aiSettings2.getByTestId('ai-tier-row-simple')).toContainText(MISTRAL_MODEL_NAME, {
 		timeout: 5000
 	});
-	logCheckpoint('Mistral Small 4 selection persisted after re-opening settings.');
+	logCheckpoint('Mistral Small 4 persisted across a page reload.');
 
 	await openSimpleTierEditor(page, logCheckpoint);
 	const autoOption = settingsMenu2.getByTestId('ai-model-option-auto');
-	await autoOption.getByTestId('ai-model-option-auto-toggle').click();
+	const [autoUpdate] = await Promise.all([
+		page.waitForResponse(
+			(response: import('@playwright/test').Response) =>
+				new URL(response.url()).pathname === '/v1/settings/ai-model-defaults' &&
+				response.request().method() === 'POST'
+		),
+		autoOption.getByTestId('ai-model-option-auto-toggle').click()
+	]);
+	expect(autoUpdate.ok()).toBe(true);
 	await expect(autoOption.locator('input[type="checkbox"]')).toBeChecked({ timeout: 5000 });
 	logCheckpoint('Switched Simple requests back to Auto.');
 	await takeStepScreenshot(page, '04-auto-select-on');
@@ -342,15 +371,27 @@ test('change default model to Mistral Small 4, verify it is used, then switch ba
 
 	// Close settings
 	await closeSettings(page, logCheckpoint);
-	await page.waitForTimeout(500);
+	// Read the durable Auto setting over the real session endpoint while the
+	// page keeps its existing WebSocket connection.
+	const autoSession = await page.evaluate(
+		async ({ url, body }: { url: string; body: string | null }) => {
+			const response = await fetch(url, {
+				method: 'POST',
+				credentials: 'include',
+				headers: { 'Content-Type': 'application/json' },
+				body
+			});
+			const data = await response.json();
+			return { status: response.status, success: data.success, model: data.user?.default_ai_model_simple };
+		},
+		{ url: sessionResponse.url(), body: sessionResponse.request().postData() }
+	);
+	expect(autoSession).toEqual({ status: 200, success: true, model: null });
 
 	// =========================================================================
 	// PHASE 5: Send another message and verify auto-select uses a DIFFERENT model
 	// =========================================================================
 	logCheckpoint('Phase 5: Sending message to verify auto-select uses a different model...');
-
-	// Start a new chat
-	await startNewChat(page, logCheckpoint);
 
 	const generatedByText2 = await sendMessageAndGetModel(
 		page,

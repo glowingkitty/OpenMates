@@ -333,6 +333,9 @@
     "generatedAudio": [
      "voice.mp3"
     ],
+    "generatedFiles": [
+     "patch.pes"
+    ],
     "staticFiles": [
      "doc.pdf"
     ],
@@ -413,6 +416,13 @@
       "path": "static-files/doc.pdf",
       "src": [
        "staticFile",
+       0
+      ]
+     },
+     {
+      "path": "files/patch.pes",
+      "src": [
+       "generatedFile",
        0
       ]
      },

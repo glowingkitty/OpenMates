@@ -471,7 +471,29 @@ for (const width of [390, 1280]) {
       await expect(map.locator('.leaflet-tile-loaded').first()).toBeVisible({ timeout: 20000 });
       await expect(card.getByTestId('result-card-media').locator('img:not(.leaflet-container img)')).toHaveCount(0);
       await expect(card.getByTestId('result-card-title')).toHaveText('Supplied conference with a known venue');
-      await expect(card.getByTestId('embed-calendar-date').locator('strong')).toHaveText('30');
+      const date = card.getByTestId('embed-calendar-date');
+      await expect(date).toBeVisible();
+      await expect(date.locator('strong')).toHaveText('30');
+      await expect(date.locator('span')).toHaveText('Sat');
+      const painted = () => date.evaluate(element => {
+        const badge = element as HTMLElement;
+        const prior = badge.style.pointerEvents;
+        // The preview forwards clicks to the card. Enable hit testing on the
+        // badge only while checking that its center is painted outside the text clip.
+        badge.style.pointerEvents = 'auto';
+        try {
+          const box = badge.getBoundingClientRect();
+          return badge.checkVisibility({ opacityProperty: true, visibilityProperty: true })
+            && badge.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+        } finally {
+          badge.style.pointerEvents = prior;
+        }
+      });
+      expect(await painted()).toBe(true);
+      await card.hover();
+      expect(await painted()).toBe(true);
+      await page.mouse.move(0, 0);
+      expect(await painted()).toBe(true);
       await expect(card.getByTestId('event-preview-attribution')).toContainText('Supplied organizer');
       await expect(card.getByTestId('authored-result-origin')).toHaveCount(0);
       await expect(card).not.toContainText('User-provided');

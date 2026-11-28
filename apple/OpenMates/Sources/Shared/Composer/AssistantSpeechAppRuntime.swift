@@ -479,6 +479,8 @@ final class AssistantSpeechAppRuntime {
         pendingPublicChatID = nil
         let expectedSession = sessionGeneration
         let control = controller(for: chatID)
+        // The call's speech survives pane navigation, including activation of a different chat.
+        guard liveCallReservation == nil else { return control }
         if let previous = activeChatID, previous != chatID, let previousController = controllers[previous] {
             await stopController(previousController)
         }
@@ -501,7 +503,8 @@ final class AssistantSpeechAppRuntime {
         return control
     }
     func deactivate(chatID: String, ownerID: UUID, controller: NativeAssistantSpeech?) {
-        guard activeChatID == chatID, activeOwnerID == ownerID, let controller, controllers[chatID] === controller else { return }
+        guard liveCallReservation == nil, activeChatID == chatID, activeOwnerID == ownerID,
+              let controller, controllers[chatID] === controller else { return }
         controller.detach()
         localPreparation?.cancel(); localPreparation = nil; localSpeech.unload()
         systemMedia.reset(); mediaSubscription = nil
@@ -588,10 +591,15 @@ final class AssistantSpeechAppRuntime {
         } else if type == "assistant_speech_acknowledgement",
                   let id = fields["message_id"] as? String, let clip = fields["clip_id"] as? String,
                   let path = fields["audio_url"] as? String, path.hasPrefix("/audio/assistant-acknowledgements/") {
+            if fields["work_cue"] as? Bool == true {
+                guard liveCallChatID == chatID, liveCallID != nil, !liveSpeech.speaking,
+                      controllers[chatID]?.playbackStatus != .playing else { return }
+            }
             let segment = AssistantSpeechSegment(segment_id: "acknowledgement:" + clip,
                 sequence: -1, status: "ready", generated_asset_id: nil, kind: "acknowledgement", audio_url: path)
             let event = AssistantSpeechStatus(chat_id: chatID, message_id: id, status: "ready",
-                segment_id: nil, sequence: nil, generated_asset_id: nil, segments: [segment])
+                segment_id: nil, sequence: nil, generated_asset_id: nil, segments: [segment],
+                voice_call_id: fields["voice_call_id"] as? String)
             if outgoing[chatID] != nil {
                 var values = earlyEvents[chatID] ?? AssistantSpeechEarlyEvents()
                 values.append(event); earlyEvents[chatID] = values

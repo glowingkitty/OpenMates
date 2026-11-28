@@ -257,7 +257,7 @@ async function expectStartScreen(page: any, testInfo: any, screen: Screen, viewp
 	// The header names the workspace on screen from the first load (phone: switcher, wider: tab bar).
 	const mobileSwitcher = page.getByTestId('workspace-mobile-select');
 	if (await mobileSwitcher.isVisible()) {
-		await expect(mobileSwitcher).toHaveValue(SCREEN_HREFS[screen.name]);
+		await expect(mobileSwitcher).toHaveAttribute('data-active-workspace', SCREEN_HREFS[screen.name]);
 	} else {
 		await expect(page.locator('[data-testid="global-header"] .webapp-center-tabs').getByTestId(`${screen.name}-nav-link`)).toHaveAttribute('aria-current', 'page');
 	}

@@ -6,6 +6,7 @@ creation, invite access approval, viewer read-only role data, and removal revoca
 """
 
 from collections import defaultdict
+from types import SimpleNamespace
 
 import pytest
 
@@ -13,11 +14,47 @@ from backend.core.api.app.services.directus.team_methods import TeamMethods, Tea
 
 
 class FakeDirectus:
+    base_url = "http://directus.test"
+
     def __init__(self) -> None:
         self.rows: dict[str, list[dict]] = defaultdict(list)
         self.created: list[tuple[str, dict, bool]] = []
         self.updated: list[tuple[str, str, dict, bool]] = []
         self.reads: list[tuple[str, dict]] = []
+        self.removal_status: int | None = None
+
+    async def _make_api_request(self, method, url, *, headers, json):
+        """Simulate the internal transport; transaction rollback is tested in JS."""
+        assert method == "POST"
+        assert url == f"{self.base_url}/embed-version-transaction/team-member-removal"
+        assert headers == {"X-Internal-Service-Token": "test-team-key-transaction"}
+        if self.removal_status is not None:
+            return SimpleNamespace(status_code=self.removal_status)
+        team_hash = json["team_hash"]
+        active = {
+            row["hashed_user_id"]: row for row in self.rows["team_memberships"]
+            if row["hashed_team_id"] == team_hash and row["status"] == "active"
+        }
+        team = next((row for row in self.rows["teams"]
+                     if row["hashed_team_id"] == team_hash and row["status"] == "active"), None)
+        if not team or active.get(json["actor_user_hash"], {}).get("role") not in {"owner", "admin"}:
+            return SimpleNamespace(status_code=403)
+        target = active.get(json["target_user_hash"])
+        if not target or target["role"] == "owner":
+            return SimpleNamespace(
+                status_code=404, json=lambda: {"error": {"code": "team_member_not_found"}}
+            )
+        at = json["removed_at"]
+        await self.update_item(
+            "team_memberships", target["id"], {"status": "removed", "removed_at": at, "updated_at": at},
+            admin_required=True,
+        )
+        self.rows["team_key_wrappers"] = [
+            row for row in self.rows["team_key_wrappers"]
+            if (row["hashed_team_id"], row["hashed_user_id"]) != (team_hash, target["hashed_user_id"])
+        ]
+        await self.update_item("teams", team["id"], {"rotation_pending": True, "updated_at": at}, admin_required=True)
+        return SimpleNamespace(status_code=200, json=lambda: {"data": {"removed": True}})
 
     async def create_item(self, collection: str, record: dict, admin_required: bool = False):
         row = {"id": f"{collection}-{len(self.rows[collection]) + 1}", **record}
@@ -32,6 +69,11 @@ class FakeDirectus:
                 row.update(patch)
                 return row
         return None
+
+    async def delete_item(self, collection: str, item_id: str, admin_required: bool = False):
+        before = len(self.rows[collection])
+        self.rows[collection] = [row for row in self.rows[collection] if row.get("id") != item_id]
+        return len(self.rows[collection]) < before
 
     async def get_items(self, collection: str, params: dict, **_kwargs):
         self.reads.append((collection, params.copy()))
@@ -228,7 +270,8 @@ async def test_require_team_role_fails_closed_for_viewer_write_action() -> None:
 
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
-async def test_remove_member_revokes_membership_and_key_without_epoch_rotation() -> None:
+async def test_remove_member_revokes_membership_and_key_without_epoch_rotation(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-team-key-transaction")
     directus = FakeDirectus()
     methods = TeamMethods(directus)
     await methods.create_team("alice", team_payload())
@@ -241,17 +284,17 @@ async def test_remove_member_revokes_membership_and_key_without_epoch_rotation()
     assert removed is True
     bob_membership = [row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("bob")][0]
     assert bob_membership["status"] == "removed"
-    bob_wrapper = [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")][0]
-    assert bob_wrapper["status"] == "revoked"
-    assert bob_wrapper["team_key_epoch"] == 1
+    assert [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")] == []
     assert {row["team_key_epoch"] for row in directus.rows["team_key_wrappers"]} == {1}
     removal_updates = [collection for collection, _item_id, _patch, _admin in directus.updated[-2:]]
-    assert removal_updates == ["team_memberships", "team_key_wrappers"]
+    assert removal_updates == ["team_memberships", "teams"]
+    assert directus.rows["teams"][0]["rotation_pending"] is True
 
 
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
-async def test_remove_member_stays_fail_closed_if_wrapper_revocation_fails() -> None:
+async def test_remove_member_reports_failed_transaction(monkeypatch) -> None:
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-team-key-transaction")
     directus = FakeDirectus()
     methods = TeamMethods(directus)
     await methods.create_team("alice", team_payload())
@@ -262,22 +305,16 @@ async def test_remove_member_stays_fail_closed_if_wrapper_revocation_fails() -> 
     await methods.approve_access_request(
         "team-1", "alice", request["access_request_id"], "cipher-team-key-for-bob", approved_at=130
     )
-    original_update = directus.update_item
 
-    async def fail_wrapper_update(collection: str, item_id: str, patch: dict, admin_required: bool = False):
-        if collection == "team_key_wrappers":
-            return None
-        return await original_update(collection, item_id, patch, admin_required)
+    directus.removal_status = 500
 
-    directus.update_item = fail_wrapper_update
-
-    with pytest.raises(RuntimeError, match="team key wrapper"):
+    with pytest.raises(RuntimeError, match="member removal transaction failed"):
         await methods.remove_member("team-1", "alice", "bob", removed_at=140)
 
     bob_membership = next(
         row for row in directus.rows["team_memberships"] if row["hashed_user_id"] == hash_id("bob")
     )
-    assert bob_membership["status"] == "removed"
+    assert bob_membership["status"] == "active"
 
 
 @pytest.mark.anyio
@@ -290,3 +327,18 @@ async def test_deleted_team_rejects_existing_member_role_checks() -> None:
     assert await methods.delete_team("team-1", "alice", deleted_at=150) is True
     with pytest.raises(TeamPermissionError):
         await methods.require_team_role("team-1", "alice", {"owner"})
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated
+async def test_member_joining_after_rotation_gets_wrapper_at_current_epoch() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    await methods.create_team("alice", team_payload())
+    directus.rows["teams"][0]["team_key_epoch"] = 3
+    await methods.create_invite("team-1", "alice", {"invite_id": "invite-1", "role": "member", "created_at": 110})
+    request = await methods.accept_invite("invite-1", "bob", accepted_at=120)
+    await methods.approve_access_request("team-1", "alice", request["access_request_id"], "cipher-team-key-for-bob", approved_at=130)
+
+    bob = [row for row in directus.rows["team_key_wrappers"] if row["hashed_user_id"] == hash_id("bob")]
+    assert [row["team_key_epoch"] for row in bob] == [3]

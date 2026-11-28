@@ -24,6 +24,7 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress } from "../../stores/signupState";
 import { websocketStatus } from "../../stores/websocketStatusStore";
 import { isAnonymousChatId } from "../anonymousChatIds";
+import { getWorkspaceCacheEpoch } from "../workspaceCacheLifecycle";
 import {
   BULK_RETRY_DELAY_MS,
   bulkBatchRanges,
@@ -66,10 +67,37 @@ export interface ChatVersionEntry {
 
 /** In-memory version map populated during bulk key loading. */
 const cachedChatVersionMap = new Map<string, ChatVersionEntry>();
+const cachedPinnedChatIds = new Set<string>();
 // A logout invalidates every in-flight cursor, decryption, and background retry.
 // The logout flag alone can already be false by the time an old promise resumes.
 let bulkLoadGeneration = 0;
 const MIN_CLIENT_ENCRYPTED_PAYLOAD_BYTES = 29;
+const STARTUP_PARENT_KEY_LIMIT = 100;
+
+interface StartupKeyCandidate {
+  chatId: string;
+  encryptedKey: string;
+  editedAt: number;
+}
+
+function addRecentKeyCandidate(
+  candidates: StartupKeyCandidate[],
+  chat: Chat,
+  teamId: string | null,
+): void {
+  if ((chat.team_id ?? null) !== teamId || chat.parent_id || chat.is_sub_chat || !chat.encrypted_chat_key) return;
+  // Legacy headers may lack the sort-index field, so compare their stored clocks
+  // during the full version scan. IDs break ties in IndexedDB key order.
+  const editedAt = Number(chat.last_edited_overall_timestamp || chat.updated_at || chat.created_at) || 0;
+  const index = candidates.findIndex(candidate =>
+    candidate.editedAt < editedAt || (candidate.editedAt === editedAt && candidate.chatId < chat.chat_id));
+  if (index < 0 && candidates.length >= STARTUP_PARENT_KEY_LIMIT) return;
+  candidates.splice(index < 0 ? candidates.length : index, 0, {
+    chatId: chat.chat_id, encryptedKey: chat.encrypted_chat_key, editedAt,
+  });
+  if (candidates.length > STARTUP_PARENT_KEY_LIMIT) candidates.pop();
+}
+
 
 function looksLikeClientEncryptedOptionalField(value: string): boolean {
   try {
@@ -92,6 +120,14 @@ export function getCachedChatVersionMap(): Map<string, ChatVersionEntry> {
  */
 export function clearCachedChatVersionMap(): void {
   cachedChatVersionMap.clear();
+  cachedPinnedChatIds.clear();
+}
+
+/** Look up legacy cached pins without rereading every header in the sidebar. */
+export function getCachedPinnedChatIds(teamId: string | null): string[] {
+  return [...cachedPinnedChatIds].filter(chatId =>
+    cachedChatVersionMap.get(chatId)?.team_id === teamId
+  );
 }
 
 /**
@@ -223,7 +259,8 @@ export function getOrCreateChatKeyForOriginator(
 
 /**
  * Load chat keys from database into cache.
- * This should be called when the database is initialized to load all chat keys.
+ * The header cursor records all versions and pins. Only recent root chat keys
+ * in the active workspace are admitted for eager master-key unwrap.
  *
  * NOTE: This method must NOT call init() or any method that calls init() to avoid circular dependency
  *
@@ -253,43 +290,39 @@ export async function loadChatKeysFromDatabase(
     return;
   }
 
+  const workspaceEpoch = getWorkspaceCacheEpoch();
+  const { getActiveTeamContextSnapshot } = await import("../../stores/teamStore");
+  if (!isCurrentLoad()) return;
+  const { teamId } = getActiveTeamContextSnapshot();
+  const database = dbInstance.db;
+  if (!database) return;
+  const isCurrentDatabase = () => isCurrentLoad() && dbInstance.db === database;
+  const isCurrentKeyScope = () => isCurrentDatabase() && workspaceEpoch === getWorkspaceCacheEpoch();
+
   return new Promise((resolve) => {
     try {
-      const transaction = dbInstance.db!.transaction(
+      const transaction = database.transaction(
         dbInstance.CHATS_STORE_NAME,
         "readonly",
       );
       const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
       const request = store.openCursor();
 
-      // CRITICAL FIX: Collect all chat keys to decrypt, then decrypt them after cursor is done
-      // Cannot await inside cursor callback because transaction would finish before cursor.continue()
-      const keysToDecrypt: Array<{ chatId: string; encryptedKey: string }> = [];
-
-      // PERF: Clear + repopulate version map during this cursor pass so
-      // startPhasedSync() can skip a separate getAllChats() IDB read.
-      cachedChatVersionMap.clear();
+      const candidates: StartupKeyCandidate[] = [];
+      const versions = new Map<string, ChatVersionEntry>();
+      const pinned = new Set<string>();
 
       request.onsuccess = (event) => {
-        if (!isCurrentLoad()) {
+        if (!isCurrentDatabase()) {
           resolve();
           return;
         }
         const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
         if (cursor) {
-          const chat = cursor.value;
-          if (
-            chat.encrypted_chat_key &&
-            !chatKeyManager.hasKey(chat.chat_id)
-          ) {
-            // Collect keys to decrypt after cursor is done
-            keysToDecrypt.push({
-              chatId: chat.chat_id,
-              encryptedKey: chat.encrypted_chat_key,
-            });
-          }
-          // PERF: Collect version info for startPhasedSync() delta checking
-          cachedChatVersionMap.set(chat.chat_id, {
+          const chat: Chat = cursor.value;
+          if (teamId === null && isCurrentKeyScope()) addRecentKeyCandidate(candidates, chat, teamId);
+          if (chat.pinned) pinned.add(chat.chat_id);
+          versions.set(chat.chat_id, {
             messages_v: chat.messages_v || 0,
             title_v: chat.title_v || 0,
             metadata_v: chat.metadata_v,
@@ -299,11 +332,20 @@ export async function loadChatKeysFromDatabase(
           // Continue cursor synchronously (transaction must stay alive)
           cursor.continue();
         } else {
-          // Cursor is done - now decrypt all collected keys in parallel batches
-          // This happens after the transaction completes, which is fine
+          // A partial cursor must not masquerade as the full local ID/version set.
+          clearCachedChatVersionMap();
+          for (const [id, version] of versions) cachedChatVersionMap.set(id, version);
+          for (const id of pinned) cachedPinnedChatIds.add(id);
+
+          const keysToDecrypt = candidates.filter(({ chatId }) => !chatKeyManager.hasKey(chatId));
+          // Team wrappers require their own authorized on-demand key path.
+          if (!isCurrentKeyScope() || teamId !== null) {
+            resolve();
+            return;
+          }
           (async () => {
             try {
-              if (!isCurrentLoad()) {
+              if (!isCurrentKeyScope()) {
                 resolve();
                 return;
               }
@@ -322,12 +364,12 @@ export async function loadChatKeysFromDatabase(
               // Without this, each decryptChatKeyWithMasterKey call opens its own
               // IDB connection, causing massive contention for stayLoggedIn=true users.
               const { getKeyFromStorage } = await import("../cryptoService");
-              if (!isCurrentLoad()) {
+              if (!isCurrentKeyScope()) {
                 resolve();
                 return;
               }
               const prefetchedMasterKey = await getKeyFromStorage();
-              if (!isCurrentLoad()) {
+              if (!isCurrentKeyScope()) {
                 resolve();
                 return;
               }
@@ -341,14 +383,14 @@ export async function loadChatKeysFromDatabase(
                 const RETRY_DELAY_MS = BULK_RETRY_DELAY_MS;
                 let retryCount = 0;
                 const retryBulkDecrypt = async () => {
-                  if (!isCurrentLoad()) return;
+                  if (!isCurrentKeyScope()) return;
                   retryCount++;
                   const masterKey = await getKeyFromStorage();
-                  if (!isCurrentLoad()) return;
+                  if (!isCurrentKeyScope()) return;
                   const step = bulkPlanClient()
                     ? await planBulkRetryStep(retryCount, !!masterKey)
                     : planBulkRetryStep(retryCount, !!masterKey) as BulkRetryStep;
-                  if (!isCurrentLoad()) return;
+                  if (!isCurrentKeyScope()) return;
                   if (step === "decrypt" && masterKey) {
                     console.info(
                       `[ChatDatabase] Master key available on retry ${retryCount}, decrypting ${keysToDecrypt.length} chat keys`,
@@ -357,13 +399,13 @@ export async function loadChatKeysFromDatabase(
                       ? await planBulkBatches(keysToDecrypt.length)
                       : planBulkBatches(keysToDecrypt.length) as Array<[number, number]>;
                     for (const [start, end] of ranges) {
-                      if (!isCurrentLoad()) return;
+                      if (!isCurrentKeyScope()) return;
                       const batch = keysToDecrypt.slice(start, end);
                       await Promise.all(
                         batch.map(({ chatId, encryptedKey }) =>
                           decryptChatKeyWithMasterKey(encryptedKey, masterKey)
                             .then((chatKey) => {
-                              if (chatKey && isCurrentLoad()) {
+                              if (chatKey && isCurrentKeyScope()) {
                                 chatKeyManager.injectKey(chatId, chatKey, "bulk_init");
                               }
                             })
@@ -376,7 +418,7 @@ export async function loadChatKeysFromDatabase(
                     console.debug(
                       `[ChatDatabase] Retry: loaded ${keysToDecrypt.length} chat keys`,
                     );
-                  } else if (step === "retry" && isCurrentLoad()) {
+                  } else if (step === "retry" && isCurrentKeyScope()) {
                     setTimeout(retryBulkDecrypt, RETRY_DELAY_MS);
                   } else {
                     console.error(
@@ -394,7 +436,7 @@ export async function loadChatKeysFromDatabase(
                 ? await planBulkBatches(keysToDecrypt.length)
                 : planBulkBatches(keysToDecrypt.length) as Array<[number, number]>;
               for (const [start, end] of ranges) {
-                if (!isCurrentLoad()) {
+                if (!isCurrentKeyScope()) {
                   resolve();
                   return;
                 }
@@ -403,7 +445,7 @@ export async function loadChatKeysFromDatabase(
                   batch.map(({ chatId, encryptedKey }) =>
                     decryptChatKeyWithMasterKey(encryptedKey, prefetchedMasterKey)
                       .then((chatKey) => {
-                        if (chatKey && isCurrentLoad()) {
+                        if (chatKey && isCurrentKeyScope()) {
                           chatKeyManager.injectKey(
                             chatId,
                             chatKey,

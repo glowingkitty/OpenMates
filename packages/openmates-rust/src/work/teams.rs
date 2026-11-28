@@ -119,17 +119,41 @@ impl Teams<'_> {
         let data = self.call(Method::GET, "/v1/teams", None).await?;
         match data.get("teams") {
             None | Some(Value::Null) => Ok(vec![]),
-            Some(Value::Array(teams)) => Ok(teams.clone()),
+            Some(Value::Array(teams)) => {
+                let teams = teams.clone();
+                self.rotate_pending(&teams).await;
+                Ok(teams)
+            }
             Some(_) => Err(Error::Protocol),
+        }
+    }
+    /// Rotate the Team key of every listed Team flagged `rotation_pending` that
+    /// this account owns or administers. A failure is reported on stderr with its
+    /// typed error and retried on the next list; it never hides the list.
+    async fn rotate_pending(&mut self, teams: &[Value]) {
+        for row in teams.iter().filter(|row| row["rotation_pending"] == true) {
+            let Some(id) = row["team_id"].as_str() else {
+                continue;
+            };
+            if let Err(error) = self.client.rotate_team_key_if_pending(id).await {
+                eprintln!(
+                    "openmates: Team key rotation for {id} failed ({error:?}); retrying on the next sync"
+                );
+            }
         }
     }
     pub async fn get(&mut self, team: &str) -> Result<Value> {
         let data = self
             .call(Method::GET, &format!("/v1/teams/{}", segment(team)?), None)
             .await?;
-        let row = field(&data, "team")?.clone();
+        let mut row = field(&data, "team")?.clone();
         if row["team_id"].as_str().is_some_and(|id| id != team) {
             return Err(Error::Forbidden);
+        }
+        // A rotated Team key arrives sealed to the account key; claim it once
+        // so every other reader keeps unwrapping with the master key.
+        if let Some(claimed) = self.client.claim_sealed_team_key(team, &row).await? {
+            row["encrypted_team_key"] = json!(claimed);
         }
         Ok(row)
     }
@@ -629,10 +653,10 @@ impl Teams<'_> {
     }
 }
 
-#[path = "teams_identity.rs"]
-mod identity;
 #[path = "teams_billing.rs"]
 mod billing;
+#[path = "teams_identity.rs"]
+mod identity;
 
 #[cfg(test)]
 #[path = "teams_tests.rs"]

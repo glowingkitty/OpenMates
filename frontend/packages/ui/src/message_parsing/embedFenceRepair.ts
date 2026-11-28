@@ -17,12 +17,23 @@
  */
 
 const INLINE_EMBED_FENCE =
-  /^([^\n`]*\S)[ \t]+(```json)\n([ \t]*\{[^\n]*"embed_id"[^\n]*\})\n[ \t]*(```)/gm;
+  /^([^\r\n`]*\S)[ \t]+(```json[ \t]*\r?\n)([ \t]*\{(?:(?!^[ \t]*```)[\s\S])*?)(^[ \t]*```[ \t]*)(?=\r?$)/gm;
 
-/** Put an embed fence that follows inline text on the same line into its own block. */
+/** Put a valid embed reference following inline text onto its own block. */
 export function repairInlineEmbedFences(markdown: string): string {
   if (!markdown.includes('"embed_id"')) return markdown;
-  return markdown.replace(INLINE_EMBED_FENCE, "$1\n\n$2\n$3\n$4");
+  return markdown.replace(INLINE_EMBED_FENCE, (original, prefix, opening, body, closing) => {
+    try {
+      const reference = JSON.parse(body);
+      if (typeof reference?.type === "string" &&
+          typeof reference.embed_id === "string" && reference.embed_id.trim()) {
+        return `${prefix}\n\n${opening}${body}${closing}`;
+      }
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+    }
+    return original;
+  });
 }
 
 const RAW_EMBED_REFERENCE = /"embed_id"\s*:\s*"[^"]+"/;

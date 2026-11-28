@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows-ui@12
+specification: feature.workflows-ui@13
 workflow_file_export:
 - id: more-exports-current-saved-workflow
   assertion_ids:
@@ -681,7 +681,8 @@ guest_template_preview:
     template.
   then: >-
     The localized heading reads Explore the workflow automations: with no redundant continuation label.
-    Settings and the composer remain visible; composer activation opens signup without creating a Workflow.
+    Settings and the composer remain visible. Composer activation opens the normal account interface without creating a
+    Workflow. A device used to log in opens Login and a new device opens Sign up.
     The template graph and actual read-only node editor remain inspectable with a working close button and
     Signup to customize workflow replacing Save. No owned data is fetched and no save, import, enable, run
     or schedule action is available.

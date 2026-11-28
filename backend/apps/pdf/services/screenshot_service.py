@@ -38,7 +38,7 @@ def render_pdf_pages(pdf_bytes: bytes, log_prefix: str = "[Screenshot]") -> Dict
         RuntimeError: If PDF cannot be opened or rendered.
     """
     try:
-        import fitz  # type: ignore[import]  # pymupdf
+        import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
     except ImportError as e:
         raise ImportError("pymupdf (fitz) is not installed — cannot render PDF pages") from e
 
@@ -91,7 +91,7 @@ def render_selected_pages(
 
     Raises RuntimeError for an unreadable PDF or an out-of-range page.
     """
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     try:
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")

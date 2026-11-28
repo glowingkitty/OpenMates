@@ -134,7 +134,9 @@ def test_selected_card_corrections_preserve_attribution_without_edit_or_tool_aut
     schema = json.loads(guidance.split("Selected result schema:\n", 1)[1])
     assert [variant["properties"]["kind"]["const"]
             for variant in schema["properties"]["items"]["items"]["oneOf"][:-1]] == ["events.event"]
-    assert "Never create a second card for an item that already has a card in this chat" in guidance
+    assert "When a search skill returned cards for this answer, use its existing search group" in guidance
+    assert "Do not use openmates_embeds to make a second group for those results" in guidance
+    assert "Author new cards only for independent confirmed research" in guidance
     assert '{"id": "<local id>", "existing": "<its embed_ref>"}' in guidance
     assert "Changing an existing card's facts is not supported yet" in guidance
     assert "create an updated card" not in guidance
@@ -214,7 +216,8 @@ def test_invent_a_recipe_request_is_an_explicit_draft_card_request():
 def test_researched_event_lists_are_answered_with_one_card_per_item_and_a_plain_intro():
     prompt = build_authored_result_instructions(["events.event"], _apps("events.event"))
     assert prompt is not None
-    assert "the cards are the answer: create one card per item" in prompt
+    assert "independently researched items" in prompt
+    assert "list of conferences without Events Search cards), create one card per item" in prompt
     assert "never only a prose or bullet list" in prompt
     assert "plain-language sentences of intro saying what the cards show" in prompt
     assert "Do not invent facts" in prompt
@@ -237,7 +240,7 @@ def test_event_cards_get_grounded_paragraph_image_and_venue_guidance_only_for_ev
     assert "Use a search image only when it clearly depicts that event" in prompt
     assert "otherwise omit image_url, as also when no search result supplies one" in prompt
     assert "never write lat/lon yourself" in prompt
-    assert "run one more targeted web search for its next edition" in prompt
+    assert "an independently researched event card when the source confirms this edition's date" in prompt
     recipe = build_authored_result_instructions(["nutrition.recipe"], _apps("nutrition.recipe"))
     assert recipe is not None and "30-60 words" not in recipe
 

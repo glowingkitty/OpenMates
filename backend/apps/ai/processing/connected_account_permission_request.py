@@ -129,12 +129,22 @@ def _build_action_requests(
                 "action": action,
                 "action_scope": action_scope_for_request(item, action=action, config=config),
                 "summary": _safe_action_summary(item, action),
+                **({"default_runtime_mode": config.default_runtime_mode} if config.default_runtime_mode else {}),
             }
         )
     return requests
 
 
 def _safe_action_summary(request: dict[str, Any], action: str) -> dict[str, Any]:
+    if action == "draft":
+        # Approval shows who the draft is addressed to and its subject; the body stays out of the prompt.
+        return {
+            "to": [str(v) for v in (request.get("to") or [])][:50],
+            "cc": [str(v) for v in (request.get("cc") or [])][:50],
+            "bcc": [str(v) for v in (request.get("bcc") or [])][:50],
+            "subject": str(request.get("subject") or "")[:200],
+            "is_reply": bool(request.get("thread_id")),
+        }
     summary: dict[str, Any] = {"calendar_id": request.get("calendar_id") or "primary"}
     if action == "read":
         if request.get("time_min"):
@@ -201,7 +211,7 @@ def _normalize_capabilities(value: Any) -> list[str]:
         return _normalize_capabilities(value.get("capabilities"))
     if not isinstance(value, str):
         return []
-    known_capabilities = {"read", "write", "update", "delete"}
+    known_capabilities = {"read", "write", "update", "delete", "draft"}
     tokens = [token for token in _split_capability_string(value) if token]
     if not tokens or any(token not in known_capabilities for token in tokens):
         return []

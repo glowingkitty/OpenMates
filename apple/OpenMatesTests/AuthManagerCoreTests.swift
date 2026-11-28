@@ -26,7 +26,7 @@ final class AuthManagerCoreTests: XCTestCase {
             profileCacheWriter: { _ in }, sessionScopeActivator: { _ in })
     }
 
-    private func makeCore() throws -> CoreSession {
+    private func makeCore(credentials: CoreAcknowledgingCredentialStore = InMemoryCredentialStore()) throws -> CoreSession {
         let container = FileManager.default.temporaryDirectory.path
         let name = "auth-manager-core-\(UUID().uuidString)"
         let directory = (container as NSString).appendingPathComponent(name)
@@ -35,7 +35,7 @@ final class AuthManagerCoreTests: XCTestCase {
             config: CoreConfig(
                 apiUrl: "https://never-contact.example.invalid", appUrl: "https://app.example.invalid",
                 cacheContainer: container, cacheDirectoryName: name),
-            credentials: InMemoryCredentialStore())
+            credentials: credentials)
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,client-core.viewmodel.capability-contract
@@ -183,6 +183,30 @@ final class AuthManagerCoreTests: XCTestCase {
         XCTAssertFalse(auth.needsNetworkAuthorityRecovery)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+    func testSessionCheckJoinsCoreReadmissionWhileItsCredentialReadIsHeld() async throws {
+        let readmitEntered = expectation(description: "core readmission entered its credential read")
+        let credentials = HeldReadmissionCredentials(readmitEntered: readmitEntered)
+        let core = try makeCore(credentials: credentials)
+        do {
+            try await core.start()
+            XCTFail("A malformed fixture cannot restore")
+            return
+        } catch is CoreError {
+            guard case .failed = core.state else { return XCTFail("Expected the real core to report failed startup") }
+        }
+        let auth = makeAuth(core: core)
+        let readmission = Task { @MainActor in await auth.ensureAdmitted() }
+        await fulfillment(of: [readmitEntered], timeout: 5)
+        let release = Task { @MainActor in _ = credentials.releaseReadmit.signal() }
+        await auth.checkSession()
+        await release.value
+        await readmission.value
+
+        XCTAssertEqual(credentials.readCount, 2, "The starting failure and the single joined readmission may read the vault")
+        XCTAssertFalse(auth.hasNetworkAuthority)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.login.method-convergence,client-core.viewmodel.capability-contract
     func testFailedBackupCodeAndRecoveryKeyLoginsAreTypedAndStaySignedOut() async throws {
         let core = try makeCore()
@@ -283,5 +307,39 @@ final class AuthManagerCoreTests: XCTestCase {
             _ = try await AuthManager.decodeProfile(Data(#"{"username":"Fixture"}"#.utf8))
             XCTFail("a payload without an account id decoded")
         } catch is DecodingError {}
+    }
+}
+
+
+/// The first malformed fixture establishes a real failed core state. Hold the
+/// second vault read while both Swift entry points request validation.
+private final class HeldReadmissionCredentials: CoreAcknowledgingCredentialStore, @unchecked Sendable {
+    let releaseReadmit = DispatchSemaphore(value: 0)
+    private let readmitEntered: XCTestExpectation
+    private let lock = NSLock()
+    private var reads = 0
+
+    init(readmitEntered: XCTestExpectation) { self.readmitEntered = readmitEntered }
+
+    var readCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return reads
+    }
+
+    func attach(core: ViewModelCore) {}
+    func credentialsChanged(snapshot: CredentialSnapshotRecord) {}
+    func delete() throws {}
+
+    func load() throws -> Data? {
+        lock.lock()
+        reads += 1
+        let hold = reads == 2
+        lock.unlock()
+        if hold {
+            readmitEntered.fulfill()
+            _ = releaseReadmit.wait(timeout: .now() + 8)
+        }
+        return Data("malformed-fixture".utf8)
     }
 }

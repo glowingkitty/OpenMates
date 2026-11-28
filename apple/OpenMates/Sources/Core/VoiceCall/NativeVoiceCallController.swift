@@ -136,9 +136,12 @@ actor NativeVoiceCallController {
             try await requireCurrent(token, scope)
             guard context.fields["mate_category"]?.string == scope.mateCategory
             else { throw NativeVoiceCallError.contextUnavailable }
-            let startFrame: NativeVoiceCallFrame = ["type": .string("start"), "chat_id": .string(scope.chatID),
+            var startFrame: NativeVoiceCallFrame = ["type": .string("start"), "chat_id": .string(scope.chatID),
                 "startup_audio_allowance_ms": .number(10_000), "context": .object(context.fields),
                 "speech_output_transport": .string(NativeVoiceCallWire.speechOutputTransport)]
+            #if !os(watchOS)
+            startFrame["voice_state_cues"] = .bool(true)
+            #endif
             guard try NativeVoiceCallWire.encode(startFrame).utf8.count <= 256_000
             else { throw NativeVoiceCallError.contextTooLarge }
             let auth = try await environment.authentication(scope)

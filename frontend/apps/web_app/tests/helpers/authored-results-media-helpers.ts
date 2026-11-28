@@ -61,7 +61,10 @@ export async function openSelectedRecipe(page: Page, childId: string, assistantM
 
 export async function explicitlyShareSelectedChild(page: Page, overlay: Locator, childId: string) {
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(page.url()).origin });
-  await overlay.getByTestId('embed-share-button').click();
+  await overlay.getByRole('button', { name: 'More', exact: true }).click();
+  const share = overlay.getByTestId('embed-more-menu').getByTestId('embed-share-button');
+  await expect(share).toHaveAccessibleName('Share embed');
+  await share.click();
   await expect(page.getByTestId('share-embed-preview')).toBeVisible();
   const saved = page.waitForResponse(response => response.url().includes('/v1/share/embed/metadata')
     && response.request().method() === 'POST' && response.request().postDataJSON()?.embed_id === childId,

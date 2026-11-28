@@ -63,6 +63,28 @@ export function declareRustChatHistorySource(ready: Promise<unknown>): void {
 /** The chat id shape the core's read requests accept (see `localCursorUuid` in protocol.ts). */
 const CORE_CHAT_ID = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
 
+/** Schedule ahead only for an explicitly ordinary owned saved row. */
+export function canPreparePersonalLatestHistory(chat: Chat, ownerId: string | null | undefined): boolean {
+  return !!ownerId && chat.user_id === ownerId && CORE_CHAT_ID.test(chat.chat_id) &&
+    Number.isSafeInteger(chat.messages_v) && chat.messages_v > 0 &&
+    typeof chat.encrypted_chat_key === "string" && chat.encrypted_chat_key.length > 0 &&
+    chat.is_hidden === false && chat.is_hidden_candidate === false &&
+    !chat.team_id && !chat.chat_visibility && !chat.is_incognito && !chat.is_anonymous &&
+    !chat.is_shared && !chat.is_shared_by_others && !chat.parent_id && !chat.is_sub_chat &&
+    !chat.encrypted_draft_md && !chat.encrypted_draft_preview && !chat.draft_v &&
+    !chat.waiting_for_metadata && !chat.processing_metadata;
+}
+
+/** Observe rejection while metadata is in flight; leave the original result
+ * intact so the current, classified selection receives the same denial. */
+export function preparePersonalLatestHistory(chat: Chat): Promise<RustHistoryRead | null> {
+  const result = readRustChatHistoryWindow(chat, {
+    anchorMessageId: null, activeTeamId: null, localInitialPending: false,
+  });
+  void result.catch(() => undefined);
+  return result;
+}
+
 const FIXED_CODE = /^[a-z_]{1,40}$/;
 export function rustFailureCode(error: unknown): string {
   return error instanceof Error && FIXED_CODE.test(error.message) ? error.message : "other";
@@ -122,6 +144,7 @@ export async function readRustChatHistoryPage(chat: Chat, input: {
  */
 export async function readRustChatHistoryWindow(chat: Chat, input: {
   anchorMessageId: string | null; activeTeamId: string | null; localInitialPending: boolean;
+  serverClassifiedSaved?: boolean;
 }): Promise<RustHistoryRead | null> {
   const started = typeof performance !== "undefined" ? performance.now() : 0;
   if (!installed && declared) await declared;
@@ -133,7 +156,7 @@ export async function readRustChatHistoryWindow(chat: Chat, input: {
     if (chat.is_shared_by_others) throw new RustHistoryRefusal("shared_chat");
     // A chat this client is still creating is not server-readable yet; its
     // optimistic local rows stay with the TS send path.
-    if (input.localInitialPending || !(Number(chat.messages_v ?? 0) > 0)) throw new RustHistoryRefusal("unsynced_chat");
+    if (input.localInitialPending || (!input.serverClassifiedSaved && !(Number(chat.messages_v ?? 0) > 0))) throw new RustHistoryRefusal("unsynced_chat");
     // The core addresses saved chats by UUID. Only local E2E fixture chats carry another id; they
     // exist in this browser alone, so there is no server copy for the core to read either.
     if (!CORE_CHAT_ID.test(chat.chat_id)) throw new RustHistoryRefusal("local_fixture_chat");

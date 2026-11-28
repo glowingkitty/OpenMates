@@ -5,6 +5,8 @@
  * Access at: /dev/preview/embeds/sheets/SheetEmbedPreview
  */
 
+import { withSheetFormatting } from './sheetFormattingText';
+
 const teamDirectoryTable = `| Name | Role | Department | Start Date |
 |------|------|------------|------------|
 | Alice Johnson | Senior Engineer | Engineering | 2023-01-15 |
@@ -55,8 +57,28 @@ const defaultProps = {
 
 export default defaultProps;
 
+export const formattedBudgetTable = withSheetFormatting('| July budget | |\n| --- | --- |\n| Supplies | 1250.5 |\n| Transport | 480 |', {
+  columnWidths: { A: 100, B: 105 },
+  rowHeights: { '1': 38 },
+  frozenRows: 1,
+  frozenColumns: 1,
+  cells: {
+    A1: { backgroundColor: '#1E3A8A', textColor: '#FFFFFF', bold: true, horizontalAlign: 'center' },
+    B2: { numberFormat: { kind: 'currency', currency: 'USD', decimals: 2 } },
+  },
+  merges: [{ start: 'A1', end: 'B1' }],
+});
+
 /** Named variants for different component states */
 export const variants = {
+  formattedBudget: {
+    ...defaultProps,
+    id: 'preview-formatted-budget',
+    title: 'Monthly budget',
+    rowCount: 2,
+    colCount: 2,
+    tableContent: formattedBudgetTable,
+  },
   shortContent: { ...defaultProps, id: 'legacy-short-sheet-preview', title: 'Two rows', rowCount: 2, colCount: 2, tableContent: '| Name | Value |\n|---|---|\n| First | 1 |\n| Second | 2 |', onFullscreen: () => console.info('[Preview] specialized expanded') },
   tools: { ...defaultProps, onFullscreen: () => console.info('[Preview] specialized expanded') },
 	/** Calculated cells show an fx marker and expose their formula. */

@@ -22,11 +22,6 @@ STEPS = {
     "native-source": ("Native source-mode install lifecycle", ("selfhost-source",)),
     "images": ("Build local image-mode images", ("selfhost-image",)),
     "native-image": ("Image-mode self-hosted install and timing", ("selfhost-image",)),
-    "epoch0-restart": ("Preserve epoch 0 across restart", ("selfhost-image",)),
-    "epoch0-update": ("Preserve epoch 0 across update", ("selfhost-image",)),
-    "epoch1-restart": ("Preserve epoch 1 across restart", ("selfhost-image",)),
-    "epoch1-update": ("Preserve epoch 1 across update", ("selfhost-image",)),
-    "restore-ready": ("Restore ready epoch fixture", ("selfhost-image",)),
     "timing": ("Summarize setup timing", TARGETS),
     "server-status": ("Check server status JSON", ("selfhost-image",)),
     "containers": ("Check backend and web Docker containers", ("selfhost-image",)),
@@ -138,7 +133,6 @@ RUST_INPUTS = (
     "frontend/packages/openmates-tui-native/src/server/update.rs",
     "packages/openmates-rust/Cargo.toml",
     "scripts/check_selfhost_chat_readiness.py",
-    "scripts/selfhost_chat_epoch_fixture.py",
 )
 
 

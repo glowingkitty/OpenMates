@@ -39,7 +39,7 @@ const readable = async (content: unknown) => {
 };
 
 function fullFiles(partial: ZipChatCase['files']): ChatZipFiles {
-	return { code: [], transcripts: [], images: [], generatedAudio: [], staticFiles: [], audio: [], pdfs: [], ...partial } as ChatZipFiles;
+	return { code: [], transcripts: [], images: [], generatedAudio: [], generatedFiles: [], staticFiles: [], audio: [], pdfs: [], ...partial } as ChatZipFiles;
 }
 
 async function chatRequest(testCase: ZipChatCase) {

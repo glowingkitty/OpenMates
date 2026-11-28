@@ -12,6 +12,7 @@
 //! token or moved queue generation) publishes nothing.
 use super::{
     ListCompleteness, SessionEvent, ViewCommand, ViewEvent,
+    actor::StartupMonitorCohort,
     actor_host::{ListRecovery, ViewHost, ViewSink},
     draft_flows::{DraftSnapshot, publish_draft_changes},
     send_flows, window_flows,
@@ -109,15 +110,20 @@ pub fn start<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     Box::pin(async move {
         let api = host.prepare_start(&credentials)?;
         host.core_mut().retire_window();
+        host.core_mut().explicit_startup_navigation = false;
+        host.core_mut().startup_resume_completed = false;
+        host.core_mut().startup_sidebar_published = false;
+        host.core_mut().startup_monitor_cohort = StartupMonitorCohort::Initial;
+        host.core_mut().startup_hydration.clear();
         host.core_mut()
             .client_mut()
             .reset(&api, Some(credentials.clone()))?;
         host.verify_start().await?;
-        let core = host.core_mut();
-        if core.restore_index(&credentials, cancel).await? {
-            let display_name = core.client().display_name_hint();
-            sink.emit(ViewEvent::Session(SessionEvent::Restored { display_name }))
+        if host.core_mut().restore_index(&credentials, cancel).await? {
+            let display_name = host.core().client().display_name_hint();
+            host.publish_restored_session(sink, SessionEvent::Restored { display_name })
                 .await?;
+            let core = host.core_mut();
             let items = core.client().cached_chat_items()?;
             let event = core.chat_list_event(items, ListCompleteness::Cached)?;
             sink.emit(event).await?;
@@ -125,14 +131,23 @@ pub fn start<'a, S: ByteStore + 'static, H: ViewHost<S>>(
                 core.client_mut().ensure_cached_content_loaded()?;
             }
         }
-        host.admit(sink).await
+        let admitted = host.admit(sink).await;
+        if admitted == Err(Error::Offline)
+            && host.core().recently_opened_enabled
+            && matches!(host.core().startup_monitor_cohort, StartupMonitorCohort::Initial)
+        {
+            // A shell can separately authorize its local receipt. Its first
+            // later online monitor must reconcile without choosing a chat.
+            host.core_mut().startup_monitor_cohort = StartupMonitorCohort::Connected;
+        }
+        admitted
     })
 }
 
-/// The slow half of `Start`: global recovery (which may yield a complete
-/// inventory), then the chat list, persisted before it is emitted. Shells run
-/// it only while idle and cancel `cancel` to let a chat open or send go first;
-/// a cancelled sync publishes nothing and can simply run again.
+/// After admission, publish a bounded recent list on a sparse cache before
+/// global recovery. The complete inventory is reconciled afterward. Shells
+/// run this while idle and cancel it to let a selected chat open or send go
+/// first. Cancellation fences later events and preserves an already visible list.
 ///
 /// # Errors
 /// Recovery, sync and persistence errors; `Cancelled` when superseded.
@@ -147,6 +162,9 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         }
         let generation = host.core().shell().ops().guard();
         let drafts = DraftSnapshot::capture(host.core().client())?;
+        superseded(host, cancel, &generation)?;
+        host.core_mut().begin_client_operation(cancel);
+        publish_startup_sidebar(host, sink, cancel).await?;
         // Reuse only the same-batch complete inventory returned after actual
         // recovery admission and its durable save; no cache is promoted.
         let proof = host
@@ -160,7 +178,11 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
                     .list_with_fresh_chat_inventory_marked(Workspace::Chats, proof, cancel)
                     .await?
             }
-            None => (client.list(Workspace::Chats).await?, false),
+            None => tokio::select! {
+                biased;
+                result = client.list(Workspace::Chats) => (result?, false),
+                _ = cancel.cancelled() => return Err(Error::Cancelled),
+            },
         };
         host.core_mut().persist().await?;
         superseded(host, cancel, &generation)?;
@@ -170,6 +192,38 @@ pub fn boot_sync<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         sink.emit(event).await?;
         publish_draft_changes(host.core().client(), drafts, sink).await
     })
+}
+
+/// Publish one bounded, durable partial sidebar for a sparse admitted profile.
+///
+/// # Errors
+/// Admission, validation, cancellation or durable cache errors.
+pub(super) async fn publish_startup_sidebar<S: ByteStore + 'static, H: ViewHost<S>>(
+    host: &mut H,
+    sink: &H::Sink,
+    cancel: &CancellationToken,
+) -> Result<()> {
+    if host.core().startup_sidebar_published {
+        return Ok(());
+    }
+    let generation = host.core().shell().ops().guard();
+    superseded(host, cancel, &generation)?;
+    host.core_mut().begin_client_operation(cancel);
+    if let Some(items) = host.core_mut().client_mut().cold_start_recent_chats(cancel).await? {
+        use crate::startup_diagnostics::StartupPhase;
+        superseded(host, cancel, &generation)?;
+        let persisted = host.core_mut().persist().await;
+        StartupPhase::ColdSidebarPersist.record(&persisted);
+        persisted?;
+        superseded(host, cancel, &generation)?;
+        let event = list_event(host, items);
+        StartupPhase::ColdSidebarProjection.record(&event);
+        let published = sink.emit(event?).await;
+        StartupPhase::ColdSidebarPublish.record(&published);
+        published?;
+        host.core_mut().startup_sidebar_published = true;
+    }
+    Ok(())
 }
 
 /// Re-read the chat list. With a sync-feed cursor and no pending recovery,
@@ -185,6 +239,11 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
     cancel: &'a CancellationToken,
 ) -> BoxFuture<'a, Result<()>> {
     Box::pin(async move {
+        if host.core().client().session().is_none() {
+            return Err(Error::Authentication);
+        }
+        let generation = host.core().shell().ops().guard();
+        superseded(host, cancel, &generation)?;
         // Before any read: a draft another device saved or cleared is told
         // apart from this client's own (already cached) save.
         let drafts = DraftSnapshot::capture(host.core().client())?;
@@ -193,16 +252,31 @@ pub fn refresh_chats<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         if feed && host.recovery_idle().await {
             host.core_mut().begin_client_operation(cancel);
             let client = host.core_mut().client_mut();
-            if let Some(items) = client.chat_list_from_feed().await? {
+            let feed_items = tokio::select! {
+                biased;
+                result = client.chat_list_from_feed() => result?,
+                _ = cancel.cancelled() => return Err(Error::Cancelled),
+            };
+            if let Some(items) = feed_items {
+                superseded(host, cancel, &generation)?;
                 host.core_mut().persist().await?;
+                superseded(host, cancel, &generation)?;
                 sink.emit(list_event(host, items)?).await?;
                 return publish_draft_changes(host.core().client(), drafts, sink).await;
             }
         }
         host.recover_before_list(sink, ListRecovery::Refresh)
             .await?;
-        let items = host.core_mut().client_mut().list(Workspace::Chats).await?;
+        superseded(host, cancel, &generation)?;
+        host.core_mut().begin_client_operation(cancel);
+        let items = tokio::select! {
+            biased;
+            result = host.core_mut().client_mut().list(Workspace::Chats) => result?,
+            _ = cancel.cancelled() => return Err(Error::Cancelled),
+        };
+        superseded(host, cancel, &generation)?;
         host.core_mut().persist().await?;
+        superseded(host, cancel, &generation)?;
         sink.emit(list_event(host, items)?).await?;
         publish_draft_changes(host.core().client(), drafts, sink).await
     })
@@ -225,6 +299,11 @@ pub fn switch_team<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         // Scope-bound state: the old scope's window and monitor never see
         // data of the new scope.
         host.core_mut().retire_window();
+        host.core_mut().explicit_startup_navigation = false;
+        host.core_mut().startup_resume_completed = false;
+        host.core_mut().startup_sidebar_published = false;
+        host.core_mut().startup_monitor_cohort = StartupMonitorCohort::Initial;
+        host.core_mut().startup_hydration.clear();
         host.core_mut().set_chat_monitor(None);
         host.core_mut().client_mut().set_team(team_id.as_deref())?;
         host.core_mut().persist().await?;

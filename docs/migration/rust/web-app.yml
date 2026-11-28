@@ -15,10 +15,12 @@ summary:
   missing: 4
   percent: 47.6
 worker_namespaces_installed_not_progress:
-  installed: 17
-  total: 25
+  installed: 18
+  total: 27
   note: 'Worker namespaces installed (not progress): a namespace can be installed while most of its TS still runs.'
-e2e_specs_in_repo: [web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
+e2e_specs_in_repo: [components/slides-live-pair.spec.ts, live-collab-conflicts.spec.ts, live-collab-two-users.spec.ts,
+  real-inference-live-assistant-code.spec.ts, real-inference-live-assistant-doc.spec.ts, real-inference-live-assistant-sheet.spec.ts,
+  web-rust-core-apps.spec.ts, web-rust-core-auth.spec.ts, web-rust-core-bench.spec.ts, web-rust-core-chat-recommendations-flow.spec.ts,
   web-rust-core-chat.spec.ts, web-rust-core-chatstate-fork-conversation.spec.ts, web-rust-core-chatstate-hidden-chats-flow.spec.ts,
   web-rust-core-chatstate-message-highlights.spec.ts, web-rust-core-chatstate.spec.ts, web-rust-core-composer.spec.ts,
   web-rust-core-continue-carousel.spec.ts, web-rust-core-crypto.spec.ts, web-rust-core-drafts.spec.ts, web-rust-core-embeds.spec.ts,
@@ -280,8 +282,8 @@ units:
   installer: frontend/packages/ui/src/services/rustCore/send/sendPrepUnit.ts
   what_moved: Serves the offline-outbox decisions (sendPrepProtocol.ts) on the unit port from the realm's single
     WASM binding. It holds no account state, so it is a pre-bind namespace.
-  typescript_fallback: none declared (4 files)
-  unit_tests: [sendPrepOutboxVectors.test.ts]
+  typescript_fallback: none declared (5 files)
+  unit_tests: [rustTurnOutcomeWatch.test.ts, sendPrepOutboxVectors.test.ts]
   e2e_specs: []
   vectors: []
   open_gaps: [Curated entry added by the ws lane so the status generator runs; the sendPrep lane owns the details.]
@@ -349,6 +351,23 @@ units:
   spec_assertions: [live-collab.core.one-shared-model]
   spec_gaps: [The slides editor direct-manipulation assertions are not exercised on web until the editor binds the
       unit.]
+- namespace: live
+  status: installed
+  pre_bind: false
+  installer: frontend/packages/ui/src/services/rustCore/live/liveItemUnit.ts
+  what_moved: 'Marshalling only: each handler forwards to the core client''s `live_*` calls (browser_live_item.rs);
+    the core''s events are pushed to the page as unit events (liveRemoteUpdate, liveView, livePresence, liveStatus,
+    liveVersion) and its outgoing socket frames as `liveSend` (the page writes them on its WebSocket).'
+  typescript_fallback: not declared in unit sources
+  unit_tests: []
+  e2e_specs: [live-collab-two-users.spec.ts, live-collab-conflicts.spec.ts, real-inference-live-assistant-doc.spec.ts,
+    real-inference-live-assistant-sheet.spec.ts, real-inference-live-assistant-code.spec.ts, components/slides-live-pair.spec.ts]
+  vectors: []
+  open_gaps: [Slides assistant undo has component and Rust coverage. A real-inference Slides assistant edit is still
+      unverified.]
+  spec_assertions: [live-collab.core.one-shared-model, live-collab.sync.concurrent-convergence, live-collab.presence.who-and-where,
+    live-collab.privacy.ciphertext-only, live-collab.assistant.one-change-for-everyone, live-collab.offline.merge-on-reconnect]
+  spec_gaps: []
 - namespace: embedEdit
   status: planned
   pre_bind: false
@@ -438,4 +457,17 @@ units:
   vectors: []
   open_gaps: []
   spec_assertions: [code-run.e2b.upload-consent]
+  spec_gaps: []
+- namespace: taskJobs
+  status: planned
+  pre_bind: false
+  installer: null
+  what_moved: Planned; no installer yet.
+  typescript_fallback: null
+  unit_tests: []
+  e2e_specs: []
+  vectors: []
+  open_gaps: [The Task job protocol supports Personal Task creation. Team creation requires Team-scoped persistence
+      and wrappers.]
+  spec_assertions: [task-inline.create.fence-not-tool, task-inline.edit.diff-versioned, task-inline.privacy.unchanged-encryption]
   spec_gaps: []

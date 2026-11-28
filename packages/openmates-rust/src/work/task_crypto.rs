@@ -62,6 +62,7 @@ pub(super) fn decrypt(
     _master: &[u8; 32],
     wrapping: &[u8; 32],
     team: Option<&str>,
+    previous: &[(u64, Key)],
 ) -> Result<Resolved> {
     if raw["source"] == "workflow_run" {
         let id = string(&raw, "task_id")?;
@@ -79,6 +80,19 @@ pub(super) fn decrypt(
             key: zeroize::Zeroizing::new([0; 32]),
         });
     }
+    let (encrypted, epoch) = task_key_wrapper_with_epoch(&raw, team)?;
+    let key = key_bytes(&crate::work::open_team_wrapper(
+        encrypted, epoch, wrapping, previous,
+    )?)?;
+    decode_with_key(raw, key)
+}
+
+/// Select the authorized wrapper before unwrapping with the opaque master.
+pub(super) fn task_key_wrapper<'a>(raw: &'a Value, team: Option<&str>) -> Result<&'a str> {
+    task_key_wrapper_with_epoch(raw, team).map(|(encrypted, _)| encrypted)
+}
+
+fn task_key_wrapper_with_epoch<'a>(raw: &'a Value, team: Option<&str>) -> Result<(&'a str, u64)> {
     let wrappers = raw["key_wrappers"].as_array();
     let candidates = wrappers
         .into_iter()
@@ -87,7 +101,7 @@ pub(super) fn decrypt(
             if let Some(team) = team {
                 row["key_type"] == "team"
                     && row["hashed_team_id"] == hash(team)
-                    && row["team_key_epoch"] == 1
+                    && crate::work::team_epoch_ok(row)
             } else {
                 row["key_type"] == "master"
             }
@@ -114,7 +128,7 @@ pub(super) fn decrypt(
     if candidates.len() > 1 {
         return Err(Error::Forbidden);
     }
-    let encrypted = if let Some(wrapper) = candidates.first() {
+    if let Some(wrapper) = candidates.first() {
         if wrapper["hashed_task_id"]
             .as_str()
             .is_some_and(|v| raw["task_id"].as_str().is_none_or(|id| v != hash(id)))
@@ -124,14 +138,13 @@ pub(super) fn decrypt(
         {
             return Err(Error::Forbidden);
         }
-        string(wrapper, "encrypted_task_key")?
+        let epoch = wrapper["team_key_epoch"].as_u64().unwrap_or(1);
+        Ok((string(wrapper, "encrypted_task_key")?, epoch))
     } else if team.is_none() {
-        string(&raw, "encrypted_task_key")?
+        Ok((string(raw, "encrypted_task_key")?, 1))
     } else {
-        return Err(Error::Forbidden);
-    };
-    let key = key_bytes(&crypto::decrypt_bytes(encrypted, wrapping)?)?;
-    decode_with_key(raw, key)
+        Err(Error::Forbidden)
+    }
 }
 pub(super) fn decode_with_key(raw: Value, key: Key) -> Result<Resolved> {
     let id = string(&raw, "task_id")?;
@@ -213,6 +226,23 @@ pub(super) fn encrypt_create(
     wrapping: &[u8; 32],
     team: Option<&str>,
 ) -> Result<Value> {
+    let key = crypto::random_key();
+    let wrapped = crypto::server_fields::encrypt_bytes(key.as_ref(), wrapping, &[])?;
+    let mut payload = encrypt_create_fields(input, &key, wrapped, Some(wrapping), team)?;
+    if let Some(external) = &input.external_chat {
+        apply_external(&mut payload, external, master, &key)?;
+    }
+    Ok(payload)
+}
+
+/// Encrypt fields with a new object key and its already-wrapped envelope.
+pub(super) fn encrypt_create_fields(
+    input: &TaskCreate,
+    key: &[u8; 32],
+    wrapped: String,
+    wrapping: Option<&[u8; 32]>,
+    team: Option<&str>,
+) -> Result<Value> {
     if input.title.trim().is_empty()
         || input.title.len() > 100_000
         || input.description.len() > 1_000_000
@@ -242,24 +272,24 @@ pub(super) fn encrypt_create(
     if priority > 4 {
         return Err(Error::Invalid("Task priority must be 0–4."));
     }
-    let key = crypto::random_key();
     let id = input
         .task_id
         .clone()
         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     uuid(&id)?;
     let now = now();
-    let slug = crypto::normalize_object_slug(input.slug.as_deref().unwrap_or(&input.title))?;
     let labels = normalized_labels(&input.labels);
     let (kind, identity, assignee) = assignment(input.assign.as_deref())?;
-    let wrapped = crypto::server_fields::encrypt_bytes(key.as_ref(), wrapping, &[])?;
-    let mut value = json!({"task_id":id,"version":1,"encrypted_task_key":wrapped,"encrypted_title":crypto::server_fields::encrypt_text(input.title.trim(),&key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,&key, &[])?,"encrypted_slug":crypto::server_fields::encrypt_text(&slug,&key, &[])?,"slug_lookup_hash":crypto::object_slug_lookup_hash(&slug,wrapping)?,"encrypted_labels":crypto::server_fields::encrypt_text(&serde_json::to_string(&labels)?,&key, &[])?,"encrypted_tags":crypto::server_fields::encrypt_text(&serde_json::to_string(&labels)?,&key, &[])?,"label_hashes":label_hashes(wrapping,&labels)?,"encrypted_linked_project_ids":crypto::server_fields::encrypt_text(&serde_json::to_string(&input.linked_project_ids)?,&key, &[])?,"linked_project_ids":input.linked_project_ids,"primary_chat_id":input.primary_chat_id,"plan_id":input.plan_id,"status":status,"priority":priority,"position":input.position.unwrap_or(now as i64),"created_at":now,"updated_at":now,"due_at":input.due_at,"assignee_type":kind,"assignee_identity":identity,"assignee_hash":assignee});
+    let mut value = json!({"task_id":id,"version":1,"encrypted_task_key":wrapped,"encrypted_title":crypto::server_fields::encrypt_text(input.title.trim(),key, &[])?,"encrypted_description":crypto::server_fields::encrypt_text(&input.description,key, &[])?,"encrypted_labels":crypto::server_fields::encrypt_text(&serde_json::to_string(&labels)?,key, &[])?,"encrypted_tags":crypto::server_fields::encrypt_text(&serde_json::to_string(&labels)?,key, &[])?,"label_hashes":Vec::<String>::new(),"encrypted_linked_project_ids":crypto::server_fields::encrypt_text(&serde_json::to_string(&input.linked_project_ids)?,key, &[])?,"linked_project_ids":input.linked_project_ids,"primary_chat_id":input.primary_chat_id,"plan_id":input.plan_id,"status":status,"priority":priority,"position":input.position.unwrap_or(now as i64),"created_at":now,"updated_at":now,"due_at":input.due_at,"assignee_type":kind,"assignee_identity":identity,"assignee_hash":assignee});
     if let Some(team) = team {
         value["team_id"] = json!(team);
         value["key_wrappers"] = json!([{"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"encrypted_task_key":wrapped,"created_at":now}]);
     }
-    if let Some(external) = &input.external_chat {
-        apply_external(&mut value, external, master, &key)?;
+    if let Some(wrapping) = wrapping {
+        let slug = crypto::normalize_object_slug(input.slug.as_deref().unwrap_or(&input.title))?;
+        value["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, key, &[])?);
+        value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, wrapping)?);
+        value["label_hashes"] = json!(label_hashes(wrapping, &labels)?);
     }
     Ok(value)
 }
@@ -268,6 +298,16 @@ pub(super) fn encrypt_patch(
     input: &TaskPatch,
     master: &[u8; 32],
     wrapping: &[u8; 32],
+) -> Result<Value> {
+    encrypt_patch_fields(task, input, Some(master), Some(wrapping))
+}
+
+/// Task job patches use the object key without extracting an opaque master.
+pub(super) fn encrypt_patch_fields(
+    task: &Resolved,
+    input: &TaskPatch,
+    master: Option<&[u8; 32]>,
+    wrapping: Option<&[u8; 32]>,
 ) -> Result<Value> {
     if task.public["read_only"] == true {
         return Err(Error::Invalid("Workflow projection Tasks are read-only."));
@@ -288,7 +328,7 @@ pub(super) fn encrypt_patch(
     if let Some(slug) = &input.slug {
         let slug = crypto::normalize_object_slug(slug)?;
         value["encrypted_slug"] = json!(crypto::server_fields::encrypt_text(&slug, key, &[])?);
-        value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, wrapping)?);
+        value["slug_lookup_hash"] = json!(crypto::object_slug_lookup_hash(&slug, wrapping.ok_or(Error::Crypto)?)?);
     }
     if let Some(status) = &input.status {
         validate_status(status)?;
@@ -340,7 +380,7 @@ pub(super) fn encrypt_patch(
     if let Some(external) = &input.external_chat {
         if let Some(external) = external {
             value["primary_chat_id"] = Value::Null;
-            apply_external(&mut value, external, master, key)?;
+            apply_external(&mut value, external, master.ok_or(Error::Crypto)?, key)?;
         } else {
             for field in [
                 "external_chat_provider",
@@ -374,7 +414,7 @@ pub(super) fn encrypt_patch(
         let encrypted = crypto::server_fields::encrypt_text(&serde_json::to_string(&labels)?, key, &[])?;
         value["encrypted_labels"] = json!(encrypted);
         value["encrypted_tags"] = json!(encrypted);
-        value["label_hashes"] = json!(label_hashes(wrapping, &labels)?);
+        value["label_hashes"] = json!(label_hashes(wrapping.ok_or(Error::Crypto)?, &labels)?);
     }
     Ok(value)
 }
@@ -480,7 +520,7 @@ mod field_interop_tests {
         let master=[7;32];
         let input=TaskCreate{title:"Synthetic Task ✓".into(),description:"Private task description".into(),..Default::default()};
         let created=encrypt_create(&input,&master,&master,None).unwrap();
-        let task=decrypt(created.clone(),&master,&master,None).unwrap();
+        let task=decrypt(created.clone(),&master,&master,None,&[]).unwrap();
         let mut rows=vec![case("task-key","master-binary",created["encrypted_task_key"].as_str().unwrap(),&master,task.key.as_ref(),""),case("task-title","object-text",created["encrypted_title"].as_str().unwrap(),&task.key,input.title.as_bytes(),""),case("task-description","object-text",created["encrypted_description"].as_str().unwrap(),&task.key,input.description.as_bytes(),"")];
         let patch=encrypt_patch(&task,&TaskPatch{title:Some("Updated Task 界".into()),description:Some("".into()),..Default::default()},&master,&master).unwrap();
         rows.push(case("task-patch-title","object-text",patch["encrypted_title"].as_str().unwrap(),&task.key,"Updated Task 界".as_bytes(),""));

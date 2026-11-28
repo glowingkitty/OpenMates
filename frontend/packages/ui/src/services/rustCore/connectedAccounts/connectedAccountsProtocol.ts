@@ -42,6 +42,9 @@ export type SummaryPlanOutcome =
 	| { kind: 'error'; code: 'decrypt' | 'malformed'; row: number; fallbacks: number[] }
 	| ConnectedAccountsFailure;
 export type MergeTokenRefsOutcome = { kind: 'ok'; refs: ConnectedAccountTurnTokenRef[] } | ConnectedAccountsFailure;
+export type LastUsedPlanOutcome =
+	| { kind: 'ok'; touches: { id: string; last_used_at: number }[] }
+	| ConnectedAccountsFailure;
 
 /** One OAuth row step, in TypeScript await order; `bundle` is filled by the page. */
 export type OAuthRowStep =
@@ -49,6 +52,9 @@ export type OAuthRowStep =
 	| { field: string; encrypt: string; failure: string }
 	| { field: string; bundle: true; failure: string };
 export type OAuthRowPlanOutcome = { kind: 'ok'; steps: OAuthRowStep[]; malformed: boolean } | ConnectedAccountsFailure;
+export type MergeUpdateOutcome =
+	| { kind: 'ok'; permissions: string; hint: string; capabilities: string }
+	| ConnectedAccountsFailure;
 export type StorageGuardOutcome = { kind: 'ok' } | ConnectedAccountsFailure;
 /** Where each CLI transfer payload field comes from (the page assembles it in key order). */
 export type TransferPlanOutcome =
@@ -68,7 +74,9 @@ export interface ConnectedAccountsUnitProtocol extends UnitProtocol {
 	sendContextPlan: { request: { input: string }; response: SendContextPlanOutcome };
 	summaryPlan: { request: { input: string }; response: SummaryPlanOutcome };
 	mergeTokenRefs: { request: { inputs: string; payload: string }; response: MergeTokenRefsOutcome };
+	lastUsedPlan: { request: { input: string }; response: LastUsedPlanOutcome };
 	oauthRowPlan: { request: { input: string }; response: OAuthRowPlanOutcome };
+	mergeUpdate: { request: { input: string }; response: MergeUpdateOutcome };
 	storageGuard: { request: { serialized: string }; response: StorageGuardOutcome };
 	transferPlan: { request: { input: string }; response: TransferPlanOutcome };
 	transferCommand: { request: { payload: string }; response: TransferCommandOutcome };
@@ -80,7 +88,9 @@ export interface ConnectedAccountsBinding {
 	connected_accounts_send_context_plan(inputJson: string): string;
 	connected_accounts_summary_plan(inputJson: string): string;
 	connected_accounts_merge_token_refs(inputsJson: string, payloadJson: string): string;
+	connected_accounts_plan_last_used(inputJson: string): string;
 	connected_accounts_oauth_row_plan(inputJson: string): string;
+	connected_accounts_merge_update(inputJson: string): string;
 	connected_accounts_storage_guard(serialized: string): string;
 	connected_accounts_transfer_plan(inputJson: string): string;
 	connected_accounts_transfer_command(encryptedPayload: string): string;
@@ -91,7 +101,9 @@ const BINDING_EXPORTS: readonly (keyof ConnectedAccountsBinding)[] = [
 	'connected_accounts_send_context_plan',
 	'connected_accounts_summary_plan',
 	'connected_accounts_merge_token_refs',
+	'connected_accounts_plan_last_used',
 	'connected_accounts_oauth_row_plan',
+	'connected_accounts_merge_update',
 	'connected_accounts_storage_guard',
 	'connected_accounts_transfer_plan',
 	'connected_accounts_transfer_command'

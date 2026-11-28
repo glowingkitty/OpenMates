@@ -12,6 +12,7 @@ TEMPLATES = Path("frontend/packages/openmates-cli/templates")
 FILES = {
     "assets/cli-command-catalog.json": "config/cli-command-catalog.json",
     "assets/example-chat-index.json": "config/cli-example-chat-index.json",
+    "assets/selfhost/core/docker-compose.selfhost.yml": "backend/core/docker-compose.selfhost.yml",
     "assets/selfhost/core/docker-compose.no-webapp.yml": "backend/core/docker-compose.no-webapp.yml",
     "assets/licenses/legacy-cli-MIT.txt": "frontend/packages/openmates-cli/LICENSE",
     "LICENSE": "frontend/packages/openmates-cli/LICENSE",
@@ -20,7 +21,6 @@ FILES = {
     "tests/fixtures/sdk-embed-version-content.json": "tests/sdk-conformance/fixtures/sdk-embed-version-content.json",
 }
 for name in (
-    "core/docker-compose.selfhost.yml",
     "upload/docker-compose.yml",
     "preview/docker-compose.preview.yml",
     "core/monitoring/prometheus/prometheus.yml",

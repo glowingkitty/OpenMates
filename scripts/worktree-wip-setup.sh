@@ -26,12 +26,12 @@ Type=oneshot
 WorkingDirectory=$PROJECT_ROOT
 TimeoutStartSec=10min
 Nice=10
-ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/worktree_wip.py sweep
+ExecStart=/usr/bin/python3 $PROJECT_ROOT/scripts/worktree_wip.py recover
 UNIT
 
 cat > "$SYSTEMD_DIR/openmates-worktree-wip-sweep.timer" <<UNIT
 [Unit]
-Description=Snapshot dirty session worktrees every 30 minutes
+Description=Snapshot dirty worktrees and recover stopped owners every 30 minutes
 
 [Timer]
 OnBootSec=10min

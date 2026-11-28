@@ -8,6 +8,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
+  import GuestWorkspaceComposer from '@repo/ui/components/workspace/GuestWorkspaceComposer.svelte';
   import {
     Header,
     NotificationStack,
@@ -72,11 +73,15 @@
     </div>
   </div>
 {:else}
-  <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-  <main class="tasks-route-state" data-testid="tasks-auth-required">
-    <h1>Tasks</h1>
-    <p>Please log in to plan private tasks for yourself and your AI mates.</p>
-  </main>
+  <div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
+    <Header context="webapp" isLoggedIn={false} />
+    <div class="tasks-container" class:menu-open={$panelState.isSettingsOpen}>
+      <main class="tasks-wrapper" data-testid="tasks-auth-required">
+        <GuestWorkspaceComposer surface="tasks" heading="Tasks" prompt="Click to add or update tasks" />
+      </main>
+      <div class="settings-wrapper"><Settings isLoggedIn={false} /></div>
+    </div>
+  </div>
 {/if}
 <NotificationStack />
 

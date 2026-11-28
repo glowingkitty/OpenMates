@@ -9,10 +9,10 @@ import { parseBrowserLocalReadPlan } from "./protocol";
  */
 import { awaitBrowserRead, holdExistingDatabase, holdExistingProfileDatabase, readExistingSavedChatRows, readHeldProfileOwner } from "./existingSavedChatIO";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
-import type { ExistingSavedChatProfile, ExistingSavedChatSources } from "./secondDeviceSavedChatSession";
+import type { ExistingSavedChatProfile, ExistingSavedChatSources, SavedChatAdmissionStage } from "./secondDeviceSavedChatSession";
 import type { SavedChatSelection } from "./selectedSavedChat";
 
-interface BrowserContext {
+export interface BrowserContext {
   ownerId: string | null; authenticated: boolean; initialized: boolean; checking: boolean;
   deviceVerification: boolean; loggingOut: boolean; forcedLogout: boolean;
   loginGeneration: number; teamId: string | null; teamEpoch: number; workspaceEpoch: number;
@@ -22,6 +22,7 @@ interface BrowserPort {
   sessionStorage: Pick<Storage, "getItem">; localStorage: Pick<Storage, "getItem">;
   context(): BrowserContext;
   settleBootstrap(signal: AbortSignal): Promise<void>;
+  observeAdmission?(stage: SavedChatAdmissionStage): void;
   getMasterKey(): Promise<CryptoKey | null>;
   /** `local_first`: TS-optimistic local state (before its server check finishes)
    * admits ONLY the Worker's local-only read session; the in-flight auth check
@@ -38,11 +39,17 @@ export interface PreparedSavedChatPlatform {
   close(): void;
 }
 const contextFields = ["ownerId", "authenticated", "initialized", "checking", "deviceVerification", "loggingOut", "forcedLogout", "loginGeneration", "teamId", "teamEpoch", "workspaceEpoch"] as const;
-function allowed(context: BrowserContext, local: boolean): boolean {
+/** Whether the signed-in browser state may admit the core session. The session's
+ * principal is the user; a Team scope travels per call (`admitChat(chatId, teamId)`,
+ * Team Project reads) and `teamId`/`teamEpoch` stay in `contextFields`, so switching
+ * workspace invalidates the snapshot and the next request re-admits under the new scope.
+ * An active Team therefore does not block admission (Team live co-editing needs it). */
+export function admissionContextAllowed(context: BrowserContext, local: boolean): boolean {
   return typeof context.ownerId === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(context.ownerId)
     && context.authenticated && context.initialized && (local || !context.checking) && !context.deviceVerification
-    && !context.loggingOut && !context.forcedLogout && context.teamId === null;
+    && !context.loggingOut && !context.forcedLogout;
 }
+const allowed = admissionContextAllowed;
 function opaqueMaster(key: CryptoKey | null): key is CryptoKey {
   return !!key && typeof CryptoKey !== "undefined" && key instanceof CryptoKey && key.type === "secret"
     && key.algorithm.name === "AES-GCM" && (key.algorithm as AesKeyAlgorithm).length === 256
@@ -74,7 +81,13 @@ export async function prepareSavedChatPlatform(port: BrowserPort): Promise<Prepa
     port.sessionStorage.getItem("session_id"),
   ]);
   try {
-    active(); if (!local) await port.settleBootstrap(lifetime.signal); active();
+    active();
+    if (!local) {
+      port.observeAdmission?.("bootstrap-wait-start");
+      await port.settleBootstrap(lifetime.signal);
+      port.observeAdmission?.("bootstrap-wait-end");
+    }
+    active();
     const before = port.context(); if (!allowed(before, local)) throw new Error("unavailable");
     // Preserve the deployed getter's memory/IDB and asynchronous clear-on-load
     // behavior before an owned Worker/lifecycle binding exists. Do not replace
@@ -150,14 +163,18 @@ export async function prepareSavedChatPlatform(port: BrowserPort): Promise<Prepa
 /** No explicit owner/auth booleans are accepted here. Dynamic imports keep this
  * inactive adapter out of ordinary bootstrap and avoid an auth startup cycle.
  */
-export async function createBrowserSavedChatPlatform(signal: AbortSignal, mode: "server_checked" | "local_first" = "server_checked"): Promise<PreparedSavedChatPlatform> {
+export async function createBrowserSavedChatPlatform(
+  signal: AbortSignal,
+  mode: "server_checked" | "local_first" = "server_checked",
+  observeAdmission?: (stage: SavedChatAdmissionStage) => void,
+): Promise<PreparedSavedChatPlatform> {
   if (typeof window === "undefined" || signal.aborted) throw new Error("unavailable");
   const [{ get }, auth, profile, team, signup, bootstrap, keys, workspace, lifecycle] = await Promise.all([
     import("svelte/store"), import("../../stores/authStore"), import("../../stores/userProfile"), import("../../stores/teamStore"),
     import("../../stores/signupState"), import("../../stores/authBootstrapReadiness"), import("../cryptoKeyStorage"),
     import("../workspaceCacheLifecycle"), import("./platformLifecycle"),
   ]);
-  return prepareSavedChatPlatform({ signal, mode, lifecycle: lifecycle.browserProfileLifecycle, database: indexedDB,
+  return prepareSavedChatPlatform({ signal, mode, observeAdmission, lifecycle: lifecycle.browserProfileLifecycle, database: indexedDB,
     sessionStorage, localStorage, settleBootstrap: bootstrap.waitForAuthBootstrapReadiness, getMasterKey: keys.getMasterKey,
     context: () => {
       const state = get(auth.authStore), currentProfile = get(profile.userProfile), context = get(team.activeTeamContext);

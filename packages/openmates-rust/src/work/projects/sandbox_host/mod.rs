@@ -11,14 +11,14 @@ use super::*;
 
 mod links;
 mod merge;
-pub mod server;
 mod ops;
 mod revision;
-mod tree;
+pub mod server;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_support;
+mod tree;
 
 pub use merge::MergeOutcome;
 pub use ops::OpOutcome;

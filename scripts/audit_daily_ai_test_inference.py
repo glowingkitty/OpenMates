@@ -69,7 +69,10 @@ def audit() -> list[str]:
         source = path.read_text(encoding="utf-8")
         drives_ai = any(marker in source for marker in daily_ai_test_policy._AI_ACTION_MARKERS)
         has_replay = any(marker in source for marker in daily_ai_test_policy._REPLAY_MARKERS)
-        explicitly_classified = path.name in manifest["specs"] or path.name in fixed or path.name in rotating
+        explicitly_classified = (
+            path.name in manifest["specs"] or path.name in fixed or path.name in rotating
+            or daily_ai_test_policy.is_explicit_real_inference_spec(path.name)
+        )
         if drives_ai and not has_replay and not explicitly_classified:
             errors.append(f"{path.name}: AI activity lacks an explicit manifest classification")
         if "real-inference" in path.name and path.name in scheduled:

@@ -534,6 +534,9 @@ pub(crate) fn enhance_revision_request(
         media_index: Some(image.media_index.clone()),
         operation_id: Some(enhance_revision_operation_id(&job.operation_id)),
         history_text: None,
+        version_kind: None,
+        version_name: None,
+        contributors: None,
     })
 }
 

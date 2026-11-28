@@ -5,8 +5,7 @@ results from Gatus, evaluates the escalation policy, delivers notifications,
 and writes ``status.json`` for the public page. Synthetic probes run on their
 own schedule in worker threads and push their results into Gatus.
 
-If Gatus itself cannot be read, the agent treats that as a check named
-"Status checker" and alerts on it with the same policy.
+Gatus read failures are retained as checker diagnostics.
 """
 
 from __future__ import annotations
@@ -21,15 +20,18 @@ from pathlib import Path
 from typing import Callable
 
 from . import gatus, integrations, probes
-from .alerts import CheckResult, CheckSnapshot, OpenAlert, evaluate
-from .catalog import EXTERNAL_KEYS, all_checks
-from .notify import Channels, deliver
+from .alerts import OpenAlert
+from .catalog import COMPONENTS, EXTERNAL_KEYS, all_checks
+from .notify import Channels, deliver_uptime
 from .page_data import History, Incident, build, update_incidents
+from .uptime import Observation, Store
 
 LOG = logging.getLogger("status_agent")
 TICK_S = 60
 SELF_CHECK_KEY = "monitor_status-checker"
-SELF_CHECK = CheckSnapshot(SELF_CHECK_KEY, "Status checker", (), TICK_S * 3)
+CHECK_SERVICES = {check.key: component.name for component in reversed(COMPONENTS) for check in component.checks
+                  if not check.key.startswith("providers_")}
+SYNTHETIC_CHECKER_ERRORS = {"http_401", "http_403", "http_429"}
 
 
 @dataclass(frozen=True)
@@ -120,15 +122,11 @@ class Agent:
         self.pool = ThreadPoolExecutor(max_workers=3, thread_name_prefix="probe")
         self.schedules = build_schedules(settings)
         state_dir = settings.state_dir
-        self.alerts_path = state_dir / "alerts.json"
+        self.uptime = Store(state_dir / "uptime.sqlite3")
         self.history_path = state_dir / "history.json"
         self.incidents_path = state_dir / "incidents.json"
-        self.alerts = {k: OpenAlert.from_json(v) for k, v in dict(read_json(self.alerts_path, {})).items()}
         self.history = History.from_json(dict(read_json(self.history_path, {})))
         self.incidents = [Incident.from_json(i) for i in list(read_json(self.incidents_path, []))]
-        self.self_results: list[CheckResult] = []
-        self.integrations = integrations.IntegrationTracker()
-
     def run_probes(self, now: float) -> None:
         for schedule in self.schedules:
             if schedule.running is not None:
@@ -147,41 +145,82 @@ class Agent:
 
     def tick(self, now: float) -> None:
         self.run_probes(now)
+        observations = []
         try:
             results = gatus.fetch_statuses(self.settings.gatus_url, EXTERNAL_KEYS)
-            self.self_results.append(CheckResult(now, True))
         except gatus.GatusError as exc:
             LOG.error("%s", exc)
             results = {}
-            self.self_results.append(CheckResult(now, False))
-        self.self_results = self.self_results[-10:]
-        snapshots = [CheckSnapshot(SELF_CHECK_KEY, SELF_CHECK.name, tuple(self.self_results), SELF_CHECK.stale_after_s)]
+            observations.append(Observation("Status checker", SELF_CHECK_KEY, now, "checker", str(exc)))
+
+        latest = {}
+        public_alerts = {}
         for check in all_checks():
-            if check.key in results:
-                snapshots.append(CheckSnapshot(check.key, check.alert_name, results[check.key], check.stale_after_s))
-                self.history.add(check.key, results[check.key])
+            series = results.get(check.key, ())
+            if not series:
+                continue
+            service = CHECK_SERVICES.get(check.key, check.alert_name)
+            self.history.add(check.key, series)
+            outcome = None
+            for result in series:
+                error = result.error or ", ".join(result.failed_conditions) or "Probe condition failed"
+                provider_unavailable = check.key.startswith("providers_") and (
+                    (result.error and result.error != "provider_outage")
+                    or any(condition.startswith("[STATUS]") for condition in result.failed_conditions)
+                    or not (result.error or result.failed_conditions)
+                )
+                synthetic_misconfigured = check.key.startswith("synthetic_") and error in SYNTHETIC_CHECKER_ERRORS
+                previous_outcome = outcome
+                outcome = "up" if result.success else "checker" if provider_unavailable or synthetic_misconfigured else "down"
+                # Old history is useful for tracking short incidents, but only
+                # current checks can open or remind about a live incident.
+                observations.append(Observation(service, check.key, result.timestamp,
+                                                outcome, "" if result.success else error,
+                                                notify=now - result.timestamp <= check.stale_after_s,
+                                                max_gap=check.stale_after_s))
+            last = series[-1]
+            if now - last.timestamp > check.stale_after_s:
+                observations.append(Observation(service, f"{check.key} freshness", now, "checker",
+                                                "No current probe result"))
+                continue
+            if (outcome == previous_outcome == "down"
+                    and last.timestamp - series[-2].timestamp <= check.stale_after_s):
+                public_alerts[check.key] = OpenAlert(series[-2].timestamp, now)
+            if outcome != "checker":
+                latest[check.key] = last
+
         try:
-            self.integrations.record(integrations.fetch_health(self.settings.api_url), now)
+            payload = integrations.fetch_health(self.settings.api_url)
+            if not isinstance(payload, dict) or not all(isinstance(payload.get(key), dict) for key in integrations.SECTIONS):
+                raise ValueError("Incomplete production health summary")
+            for key, (name, healthy) in integrations.observations(payload).items():
+                # The host monitor checks real email send and account outcomes.
+                if key != "integration_external_services_brevo":
+                    observations.append(Observation(name, key, now, "up" if healthy else "down",
+                                                    "" if healthy else "Production health reports a failure",
+                                                    min_interval=integrations.confirmation_interval(key),
+                                                    max_gap=integrations.confirmation_interval(key) + 180))
         except (OSError, ValueError) as exc:
-            # The API check itself reports an unreachable API; no extra alert here.
             LOG.warning("production health summary unavailable: %s", type(exc).__name__)
-        snapshots += self.integrations.snapshots()
-        evaluation = evaluate(snapshots, self.alerts, now)
-        failures = deliver(evaluation.notifications, self.settings.channels)
-        for failure in failures:
-            LOG.error("alert delivery: %s", failure)
-        self.alerts = evaluation.state
+            observations.append(Observation("Production health summary", "integration health", now,
+                                            "checker", type(exc).__name__))
+        self.uptime.record(observations, now, self.send_uptime)
         self.history.prune(now)
-        public_alerts = {k: v for k, v in self.alerts.items()
-                         if k != SELF_CHECK_KEY and not k.startswith("integration_")}
-        self.incidents = update_incidents(self.incidents, public_alerts, now)
-        latest = {k: v[-1] for k, v in results.items() if v}
-        write_json_atomic(self.alerts_path, {k: v.to_json() for k, v in self.alerts.items()})
+        if results:
+            self.incidents = update_incidents(self.incidents, public_alerts, now, known_checks=set(latest))
         write_json_atomic(self.history_path, self.history.to_json())
         write_json_atomic(self.incidents_path, [i.to_json() for i in self.incidents])
         if results:
-            write_json_atomic(self.settings.public_dir / "status.json",
-                              build(latest, public_alerts, self.history, self.incidents, now))
+            document = build(latest, public_alerts, self.history, self.incidents, now)
+            count, seconds = self.uptime.short_blips(now - 86400, now)
+            document["short_blips_24h"] = {"count": count, "seconds": seconds}
+            write_json_atomic(self.settings.public_dir / "status.json", document)
+
+    def send_uptime(self, message: str) -> bool:
+        if deliver_uptime(message, self.settings.channels):
+            return True
+        LOG.error("Could not deliver an uptime notice")
+        return False
 
     def run_forever(self) -> None:
         while True:

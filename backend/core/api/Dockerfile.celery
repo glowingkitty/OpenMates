@@ -80,12 +80,11 @@ COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 # Image/video safety checks read the policy text (image_safety/policy.py).
 COPY docs/architecture/image-safety-policy.md /app/docs/architecture/image-safety-policy.md
 
-# Create logs directory
-RUN mkdir -p /app/logs && chmod 777 /app/logs
-
-# Set up a non-root user
+# Prepare writable runtime directories for the image user and new volumes.
 RUN adduser --disabled-password --gecos '' celeryuser
-RUN mkdir -p /celerybeat-data && chown -R celeryuser:celeryuser /app /celerybeat-data
+RUN chown -R celeryuser:celeryuser /app \
+    && install -d -o celeryuser -g celeryuser -m 0750 \
+        /app/logs /app/backend/core/api/logs /app/data/apps-recommendations /celerybeat-data
 
 # Switch to non-root user
 USER celeryuser

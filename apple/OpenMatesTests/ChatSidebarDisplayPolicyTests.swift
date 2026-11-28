@@ -142,27 +142,32 @@ final class ChatSidebarDisplayPolicyTests: XCTestCase {
 
     // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.presentation,chat-navigation.draft-only.addressable
     @MainActor
-    func testReadableUnknownDraftStaysAheadOfNewerEstablishedChatsAtRecentCap() {
+    func testOnlyDraftOnlyChatGetsDraftPriorityAtRecentCap() {
         let unknown = Chat(id: "older-readable-draft", title: nil, lastMessageAt: nil,
             createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
             appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 0)
         let cleared = Chat(id: "cleared-readable-preview", title: "Older established chat", lastMessageAt: nil,
             createdAt: "2026-10-01T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
             appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 1, hasNonEmptyDraft: false)
+        let establishedWithDraft = Chat(id: "older-follow-up-draft", title: "Older chat with draft",
+            lastMessageAt: "2026-10-02T12:00:00Z", createdAt: "2026-10-01T12:00:00Z",
+            updatedAt: nil, isArchived: false, isPinned: false, appId: nil, encryptedTitle: nil,
+            encryptedChatKey: nil, messagesV: 1, hasNonEmptyDraft: true)
         let newer = (0..<10).map { index in
             Chat(id: "newer-\(index)", title: "Established chat \(index)", lastMessageAt: "2026-10-14T12:00:00Z",
                 createdAt: "2026-10-14T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
                 appId: nil, encryptedTitle: nil, encryptedChatKey: nil, messagesV: 1, hasNonEmptyDraft: false)
         }
+        let input = newer + [cleared, unknown, establishedWithDraft]
+        let cachedDraftIDs: Set<String> = [cleared.id, unknown.id, establishedWithDraft.id]
         for preview in ["Saved legacy text", AppStrings.draftEmbedPreviewLabel(type: "image")] {
-            let cached: (String) -> String? = { $0 == unknown.id || $0 == cleared.id ? preview : nil }
-            let input = newer + [cleared, unknown]
+            let cached: (String) -> String? = { cachedDraftIDs.contains($0) ? preview : nil }
             let capped = WelcomeScreenState.recentChats(from: input, excluding: nil, draftPreview: cached)
             XCTAssertEqual(capped.count, 10)
             XCTAssertEqual(capped.first?.id, unknown.id)
-            XCTAssertFalse(capped.contains { $0.id == cleared.id })
-            let all = WelcomeScreenState.recentChats(from: input, excluding: nil, limit: 12, draftPreview: cached)
-            XCTAssertEqual(all.map(\.id), [unknown.id] + newer.map(\.id) + [cleared.id])
+            XCTAssertFalse(capped.contains { $0.id == cleared.id || $0.id == establishedWithDraft.id })
+            let all = WelcomeScreenState.recentChats(from: input, excluding: nil, limit: 13, draftPreview: cached)
+            XCTAssertEqual(all.map(\.id), [unknown.id] + newer.map(\.id) + [establishedWithDraft.id, cleared.id])
         }
     }
 

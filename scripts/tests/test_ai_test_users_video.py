@@ -40,10 +40,10 @@ def test_links_open_at_the_problem_moment():
 def test_every_problem_and_report_in_the_push_links_its_video():
     broken = persona("a-1", required_goals=True, goal_outcomes=[{"achieved": False, "why": "no event card"}])
     assert all(URL in line for line in reporting.problems([broken]))
-    filed = persona("b-1", findings=[{"title": "t", "video_seconds": 61.0}],
+    filed = persona("b-1", findings=[{"title": "t", "video_seconds": 61.0, "kept": True}],
                     reports=[{"short_issue_id": "AB12C", "status": "submitted", "finding_ids": [0]}])
     text = message_text.run_message("daily", [filed], [])
-    assert f"[video 1:01](<{URL}#t=61>) AB12C" in text
+    assert f"report AB12C · [video 1:01](<{URL}#t=61>)" in text
 
 
 def test_scenario_flow_verdicts_keep_each_runs_video():

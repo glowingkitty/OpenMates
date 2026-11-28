@@ -7,6 +7,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import GuestWorkspaceComposer from '@repo/ui/components/workspace/GuestWorkspaceComposer.svelte';
 	import {
 		Header,
 		ProjectsPage,
@@ -104,11 +105,15 @@
 		</div>
 	</div>
 {:else}
-	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
-	<main class="projects-route-state" data-testid="projects-auth-required">
-		<h1>Projects</h1>
-		<p>Please log in to organize chats, embeds, and uploaded files into projects.</p>
-	</main>
+	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
+		<Header context="webapp" isLoggedIn={false} />
+		<div class="projects-container" class:menu-open={$panelState.isSettingsOpen}>
+			<main class="projects-wrapper" data-testid="projects-auth-required">
+				<GuestWorkspaceComposer surface="projects" heading="Projects" prompt="Name a new project" />
+			</main>
+			<div class="settings-wrapper"><Settings isLoggedIn={false} /></div>
+		</div>
+	</div>
 {/if}
 <NotificationStack />
 

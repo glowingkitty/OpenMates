@@ -8,6 +8,24 @@ import XCTest
 @testable import OpenMates
 
 @MainActor final class AuthSessionReauthenticationTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,chat-navigation.startup.useful-content
+    func testSessionRestoreRunsWhileTranslationRefreshIsPending() async {
+        let refreshStarted = expectation(description: "Translation request is pending")
+        let sessionRestored = expectation(description: "Session restored during that request")
+        let startup = Task {
+            await NativeAppStartup.run(restoreSession: { sessionRestored.fulfill() },
+                refreshTranslations: {
+                    refreshStarted.fulfill()
+                    do { try await Task.sleep(for: .seconds(60)) }
+                    catch is CancellationError { }
+                    catch { XCTFail("Unexpected error while simulating a pending request") }
+                })
+        }
+        await fulfillment(of: [refreshStarted, sessionRestored], timeout: 2)
+        startup.cancel()
+        await startup.value
+    }
+
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,chat-navigation.open.local-first-coherent
     func testLocalAndRemoteLastOpenedSelectionUpdatesCachedProfileWithoutChangingAccount() throws {
         var cached: [UserProfile] = []

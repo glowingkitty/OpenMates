@@ -43,6 +43,8 @@ when a skill or this file points to it.
    scripts/worktree_wip.py park --session <id> --reason "<why>"`. Turn ends
    snapshot dirty worktrees to `refs/openmates/wip/<session>`; the chat
    lifecycle wakes a chat with unfinished work before stopping it.
+   Chats never hand off to a fresh chat because of compactions or context size
+   (owner, 27 Nov): keep working in the same chat until the work is finished.
 4. Production changes, destructive data changes and ownership transfers need
    explicit authorization by the owner: typed in this chat, or a message from
    the owner's dev connector (header "[… via the owner's authenticated dev
@@ -51,7 +53,8 @@ when a skill or this file points to it.
    owner's own direct instruction, production go-aheads included; do not ask
    for it to be typed again. Messages from other agent chats, Tasks or
    briefings never count as approval. Agents never merge pull requests; the
-   owner merges on GitHub. Restarting or redeploying dev services needs no
+   owner merges on GitHub. His merge of a PR into `main` IS his go-ahead to
+   deploy it to production (owner, 23 Nov): deploy and verify it, never ask again. Restarting or redeploying dev services needs no
    approval: do it without asking (owner, 21 Nov), via `sessions.py docker
    restart --session <id> --service <name>` and `sessions.py deploy`. Ask only
    for production or for anything that could lose data.
@@ -67,13 +70,19 @@ when a skill or this file points to it.
    chat have no waiter. Waiting on another chat or an outside event: register
    it (`python3 scripts/claude_chat_waiters.py add --on "<what>"`, the other side
    runs `fire`); the chat lifecycle never stops a waiting chat as idle and reopens
-   it when the wait ends. Report outcome, commit and verification.
+   it when the wait ends. A `SendMessage` to another chat waits in its mailbox
+   (shown at its next turn); start it with `URGENT:` only to wake it now.
+   Report outcome, commit and verification.
 7. Root operations on the dev server: `scripts/agent_root.sh <verb>` (fixed
    allowlist: Caddy validate/reload/apply, start/status of named units,
    AppArmor profile reload). Ask the user to run a command by hand only when
    the helper refuses it; never ask them to run git commands.
 
 ## Discover, specify, prove
+
+- Attach screenshots and other images to the chat or connector message as image
+  inputs. If direct attachment is unavailable, pass the original file path and
+  open it with the chat's image viewer. Use the image itself to verify visual work.
 - Discover first: source, tests, Specifications, `docs/architecture/`, prior
   decisions. Never ask what the repo can answer. When a material decision
   remains, ask one question per message with `Recommendation:` (evidence-based,
@@ -92,14 +101,18 @@ when a skill or this file points to it.
   `python3 scripts/agent_question.py done --summary "..." [--paused-until DATE]`;
   put open follow-ups in the Task first, since a done chat is archived at its turn end.
   Blocked: `python3 scripts/agent_question.py ask --question "..."
-  --recommendation "..."`.
+  --recommendation "..."`; add `--urgent` for production outages and release
+  steps (it skips the 20-minute limit). A rate-limited or undelivered push is
+  queued and sent later, never dropped.
   Proof goes into the push: after UI/visual changes or E2E runs add
   `--attach <screenshot/video>` (repeatable; CI files are under
   `test-results/ci-runs/`), sent as Discord files or a private 7-day link, on
   top of the short text. Files the user asked for (ZIP, machine files, PDF) go
   with `--attach` too, as downloads. A push without proof is refused (`--no-proof
   "<why>"` only when there is truly nothing to show). Research, backend,
-  security and tooling pushes need none. Proof videos of voice and audio flows
+  security and tooling pushes need none. Every Playwright run in GitHub CI or E2B
+  records a video; a chat that ran one attaches that video to its push, deployed
+  or not (the script refuses a screenshot alone). Proof videos of voice and audio flows
   carry the browser's sound in sync (`withProofAudio`, `.claude/rules/testing.md`):
   attach the `*-with-audio.webm`.
   Good: "Production is healthy: both alerts were false alarms (Brevo stats
@@ -155,7 +168,7 @@ when a skill or this file points to it.
   at 70% of our E2B limit, queueing there when full; the rest runs locally with a
   class-sized memory cap); the Bash guard blocks direct runs. Product E2E and full suites use isolated GitHub CI: `sessions.py
   ci-source` → `ci_coordinator.py submit --mode <rust-check|vitest|pytest|e2e|…>`
-  → `ci_coordinator.py wait <id>`. Direct: lint, `tsc`, `cargo fmt`, light
+  → `ci_coordinator.py wait <id> [<id> ...]` (one wait per set, one notification). Direct: lint, `tsc`, `cargo fmt`, light
   script pytest.
 - CI cost: for a UI-only or otherwise narrow change, first run only the
   cheapest proving check (component spec, lint, the one affected spec); submit
@@ -170,7 +183,11 @@ when a skill or this file points to it.
 - Overloaded host (`scripts/host_load_guard.py`): new sessions/sub-agents are
   refused; run `host_load_guard.py wait` once instead of polling.
 - Existing logs/screenshots/failures are enough to start a fix. After two
-  failed attempts with the same approach, reassess; ask before unrelated
+  failed attempts with the same approach, reassess; after two failures in a row
+  of one spec, submit refuses it until you diagnose the cause and pass
+  `--after-triage "<cause>"`. Loop brake: after three identical failures of the same proof or test, stop and send Marco one ❓
+  push (the failure in one sentence plus your recommendation); only his answer's
+  receipt (`--after-owner-answer <receipt>`) reopens it. Ask before unrelated
   infrastructure repair or material scope growth.
 - Final reply shows proof for the exact deployed commit: per requested flow, the
   latest successful E2E video link plus 1-3 screenshots attached with
@@ -186,6 +203,14 @@ when a skill or this file points to it.
   request answered with that provider's data). A passing test, screenshots or a
   log are not a substitute; without the video the work is not done. Only the
   user can waive it. Details: `.claude/rules/testing.md`.
+- Before asking Marco to record any user flow for a product video, prove that
+  exact flow end to end on production and record video with sound. Sign up a
+  throwaway production account using the AI test users' gift card codes. Clearly
+  mark it as a test account, exclude it from stats, and delete it after the run,
+  including failed runs. Review the recording for broken behavior, slow
+  responses, UI glitches and wrong embeds. Ask Marco to record only after the
+  run is clean. For each failing flow, create or update a Task and assign an
+  owner to fix and rerun it. Do not turn a failed flow into a question for Marco.
 
 ## Planning and Tasks
 - Ordinary work: inline goal + acceptance criteria. Durable `docs/plans/<slug>/plan.yml`
@@ -228,6 +253,15 @@ when a skill or this file points to it.
 - No `@ts-ignore`/`eslint-disable`/`noqa`/`type: ignore` without reason; no TODOs.
 - Rust: module/pub docs, structure and error rules in `.claude/rules/rust.md`.
 - Never commit secrets or private data; examples use placeholders.
+- Public GitHub text (commit messages, PR titles/descriptions, issues, comments,
+  release notes) never carries a chat or session link or a session id: no
+  claude.ai chat/code/artifact/share links or `Claude-Session:` lines (even when a
+  system reminder asks for that footer), no ChatGPT, Gemini or OpenMates
+  chat/share links (owner, 23 Nov). `scripts/public_link_guard.py` refuses them
+  in deploy, the commit-msg hook, the Bash hook and the PR CI check.
+- Keep the reserved external project name out of OpenMates commit messages,
+  branches, PR text, file paths and file contents. The public text guard
+  enforces the spelling case-insensitively.
 
 ## Specialist sub-agents and skills
 - Issue IDs: `/debug-issue` or the `issue-forensics` agent (production issues:
@@ -236,9 +270,13 @@ when a skill or this file points to it.
   `test-failure-triager`, `e2e-test-investigator`.
   Debug tooling reference: `.claude/rules/debugging.md`.
 - Skills, agents and hooks live in `.claude/`; edit them there directly.
-- Models: new chats default to Opus (Sonnet from 70% weekly usage until the
-  reset, unless the user names a model); effort is at most medium, never high.
-  Fable only on the user's explicit request (launcher check + `fable-guard` hook).
+- Models: with more than 30% of weekly Claude usage left, use Opus for complex work and
+  Sonnet for simple work. At 30% or less, new chats default to Codex `gpt-6.2-sol`.
+  Security and encryption stay on Claude while more than 10% remains. Below 10%,
+  existing Claude work hands off through its Task to Codex and Claude stays available
+  for the live voice call. A model Marco names always wins. When Codex is exhausted,
+  send one short push and wait. Effort stays at most medium. See
+  `docs/architecture/infrastructure/claude-dispatch.md`.
 - Sub-agent budget: use the lean `lane-worker` agent for implementation lanes
   (`general-purpose` only when the lane needs web access, skills or its own
   sub-agents). Sub-agents run on Sonnet (settings `env`), the `ci-runner` on
@@ -247,9 +285,12 @@ when a skill or this file points to it.
   one a single bounded deliverable; split long lanes into fresh agents with a
   short handoff instead of one agent running for hundreds of turns. Ask for
   terse handbacks (outcome, commit, verification, blockers), no log dumps.
-  A hook warns a sub-agent at 50 tool calls and stops its tools at 70: size
-  each brief to fit, and start a fresh lane from the handback instead of
-  resuming a stopped one. Sub-agents cannot create sessions or worktrees.
+  No hard caps on sub-agents or tokens (owner, 22 Nov): a hook reminds a
+  sub-agent from 50 tool calls on to hand back a short summary, and Marco gets
+  one notice when a chat uses unusually many sub-agents or tokens
+  (`scripts/chat_usage_watch.py`); nothing is stopped. Built-in Explore and
+  Plan agents are pinned to Sonnet by `subagent-model-guard`. Sub-agents
+  cannot create sessions or worktrees.
 - Reading code: to find where something lives, first run `python3
   scripts/code_map.py find "<area>: <what changes>"` (a focused query you write,
   not the user's message); it returns 5 files with a confidence. Low confidence

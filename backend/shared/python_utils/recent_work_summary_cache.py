@@ -260,7 +260,7 @@ class RecentWorkSummaryCache:
 recent_work_summary_cache = RecentWorkSummaryCache()
 
 PRIVATE_CONTEXT_FIELDS = frozenset({
-    "accepted_plan_context",
+    "accepted_plan_context", "design_source",
     "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
     "project_context_documents", "related_task_candidates",
     "async_tool_completion",

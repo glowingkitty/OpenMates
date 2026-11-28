@@ -77,6 +77,9 @@ class _Cache:
     async def peek_steer_queued_message(self, chat_id, user_id, *, exclude_ids):
         return None if self.row["member"]["message_id"] in exclude_ids else self.row
 
+    async def can_claim_queued_steer(self, chat_id, task_id):
+        return True
+
     async def get_queued_message_member(self, chat_id, user_id, message_id):
         return self.row
 
@@ -498,3 +501,87 @@ async def test_incognito_edit_ack_stays_on_origin_session_without_ciphertext():
     assert event["type"] == "queued_message_updated"
     assert event["payload"]["queue_revision"] == 2
     assert "encrypted_content" not in event["payload"]
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.active-artifact
+async def test_implicit_corrections_use_the_same_artifact_boundary_in_queue_order():
+    from backend.core.api.app.services.cache_chat_mixin import ChatCacheMixin
+
+    def row(message_id, producer=None, batch=None):
+        return json.dumps({
+            "chat_id": "chat", "user_id": "owner", "message_id": message_id, "queue_mode": "steer",
+            "active_input_steer_task_id": producer, "active_input_steer_batch_id": batch,
+        })
+
+    client = SimpleNamespace(lrange=AsyncMock(return_value=[
+        row("other-artifact", "different"),
+        row("red-header", "recipe"),
+        row("unrelated-explicit-steer"),
+        row("lexend-deca", "recipe", "paused-step"),
+    ]))
+
+    class TestCache(ChatCacheMixin):
+        @property
+        async def client(self):
+            return client
+
+    cache = TestCache()
+    normal = await cache.peek_steer_queued_message("chat", "owner")
+    assert normal["member"]["message_id"] == "unrelated-explicit-steer"
+
+    target = ("recipe", "paused-step")
+    first = await cache.peek_steer_queued_message("chat", "owner", active_input_target=target)
+    assert first["member"]["message_id"] == "red-header"
+    second = await cache.peek_steer_queued_message(
+        "chat", "owner", active_input_target=target, exclude_ids={"red-header"},
+    )
+    assert second["member"]["message_id"] == "lexend-deca"
+    assert await cache.peek_steer_queued_message(
+        "chat", "owner", active_input_target=("recipe", "unrelated-step"), exclude_ids={"red-header"},
+    ) is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("lost_handoff", [True, False])
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.active-artifact
+async def test_implicit_correction_leaves_an_unclaimed_revision_for_gated_handoff(monkeypatch, lost_handoff):
+    from backend.apps.ai.processing import preprocessor
+
+    queued = _request("queued", "Make the header red")
+    queued.queue_mode = "steer"
+    queued.active_input_steer_task_id = "active-task"
+    member = queued.model_dump()
+    row = {"member": member, "raw": json.dumps(member)}
+    cache = _Cache(row)
+    cache.peek_steer_queued_message = AsyncMock(return_value=row)
+    cache.can_claim_queued_steer = AsyncMock(return_value=not lost_handoff)
+    cache.get_queued_message_member = AsyncMock(return_value={
+        "raw": json.dumps({**member, "queue_revision": 2}),
+    })
+    directus = SimpleNamespace(chat=SimpleNamespace(mark_queued_message_started=AsyncMock()))
+    monkeypatch.setattr(preprocessor, "handle_preprocessing", AsyncMock(return_value=_preflight()))
+    result = await consume_safe_queued_steer(
+        task_id="active-task", request=_request(), current_preprocessing=_preflight(),
+        base_instructions={}, skill_config_dict={"enable_auto_model_selection": False},
+        cache=cache, directus=directus, encryption=object(), secrets=object(),
+        discovered_apps={}, excluded_ids=set(), active_input_target=("active-task", None),
+    )
+    assert result is None
+    assert not cache.claimed
+    directus.chat.mark_queued_message_started.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.active-artifact
+def test_artifact_revision_validates_complete_sources_before_changing_the_working_version():
+    from backend.apps.ai.processing.active_artifact_steering import ArtifactFile, ArtifactSnapshot
+
+    style = ArtifactFile("style.css", "css", "header { color: blue; }")
+    recipe = ArtifactFile("recipe.html", "html", "<header>Recipe</header>")
+    current = ArtifactSnapshot("app", "producer", "application", 1, (style, recipe), {})
+    red_style = "header { color: red; }"
+    draft = json.dumps({"files": [{"path": "style.css", "content": red_style}]})
+    assert current.replacement_files(draft[:-1]) is None
+    assert current.replacement_files(json.dumps({"files": [{"path": "other.css", "content": red_style}]})) is None
+    assert current.replacement_files(draft) == (ArtifactFile("style.css", "css", red_style), recipe)
+    assert current.files == (style, recipe)

@@ -85,6 +85,7 @@ export interface TransferZipChatRequest {
 	transcripts: string[];
 	images: string[];
 	generatedAudio: string[];
+	generatedFiles?: string[];
 	staticFiles: string[];
 	audio: string[];
 	pdfs: Array<{ folderName: string; pages: string[] }>;

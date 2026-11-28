@@ -1,5 +1,5 @@
 /// <reference lib="es2022.object" />
-import {validFirstSessionTerminal} from "./protocol";
+import { DrainedSelectedColdReadCancellation, RetiredSelectedHistoryHost, validFirstSessionTerminal } from "./protocol";
 import {validProfileCacheInvalidation} from './profileCacheProtocol';
 import type {SessionStatus} from './protocol';
 import {createOwnedLocalReadState,beginOwnedLocalRead,completeOwnedLocalRead,ownedLocalReadReady,ownedLocalReadFallbackReady} from './ownedLocalReadProtocol';
@@ -46,6 +46,7 @@ export class BrowserCoreWorkerHost {
   }
   private nextId = 1;
   private closed = false;
+  private closeReason: "session_expired" | "cancelled" | "deadline" | "unavailable" = "session_expired";
   private existingKeyMode = false;
   private nativeRestoreEvent: MessageEvent<unknown> | null = null;
   private readonly profileCacheAbsences=new WeakMap<object,{handle:string;generation:number;owner:string;chatId:string;scope:BrowserCacheScope}>();
@@ -94,6 +95,28 @@ export class BrowserCoreWorkerHost {
   /** Negative only. A caller timeout/abort cannot attest original task return. */
   cancelFirstSession():void {
     for(const [id,pending] of this.pending)if(pending.firstSession)this.stopFirstSession(id,'cancelled');
+  }
+  /** The ordinary Worker owns the physical auth lock. If its actual unit
+   * transport is lost, reject this Page RPC without asserting task return.
+   * The Worker lock still serializes cookie IO until its real owner returns. */
+  loseFirstSessionTransport(): void {
+    if (this.workerOwnsFirstSessionLock) {
+      for (const [id, pending] of this.pending) {
+        if (!pending.firstSession) continue;
+        this.pending.delete(id);
+        clearTimeout(pending.timer);
+        pending.dispose();
+        pending.reject(Error('unavailable'));
+      }
+      this.firstSessionAdmission = null;
+      const closing = this.firstCloseWait;
+      if (closing) {
+        this.firstCloseWait = null;
+        void this.closeAndDrain('unavailable').then(closing.resolve, closing.reject);
+        return;
+      }
+    }
+    this.close('unavailable');
   }
   private stopFirstSession(id:number,reason:'cancelled'|'deadline'|'unavailable'):void {
     const operation=this.pending.get(id)?.firstSession;if(!operation||operation.stopReason)return;
@@ -199,7 +222,7 @@ export class BrowserCoreWorkerHost {
   }
 
   private readonly credentialEffects:BrowserCredentialEffectHandler|null;
-  constructor(worker: Worker,effects?:(issuer:object)=>BrowserCredentialEffectHandler,private readonly expectedPrincipal:string|null=null,private readonly nativeChatIssuer?:NativeRustChatIOFactory,private readonly recoveryBootstrap?:BrowserRecoveryBootstrap) {
+  constructor(worker: Worker,effects?:(issuer:object)=>BrowserCredentialEffectHandler,private readonly expectedPrincipal:string|null=null,private readonly nativeChatIssuer?:NativeRustChatIOFactory,private readonly recoveryBootstrap?:BrowserRecoveryBootstrap, private readonly workerOwnsFirstSessionLock = false) {
     if(expectedPrincipal!==null&&!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(expectedPrincipal)){worker.terminate();throw Error("invalid_request");}
     try{this.credentialEffects=effects?effects(this):null;}catch{worker.terminate();throw Error("session_expired");}
     this.worker = worker;
@@ -216,9 +239,16 @@ export class BrowserCoreWorkerHost {
 
   request(body: RequestBody, signal: AbortSignal, timeoutMs = MAX_REQUEST_MS, localEffects?: LocalCursorEffectHandler, cacheEffects?:BrowserCacheEffectHandler, selectedProgress?:BrowserSelectedCacheProgress): Promise<CoreResponse> {
     // Credentials are consumed even on local refusal; none enter Pending.
-    const reject=(reason:string)=>{clearPasswordRequest(body);clearExistingKeyRequest(body);return Promise.reject(new Error(reason));};
+    const reject=(reason:string | Error)=>{clearPasswordRequest(body);clearExistingKeyRequest(body);return Promise.reject(
+      typeof reason === "string" ? new Error(reason) : reason,
+    );};
     if(this.firstSessionDataOnlyDispatched)return reject("unavailable");
-    if (this.closed||this.firstCloseWait) return reject("session_expired");
+    if (this.closed || this.firstCloseWait) {
+      const selected = body?.operation === "read_online_cached_saved_chat" ||
+        body?.operation === "read_cold_retained_saved_chat" && !body.profileCache;
+      return reject(selected && this.closed && this.closeReason !== "session_expired"
+        ? new RetiredSelectedHistoryHost() : "session_expired");
+    }
     if(typeof body!=="object"||body===null||Object.values(Object.getOwnPropertyDescriptors(body)).some(descriptor=>!("value"in descriptor)))return reject("invalid_request");
     if (signal.aborted) return reject("cancelled");
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > (body.operation === "login_password" ? MAX_PASSWORD_REQUEST_MS : body.operation==='run_initial_sync'?MAX_INITIAL_SYNC_REQUEST_MS:MAX_REQUEST_MS)
@@ -360,6 +390,7 @@ export class BrowserCoreWorkerHost {
     for (const root of this.nativeChatRoots) revokeRustChatIORoot(root);
     this.nativeRestoreEvent = null;
     this.closed = true;
+    this.closeReason = reason;
     this.firstSessionAdmission=null;
     this.invalidateProfileCache();
     this.worker.removeEventListener("message", this.receive);
@@ -440,7 +471,12 @@ export class BrowserCoreWorkerHost {
     const operation=pending.cache;if(!operation?.stopReason||!operation.workerTerminal&&operation.dispatched!==false)return;
     void operation.stopDrain!.then(()=>{
       if(this.closed||this.pending.get(id)!==pending)return;
-      clearTimeout(pending.timer);pending.dispose();this.pending.delete(id);pending.reject(Error(operation.stopReason));
+      clearTimeout(pending.timer);pending.dispose();this.pending.delete(id);
+      const drainedColdStop = operation.stopReason === 'cancelled' && operation.workerTerminal &&
+        operation.operation === 'read_cold_retained_saved_chat' && !operation.profileCache;
+      pending.reject(drainedColdStop && !operation.stopFailure
+        ? new DrainedSelectedColdReadCancellation()
+        : Error(operation.stopFailure ?? operation.stopReason));
     },()=>this.close('unavailable'));
   }
   private cacheTerminal(message:unknown,event:MessageEvent<unknown>):void {
@@ -616,7 +652,7 @@ export class BrowserCoreWorkerHost {
     }catch{this.close("unavailable");}
   }
 
-  private readonly fail = (): void => {this.drafts.fail();this.close("unavailable");};
+  private readonly fail = (): void => {this.drafts.fail();this.loseFirstSessionTransport();};
   private readonly receive = (event: MessageEvent<unknown>): void => {
     if(this.drafts.ownsEvent(event))return;
     if (this.closed) return;
@@ -640,6 +676,9 @@ export class BrowserCoreWorkerHost {
           captured={raw:frame,snapshot:structuredClone(frame)};this.deferredNativeFinals.set(event,captured);}
         response=captured.snapshot;
       }catch{this.close('unavailable');return;}
+      const operation = pending.cache;
+      if (operation.operation === 'read_cold_retained_saved_chat' && !operation.profileCache &&
+          failedResponse(response) && response.error !== 'cancelled') operation.stopFailure = response.error;
     }
     const data=response;
     if(pending.firstSession){

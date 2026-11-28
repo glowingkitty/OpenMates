@@ -60,6 +60,27 @@ export function proofAudioLaunchArgs(
   ];
 }
 
+/** Supply recorded speech at the browser microphone boundary without changing the app document. */
+export async function useProofMicrophone(page: Page, voiceSample = TEST_VOICE_WAV): Promise<void> {
+  await page.evaluate((encoded) => {
+    const mediaDevices = navigator.mediaDevices;
+    const getUserMedia = mediaDevices.getUserMedia.bind(mediaDevices);
+    mediaDevices.getUserMedia = async (constraints) => {
+      if (!constraints?.audio || constraints.video) return getUserMedia(constraints);
+      const bytes = Uint8Array.from(atob(encoded), (value) => value.charCodeAt(0));
+      const context = new AudioContext();
+      const output = context.createMediaStreamDestination();
+      const speech = context.createBufferSource();
+      speech.buffer = await context.decodeAudioData(bytes.buffer);
+      speech.connect(output);
+      speech.connect(context.destination);
+      await context.resume();
+      speech.start(context.currentTime + 0.5);
+      return output.stream;
+    };
+  }, fs.readFileSync(voiceSample).toString('base64'));
+}
+
 /** Runs in every document before the page's own scripts (serialized by addInitScript). */
 function inPageRecorder(binding: string): void {
   const w = window as any;
@@ -228,19 +249,23 @@ function inPageRecorder(binding: string): void {
 interface Segment { file: string; start_epoch_ms: number; next: number; queued: Map<number, Buffer> }
 interface PageAudio { index: number; created_epoch_ms: number; segments: Map<string, Segment>; sources: number; errors: string[] }
 
-/** Records one browser context's audio; finish() closes the context and writes the muxed videos. */
+/** Records a context or one page. finish() closes the selected target and muxes its audio. */
 export class ProofAudioRecorder {
   private readonly pages = new Map<Page, PageAudio>();
 
-  private constructor(private readonly context: BrowserContext, readonly dir: string) {}
+  private constructor(private readonly target: BrowserContext | Page, readonly dir: string) {}
 
-  static async install(context: BrowserContext, dir: string): Promise<ProofAudioRecorder> {
+  static async install(target: BrowserContext | Page, dir: string): Promise<ProofAudioRecorder> {
     fs.mkdirSync(dir, { recursive: true });
-    const recorder = new ProofAudioRecorder(context, dir);
-    context.pages().forEach((page) => recorder.track(page));
-    context.on('page', (page) => recorder.track(page));
-    await context.exposeBinding(BINDING, ({ page }, chunk) => recorder.write(page, chunk));
-    await context.addInitScript(inPageRecorder, BINDING);
+    const recorder = new ProofAudioRecorder(target, dir);
+    if ('pages' in target) {
+      target.pages().forEach((page) => recorder.track(page));
+      target.on('page', (page) => recorder.track(page));
+    } else {
+      recorder.track(target);
+    }
+    await target.exposeBinding(BINDING, ({ page }, chunk) => recorder.write(page, chunk));
+    await target.addInitScript(inPageRecorder, BINDING);
     return recorder;
   }
 
@@ -270,7 +295,7 @@ export class ProofAudioRecorder {
   }
 
   /**
-   * Flushes every page, closes the context (videos become final), writes the manifest and muxes.
+   * Flushes the recorded pages, closes the target (videos become final), and muxes.
    * Returns the muxed videos; attaches them (or, when muxing is not possible here, the manifest).
    */
   async finish(testInfo?: TestInfo): Promise<string[]> {
@@ -283,7 +308,7 @@ export class ProofAudioRecorder {
       entry.sources = result?.sources ?? 0;
       entry.errors = result?.errors ?? ['recorder not installed in this document'];
     }
-    await this.context.close();
+    await this.target.close();
     const pages = [];
     for (const [page, entry] of this.pages) {
       const video = page.video();
@@ -318,8 +343,8 @@ export class ProofAudioRecorder {
   }
 }
 
-export async function installProofAudio(context: BrowserContext, dir: string): Promise<ProofAudioRecorder> {
-  return ProofAudioRecorder.install(context, dir);
+export async function installProofAudio(target: BrowserContext | Page, dir: string): Promise<ProofAudioRecorder> {
+  return ProofAudioRecorder.install(target, dir);
 }
 
 /**

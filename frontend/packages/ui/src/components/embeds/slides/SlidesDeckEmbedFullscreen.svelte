@@ -27,6 +27,9 @@
   import { text } from '@repo/ui';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import type SlidesEditorComponent from './SlidesEditor.svelte';
+  import LiveHeaderStatus from '../shared/LiveHeaderStatus.svelte';
+  import { isLiveCollaborationEnabled } from '../../../config/liveCollaborationFlag';
+  import type { LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { saveEditedDeck, type EditedDeck } from './slidesDeckVersion';
   import SlidesTemplatePicker from './SlidesTemplatePicker.svelte';
   import { applyTemplateToMarkup } from './slidesTemplateApply';
@@ -194,6 +197,10 @@
   /** Loaded on first Edit so builds without the core never ship the editor. */
   let Editor = $state<typeof SlidesEditorComponent | null>(null);
   let editing = $state(false);
+  // Live collaboration (flag live_collaboration): the core saves every change, so there is no Save step.
+  const liveMode = isLiveCollaborationEnabled();
+  let liveStatus = $state<LiveStatus>('saving');
+  let livePeers = $state<LivePeer[]>([]);
   let editorRef = $state<{ done: () => Promise<void> } | undefined>(undefined);
   let editorFinishing = $state(false);
 
@@ -337,6 +344,7 @@
   {#snippet content()}
     <div class="deck-viewer" data-testid="slides-deck-fullscreen" data-slide-index={index}>
       {#if editing && Editor}
+        {#if liveMode}<LiveHeaderStatus status={liveStatus} peers={livePeers} />{/if}
         <Editor
           bind:this={editorRef}
           bind:finishing={editorFinishing}
@@ -345,6 +353,11 @@
           initialSlideId={current?.id}
           onSave={saveEdit}
           onExit={stopEditing}
+          liveItemId={liveMode ? embedId : undefined}
+          liveProjectId={liveMode ? projectId : undefined}
+          liveTeamId={liveMode ? (teamId ?? undefined) : undefined}
+          bind:liveStatus
+          bind:livePeers
         />
       {:else if deck && current}
         <div class="stage" bind:this={stageEl} style:max-width={stageMaxWidth}>

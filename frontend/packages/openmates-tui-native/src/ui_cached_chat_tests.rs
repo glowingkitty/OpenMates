@@ -69,6 +69,7 @@ fn pending_and_admitted_effects_stay_owned_by_original_chat_during_cached_other_
         chat_id: "a".into(),
         user_id: "own-message".into(),
         assistant: None,
+        task_id: None,
         expects_reply: true,
     });
     ui.delivery = Delivery::Admitted {
@@ -323,6 +324,7 @@ fn offline_result_keeps_already_painted_canonical_and_active_turn_without_fake_a
         chat_id: "a".into(),
         user_id: "u".into(),
         assistant: None,
+        task_id: None,
         expects_reply: true,
     });
     ui.delivery = Delivery::Submitted {
@@ -382,6 +384,7 @@ fn cached_other_chat_never_displays_original_turn_content_question_or_stream_con
         chat_id: "a".into(),
         user_id: "a-user".into(),
         assistant: Some("a-assistant".into()),
+        task_id: None,
         expects_reply: true,
     });
     ui.streaming = true;

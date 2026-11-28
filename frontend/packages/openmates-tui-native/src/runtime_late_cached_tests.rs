@@ -77,7 +77,7 @@ fn unrelated_status_and_items_do_not_complete_pending_selection() {
     let selection = pending();
     for view in [
         View::Status("Synthetic status"),
-        View::Items(Workspace::Chats, vec![]),
+        View::Items(Workspace::Chats, vec![], None),
     ] {
         assert!(!selection.is_completed_by(&Reply {
             epoch: selection.epoch,

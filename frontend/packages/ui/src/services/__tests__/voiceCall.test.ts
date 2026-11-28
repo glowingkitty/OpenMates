@@ -23,6 +23,7 @@ vi.mock('../workspaceQueryCache', () => ({getWorkspaceCacheIdentity:()=>cleanup.
 vi.mock('../workspaceCacheLifecycle', () => ({getWorkspaceCacheEpoch:()=>cleanup.epoch}));
 const heard = vi.hoisted(() => ({ value: null as {assistant_message_id:string;completed_sequences:number[];active_sequence:number|null;active_offset_ms:number}|null }));
 const canonical = vi.hoisted(() => ({ send: vi.fn(async (_turn: unknown) => true), cancel: vi.fn(async () => {}), tasks: new Map<string,{taskId:string;userMessageId:string}>(),
+  secondaries: vi.fn(() => [] as Array<{taskId:string;userMessageId:string}>),
   admit: vi.fn(async (_chatId: string) => true) }));
 vi.mock('../voiceCallTurns', () => ({ sendVoiceCallTurn: canonical.send, reportVoiceCallTurnDelivery: vi.fn(), admitVoiceCallChat: canonical.admit }));
 const privacy = vi.hoisted(() => ({ ensure: vi.fn(async (_signal:AbortSignal, _gesture:()=>void) => true) }));
@@ -51,7 +52,7 @@ vi.mock('../voiceCallCamera', () => ({ VoiceCallCamera: class {
 vi.mock('../voiceCallVisuals', () => ({ persistCallSourceFrame: visual.source }));
 vi.mock('../voiceCallMedia', () => ({ createVoiceCallMediaResolver: () => ({resolve:visual.resolve,destroy:visual.destroy}) }));
 vi.mock('../chatSyncService', () => ({chatSyncService:{
-  activeAITasks: canonical.tasks, sendCancelAiTask: canonical.cancel,
+  getIndependentReplyViews: canonical.secondaries, activeAITasks: canonical.tasks, sendCancelAiTask: canonical.cancel,
   addEventListener: (_name:string,callback:(event:Event)=>void) => visual.listeners.add(callback),
   removeEventListener: (_name:string,callback:(event:Event)=>void) => visual.listeners.delete(callback),
 }}));
@@ -70,6 +71,7 @@ const gates = vi.hoisted(() => ({ instances: [] as Array<{
 vi.mock('../voiceCallAudioGate', () => ({ VoiceCallAudioGate: class {
   start = vi.fn();
   push = vi.fn();
+  setVerifiedEndpoint = vi.fn();
   setLive = vi.fn();
   setMuted = vi.fn();
   stop = vi.fn();
@@ -127,7 +129,7 @@ vi.mock('../../utils/cookies', () => ({ getWebSocketToken: () => 'test-token' })
 vi.mock('../../utils/sessionId', () => ({ getSessionId: () => 'test-session' }));
 vi.mock('../assistantSpeechController', async () => { const { writable } = await import('svelte/store'); return { assistantSpeechController: {
   get playbackBoundary() { return heard.value; },
-  stop: vi.fn(async () => {}), setCallOwner: vi.fn(), primeForAutoplay: vi.fn(),
+  setCallerSpeaking: vi.fn(), interruptCallReply: vi.fn(), stop: vi.fn(async () => {}), setCallOwner: vi.fn(), primeForAutoplay: vi.fn(), registerCallSource: vi.fn(),
   activity: writable({ chatId:null as string|null, messageId:null as string|null,text:'',speaking:false,language:'en' }),
 } }; });
 import { assistantSpeechController } from '../assistantSpeechController';
@@ -1176,6 +1178,25 @@ describe('integrated voice call typed turns', () => {
     expect(get(controller).status).toBe('live'); controller.hangup();
   });
 
+  // contract-test: supporting surface=gui.web assertions=video-call.audio.intentional-interruption
+  it('forwards only the bound call turn’s streaming reply to the speech player', async () => {
+    const { controller, harness } = liveController();
+    harness.bindCanonicalChat();
+    await vi.waitFor(() => expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('call-turn');
+    const register = vi.mocked(assistantSpeechController.registerCallSource);
+    register.mockClear();
+    const detail = { chat_id: 'chat-1', user_message_id: 'call-turn', message_id: 'first-reply',
+      full_content_so_far: 'The capital of France is Paris.' };
+    for (const listener of visual.listeners) {
+      listener(new CustomEvent('aiMessageChunk', { detail: { ...detail, chat_id: 'other-chat' } }));
+      listener(new CustomEvent('aiMessageChunk', { detail: { ...detail, user_message_id: 'unrelated-turn' } }));
+      listener(new CustomEvent('aiMessageChunk', { detail }));
+    }
+    expect(register).toHaveBeenCalledExactlyOnceWith('chat-1', 'first-reply', detail.full_content_so_far);
+    controller.hangup();
+  });
+
   // contract-test: direct surface=gui.web assertions=video-call.video.source-frame-provenance,video-call.audio.complete-turn-admission
   it('waits for the selected encrypted source before admitting its ordinary user turn', async () => {
     const {controller,harness}=liveController(); let release!: (ref:unknown)=>void;
@@ -1224,6 +1245,30 @@ describe('integrated voice call typed turns', () => {
     const stopped=vi.mocked(assistantSpeechController.stop).mock.calls.length;
     harness.handleMessage({type:'audio.interrupted',call_id:'call-1',assistant_message_id:null,assistant_task_id:'task-early'});
     expect(canonical.cancel).toHaveBeenCalledTimes(1);expect(vi.mocked(assistantSpeechController.stop).mock.calls.length).toBe(stopped);
+    controller.hangup();
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.complete-turn-admission
+  it('silences an interrupted call reply before its first chunk while its work keeps running', async () => {
+    const { controller, harness } = liveController();
+    harness.bindCanonicalChat();
+    await vi.waitFor(() => expect(visual.listeners.size).toBeGreaterThan(0));
+    harness.callTurnIds.add('user-project');
+    harness.callTurnIds.add('user-one');
+    canonical.tasks.set('chat-1', { taskId: 'project', userMessageId: 'user-project' });
+    canonical.secondaries.mockReturnValue([{ taskId: 'task-one', userMessageId: 'user-one' }]);
+    const emit = (name: string, detail: Record<string, unknown>) => {
+      for (const listener of visual.listeners) listener(new CustomEvent(name, { detail }));
+    };
+    emit('aiTaskInitiated', { chat_id: 'chat-1', user_message_id: 'user-one', ai_task_id: 'task-one' });
+    harness.handleMessage({ type: 'audio.interrupted', call_id: 'call-1', scope: 'playback',
+      assistant_task_id: 'task-one', assistant_message_id: null });
+    expect(assistantSpeechController.interruptCallReply).toHaveBeenCalledWith('chat-1', 'task-one');
+    emit('aiMessageChunk', { chat_id: 'chat-1', user_message_id: 'user-one', task_id: 'task-one',
+      message_id: 'original-answer', full_content_so_far: 'Work continues' });
+    expect(assistantSpeechController.interruptCallReply).toHaveBeenCalledWith('chat-1', 'original-answer');
+    expect(canonical.cancel).not.toHaveBeenCalled();
+    canonical.secondaries.mockReturnValue([]);
     controller.hangup();
   });
 

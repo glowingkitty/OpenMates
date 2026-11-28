@@ -979,6 +979,12 @@
         "description": {
           "text": "Read a Figma design and get structure, styles and a code handoff."
         }
+      },
+      "author": {
+        "text": "Create design",
+        "description": {
+          "text": "Create an editable flyer, post, or mockup."
+        }
       }
     },
     "electronics": {
@@ -1290,6 +1296,18 @@
           "3": {
             "text": "Show me **unread emails** from today"
           }
+        }
+      },
+      "read_thread": {
+        "text": "Read Email Thread",
+        "description": {
+          "text": "Read a conversation from your connected Gmail account."
+        }
+      },
+      "create_draft": {
+        "text": "Create Email Draft",
+        "description": {
+          "text": "Save an email draft in your connected Gmail account. Nothing is sent."
         }
       }
     },
@@ -1745,12 +1763,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Create Task",
-          "description": {
-            "text": "Create tasks with titles, descriptions, and assignees."
-          }
-        },
         "search": {
           "text": "Search Tasks",
           "description": {
@@ -2466,6 +2478,12 @@
       "text": "Design",
       "description": {
         "text": "Find icons and visual assets for product design."
+      }
+    },
+    "sheets": {
+      "text": "Sheets",
+      "description": {
+        "text": "Create and format spreadsheets."
       }
     },
     "docs": {
@@ -3838,6 +3856,9 @@
       "example_chat": {
         "text": "Example chat"
       },
+      "sub_chat": {
+        "text": "Sub-chat"
+      },
       "shared_chat": {
         "text": "Shared chat"
       },
@@ -4997,6 +5018,9 @@
     "loadMore": {
       "button": {
         "text": "Show more"
+      },
+      "account_total": {
+        "text": "{count} chats in your account"
       }
     },
     "latest_news": {
@@ -7795,6 +7819,63 @@
     },
     "header_saving": {
       "text": "Saving…"
+    },
+    "task_due": {
+      "text": "Due {date}"
+    },
+    "task_not_created": {
+      "text": "This task could not be created"
+    },
+    "task_restore_failed": {
+      "text": "The task could not be restored. Please try again."
+    },
+    "live_status_saved": {
+      "text": "Saved"
+    },
+    "live_status_saving": {
+      "text": "Saving…"
+    },
+    "live_status_offline": {
+      "text": "Waiting for connection"
+    },
+    "live_status_read_only": {
+      "text": "View only"
+    },
+    "live_status_access_revoked": {
+      "text": "Access removed"
+    },
+    "live_peers_label": {
+      "text": "People here now"
+    },
+    "live_editing_here": {
+      "text": "{name} is editing here"
+    },
+    "live_suggestion_accept": {
+      "text": "Accept suggestion"
+    },
+    "live_suggestion_dismiss": {
+      "text": "Dismiss suggestion"
+    },
+    "live_sheet_label": {
+      "text": "Shared spreadsheet"
+    },
+    "live_sheet_insert_row": {
+      "text": "Insert row below"
+    },
+    "live_sheet_delete_row": {
+      "text": "Delete row"
+    },
+    "live_sheet_insert_col": {
+      "text": "Insert column to the right"
+    },
+    "live_sheet_delete_col": {
+      "text": "Delete column"
+    },
+    "live_private_copy_ready": {
+      "text": "Access was removed. You can download a private copy of your unsent edits."
+    },
+    "live_private_copy_download": {
+      "text": "Download private copy"
     }
   },
   "embeds": {
@@ -9050,6 +9131,11 @@
         "text": "Collapse {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Task"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid Diagram"
@@ -10038,6 +10124,160 @@
         "text": "Partly verified — could not confirm: {fields}"
       }
     },
+    "sheets": {
+      "sheet": {
+        "download_csv": {
+          "text": "Download CSV"
+        },
+        "downloaded": {
+          "text": "Sheet downloaded"
+        },
+        "download_failed": {
+          "text": "Could not download the sheet"
+        },
+        "formatting_failed": {
+          "text": "Could not apply the sheet formatting."
+        },
+        "invalid_formatting": {
+          "text": "This sheet has invalid formatting. Ask the assistant to recreate it."
+        },
+        "formatting_toolbar": {
+          "text": "Sheet formatting"
+        },
+        "selection": {
+          "text": "Selected cells"
+        },
+        "strikethrough": {
+          "text": "Strikethrough"
+        },
+        "wrap": {
+          "text": "Wrap text"
+        },
+        "cell_format": {
+          "text": "Cell format"
+        },
+        "font_family": {
+          "text": "Font family"
+        },
+        "font_size": {
+          "text": "Font size"
+        },
+        "text_color": {
+          "text": "Text color"
+        },
+        "fill_color": {
+          "text": "Fill color"
+        },
+        "horizontal_align": {
+          "text": "Horizontal alignment"
+        },
+        "vertical_align": {
+          "text": "Vertical alignment"
+        },
+        "default": {
+          "text": "Default"
+        },
+        "left": {
+          "text": "Left"
+        },
+        "center": {
+          "text": "Center"
+        },
+        "right": {
+          "text": "Right"
+        },
+        "top": {
+          "text": "Top"
+        },
+        "middle": {
+          "text": "Middle"
+        },
+        "bottom": {
+          "text": "Bottom"
+        },
+        "number_format": {
+          "text": "Number format"
+        },
+        "number": {
+          "text": "Number"
+        },
+        "percent": {
+          "text": "Percentage"
+        },
+        "currency": {
+          "text": "Currency"
+        },
+        "date": {
+          "text": "Date"
+        },
+        "decimals": {
+          "text": "Decimal places"
+        },
+        "currency_code": {
+          "text": "Currency code"
+        },
+        "date_pattern": {
+          "text": "Date format"
+        },
+        "border_side": {
+          "text": "Border side"
+        },
+        "border_style": {
+          "text": "Border style"
+        },
+        "thin": {
+          "text": "Thin"
+        },
+        "medium": {
+          "text": "Medium"
+        },
+        "thick": {
+          "text": "Thick"
+        },
+        "dashed": {
+          "text": "Dashed"
+        },
+        "dotted": {
+          "text": "Dotted"
+        },
+        "double": {
+          "text": "Double"
+        },
+        "border_color": {
+          "text": "Border color"
+        },
+        "reset_colors": {
+          "text": "Clear colors"
+        },
+        "layout": {
+          "text": "Sheet layout"
+        },
+        "column_width": {
+          "text": "Column width (px)"
+        },
+        "row_height": {
+          "text": "Row height (px)"
+        },
+        "frozen_rows": {
+          "text": "Frozen rows"
+        },
+        "frozen_columns": {
+          "text": "Frozen columns"
+        },
+        "merge": {
+          "text": "Merge cells"
+        },
+        "select_merge_end": {
+          "text": "Select the last cell to merge."
+        },
+        "undo_formatting": {
+          "text": "Undo formatting"
+        },
+        "unmerge": {
+          "text": "Unmerge cells"
+        }
+      }
+    },
     "authoring": {
       "draft": {
         "text": "Draft"
@@ -10368,6 +10608,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Reading the graphic…"
+        },
+        "progress_checking": {
+          "text": "Checking the design…"
+        },
+        "progress_adjusting": {
+          "text": "Adjusting the design for embroidery…"
+        },
+        "progress_stitching": {
+          "text": "Creating stitches and preview…"
+        },
+        "progress_saving": {
+          "text": "Saving the machine files…"
+        },
         "threads": {
           "text": "Threads"
         },
@@ -10900,6 +11155,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Download design"
+        },
+        "current_page": {
+          "text": "Current page"
+        },
+        "all_pages": {
+          "text": "All pages"
+        },
+        "image_unavailable": {
+          "text": "An image is unavailable on this device. Open the page and wait for its images to load, then try again."
+        },
+        "failed": {
+          "text": "Could not download the design. Try again."
+        }
+      }
     }
   },
   "embeds_input": {
@@ -13490,7 +13764,7 @@
         "text": "- Everything looks fine on paper, but **I'm not happy** and don't know what I actually want.\n- I feel **stuck** since my breakup. Can you help me get back on track?\n- I just **retired** and my days feel empty. Where do I start?"
       },
       "systemprompt": {
-        "text": "You are a warm, practical and curious life companion. You help the user move toward a happier life by understanding their situation, naming what weighs on them and what they are good at, and agreeing on a few small next steps. You are not a therapist or doctor: never diagnose, never label the user (no \"depression\", \"trauma\", \"toxic\", \"codependent\"), never prescribe treatment, medication, legal or financial decisions.\n\nStyle, in every reply:\n- Short: a few sentences or a few bullets, readable in under a minute. No headings for a normal reply.\n- Ask at most ONE question per reply, and end with it. Never ask two questions in one sentence or list several. The question is either one plain-text question or one interactive choice, never both, and a Memory offer ends with one question, not a second rephrased one.\n- Warm and non-judgmental: reflect the user's own words, acknowledge feelings in one sentence, then move on. No lecturing, moralizing, \"you should\", generic self-help lists or pep talks, and no explanations of psychology or research (\"studies show\", \"in behavioral psychology\"). Never tell the user how their habits affect other people.\n- The user decides. Offer options, never pressure. Any question can be skipped; if the user says \"skip\", \"just give me something\" or similar, stop asking and go to next steps with clearly stated assumptions.\n- Never state a fact about the user they did not tell you or that is not in a loaded Memory. Do not guess family, money, health, age or job details, and do not widen what they named into new interests (a bandmate is not \"music\"); reuse their own words.\n\nHow the conversation goes (adapt; the user may jump ahead):\n1. Understand. First use what is already known: loaded Memories and earlier messages; never ask for something already answered. Then ask one open question per turn about what matters most right now, for example daily life and energy, work or study, people and relationships, health and rest, money worries, and what used to make them happy. Usually three to five questions are enough; follow what the user cares about, not a checklist.\n2. Reflect. Summarise in a few bullets: the two or three biggest current issues and the two or three clearest strengths or resources, using the user's own words. Ask if that is right. Do not propose steps before the user confirmed or corrected the summary (unless they asked to skip).\n3. Next steps. Propose one to three small, concrete steps for the next one or two weeks, each specific enough to do (what and when, for example \"Saturday morning: one climbing session\"), tied to an issue and built on a strength. Ask which ones the user wants, and accept changes or \"none\".\n4. Todos. Only for steps the user agreed to: if tasks-create is available, create one Task per step assigned to the user, with a short concrete title and a one-line description, linked to this chat. If Tasks are not available, offer reminders instead and set them with reminder-set-reminder only after a yes. Create each step's Task once: if a Task for it already exists in this chat, refer to it instead of creating it again. Say a todo exists only after the tool succeeded. You may offer one gentle check-in reminder (for example in a week); set it only on a yes.\n5. Remember (consent). Only when the save_memory tool is available to you: after the summary or the steps, ask once whether to remember this for next time, and list in one short bullet list exactly what would be saved (background points the user gave, issues, strengths, agreed steps). Say it is stored encrypted and can be edited or deleted any time in Settings, Memories. On a clear yes, call save_memory in that same reply (never send the user to Settings or a link to save it themselves; if save_memory is not available, say plainly that it could not be saved here). Call save_memory only after a clear yes, with title \"Life compass\", when_to_use \"Life direction, wellbeing check-ins, personal goals and next steps\", and only what the user said and agreed to save, in neutral words. Save nothing on no, skip or no answer, and do not ask again in this chat. Never save risk signals, diagnoses or details about other people beyond what the user asked to keep. If a \"Life compass\" Memory is loaded, update it instead of creating a second one. Say it was saved only after save_memory returned applied; never claim a save you did not make. Without the save_memory tool, do not offer to remember anything.\n\nLater chats (follow-up): when a Life compass Memory is loaded or the user returns to earlier steps, start by briefly recalling the agreed steps and asking how they went (one question). If no Life compass Memory is loaded but the user refers to earlier steps, say briefly that you have no saved notes from that conversation and ask what they tried; never guess the earlier steps. Once the user names steps, ask about any of them they have not mentioned yet. Celebrate progress concretely, treat missed steps as information, never as failure, and adjust, replace or drop steps together. Offer to update the Memory (with consent) when something important changed. If the user rejected loading their Memory, do not use or mention its content.\n\nSafety comes first and overrides everything above: if the user mentions thoughts of suicide or of not wanting to live, self-harm, a plan or means to hurt themselves, abuse or danger from someone, or signs of an eating disorder, or seems in deep hopelessness, stop the goal work in that reply. Respond with warmth and without alarm or lecturing, ask gently whether they are safe right now, encourage them to reach someone they trust or a crisis line now, and give the crisis line for their country only if the user named the country in this chat or a loaded Memory (never infer it from the timezone, the language or a city name); otherwise give the emergency number 112 (Europe) or the local emergency number, point to findahelpline.com and offer, as a statement, to share the right crisis line once they tell you their country. The safety question stays the only question in that reply. Do not propose steps, create todos, set reminders or offer to save anything in that reply, and never save these signals. Stay with them; return to planning only if the user clearly wants to and seems safe, and then continue at the step you were on (reflect issues and strengths before proposing any steps). Platform safety guidance in this conversation always takes precedence over this focus."
+        "text": "You are a warm, practical and curious life companion. You help the user move toward a happier life by understanding their situation, naming what weighs on them and what they are good at, and agreeing on a few small next steps. You are not a therapist or doctor: never diagnose, never label the user (no \"depression\", \"trauma\", \"toxic\", \"codependent\"), never prescribe treatment, medication, legal or financial decisions.\n\nStyle, in every reply:\n- Short: a few sentences or a few bullets, readable in under a minute. No headings for a normal reply.\n- Ask at most ONE question per reply, and end with it. Never ask two questions in one sentence or list several. The question is either one plain-text question or one interactive choice, never both, and a Memory offer ends with one question, not a second rephrased one.\n- Warm and non-judgmental: reflect the user's own words, acknowledge feelings in one sentence, then move on. No lecturing, moralizing, \"you should\", generic self-help lists or pep talks, and no explanations of psychology or research (\"studies show\", \"in behavioral psychology\"). Never tell the user how their habits affect other people.\n- The user decides. Offer options, never pressure. Any question can be skipped; if the user says \"skip\", \"just give me something\" or similar, stop asking and go to next steps with clearly stated assumptions.\n- Never state a fact about the user they did not tell you or that is not in a loaded Memory. Do not guess family, money, health, age or job details, and do not widen what they named into new interests (a bandmate is not \"music\"); reuse their own words.\n\nHow the conversation goes (adapt; the user may jump ahead):\n1. Understand. First use what is already known: loaded Memories and earlier messages; never ask for something already answered. Then ask one open question per turn about what matters most right now, for example daily life and energy, work or study, people and relationships, health and rest, money worries, and what used to make them happy. Usually three to five questions are enough; follow what the user cares about, not a checklist.\n2. Reflect. Summarise in a few bullets: the two or three biggest current issues and the two or three clearest strengths or resources, using the user's own words. Ask if that is right. Do not propose steps before the user confirmed or corrected the summary (unless they asked to skip).\n3. Next steps. Propose one to three small, concrete steps for the next one or two weeks, each specific enough to do (what and when, for example \"Saturday morning: one climbing session\"), tied to an issue and built on a strength. Ask which ones the user wants, and accept changes or \"none\".\n4. Todos. Only for steps the user agreed to: if Tasks are available, write one openmates_task block per step assigned to the user, with a short concrete title and a one-line description. If Tasks are not available, offer reminders instead and set them with reminder-set-reminder only after a yes. Create each step's Task once: if a task card for it already exists in this chat, refer to it instead of writing a new block. Never say a todo exists without its task block. You may offer one gentle check-in reminder (for example in a week); set it only on a yes.\n5. Remember (consent). Only when the save_memory tool is available to you: after the summary or the steps, ask once whether to remember this for next time, and list in one short bullet list exactly what would be saved (background points the user gave, issues, strengths, agreed steps). Say it is stored encrypted and can be edited or deleted any time in Settings, Memories. On a clear yes, call save_memory in that same reply (never send the user to Settings or a link to save it themselves; if save_memory is not available, say plainly that it could not be saved here). Call save_memory only after a clear yes, with title \"Life compass\", when_to_use \"Life direction, wellbeing check-ins, personal goals and next steps\", and only what the user said and agreed to save, in neutral words. Save nothing on no, skip or no answer, and do not ask again in this chat. Never save risk signals, diagnoses or details about other people beyond what the user asked to keep. If a \"Life compass\" Memory is loaded, update it instead of creating a second one. Say it was saved only after save_memory returned applied; never claim a save you did not make. Without the save_memory tool, do not offer to remember anything.\n\nLater chats (follow-up): when a Life compass Memory is loaded or the user returns to earlier steps, start by briefly recalling the agreed steps and asking how they went (one question). If no Life compass Memory is loaded but the user refers to earlier steps, say briefly that you have no saved notes from that conversation and ask what they tried; never guess the earlier steps. Once the user names steps, ask about any of them they have not mentioned yet. Celebrate progress concretely, treat missed steps as information, never as failure, and adjust, replace or drop steps together. Offer to update the Memory (with consent) when something important changed. If the user rejected loading their Memory, do not use or mention its content.\n\nSafety comes first and overrides everything above: if the user mentions thoughts of suicide or of not wanting to live, self-harm, a plan or means to hurt themselves, abuse or danger from someone, or signs of an eating disorder, or seems in deep hopelessness, stop the goal work in that reply. Respond with warmth and without alarm or lecturing, ask gently whether they are safe right now, encourage them to reach someone they trust or a crisis line now, and give the crisis line for their country only if the user named the country in this chat or a loaded Memory (never infer it from the timezone, the language or a city name); otherwise give the emergency number 112 (Europe) or the local emergency number, point to findahelpline.com and offer, as a statement, to share the right crisis line once they tell you their country. The safety question stays the only question in that reply. Do not propose steps, create todos, set reminders or offer to save anything in that reply, and never save these signals. Stay with them; return to planning only if the user clearly wants to and seems safe, and then continue at the step you were on (reflect issues and strengths before proposing any steps). Platform safety guidance in this conversation always takes precedence over this focus."
       }
     },
     "health_prepare_doctor_report": {
@@ -15010,7 +15284,7 @@
               "text": "TypeSafe Jev (US)"
             },
             "description": {
-              "text": "OpenMates primarily sends bounded decision requests directly to TypeSafe Jev on US-hosted services. Jev receives bounded recent chat context and candidate metadata to make internal routing, model-tier, skill, focus-mode, language, and safety decisions. It also checks external text for prompt injection. For optional search relevance ranking, it receives the stated relevance criteria, search parameters, and minimized candidate data from supported public searches. For optional shopping visual matching, only when reference images are provided, TypeSafe receives up to three authorized user-uploaded or assistant-generated reference images and bounded public product photos. These images are resized to a maximum dimension of 336 pixels and converted to JPEG with metadata removed; visible image content can still contain personal data. These internal decision requests omit OpenMates user identifiers. Jev returns typed decisions rather than generated chat text. When you call ai.decide, TypeSafe receives the state, instructions, criteria, and any inline PNG/JPEG image content you supply; include only what the decision needs. Raw API inputs and image bytes are not protected by typed-message placeholder substitution. OpenMates creates no saved chat, embed, or stored upload for these inline decisions, but transient OpenMates processing does not guarantee zero retention by TypeSafe. OpenRouter is used only as a fallback for text-only requests when direct credentials are unavailable, or direct authentication, transport, or transient service failures occur; it receives the same minimized decision inputs and forwards them to TypeSafe Jev. Image requests use direct TypeSafe only and never fall back to OpenRouter."
+              "text": "OpenMates primarily sends bounded decision requests directly to TypeSafe Jev on US-hosted services. Jev receives bounded recent chat context and candidate metadata to make internal routing, model-tier, skill, focus-mode, language, and safety decisions. It also checks external text for prompt injection. For text-only composer dictation, TypeSafe checks short transcript parts for needed corrections. It receives the raw transcript, which may include personal data, and the detected language when available, without the audio or OpenMates user identifiers. The dictation check uses TypeSafe directly. For optional search relevance ranking, it receives the stated relevance criteria, search parameters, and minimized candidate data from supported public searches. For optional shopping visual matching, only when reference images are provided, TypeSafe receives up to three authorized user-uploaded or assistant-generated reference images and bounded public product photos. These images are resized to a maximum dimension of 336 pixels and converted to JPEG with metadata removed; visible image content can still contain personal data. These internal decision requests omit OpenMates user identifiers. Jev returns typed decisions rather than generated chat text. When you call ai.decide, TypeSafe receives the state, instructions, criteria, and any inline PNG/JPEG image content you supply; include only what the decision needs. Raw API inputs and image bytes are not protected by typed-message placeholder substitution. OpenMates creates no saved chat, embed, or stored upload for these inline decisions, but transient OpenMates processing does not guarantee zero retention by TypeSafe. OpenRouter is used only as a fallback for text-only requests when direct credentials are unavailable, or direct authentication, transport, or transient service failures occur; it receives the same minimized decision inputs and forwards them to TypeSafe Jev. Image requests use direct TypeSafe only and never fall back to OpenRouter."
             },
             "data_handling": {
               "text": "TypeSafe states that it does not train or fine-tune models on submitted input. Its [processing terms]({data_processing_url}) describe retention according to processing purposes and applicable law, without a fixed maximum retention period. [Zero data retention]({legal_url}) is offered separately to enterprise customers; OpenMates does not guarantee zero data retention on the standard TypeSafe route. A no-training commitment does not imply immediate deletion."
@@ -17730,7 +18004,7 @@
         "text": "{count} waiting for confirmation"
       },
       "assumptions_open": {
-        "text": "{count} open assumptions"
+        "text": "Open assumptions: {count}"
       },
       "assumptions_clear": {
         "text": "All assumptions confirmed"
@@ -17775,8 +18049,11 @@
       "works_on": {
         "text": "Works on: {title}"
       },
-      "back": {
-        "text": "Back to main chat"
+      "created_as": {
+        "text": "Created as a sub-chat of {name}"
+      },
+      "parent_fallback": {
+        "text": "the main chat"
       }
     },
     "plan": {
@@ -20554,6 +20831,40 @@
         }
       },
       "connected_accounts": {
+        "app_page": {
+          "title": {
+            "text": "Connected accounts"
+          },
+          "none": {
+            "text": "No account connected"
+          },
+          "add_link": {
+            "text": "Add account in Connected accounts"
+          },
+          "manage_link": {
+            "text": "Manage connected accounts"
+          },
+          "status_connected": {
+            "text": "Connected"
+          },
+          "status_reconnect": {
+            "text": "Needs reconnect"
+          },
+          "email_not_saved": {
+            "text": "Email not saved"
+          }
+        },
+        "oauth": {
+          "connected_success": {
+            "text": "Account connected."
+          },
+          "error_provider": {
+            "text": "Sign-in was cancelled or refused by the provider. Nothing was connected."
+          },
+          "error_finalize": {
+            "text": "The sign-in finished, but the account could not be saved. Please try again."
+          }
+        },
         "title": {
           "text": "Connected accounts"
         },
@@ -20659,6 +20970,157 @@
           },
           "capability_variables": {
             "text": "Variables"
+          }
+        },
+        "card": {
+          "status_connected": {
+            "text": "Connected"
+          },
+          "status_not_connected": {
+            "text": "Not connected"
+          },
+          "account_label": {
+            "text": "Account"
+          },
+          "connected_as": {
+            "text": "Connected as {email}"
+          },
+          "google_account": {
+            "text": "Google account"
+          },
+          "legacy_hint": {
+            "text": "Reconnect to show which account is connected."
+          },
+          "permissions_label": {
+            "text": "Permissions"
+          },
+          "manage_permissions": {
+            "text": "Manage permissions"
+          },
+          "reconnect": {
+            "text": "Reconnect"
+          },
+          "disconnect": {
+            "text": "Disconnect"
+          },
+          "disconnect_confirm": {
+            "text": "Disconnect {provider}? OpenMates will no longer have access to this account."
+          },
+          "disconnect_confirm_button": {
+            "text": "Yes, disconnect"
+          },
+          "cancel": {
+            "text": "Cancel"
+          },
+          "connect": {
+            "text": "Connect"
+          },
+          "disconnected_success": {
+            "text": "Account disconnected."
+          },
+          "disconnect_error": {
+            "text": "Could not disconnect this account. Please try again."
+          },
+          "provider_gmail": {
+            "text": "Gmail"
+          },
+          "mail_title": {
+            "text": "Gmail connection"
+          },
+          "mail_description": {
+            "text": "Connect your Gmail account so your mates can search and read your mail and prepare drafts."
+          },
+          "mail_capability_read": {
+            "text": "Read"
+          },
+          "mail_capability_read_description": {
+            "text": "Search your mail and read threads."
+          },
+          "capability_draft": {
+            "text": "Draft"
+          },
+          "mail_capability_draft_description": {
+            "text": "Create drafts. Drafts stay in Gmail until you send them yourself."
+          },
+          "mail_send_unavailable": {
+            "text": "Sending emails is not available: your mates can read mail and create drafts, but never send."
+          }
+        },
+        "central": {
+          "add_account": {
+            "text": "Add account"
+          },
+          "add_account_choose": {
+            "text": "Choose a provider"
+          },
+          "provider_google": {
+            "text": "Google"
+          },
+          "provider_figma": {
+            "text": "Figma"
+          },
+          "google_access_hint": {
+            "text": "Choose what this Google account may be used for."
+          },
+          "access_calendar": {
+            "text": "Calendar: read and manage events"
+          },
+          "access_gmail": {
+            "text": "Gmail: read emails and create drafts"
+          },
+          "continue_to_provider": {
+            "text": "Continue with {provider}"
+          },
+          "add_error": {
+            "text": "Could not start the sign-in. Please try again."
+          },
+          "last_used": {
+            "text": "Last used {time}"
+          },
+          "never_used": {
+            "text": "Never used"
+          },
+          "needs_reconnect": {
+            "text": "Needs reconnect"
+          },
+          "email_not_saved": {
+            "text": "Email not saved · connected {date}"
+          },
+          "empty": {
+            "text": "No accounts connected yet. Use \"Add account\" to connect one."
+          },
+          "back_to_list": {
+            "text": "Back to all accounts"
+          },
+          "permissions_for_app": {
+            "text": "{app} permissions"
+          },
+          "cap_read_mail": {
+            "text": "Read emails"
+          },
+          "cap_draft": {
+            "text": "Create drafts"
+          },
+          "last_used_label": {
+            "text": "Last used"
+          },
+          "connected_on_label": {
+            "text": "Connected on"
+          },
+          "permission_save_error": {
+            "text": "Could not save the permission change."
+          },
+          "disconnected": {
+            "text": "Account disconnected."
+          },
+          "reconnect_error": {
+            "text": "Could not start reconnecting. Please try again."
+          },
+          "add_gmail_access": {
+            "text": "Add Gmail access"
+          },
+          "add_calendar_access": {
+            "text": "Add Calendar access"
           }
         }
       },
@@ -21896,16 +22358,16 @@
           "text": "New Messages"
         },
         "push_include_chat_title": {
-          "text": "Show summary and chat title"
+          "text": "Show the chat title"
         },
         "push_include_chat_title_desc": {
-          "text": "Shows a one-line summary of the reply, for example \"✅ Garden beds planned\", and the chat title in app notifications. Both are encrypted for your device and shown only there; Apple and Google cannot read them. Turn off to keep notifications generic."
+          "text": "Uses the chat title as the title of app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show \"OpenMates\" instead. On by default."
         },
         "push_include_preview": {
-          "text": "Show the start of the answer"
+          "text": "Show the answer text"
         },
         "push_include_preview_desc": {
-          "text": "Adds the first lines of the reply to app notifications. They are encrypted for your device and shown only there; Apple and Google cannot read them. Off by default."
+          "text": "Shows as much of the reply as fits in app notifications. It is encrypted for your device and shown only there; Apple and Google cannot read it. Turn off to show only \"New message received\". On by default."
         },
         "missed_warning": {
           "text": "Email and push notifications are both off. You may miss important replies and updates. Turn one of them on to stay informed."
@@ -26967,7 +27429,7 @@
       "text": "Test for free"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-Mail domain not allowed."
@@ -27814,6 +28276,57 @@
       "subtitle_no_project": {
         "text": "{category} · Specification"
       },
+      "outcome": {
+        "text": "Outcome"
+      },
+      "scope": {
+        "text": "Scope & boundaries"
+      },
+      "included": {
+        "text": "Included"
+      },
+      "excluded": {
+        "text": "Outside this scope"
+      },
+      "other_requirements": {
+        "text": "Other requirements"
+      },
+      "requirements": {
+        "text": "Requirements"
+      },
+      "user_flows": {
+        "text": "User flows"
+      },
+      "edge_cases": {
+        "text": "Edge cases"
+      },
+      "models": {
+        "text": "Relevant models"
+      },
+      "applies_to": {
+        "text": "Applies to:"
+      },
+      "example_and_id": {
+        "text": "Example & requirement ID"
+      },
+      "proof_passed": {
+        "text": "Proven in check"
+      },
+      "proof_stale": {
+        "text": "Proof needs refresh"
+      },
+      "proof_open": {
+        "text": "To be proven in"
+      },
+      "proof_none_title": {
+        "text": "a linked Check"
+      },
+      "proof_none_explanation": {
+        "text": "No Check has proven this requirement yet."
+      },
+      "flow_steps": {
+        "text": "Steps"
+      },
       "assumptions": {
         "text": "Open assumptions"
       },
@@ -28595,7 +29108,7 @@
       "text": "Usage-based pricing"
     },
     "pricing_explanation": {
-      "text": "Microphone transcription is billed per started minute of streamed audio, plus normal AI chat and generated speech usage. Listening includes silence until automatic idle pauses audio input. Muting pauses microphone input charges; replies, skills and speech can still cost credits. There is no flat fee for staying connected."
+      "text": "Microphone transcription costs 0.25 credits per second of audio sent for transcription. Normal AI chat, skills, and generated speech are billed separately. Staying connected has no flat fee."
     },
     "return_to_chat": {
       "text": "Return to chat"
@@ -28677,9 +29190,6 @@
     },
     "close_chat": {
       "text": "Close chat"
-    },
-    "start_hint": {
-      "text": "Voice calls use Mistral transcription, ElevenLabs v4 Turbo voice, normal OpenMates AI routing and usage-based billing."
     },
     "retry": {
       "text": "Try again"

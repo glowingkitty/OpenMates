@@ -1,3 +1,5 @@
+//! Plan and apply a self-host update, including Compose refresh and readiness checks.
+//! Implements the server-management update safety sequence.
 use super::*;
 use std::time::Duration;
 const CONSUMERS: &[&str] = &["api", "task-worker", "task-scheduler"];
@@ -10,7 +12,12 @@ struct Plan {
     reuse: bool,
 }
 fn plan(c: &Configuration, flags: &Flags) -> Result<Plan> {
-    let selected = services(c, flags)?;
+    let selected = if c.server_role == "core" && c.install_mode == "image" {
+        let has_worker = compose_has_routing_worker(image_compose("core")?.as_bytes())?;
+        services_for_compose(c, flags, has_worker)?
+    } else {
+        services(c, flags)?
+    };
     let filtered = flags.contains_key("services")
         || flags.contains_key("exclude")
         || c.default_services.as_ref().is_some_and(|v| !v.is_empty());
@@ -677,7 +684,7 @@ pub(super) fn execute(
             "--image-tag and --channel only apply to image-mode installs. Source-mode installs update from Git.",
         ));
     }
-    let plan = plan(c, flags)?;
+    let mut update_plan = plan(c, flags)?;
     let content = env(&c.install_path)?;
     let target = if c.install_mode == "image" {
         image_tag(
@@ -689,7 +696,7 @@ pub(super) fn execute(
     } else {
         "source".into()
     };
-    let mut out = json!({"command":"update","status":"planned","path":c.install_path,"role":c.server_role,"mode":c.install_mode,"targetImageTag":if c.install_mode=="image"{json!(target)}else{Value::Null},"dryRun":boolean(flags,"dry-run"),"selectedServices":if plan.filtered{json!(plan.started)}else{json!("all")},"preparedServices":plan.prepared,"reuseCompletedSetup":plan.reuse,"coreSetupGate":{"required":plan.setup,"stopServices":if plan.setup{CONSUMERS}else{&[]},"setupService":"cms-setup","failurePolicy":"keep-email-consumers-stopped"},"steps":["backup","prepare","stop-email-consumers","cms-setup","up","health-check","runtime-verification","completion-email"]});
+    let mut out = json!({"command":"update","status":"planned","path":c.install_path,"role":c.server_role,"mode":c.install_mode,"targetImageTag":if c.install_mode=="image"{json!(target)}else{Value::Null},"dryRun":boolean(flags,"dry-run"),"selectedServices":if update_plan.filtered{json!(update_plan.started)}else{json!("all")},"preparedServices":update_plan.prepared,"reuseCompletedSetup":update_plan.reuse,"coreSetupGate":{"required":update_plan.setup,"stopServices":if update_plan.setup{CONSUMERS}else{&[]},"setupService":"cms-setup","failurePolicy":"keep-email-consumers-stopped"},"steps":["backup","prepare","stop-email-consumers","cms-setup","up","health-check","runtime-verification","completion-email"]});
     let preflight = configuration::preflight(c)?;
     out["missingRequiredEnvKeys"] = preflight["missingRequiredEnvKeys"].clone();
     out["secretPreflight"] = preflight["secretPreflight"].clone();
@@ -712,7 +719,7 @@ pub(super) fn execute(
     } else {
         target
     };
-    if plan.reuse {
+    if update_plan.reuse {
         verify_reuse(c, &target)?;
     }
     step(c, &target, "backup")?;
@@ -727,7 +734,7 @@ pub(super) fn execute(
                 step(c, &target, "pull")?;
                 docker(
                     c,
-                    std::iter::once("pull".into()).chain(plan.prepared.clone()),
+                    std::iter::once("pull".into()).chain(update_plan.prepared.clone()),
                 )?;
             }
         } else {
@@ -749,22 +756,23 @@ pub(super) fn execute(
                     &c.install_path,
                     None,
                 )?;
+                update_plan = plan(c, flags)?;
             }
             step(c, &target, "build")?;
             docker(
                 c,
-                std::iter::once("build".into()).chain(plan.prepared.clone()),
+                std::iter::once("build".into()).chain(update_plan.prepared.clone()),
             )?;
         }
         {
             let _critical = operation::critical()?;
-            stage_setup(c, &target, &plan)?;
+            stage_setup(c, &target, &update_plan)?;
             step(c, &target, "up")?;
             let mut up = vec!["up".into(), "-d".into()];
-            if plan.reuse {
+            if update_plan.reuse {
                 up.push("--no-deps".into());
             }
-            up.extend(plan.started.clone());
+            up.extend(update_plan.started.clone());
             docker(c, up)?;
         }
         operation::check()?;
@@ -826,6 +834,26 @@ pub(super) fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_update_prepares_and_starts_the_routing_worker_missing_from_an_old_install() {
+        let mut c = super::super::tests::c();
+        let root = tempfile::tempdir().unwrap();
+        c.install_path = root.path().to_owned();
+        let compose_path = c.install_path.join(marker("core", "image"));
+        std::fs::create_dir_all(compose_path.parent().unwrap()).unwrap();
+        std::fs::write(compose_path, "services:\n  api: {}\n").unwrap();
+        let flags = Flags::new();
+        assert!(
+            !services(&c, &flags)
+                .unwrap()
+                .iter()
+                .any(|s| s == ROUTING_WORKER)
+        );
+        let planned = plan(&c, &flags).unwrap();
+        assert!(planned.prepared.iter().any(|s| s == ROUTING_WORKER));
+        assert!(planned.started.iter().any(|s| s == ROUTING_WORKER));
+    }
     #[test]
     fn selfhost_contract_update_plan_keeps_setup_gate_shape_and_top_level_reuse_flag() {
         use std::os::unix::fs::PermissionsExt;

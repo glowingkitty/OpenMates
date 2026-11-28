@@ -58,7 +58,9 @@ impl CredentialPersistence for NativeCredentials {
     }
     fn store(&self, snapshot: CredentialSnapshot, generation: u64) -> BoxFuture<'_, Result<CredentialSave>> {
         Box::pin(async move {
-            Ok(match self.store.save_unless_superseded_at(generation, snapshot.session, self.passphrase.get()).await? {
+            let saved = self.store.save_unless_superseded_at(generation, snapshot.session, self.passphrase.get()).await;
+            crate::native_chat_open_trace::phase("credentials.store", saved.as_ref().map(|_| ()).map_err(|error| *error));
+            Ok(match saved? {
                 SessionSave::Saved(_) => CredentialSave::Saved,
                 SessionSave::Superseded(stored) => CredentialSave::Superseded(Box::new(stored)),
             })

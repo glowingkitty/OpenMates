@@ -31,14 +31,14 @@ fn live_model_reply_is_owner_fenced_but_presentation_decides_selected_identity()
             security: 3,
             view: 9
         },
-        view: View::Items(Workspace::Chats, vec![])
+        view: View::Items(Workspace::Chats, vec![], None)
     }));
     assert!(current.accepts(&Reply {
         epoch: Stamp {
             security: 4,
             view: 8
         },
-        view: View::Items(Workspace::Chats, vec![])
+        view: View::Items(Workspace::Chats, vec![], None)
     }));
 }
 
@@ -176,14 +176,14 @@ async fn live_peer_observed_config_with_cache(
             let request = read_http(&mut http).await;
             observed.fetch_add(1, Ordering::SeqCst);
             if request == "POST /v1/auth/session HTTP/1.1" {
+                if let Some((started, release)) = held_auth.take() {
+                    started.notify_one();
+                    release.notified().await;
+                }
                 if reject_validation {
                     respond_http_status(&mut http, 401, json!({"detail":"expired"})).await;
                     drop(http);
                     break;
-                }
-                if let Some((started, release)) = held_auth.take() {
-                    started.notify_one();
-                    release.notified().await;
                 }
                 respond_http(&mut http,json!({"success":true,"ws_token":"synthetic-token","user":{"id":"fixture-owner","username":"FixtureOwner"}})).await;
                 drop(http);
@@ -255,11 +255,14 @@ async fn live_peer_observed_config_with_cache(
                     sync.next().await.unwrap().unwrap(),
                     Frame::Close(_)
                 ));
+            } else if request == "GET /v1/chats/startup-opened HTTP/1.1" {
+                respond_http(&mut http, json!({"chat_ids":[CHAT]})).await;
             } else if request.starts_with(&format!("GET /v1/chats/{CHAT}/messages/window?")) {
                 assert!(warm_snapshot.is_none(), "warm Actor::dispatch must settle cache without any history-window request");
                 assert_eq!(request, format!("GET /v1/chats/{CHAT}/messages/window?direction=latest&limit=100&respect_compression_boundary=false HTTP/1.1"));
                 let snapshot = owned_cached_snapshot(6);
-                respond_http(&mut http, json!({"messages":snapshot["history"][CHAT].clone(),"has_more_before":false})).await;
+                respond_http(&mut http, json!({"messages":snapshot["history"][CHAT].clone(),
+                    "has_more_before":false,"has_more_after":false,"messages_v":1,"server_message_count":6})).await;
             } else if request == format!("GET /v1/chats/{CHAT}/pending-embed-notices HTTP/1.1") {
                 // Opening a chat reconciles unwritten embed-updated events; this fixture has none.
                 respond_http(&mut http, json!({"chat_id":CHAT,"notices":[]})).await;
@@ -331,7 +334,7 @@ async fn actual_live_read_persists_encrypted_snapshot_and_exact_credentials_befo
     assert!(!durable.to_string().contains("Durable external title"));
     assert!(!durable.to_string().contains("transient must not persist"));
     assert_eq!(
-        items.into_inner().unwrap()[0].title,
+        items.into_inner().unwrap().0[0].title,
         "Durable external title",
         "the late fence admits the durable list"
     );
@@ -682,7 +685,7 @@ async fn cached_frame_paints_while_real_background_auth_is_still_pending() {
         tokio::select! {biased;_=started.notified()=>{},result=&mut background=>panic!("background must remain pending: {result:?}")}
         let before=requests.load(Ordering::SeqCst);
         let current=Stamp {security:0,view:1};
-        let reply=lane.publish(CHAT,current,CancellationToken::new()).unwrap().unwrap();
+        let reply=lane.publish(CHAT,current,CancellationToken::new()).await.unwrap().unwrap();
         let mut ui=Ui::new();ui.set_authenticated(true);
         apply_owned_cached_reply(&mut ui,current,reply);
         assert!(ui.is_cached_chat_refreshing());
@@ -703,11 +706,11 @@ async fn native_store_revocation_rejects_already_queued_cached_plaintext() {
         let (_directory,mut actor,server)=prepared_actor().await;
         let receiver=stage_owned_cached_actor(&mut actor).await;
         let lane=receiver.borrow().clone().unwrap();
-        let reply=lane.publish(CHAT,Stamp::default(),CancellationToken::new()).unwrap().unwrap();
+        let reply=lane.publish(CHAT,Stamp::default(),CancellationToken::new()).await.unwrap().unwrap();
         actor.store.revoke().await.unwrap();
         let View::CachedChat(publication)=reply.view else {panic!("cached view")};
         assert!(matches!(publication.into_window(),Err(Error::Cancelled)));
-        assert!(matches!(lane.publish(CHAT,Stamp::default(),CancellationToken::new()),Err(Error::Cancelled)));
+        assert!(matches!(lane.publish(CHAT,Stamp::default(),CancellationToken::new()).await,Err(Error::Cancelled)));
         actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
@@ -719,11 +722,11 @@ async fn queued_cached_reply_requires_current_view_security_and_request_lifetime
         let receiver=stage_owned_cached_actor(&mut actor).await;
         let lane=receiver.borrow().clone().unwrap();
         let current=Stamp{security:0,view:4};
-        let old=lane.publish(CHAT,Stamp{security:0,view:3},CancellationToken::new()).unwrap().unwrap();
+        let old=lane.publish(CHAT,Stamp{security:0,view:3},CancellationToken::new()).await.unwrap().unwrap();
         assert!(!current.accepts(&old));
-        assert!(matches!(lane.publish(CHAT,Stamp{security:1,view:4},CancellationToken::new()),Err(Error::Cancelled)));
+        assert!(matches!(lane.publish(CHAT,Stamp{security:1,view:4},CancellationToken::new()).await,Err(Error::Cancelled)));
         let cancel=CancellationToken::new();
-        let reply=lane.publish(CHAT,current,cancel.clone()).unwrap().unwrap();cancel.cancel();
+        let reply=lane.publish(CHAT,current,cancel.clone()).await.unwrap().unwrap();cancel.cancel();
         let mut ui=Ui::new();ui.set_authenticated(true);apply_owned_cached_reply(&mut ui,current,reply);
         assert!(!ui.is_cached_chat_refreshing());
         actor.core.set_chat_monitor(None);
@@ -737,7 +740,7 @@ async fn retired_reader_cannot_demote_a_later_canonical_view_or_cancel_actor_wor
         let receiver=stage_owned_cached_actor(&mut actor).await;
         let old=receiver.borrow().clone().unwrap();
         let current=Stamp{security:0,view:1};
-        let queued=old.publish(CHAT,current,CancellationToken::new()).unwrap().unwrap();
+        let queued=old.publish(CHAT,current,CancellationToken::new()).await.unwrap().unwrap();
         actor.stage_cached_views(current);
         assert!(!actor.live_cancel.is_cancelled());
         assert!(actor.core.chat_monitor().unwrap().is_valid());
@@ -756,12 +759,12 @@ async fn fresh_owner_reset_invalidates_independent_cached_lane_without_waiting_f
         let (_directory,mut actor,server)=prepared_actor().await;
         let receiver=stage_owned_cached_actor(&mut actor).await;
         let lane=receiver.borrow().clone().unwrap();
-        let queued=lane.publish(CHAT,Stamp::default(),CancellationToken::new()).unwrap().unwrap();
+        let queued=lane.publish(CHAT,Stamp::default(),CancellationToken::new()).await.unwrap().unwrap();
         let mut replacement=actor.core.client_mut().clone_session().unwrap();replacement.master_key=Zeroizing::new([8;32]);replacement.api_url="https://different.example.invalid".into();
         actor.core.client_mut().reset("https://different.example.invalid",Some(replacement)).unwrap();
         let View::CachedChat(publication)=queued.view else {panic!("cached view")};
         assert!(matches!(publication.into_window(),Err(Error::Cancelled)));
-        assert!(!lane.views.is_valid());
+        assert!(!lane.views.is_owner_current());
         actor.core.set_chat_monitor(None);
         tokio::time::timeout(Duration::from_secs(4),server).await.unwrap().unwrap();
     }).await.unwrap();
@@ -808,7 +811,6 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
         UiCommand::SwitchTeam(Some("33333333-3333-4333-8333-333333333333".into())),
         UiCommand::Refresh(Workspace::Chats), UiCommand::Open(Workspace::Chats, CHAT.into()),
         UiCommand::Mutate(Mutation::Delete { workspace: Workspace::Chats, id: CHAT.into() }),
-        UiCommand::Send { chat_id: Some(CHAT.into()), text: "synthetic text".into() },
         UiCommand::Share { chat_id: CHAT.into(), expires_in: 3600,
             password: Zeroizing::new(String::new()), include_sensitive: false },
         UiCommand::Download { workspace: Workspace::Chats, id: CHAT.into(),
@@ -816,6 +818,7 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
         UiCommand::Quit,
     ];
     let mut work = vec![Work::Boot, Work::PairPoll, Work::Monitor, Work::Live, Work::Inspirations];
+    work.push(Work::Send { request: RequestId(1), chat_id: Some(CHAT.into()), text: "synthetic text".into(), turn_cancel: CancellationToken::new() });
     work.extend(commands.into_iter().map(Work::Command));
     for work in work {
         let cancel = CancellationToken::new();
@@ -834,6 +837,81 @@ async fn native_process_selection_is_inert_and_has_bounded_inline_future_for_eve
         assert!(generation.is_current());
         assert!(receive.try_recv().is_err());
     }
+}
+
+#[tokio::test]
+async fn fresh_vault_relaunch_reports_original_failure_and_offers_retry() {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        let (directory, mut owner) = super::tests::fixture().await;
+        let (api, release, peer) = live_peer().await;
+        let mut saved = owner.core.client().clone_session().unwrap();
+        saved.api_url = api.clone();
+        owner.core.client_mut().reset(&api, Some(saved)).unwrap();
+        let (send, _receive) = mpsc::channel(16);
+        owner.monitor(&send, Stamp::default()).await.unwrap();
+        owner.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
+        owner.persist().await.unwrap();
+        owner.core.set_chat_monitor(None);
+        drop(release);
+        peer.await.unwrap();
+        drop(owner);
+
+        let (send, requests) = mpsc::channel(4);
+        let (_control, controls) = mpsc::unbounded_channel();
+        let (_consent, decisions) = mpsc::unbounded_channel();
+        let (replies, mut receive) = mpsc::channel(16);
+        let stop = CancellationToken::new();
+        let worker = tokio::spawn(actor(
+            Args {
+                demo: false,
+                api_url: Some(api),
+                state_dir: Some(directory.path().join("profile")),
+                encrypted_vault: true,
+                profile: None,
+                trusted_account: false,
+            },
+            requests,
+            controls,
+            decisions,
+            replies,
+            watch::channel(None).0,
+            stop.clone(),
+            BackgroundReadPreempt::default(),
+        ));
+        let epoch = Stamp::default();
+        send.send(Request { epoch, work: Work::Boot, cancel: CancellationToken::new() }).await.unwrap();
+        assert!(matches!(receive.recv().await.unwrap().view, View::Unlock));
+        assert!(matches!(receive.recv().await.unwrap().view, View::Done));
+
+        for (index, (passphrase, expected)) in [
+            ("incorrect passphrase", Error::Crypto),
+            ("fixture passphrase", Error::Offline),
+        ].into_iter().enumerate() {
+            let epoch = Stamp { security: index as u64 + 1, view: index as u64 + 1 };
+            let work = Work::Command(UiCommand::Unlock { passphrase: Zeroizing::new(passphrase.into()) });
+            send.send(Request { epoch, work, cancel: CancellationToken::new() }).await.unwrap();
+            let mut offered_retry = false;
+            let mut observed_error = false;
+            loop {
+                let reply = receive.recv().await.unwrap();
+                assert!(reply.epoch == epoch);
+                match reply.view {
+                    View::Unlock => offered_retry = true,
+                    View::Failed(error) => {
+                        assert!(offered_retry, "the error must paint on a fresh unlock form");
+                        assert_eq!(error, expected);
+                        observed_error = true;
+                    }
+                    View::AdmittedAuth(_) | View::Window(_) => panic!("failed unlock granted private content"),
+                    View::Done => break,
+                    _ => {}
+                }
+            }
+            assert!(observed_error);
+        }
+        stop.cancel();
+        worker.await.unwrap();
+    }).await.unwrap();
 }
 
 #[tokio::test]
@@ -898,7 +976,7 @@ async fn real_canonical_save_queue_checks_sdk_request_owner_and_native_generatio
             let (replies,_queued)=mpsc::channel(1);
             let publication=core_host::TerminalSink::new(&replies,Stamp::default(),generation,&request).owned_by(&actor.core,Some(CHAT)).window_for(record);
             let mut ui=Ui::new();ui.set_authenticated(true);
-            let cached=actor.cached_views.borrow().clone().unwrap().views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
+            let cached=actor.cached_views.borrow().clone().unwrap().views.clone().read(CHAT.to_owned(),CancellationToken::new()).await.unwrap().unwrap().into_window().unwrap();
             ui.set_cached_chat(cached.chat);
             match change {
                 "request"=>request.cancel(),
@@ -918,6 +996,96 @@ async fn real_canonical_save_queue_checks_sdk_request_owner_and_native_generatio
     }).await.unwrap();
 }
 
+// contract-test: supporting surface=cli assertions=cli.runtime.native-rust,chats.messages.client-encrypted
+#[tokio::test]
+async fn delayed_boot_inventory_keeps_followup_bound_to_the_selected_chat() {
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    tokio::time::timeout(Duration::from_secs(15), async {
+        let (_directory, mut actor, server) = prepared_actor().await;
+        let mut ui = Ui::new();
+        ui.set_authenticated(true);
+        let send_enter = |ui: &mut Ui| ui.key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+        ui.paste("/chats");
+        assert!(matches!(
+            send_enter(&mut ui).as_slice(),
+            [UiCommand::Refresh(Workspace::Chats)]
+        ));
+
+        let selected = Item {
+            id: CHAT.into(),
+            title: "Same title".into(),
+            ..Item::default()
+        };
+        let other = Item {
+            id: "22222222-2222-4222-8222-222222222222".into(),
+            title: selected.title.clone(),
+            ..Item::default()
+        };
+        ui.set_items(Workspace::Chats, vec![selected.clone(), other.clone()]);
+
+        let current = Stamp { security: 4, view: 9 };
+        let boot_reply = Reply {
+            epoch: Stamp { security: 4, view: 8 },
+            view: View::Items(Workspace::Chats, vec![other, selected], None),
+        };
+        assert!(current.accepts(&boot_reply));
+        let View::Items(workspace, items, _) = boot_reply.view else {
+            unreachable!();
+        };
+        ui.set_items(workspace, items.clone());
+        let effects = send_enter(&mut ui);
+        let [UiCommand::Open(Workspace::Chats, id)] = effects.as_slice() else {
+            panic!("the selected row must open exactly one saved chat");
+        };
+        assert_eq!(id, CHAT);
+
+        // Resolve that ID against the loopback peer's canonical encrypted
+        // history. No cached chat is installed in the actor or the terminal.
+        let request = CancellationToken::new();
+        actor.core.client_mut().set_operation_cancel(request.clone());
+        let monitor = actor.core.set_chat_monitor(None);
+        let read = actor
+            .core
+            .client_mut()
+            .read_chat_view(monitor.as_ref(), id, request)
+            .await
+            .unwrap();
+        actor.core.set_chat_monitor(monitor);
+        let ChatViewRead::Canonical(candidate) = read else {
+            panic!("the selected chat must resolve to canonical history");
+        };
+        actor.core.client_mut().validate_chat_view(&candidate).unwrap();
+        let receipt = ChatRefreshDurableReceipt {
+            ciphertext_sha256: candidate.ciphertext_sha256().unwrap(),
+            credential_revision: candidate.credential_revision(),
+        };
+        actor.persist().await.unwrap();
+        let chat = actor
+            .core
+            .client_mut()
+            .commit_chat_view(candidate, receipt)
+            .unwrap()
+            .into_chat()
+            .unwrap();
+        assert_eq!(&chat.id, id);
+        ui.set_chat(chat);
+
+        // A further inventory reorder can still arrive while drafting.
+        ui.paste("Synthetic follow-up");
+        ui.set_items(Workspace::Chats, items.into_iter().rev().collect());
+        assert_eq!(ui.selected_chat_id(), Some(CHAT));
+        assert!(matches!(
+            send_enter(&mut ui).last(),
+            Some(UiCommand::Send { chat_id: Some(id), text })
+                if id == CHAT && text == "Synthetic follow-up"
+        ));
+
+        actor.core.set_chat_monitor(None);
+        server.await.unwrap();
+    }).await.unwrap();
+}
+
 #[tokio::test]
 async fn boot_admits_real_username_and_cached_home_before_pending_first_global_sync() {
     tokio::time::timeout(Duration::from_secs(20),async {
@@ -930,6 +1098,9 @@ async fn boot_admits_real_username_and_cached_home_before_pending_first_global_s
         let (_directory,mut actor)=super::tests::fixture().await;
         let mut session=actor.core.client_mut().clone_session().unwrap();session.api_url=api.clone();
         actor.core.client_mut().reset(&api,Some(session)).unwrap();
+        actor.core.client_mut().set_identity(openmates_sdk::ClientIdentity::Cli);
+        actor.core.client_mut().set_interactive(true);
+        actor.core.set_eager_cached_content(false);
         actor.core.client_mut().restore_ciphertext_snapshot(&owned_cached_snapshot(6)).unwrap();
         actor.persist().await.unwrap();
         let receiver=actor.cached_views.subscribe();
@@ -944,19 +1115,23 @@ async fn boot_admits_real_username_and_cached_home_before_pending_first_global_s
                     auth_count+=1;let (username,_)=publication.into_auth().unwrap();
                     assert_eq!(username,"FixtureOwner","first greeting uses the actual first server principal");
                 },
-                View::Items(Workspace::Chats,items)=>{cached_home|=items.iter().any(|item|item.id==CHAT);},
+                View::Items(Workspace::Chats,items,_)=>{cached_home|=items.iter().any(|item|item.id==CHAT);},
                 View::Done=>panic!("global completion cannot precede held global discovery"),
                 _=>{},
             }
         }
         assert_eq!(auth_count,1);assert!(cached_home);
         let lane=receiver.borrow().clone().unwrap();
-        let view=lane.views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
+        let view=lane.views.clone().read(CHAT.to_owned(),CancellationToken::new()).await.unwrap().unwrap().into_window().unwrap();
         assert!(view.cached && view.refreshing && !view.history_complete);
         assert_eq!(view.chat.messages.len(),6);
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),2,"one first admission + the held first global discovery auth");
         release.notify_one();
         let (mut actor,result)=boot.await.unwrap();result.unwrap();
+        assert_eq!(actor.core.client().partially_restored_chats(), Some(vec![]), "plain recovery inventory never materializes cached files");
+        let lane=actor.cached_views.borrow().clone().unwrap();
+        let retained=lane.views.clone().read(CHAT.to_owned(),CancellationToken::new()).await.unwrap().unwrap().into_window().unwrap();
+        assert_eq!(retained.chat.messages.len(),6,"metadata-only fallback must retain omitted durable transcript sections");
         while let Ok(reply)=receive.try_recv(){assert!(!matches!(reply.view,View::AdmittedAuth(_)),"duplicate authorized/validate block must not reissue a greeting");}
         assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst),3,"first monitor + recovery + unchanged final canonical list; no middle validation or second monitor check");
         actor.core.set_chat_monitor(None);drop(release_hint);server.await.unwrap();
@@ -980,7 +1155,7 @@ async fn queued_initial_auth_is_negative_fenced_without_extending_cache_reader_l
             }
             if matches!(change,"closed-reader-only"|"none") {
                 assert_eq!(publication.into_auth().unwrap().0,"FixtureOwner");
-                if change=="closed-reader-only"{assert!(owner.views.publish(CHAT,CancellationToken::new()).is_err(),"negative observer cannot reopen cache model lifetime");}
+                if change=="closed-reader-only"{assert!(owner.views.clone().read(CHAT.to_owned(),CancellationToken::new()).await.is_err(),"negative observer cannot reopen cache model lifetime");}
             } else {assert!(publication.into_auth().is_err(),"{change}");}
             actor.core.set_chat_monitor(None);server.await.unwrap();
         }
@@ -1017,7 +1192,7 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
         let mut auth=0;let mut final_items=None;
         while let Ok(reply)=receive.try_recv(){match reply.view {
             View::AdmittedAuth(publication)=>{auth+=1;assert_eq!(publication.into_auth().unwrap().0,"FixtureOwner");},
-            View::Items(Workspace::Chats,items)=>final_items=Some(items),_=>{},
+            View::Items(Workspace::Chats,items,_)=>final_items=Some(items),_=>{},
         }}
         assert_eq!(auth,1);
         let items=final_items.unwrap();assert_eq!(items.len(),1);assert_eq!(items[0].id,CHAT);
@@ -1027,7 +1202,7 @@ async fn boot_consumes_one_current_empty_inventory_for_the_same_final_list_witho
         let persisted=actor.store.read_cache(durable.hashed_email.clone(),cache_key(&durable),durable.master_key.clone()).await.unwrap().unwrap();
         assert_eq!(persisted,actor.core.client_mut().ciphertext_snapshot(),"original final credential/cache save actually completed");
         let lane=actor.cached_views.borrow().clone().unwrap();
-        let cached=lane.views.publish(CHAT,CancellationToken::new()).unwrap().unwrap().into_window().unwrap();
+        let cached=lane.views.clone().read(CHAT.to_owned(),CancellationToken::new()).await.unwrap().unwrap().into_window().unwrap();
         assert!(cached.cached && !cached.history_complete);
         actor.core.set_chat_monitor(None);drop(release_hint);server.await.unwrap();
     }).await.unwrap();
@@ -1121,6 +1296,13 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
         while receive.try_recv().is_ok() {}
         let before=requests.load(std::sync::atomic::Ordering::SeqCst);
         assert!(actor.recovery_start_needed);
+        let cancelled_boot = CancellationToken::new();
+        actor.core.client_mut().set_operation_cancel(cancelled_boot.clone());
+        cancelled_boot.cancel();
+        assert!(matches!(
+            actor.core.client().chat_owner_lease(actor.core.chat_monitor(), Some(CHAT)),
+            Err(Error::Cancelled)
+        ));
         let epoch=Stamp{security:3,view:7};let cancel=CancellationToken::new();
         actor.dispatch(Request{epoch,work:Work::Command(UiCommand::Open(Workspace::Chats,CHAT.into())),cancel:cancel.clone()},&send).await.unwrap();
         assert!(!actor.recovery_start_needed && !actor.recovery_blocked,"Open must run its existing recovery gate before settling");
@@ -1149,11 +1331,431 @@ async fn actor_dispatch_open_runs_recovery_then_saves_and_queues_warm_settlement
 
 // contract-test: supporting surface=cli assertions=cli.runtime.native-rust
 #[test]
-fn chat_open_refresh_and_send_preempt_the_boot_sync_but_background_work_does_not() {
-    assert!(preempts_boot_sync(&UiCommand::Open(Workspace::Chats, CHAT.into())));
-    assert!(preempts_boot_sync(&UiCommand::Refresh(Workspace::Chats)));
-    assert!(preempts_boot_sync(&UiCommand::Send { chat_id: None, text: "synthetic".into() }));
-    assert!(!preempts_boot_sync(&UiCommand::Refresh(Workspace::Apps)));
-    assert!(!preempts_boot_sync(&UiCommand::Open(Workspace::Projects, CHAT.into())));
-    assert!(!preempts_boot_sync(&UiCommand::Logout));
+fn chat_open_refresh_and_send_preempt_optional_reads_but_background_work_does_not() {
+    assert!(preempts_background_read(&UiCommand::Open(Workspace::Chats, CHAT.into())));
+    assert!(preempts_background_read(&UiCommand::Refresh(Workspace::Chats)));
+    assert!(preempts_background_read(&UiCommand::Send { chat_id: None, text: "synthetic".into() }));
+    assert!(!preempts_background_read(&UiCommand::Refresh(Workspace::Apps)));
+    assert!(!preempts_background_read(&UiCommand::Open(Workspace::Projects, CHAT.into())));
+    assert!(!preempts_background_read(&UiCommand::Logout));
+}
+
+#[test]
+fn pressing_open_cancels_a_live_read_without_cancelling_the_session_lifetime() {
+    let parent = CancellationToken::new();
+    let read = parent.child_token();
+    let slot = BackgroundReadPreempt::default();
+    track_background_read(&slot, &read);
+
+    preempt_background_read(&slot);
+
+    assert!(read.is_cancelled());
+    assert!(!parent.is_cancelled());
+    assert!(slot.lock().unwrap().is_none());
+}
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+#[tokio::test]
+async fn open_defers_stalled_selected_recovery_without_cancelling_the_selected_read() {
+    use openmates_sdk::view_model::ViewHost;
+    use std::sync::Arc;
+
+    let (_directory, mut actor) = super::tests::fixture().await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let stalled = Arc::new(tokio::sync::Notify::new());
+    let (api, release, server, _) =
+        live_peer_observed_with_hold(false, Some((started.clone(), stalled))).await;
+    let mut session = actor.core.client_mut().clone_session().unwrap();
+    session.api_url = api.clone();
+    actor.core.client_mut().reset(&api, Some(session)).unwrap();
+    let (send, _receive) = mpsc::channel(16);
+    actor.monitor(&send, Stamp::default()).await.unwrap();
+    let request = actor.live_cancel.clone();
+    let sink = core_host::TerminalSink::new(&send, Stamp::default(), actor.store.generation_guard(), &request);
+
+    tokio::time::timeout(Duration::from_secs(6), async {
+        let mut recovery = actor.recover_after_cold_open(&sink, CHAT);
+        tokio::select! {
+            _ = started.notified() => {},
+            result = &mut recovery => panic!("expected the selected auth read to stall: {result:?}"),
+        }
+        assert!(recovery.await.unwrap(), "a deferred recovery requires fresh settlement");
+    })
+    .await
+    .expect("selected recovery must defer before the transport deadline");
+
+    assert!(!request.is_cancelled());
+    assert!(!actor.recovery_due());
+    assert!(actor.recovery_retry_at.is_some());
+    actor.core.set_chat_monitor(None);
+    drop(release);
+    server.abort();
+}
+
+// contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent,auth.session.authoritative-enforcement
+#[tokio::test]
+async fn cold_open_persists_read_only_content_before_recovery_and_denial_prevents_settlement() {
+    use std::sync::Arc;
+    let (_directory, mut actor) = super::tests::fixture().await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let release_auth = Arc::new(tokio::sync::Notify::new());
+    let (api, release, server, _) = live_peer_observed_with_hold(
+        true,
+        Some((started.clone(), release_auth.clone())),
+    ).await;
+    let mut session = actor.core.client_mut().clone_session().unwrap();
+    session.api_url = api.clone();
+    actor.core.client_mut().reset(&api, Some(session.clone())).unwrap();
+    let (send, mut receive) = mpsc::channel(16);
+    actor.monitor(&send, Stamp::default()).await.unwrap();
+    while receive.try_recv().is_ok() {}
+
+    // Match an Open click that preempts an active read after it bound the client.
+    let background = actor.live_cancel.child_token();
+    actor.core.begin_client_operation(&background);
+    let preempt = BackgroundReadPreempt::default();
+    track_background_read(&preempt, &background);
+    preempt_background_read(&preempt);
+    assert!(actor.core.monitor_valid());
+    assert!(matches!(
+        actor.core.client().chat_owner_lease(actor.core.chat_monitor(), Some(CHAT)),
+        Err(Error::Cancelled)
+    ));
+
+    let store = actor.store.clone();
+    let epoch = Stamp { security: 0, view: 1 };
+    let mut opened = Box::pin(actor.dispatch(Request {
+        epoch,
+        work: Work::Command(UiCommand::Open(Workspace::Chats, CHAT.into())),
+        cancel: CancellationToken::new(),
+    }, &send));
+
+    tokio::time::timeout(Duration::from_secs(2), async {
+        tokio::select! {
+            _ = started.notified() => {},
+            result = &mut opened => panic!("recovery must still be pending: {result:?}"),
+        }
+    }).await.unwrap();
+    let View::Window(window) = receive.try_recv().unwrap().view else {
+        panic!("durable read-only first page must be queued before recovery");
+    };
+    assert_eq!(window.value.source, core_view::ChatWindowSource::FirstPage);
+    assert!(!window.value.messages.is_empty());
+    let mut ui = Ui::new();
+    ui.set_authenticated(true);
+    apply_window(&mut ui, window);
+    assert!(ui.is_cached_chat_read_only());
+    assert!(cached_frame(&mut ui).contains("CACHED_RENDER_READY"));
+
+    let cache = store.read_cache(session.hashed_email.clone(), cache_key(&session), session.master_key.clone())
+        .await.unwrap().unwrap();
+    assert!(cache["history"][CHAT].is_array());
+    assert!(!cache.to_string().contains("CACHED_RENDER_READY"));
+
+    release_auth.notify_one();
+    assert_eq!(opened.await, Err(Error::Expired));
+    assert!(actor.core.open_window().is_none());
+    assert!(actor.core.client().session().is_none());
+    let mut cleared = false;
+    while let Ok(reply) = receive.try_recv() {
+        match reply.view {
+            View::Window(_) => panic!("denial must not promote a writable window"),
+            View::Monitor(Error::Expired, lifetime) => {
+                cleared |= apply_monitor_denial(&mut ui, epoch, reply.epoch, Error::Expired, &lifetime);
+            }
+            _ => {}
+        }
+    }
+    assert!(cleared, "the current owner must receive an explicit denial");
+    assert!(!cached_frame(&mut ui).contains("CACHED_RENDER_READY"));
+
+    actor.core.set_chat_monitor(None);
+    drop(release);
+    server.await.unwrap();
+}
+
+// contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement
+#[test]
+fn stale_monitor_denials_do_not_clear_a_newly_admitted_owner() {
+    let old = Stamp { security: 3, view: 8 };
+    let current = Stamp { security: 4, view: 9 };
+    let lifetime = CancellationToken::new();
+    let mut ui = Ui::new();
+    ui.set_authenticated(true);
+    let id = "11111111-1111-4111-8111-111111111111".to_owned();
+    ui.set_cached_chat(Chat { id: id.clone(), title: "Synthetic new account".into(),
+        category: String::new(), messages: vec![] });
+
+    assert!(!apply_monitor_denial(&mut ui, current, old, Error::Expired, &lifetime));
+    assert_eq!(ui.selected_chat_id(), Some(id.as_str()));
+    lifetime.cancel();
+    assert!(!apply_monitor_denial(&mut ui, current, current, Error::Expired, &lifetime));
+    assert_eq!(ui.selected_chat_id(), Some(id.as_str()));
+}
+
+// contract-test: supporting surface=cli assertions=chat-navigation.startup.useful-content,chats.messages.client-encrypted
+#[tokio::test]
+async fn startup_resume_paints_cached_chat_then_refreshes_exactly_once_and_remains_available_offline() {
+    tokio::time::timeout(Duration::from_secs(12), async {
+        let (_directory, mut actor) = super::tests::fixture().await;
+        let (api, release, server, requests) = live_peer_observed(false).await;
+        let mut session = actor.core.client().clone_session().unwrap();
+        session.api_url = api.clone();
+        actor.core.client_mut().reset(&api, Some(session)).unwrap();
+        actor.core.enable_recently_opened_chats();
+        let (send, mut receive) = mpsc::channel(32);
+        actor.monitor(&send, Stamp::default()).await.unwrap();
+        let mut snapshot = owned_cached_snapshot(6);
+        snapshot["recently_opened_chats_v1"] = json!({"remote":[CHAT],"retained":[CHAT],"pending":[]});
+        actor.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();
+        actor.persist().await.unwrap();
+        while receive.try_recv().is_ok() {}
+        let cancel = CancellationToken::new();
+        let sink = core_host::TerminalSink::new(&send, Stamp::default(), actor.store.generation_guard(), &cancel)
+            .owned_by(&actor.core, None);
+        let before = requests.load(std::sync::atomic::Ordering::SeqCst);
+        core_view::paint_startup_chat(&mut actor, RequestId(901), &sink, &cancel).await.unwrap();
+        let View::Window(cached) = receive.try_recv().unwrap().view else { panic!("cached startup window") };
+        assert_eq!(cached.value.source, core_view::ChatWindowSource::Cached);
+        assert_eq!(cached.value.messages.len(), 6);
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), before);
+
+        let remaining = core_view::resume_startup_chat(&mut actor, RequestId(901), &sink, &cancel).await.unwrap();
+        assert!(remaining.is_empty());
+        let View::Window(fresh) = receive.try_recv().unwrap().view else { panic!("canonical startup window") };
+        assert_eq!(fresh.value.source, core_view::ChatWindowSource::Canonical);
+        assert!(fresh.value.history_complete);
+        let after = requests.load(std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(after, before + 3, "only opened IDs, exact metadata and exact newest tail; no recorded open");
+        assert!(core_view::resume_startup_chat(&mut actor, RequestId(902), &sink, &cancel).await.unwrap().is_empty());
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), after);
+
+        actor.core.set_chat_monitor(None);
+        drop(release);
+        server.await.unwrap();
+        actor.core.begin_client_operation(&cancel);
+        let read = actor.core.client_mut().read_chat_view(None, CHAT, cancel).await.unwrap();
+        let openmates_sdk::client::ChatViewRead::CachedOffline(result) = read else { panic!("admitted offline history") };
+        let window = result.into_window().unwrap();
+        assert!(window.history_complete);
+        assert_eq!(window.chat.messages.len(), 6);
+
+        // The exact proof is process-local. A restored transcript still
+        // renders in full offline, with its coverage reported as unknown.
+        let snapshot = actor.core.client().ciphertext_snapshot();
+        actor.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();
+        let cancel = CancellationToken::new();
+        actor.core.begin_client_operation(&cancel);
+        let restored = actor.core.client_mut().read_chat_view(None, CHAT, cancel).await.unwrap();
+        let openmates_sdk::client::ChatViewRead::CachedOffline(restored) = restored
+            else { panic!("restored offline history") };
+        let window = restored.into_window().unwrap();
+        assert_eq!(window.chat.messages.len(), 6);
+        assert!(!window.history_complete);
+        assert_eq!(window.has_more_before, None);
+    }).await.unwrap();
+}
+
+#[tokio::test]
+async fn personal_offline_receipt_fresh_actor_reads_only_cached_chat_and_retires_on_denial() {
+    tokio::time::timeout(Duration::from_secs(25), async {
+        let (directory, mut owner) = super::tests::fixture().await;
+        let (api, release, peer) = live_peer().await;
+        let mut session = owner.core.client().clone_session().unwrap();
+        session.api_url = api.clone();
+        owner.core.client_mut().reset(&api, Some(session)).unwrap();
+        owner.core.client_mut().set_identity(openmates_sdk::ClientIdentity::Cli);
+        let mut snapshot = owned_cached_snapshot(70);
+        snapshot["recently_opened_chats_v1"] = json!({"remote":[CHAT],"retained":[CHAT],"pending":[]});
+        owner.core.client_mut().restore_ciphertext_snapshot(&snapshot).unwrap();
+        let (transaction, initial_replies) = mpsc::channel(16);
+        owner.authorized_admission(&transaction, Stamp::default()).await.unwrap();
+        // Queued online presentations carry a cloned store. Drop that old UI
+        // channel as a complete process exit would release the runtime lock.
+        drop(initial_replies);
+        owner.core.set_chat_monitor(None);
+        drop(release);
+        peer.await.unwrap();
+        drop(owner);
+
+        let (send, requests) = mpsc::channel(8);
+        let (control, controls) = mpsc::unbounded_channel();
+        let (consent, decisions) = mpsc::unbounded_channel();
+        let (replies, mut receive) = mpsc::channel(24);
+        let stop = CancellationToken::new();
+        let profile = directory.path().join("profile");
+        let worker = tokio::spawn(actor(
+            Args {
+                demo: false,
+                api_url: Some(api.clone()),
+                state_dir: Some(profile.clone()),
+                encrypted_vault: true,
+                profile: None,
+                trusted_account: false,
+            },
+            requests, controls, decisions, replies, watch::channel(None).0,
+            stop.clone(), BackgroundReadPreempt::default(),
+        ));
+        let request = |work| Request { epoch: Stamp::default(), work, cancel: CancellationToken::new() };
+        send.send(request(Work::Boot)).await.unwrap();
+        match receive.recv().await.unwrap().view {
+            View::Unlock => {}
+            View::Failed(error) => panic!("native vault prompt failed: {error:?}"),
+            _ => panic!("expected native vault prompt"),
+        }
+        assert!(matches!(receive.recv().await.unwrap().view, View::Done));
+        send.send(request(Work::Command(UiCommand::Unlock {
+            passphrase: Zeroizing::new("fixture passphrase".into()),
+        }))).await.unwrap();
+        let mut saw_offline = false;
+        let mut window = None;
+        loop {
+            match receive.recv().await.unwrap().view {
+                View::OfflineAuth(auth, items, _) => {
+                    assert!(auth.into_auth().is_ok());
+                    assert_eq!(items.len(), 1);
+                    saw_offline = true;
+                }
+                View::OfflineWindow(publication) => window = Some(publication),
+                View::AdmittedAuth(_) => panic!("the receipt cannot publish online admission"),
+                View::Failed(error) => panic!("offline startup failed: {error:?}"),
+                View::Done => break,
+                _ => {}
+            }
+        }
+        assert!(saw_offline);
+        let displayed = window.unwrap().into_window().unwrap();
+        assert_eq!(displayed.chat.messages.len(), 70);
+        assert!(!displayed.history_complete);
+
+        let address = api.strip_prefix("http://").unwrap().parse().unwrap();
+        let listener = tokio::net::TcpSocket::new_v4().unwrap();
+        listener.set_reuseaddr(true).unwrap();
+        listener.bind(address).unwrap();
+        let listener = listener.listen(1).unwrap();
+
+        send.send(request(Work::Command(UiCommand::Open(Workspace::Chats, CHAT.into())))).await.unwrap();
+        let View::OfflineWindow(stale) = receive.recv().await.unwrap().view else { panic!("cached open") };
+        assert!(matches!(receive.recv().await.unwrap().view, View::Done));
+
+        send.send(request(Work::Command(UiCommand::SwitchTeam(Some(CHAT.into()))))).await.unwrap();
+        assert!(matches!(receive.recv().await.unwrap().view, View::Failed(Error::Unavailable {
+            code: "native_offline_read_only", ..
+        })));
+        assert!(matches!(receive.recv().await.unwrap().view, View::Done));
+
+        assert!(tokio::time::timeout(Duration::from_millis(30), listener.accept()).await.is_err(),
+            "offline chat selection and Team refusal must not connect");
+        let rejecting_peer = tokio::spawn(async move {
+            let (mut http, _) = listener.accept().await.unwrap();
+            assert_eq!(read_http(&mut http).await, "POST /v1/auth/session HTTP/1.1");
+            respond_http_status(&mut http, 401, json!({"detail":"expired"})).await;
+        });
+        send.send(request(Work::Monitor)).await.unwrap();
+        assert!(matches!(receive.recv().await.unwrap().view, View::SignedOut));
+        assert!(stale.into_window().is_err());
+        assert!(matches!(receive.recv().await.unwrap().view, View::Failed(Error::Expired)));
+        assert!(matches!(receive.recv().await.unwrap().view, View::Done));
+        rejecting_peer.await.unwrap();
+        stop.cancel();
+        drop((send, control, consent));
+        worker.await.unwrap();
+
+        let marker: Value = serde_json::from_slice(&std::fs::read(profile.join("revocation.json")).unwrap()).unwrap();
+        assert_eq!(marker["revoked"], true, "another process must observe the durable denial");
+        assert!(!profile.join("session.json").exists());
+    }).await.unwrap();
+}
+
+#[test]
+fn enqueued_foreground_request_preempts_boot_sync_on_either_side_of_token_registration() {
+    for register_first in [false, true] {
+        let slot = BackgroundReadPreempt::default();
+        let (requests, mut pending) = mpsc::channel(1);
+        let registered = register_first.then(|| register_boot_sync(&slot, &pending));
+        if let Some(active) = &registered {
+            assert!(!active.is_cancelled());
+        }
+
+        let user_cancel = CancellationToken::new();
+        assert!(requests.try_send(Request {
+            epoch: Stamp::default(),
+            work: Work::Command(UiCommand::Open(Workspace::Chats, CHAT.into())),
+            cancel: user_cancel.clone(),
+        }).is_ok());
+        preempt_background_read(&slot);
+
+        let boot = registered.unwrap_or_else(|| register_boot_sync(&slot, &pending));
+        assert!(boot.is_cancelled(), "boot sync must yield to the queued request");
+        assert!(matches!(
+            pending.try_recv().unwrap().work,
+            Work::Command(UiCommand::Open(Workspace::Chats, id)) if id == CHAT
+        ));
+        assert!(!user_cancel.is_cancelled());
+    }
+}
+
+#[tokio::test]
+async fn foreground_send_does_not_inherit_a_cancelled_boot_operation() {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let (_directory, mut actor) = super::tests::fixture().await;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let api = format!("http://{}", listener.local_addr().unwrap());
+        let mut session = actor.core.client_mut().clone_session().unwrap();
+        session.api_url = api.clone();
+        actor.core.client_mut().reset(&api, Some(session)).unwrap();
+        actor.core.client_mut().set_identity(openmates_sdk::ClientIdentity::Cli);
+        let boot = CancellationToken::new();
+        actor.core.client_mut().set_operation_cancel(boot.clone());
+        boot.cancel();
+
+        // Prove the real send's mention request reaches its isolated peer.
+        // The deliberately unknown mention prevents a saved or paid send.
+        let catalog_read = CancellationToken::new();
+        let observed_catalog = catalog_read.clone();
+        let shutdown = CancellationToken::new();
+        let peer_shutdown = shutdown.clone();
+        let peer = tokio::spawn(async move {
+            loop {
+                let (mut connection, _) = tokio::select! {
+                    _ = peer_shutdown.cancelled() => break,
+                    accepted = listener.accept() => accepted.unwrap(),
+                };
+                let request = read_http(&mut connection).await;
+                match request.as_str() {
+                    "POST /v1/auth/session HTTP/1.1" => {
+                        respond_http(&mut connection, json!({"success":true,"ws_token":"synthetic-token","user":{"id":"fixture-owner","username":"FixtureOwner"}})).await;
+                    }
+                    "GET /v1/apps?include_unavailable=true HTTP/1.1" => {
+                        observed_catalog.cancel();
+                        respond_http(&mut connection, json!({"apps":[]})).await;
+                    }
+                    "GET /v1/sdk/memories HTTP/1.1" => {
+                        respond_http_status(&mut connection, 404, json!({"detail":"no fixture memories"})).await;
+                    }
+                    _ => panic!("unexpected fixture request: {request}"),
+                }
+            }
+        });
+        let (sink, _events) = mpsc::channel(8);
+        let foreground = CancellationToken::new();
+        let request = Request {
+            epoch: Stamp::default(),
+            work: Work::Send {
+                request: RequestId(1),
+                chat_id: None,
+                text: "@DoesNotExist-Model synthetic".into(),
+                turn_cancel: foreground.child_token(),
+            },
+            cancel: foreground.clone(),
+        };
+        assert_eq!(
+            actor.dispatch(request, &sink).await,
+            Err(Error::Invalid("Unknown @mention. Nothing was sent; check the mention name."))
+        );
+        assert!(!foreground.is_cancelled());
+        assert!(catalog_read.is_cancelled(), "the foreground send must read the catalog");
+        shutdown.cancel();
+        peer.await.unwrap();
+    }).await.unwrap();
 }

@@ -671,6 +671,37 @@ test('epoch-one steer consumes its own outbox and failed queue claim can restore
   })).state, 'HELD');
 });
 
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.steering.active-artifact
+test('completion race dispatches the exact queued steer as a follow-up once', async () => {
+  const database = fakeDatabase(queuedRecoverySeed('steer'));
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody('steer'));
+  const start = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: TASK_ID,
+    mode: 'follow_up', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: COMMITMENT };
+
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...start, hashed_user_id: 'f'.repeat(64),
+  })).status, 'forbidden');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...start, queue_revision: 2,
+  })).status, 'conflict');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...start, task_id: JOB_ID,
+  })).status, 'conflict');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', start)).status, 'started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', start)).status, 'already_started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...start, mode: 'steer', task_id: JOB_ID,
+  })).status, 'conflict');
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'follow_up');
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, COMMITMENT);
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'PENDING');
+});
+
 // contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
 test('failed steering task pauses consumed same-ID rows without re-enabling inference', async () => {
   const database = fakeDatabase(queuedRecoverySeed('steer'));
@@ -2024,6 +2055,10 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   const result = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z'));
 
   assert.equal(result.state, 'ENQUEUED');
+  assert.equal(result.newly_enqueued, true);
+  const duplicate = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:01Z'));
+  assert.equal(duplicate.inference_task_id, result.inference_task_id);
+  assert.equal(duplicate.newly_enqueued, undefined);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
   assert.deepEqual(database.rows.chat_inference_outbox.map(({ id, state, inference_task_id }) => ({ id, state, inference_task_id })), [{
     id: OUTBOX_ID, state: 'HELD', inference_task_id: TASK_ID,
@@ -2103,7 +2138,9 @@ test('atomic first Personal admission commits one message, preflight and held ou
   assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
   assert.equal(database.rows.chat_inference_outbox[0].inference_task_id, first.inference_task_id);
   const replay = await executeOperation(database, 'admit_first_personal', prepareBody(), new Date(now.getTime() + 1_000));
-  assert.deepEqual(replay, first);
+  const { newly_enqueued: firstEnqueue, ...admittedIdentity } = first;
+  assert.equal(firstEnqueue, true);
+  assert.deepEqual(replay, admittedIdentity);
   assert.equal(database.rows.messages.length, 1);
   assert.equal(database.rows.chat_turn_preflights.length, 1);
   assert.equal(database.rows.chat_inference_outbox.length, 1);
@@ -2253,7 +2290,9 @@ test('first Personal enqueue returns an authorized locked projection for exact d
   };
   const first = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z'));
   const duplicate = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:01Z'));
-  assert.deepEqual(duplicate, first);
+  const { newly_enqueued: firstEnqueue, ...admittedIdentity } = first;
+  assert.equal(firstEnqueue, true);
+  assert.deepEqual(duplicate, admittedIdentity);
   assert.equal(first.admission_protocol_epoch, 1);
   assert.equal(first.admission_sends_paused, false);
   assert.deepEqual(first.admission_chat_projection, {

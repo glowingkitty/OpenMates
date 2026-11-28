@@ -50,6 +50,7 @@ _SPEECH_FAILURE_CODES = {
     "Speech audio bound exceeded": "audio_limit",
     "Speech provider did not complete": "incomplete_stream",
     "Speech delivery unavailable": "publication_failed",
+    "Speech clause registration unavailable": "registration_failed",
     "Speech track lease unavailable": "lease_unavailable",
     "Speech track lease renewal unavailable": "lease_renewal_failed",
 }
@@ -98,7 +99,7 @@ class RealtimeSpeechTurn:
         self._publish, self._finalize = publish_event, finalize
         # Each span carries its already-running safety decision, so the semantic
         # check overlaps earlier synthesis instead of serializing after it.
-        self._queue: asyncio.Queue[tuple[str, asyncio.Task[bool], bool] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
+        self._queue: asyncio.Queue[tuple[str, bool, asyncio.Future[bool] | None] | None] = asyncio.Queue(MAX_PENDING_SPANS + 1)
         # The durable claim starts at the first handoff, concurrently with the
         # first check and synthesis; the first audio waits for it (replay guard).
         self._prepare_task: asyncio.Task[int] | None = None
@@ -224,8 +225,10 @@ class RealtimeSpeechTurn:
         """Start the durable claim early without waiting for it."""
         self._start_prepare()
 
-    async def enqueue(self, segment: Mapping[str, object]) -> None:
-        """Hand off one already projected span; repeated immutable IDs are no-ops."""
+    async def enqueue(
+        self, segment: Mapping[str, object], *, register: Callable[[], Awaitable[None]] | None = None,
+    ) -> None:
+        """Check one immutable span while its registration runs; send only after it lands."""
         if self._closed or self._input_finished:
             raise RealtimeTurnUnavailable("Speech turn is closed")
         identity = str(segment["segment_id"])
@@ -253,9 +256,17 @@ class RealtimeSpeechTurn:
             task.add_done_callback(lambda done: done.cancelled() or done.exception())
         self._checks.append((safety, credit))
         self._start_prepare()
-        self._queue.put_nowait((submitted, safety, hidden))
+        registered = asyncio.get_running_loop().create_future() if register is not None else None
+        self._queue.put_nowait((submitted, hidden, registered))
         if self._task is None:
             self._task = asyncio.create_task(self._run())
+        if register is not None and registered is not None:
+            succeeded = False
+            try:
+                await register()
+                succeeded = True
+            finally:
+                registered.set_result(succeeded)
 
     def finish_input(self) -> None:
         """Append EOS after all handoffs without waiting for audio drain."""
@@ -295,7 +306,14 @@ class RealtimeSpeechTurn:
             if item is None:
                 await self._provider.finish_input()
                 return
-            text, _safety, hidden = item
+            text, hidden, registered = item
+            if registered is not None:
+                # Registration also orders the browser's status before any audio.
+                # The existing track claim fences a retry from further paid input.
+                assert self._prepare_task is not None
+                await asyncio.shield(self._prepare_task)
+                if not await asyncio.shield(registered):
+                    raise RealtimeTurnUnavailable("Speech clause registration unavailable")
             await self._ensure_recently_active()
             if index > 0:
                 # Later spans reach the provider only once approved, in order, so
@@ -446,9 +464,7 @@ class RealtimeSpeechTurn:
                 except Exception:
                     logger.warning("Realtime speech transport cleanup failed")
             while not self._queue.empty():
-                item = self._queue.get_nowait()
-                if item is not None:
-                    item[1].cancel()
+                self._queue.get_nowait()
             for pending_task in (*(t for pair in self._checks for t in pair), self._first_audio_task):
                 if pending_task is not None and not pending_task.done():
                     pending_task.cancel()

@@ -79,6 +79,7 @@ vi.mock("../../demo_chats/translateDemoChat", () => ({
 }));
 
 vi.mock("../../demo_chats/convertToChat", () => ({
+  isPublicChat: (chatId: string) => chatId.startsWith("demo-") || chatId.startsWith("legal-"),
   convertDemoChatToChat: vi.fn((demo: any) => ({
     chat_id: demo.chat_id,
     title: demo.title || demo.chat_id,

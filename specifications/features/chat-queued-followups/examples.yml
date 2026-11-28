@@ -1,11 +1,11 @@
 schema_version: 1
-specification: feature.chat-queued-followups@2
+specification: feature.chat-queued-followups@3
 admission:
 - id: follow-up-while-tools-run
   assertion_ids:
   - chat-queued-followups.admission.synced
   given: Alice's assistant is processing a request and one tool batch is still running.
-  when: Alice sends a follow-up and opens the same chat on another authorized device.
+  when: Alice asks which tests failed and opens the same chat on another authorized device.
   then: The composer clears immediately, the server accepts one queued user message, and both devices show its Queued
     state and content. The normal follow-up runs after the current assistant response finishes.
 - id: durable-followers-use-own-identities
@@ -15,6 +15,33 @@ admission:
   when: The current response completes and the followers start in order.
   then: Each follower runs once with its original request and billing identity, and receives authenticated completed
     predecessor results without merging requests.
+active_work:
+- id: independent-terminal-question
+  given: Maya's assistant is running the project tests from her terminal chat.
+  when: Maya asks what the existing cache flag does.
+  then: A normal reply answers the question while the original test run continues. Both user requests keep
+    their own message identities.
+- id: verified-status-before-completion
+  given: A test suite has recorded one failure and another suite is still running.
+  when: Maya asks which tests failed so far.
+  then: The assistant reports the confirmed failure and that testing continues. The test run is neither restarted
+    nor cancelled.
+- id: stop-one-test-run
+  given: Maya has separate Safari and Firefox test runs in her terminal chat.
+  when: Maya asks to cancel the Safari run, then her terminal reconnects and retries the same request.
+  then: The stop request applies once to the verified Safari execution. Firefox continues. The assistant reports
+    that Safari has stopped only after its worker confirms the stop.
+active_artifact:
+- id: ordered-corrections-to-recipe-app
+  given: The assistant is building a recipe app and its code card is already visible.
+  when: Maya asks for a red header and follows up asking for Lexend Deca.
+  then: Both corrections appear once as ordinary user messages. The same recipe app card advances with both changes,
+    and the last working preview stays available until the revised app is ready.
+- id: artifact-finishes-during-correction
+  given: The assistant is finalizing the recipe app's current revision.
+  when: Maya's red header correction arrives as the revision is saved.
+  then: One authorized update applies the correction to the recipe app, either before finalization or as a normal
+    edit after the save.
 editing:
 - id: change-queued-text
   assertion_ids:

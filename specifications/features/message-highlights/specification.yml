@@ -1,0 +1,32 @@
+schema_version: 1
+id: feature.message-highlights
+version: 1
+status: draft
+title: Message Highlights and Selection Toolbar
+summary: Selecting text in a chat message offers a small toolbar to highlight it, highlight and comment, or explain it in a new chat; highlights anchor to the message's own text.
+scope:
+  includes:
+    - The web selection toolbar shown for text selected inside a rendered chat message.
+    - Text-quote anchors captured for highlights and their resolution on later renders.
+  excludes:
+    - Highlight sync, encryption and storage formats.
+    - Apple and CLI clients.
+assertions:
+  - id: message-highlights.selection-toolbar
+    type: behavior
+    must: The selection toolbar appears only while the user has selected message text. Clicking or tapping an embed card or inline embed chip never opens it, including when the message editor later turns that click into a selection of the embed, and it never stays open over the card. Text inside embed cards is never part of a highlight anchor; a selection that runs across a card keeps only the message text around it.
+    depends_on: [examples.selection-toolbar]
+applies_to:
+  rest_api: {required: false}
+  cli: {required: false}
+  sdks:
+    required: false
+    implementations: {npm: {required: false}, pip: {required: false}}
+  gui:
+    required: true
+    implementations: {web: {required: true}, apple: {required: false}}
+examples:
+  file: examples.yml
+  required_groups: [selection-toolbar]
+approval_source:
+  instruction: Drafted from production finding TASK-6036 (selection toolbar shown over an event card after it was clicked); awaiting owner approval.

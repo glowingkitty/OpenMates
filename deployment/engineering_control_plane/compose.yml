@@ -3,6 +3,7 @@ name: openmates-engineering-control-plane
 services:
   database:
     image: postgres:16-alpine
+    user: postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: engineering_control_plane
@@ -22,6 +23,8 @@ services:
     build:
       context: ../..
       dockerfile: backend/engineering_control_plane/Dockerfile
+    # Keep the dedicated runtime identity even when reusing a cached image.
+    user: "10001:10001"
     restart: unless-stopped
     environment:
       ENGINEERING_CONTROL_PLANE_DATABASE_URL: postgresql://engineering_control_plane:${ENGINEERING_CONTROL_PLANE_DB_PASSWORD}@database:5432/engineering_control_plane

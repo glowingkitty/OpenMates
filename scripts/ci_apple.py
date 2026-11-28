@@ -23,11 +23,21 @@ version the release Mac builds with), never on the shared dev host.
                generated inputs and build step, then exactly those XCUITests in the
                iOS simulator, serially. The app under test is the Debug build, so tests
                that talk to a server reach the dev backend; the lane passes no secrets,
-               so real-account tests skip themselves. A focused run (at most
+               so real-account tests skip themselves. The private startup evidence profile
+               also admits the exact two read-only selectors in OpenMatesMacUITests.
+               A focused run (at most
                MAX_RECORDED_UI_SPECS targets) runs from a patched copy of the built
                .xctestrun that keeps the screen recording of every test,
                passing ones too, so a UI change has its result video; larger runs keep
                only the recordings of failed tests.
+
+Rounds (ci_coordinator.py): at most 5 Apple jobs run at once (GitHub Free's macOS limit);
+the rest wait in the coordinator. With the `apple-shared-build` speedup, the first Xcode job
+of one owner's round on one source is the producer: it builds (CI_APPLE_PHASE=build), the
+workflow uploads the products, then it runs its own tests (CI_APPLE_PHASE=test). That
+owner's other apple-unit/apple-ui jobs on the same source get the products
+(CI_APPLE_PRODUCTS_IN), verified against their own source and build identity, and run only
+`xcodebuild test-without-building`; anything missing or different makes them build here.
 
 Every step records a result row through ci_rust_checks so the coordinator and
 `ci_coordinator.py result` show failing excerpts without opening Actions logs.
@@ -35,9 +45,11 @@ Every step records a result row through ci_rust_checks so the coordinator and
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 ALL = "all"
@@ -51,11 +63,40 @@ MAX_UI_SPECS = 40
 # run would upload hundreds of megabytes of passing-test video nobody watches.
 MAX_RECORDED_UI_SPECS = 12
 KEEP_RECORDINGS_STEP = "keep screen recordings of passing tests"
+SIGN_MAC_STARTUP_STEP = "sign the private macOS startup test app"
 RECORDED_XCTESTRUN = "OpenMates_recorded.xctestrun"
 # Attachment lifetimes in an .xctestrun: system attachments and, separately, the automatic
 # UI-test screen capture ("On, and keep all" in a test plan).
 KEEP_ALL_KEYS = ("SystemAttachmentLifetime", "UITestingScreenshotsLifetime")
-TEST_ALLOWANCE_SECONDS = 300  # per test; the longest real UI flow waits about 90 s
+STARTUP_BENCHMARK_SPECS = {
+    "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchFirstFrame",
+    "OpenMatesUITests/ChatFlowRealAccountUITests/testPersonalAccountColdLaunchToInteractive",
+}
+MAC_STARTUP_BENCHMARK_SPECS = {
+    spec.replace("OpenMatesUITests/", "OpenMatesMacUITests/", 1)
+    for spec in STARTUP_BENCHMARK_SPECS
+}
+PERSONAL_CREDENTIAL_KEYS = tuple(
+    f"OPENMATES_PERSONAL_TEST_ACOUNT_{suffix}" for suffix in ("EMAIL", "PASSWORD", "OTP_KEY")
+)
+# Release optimisation for the private startup benchmark (the Release defaults).
+OPTIMIZED_BENCHMARK_SETTINGS = (
+    "SWIFT_OPTIMIZATION_LEVEL=-O",
+    "SWIFT_COMPILATION_MODE=wholemodule",
+    "GCC_OPTIMIZATION_LEVEL=s",
+)
+# The benchmark app samples its own main thread (NativeMainThreadSampler) and
+# writes symbol-only stacks to its temporary directory: profilers and the host
+# `sample` tool record nothing inside the hosted runner's virtual machine.
+APP_SAMPLE_FILE_GLOBS = (
+    "Library/Developer/CoreSimulator/Devices/*/data/Containers/Data/Application/*/tmp/openmates-main-samples-*.txt",
+    "Library/Containers/*/Data/tmp/openmates-main-samples-*.txt",
+)
+APP_SAMPLE_TEMP_GLOB = "/private/var/folders/*/*/T/openmates-main-samples-*.txt"
+TEST_ALLOWANCE_SECONDS = 300
+# Private startup preserves all three process relaunches and their independent
+# foreground, sidebar, reconciliation and quiet-process measurements.
+STARTUP_TEST_ALLOWANCE_SECONDS = 600
 XCODE_MODES = ("apple-build", "apple-unit", "apple-ui")
 RESULT_BUNDLES = {
     "apple-build": "OpenMatesBuild.xcresult",
@@ -75,6 +116,19 @@ TEST_SUPPORT_SWIFT_FLAGS = "OTHER_SWIFT_FLAGS=$(inherited) -DOPENMATES_CORE_TEST
 RUST_TEST_FLAGS = ["--locked", "--no-fail-fast", "--lib", "--bins", "--tests"]
 
 Step = tuple[str, list[str], dict, str]
+
+
+def startup_benchmark_platform(specs: list[str]) -> str | None:
+    """Recognize one platform's exact pair of private read-only selectors."""
+    if len(specs) != len(STARTUP_BENCHMARK_SPECS) or not all(
+        isinstance(spec, str) for spec in specs
+    ):
+        return None
+    if set(specs) == STARTUP_BENCHMARK_SPECS:
+        return "iOS"
+    if set(specs) == MAC_STARTUP_BENCHMARK_SPECS:
+        return "macOS"
+    return None
 
 
 def validate_specs(mode: str, specs: list[str]) -> list[str]:
@@ -99,6 +153,8 @@ def validate_specs(mode: str, specs: list[str]) -> list[str]:
             raise ValueError("apple-unit target 'all' cannot be combined with others")
         return list(specs)
     if mode == "apple-ui":
+        if startup_benchmark_platform(specs) == "macOS":
+            return list(specs)
         if (
             not specs
             or len(specs) > MAX_UI_SPECS
@@ -166,21 +222,37 @@ def core_plan(root: Path, results: Path) -> list[Step]:
     ]
 
 
-def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
-    """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
+def xcode_plan(
+    mode: str, results: Path, specs: list[str], *, benchmark: bool = False, xctestrun: Path | None = None,
+) -> list[Step]:
+    """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests.
+
+    `xctestrun` is the built .xctestrun of verified shared build products (see
+    restore_shared_products): the job then tests those products and compiles nothing.
+    """
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
+    startup_platform = startup_benchmark_platform(specs) if benchmark and mode == "apple-ui" else None
+    mac_startup = startup_platform == "macOS"
+    allowance = STARTUP_TEST_ALLOWANCE_SECONDS if startup_platform else TEST_ALLOWANCE_SECONDS
+    scheme = "OpenMates_macOS" if mac_startup else "OpenMates_iOS"
+    destination = "platform=macOS" if mac_startup else f"platform=iOS Simulator,name={SIMULATOR}"
     shared = [
         "-project", "apple/OpenMates.xcodeproj",
-        "-scheme", "OpenMates_iOS",
-        "-destination", f"platform=iOS Simulator,name={SIMULATOR}",
+        "-scheme", scheme,
+        "-destination", destination,
         "-derivedDataPath", str(results / "DerivedData"),
         "-clonedSourcePackagesDirPath", str(results / "SourcePackages"),
         "-skipPackagePluginValidation", "-skipMacroValidation",
     ]
+    if mac_startup:
+        shared += ["-configuration", "Debug"]
     # The script phases (OpenMatesCore, LocalModelBridge) run cargo and read repository
     # files, which Xcode's script sandbox denies; the TestFlight build passes the same override.
-    settings = ["CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=", "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
+    signing = ["CODE_SIGNING_ALLOWED=YES", "CODE_SIGN_IDENTITY=-"] if benchmark else [
+        "CODE_SIGNING_ALLOWED=NO", "CODE_SIGN_IDENTITY=",
+    ]
+    settings = [*signing, "ENABLE_USER_SCRIPT_SANDBOXING=NO"]
     # The runner and its simulators are arm64. Without this the embedded Watch app is also
     # built for the x86_64 simulator, whose Rust core is a tier-3 build-std build (about
     # 14 minutes) that no test uses.
@@ -191,6 +263,10 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
     # fixtures seed the core's cached chat list). They are always set together; a Release build
     # with the condition fails to compile. The core and TestFlight lanes never set either.
     settings += [TEST_SUPPORT_SETTING, TEST_SUPPORT_SWIFT_FLAGS]
+    if startup_platform:
+        # Timings must reflect shipped code: the Release optimizer on the Debug
+        # configuration that still compiles the benchmark's timing probes.
+        settings += list(OPTIMIZED_BENCHMARK_SETTINGS)
     # One build per job, for every lane. Xcode's "Continue building after errors" compiles
     # every reachable file, so a failed build lists all Swift errors instead of the first batch.
     build = [
@@ -198,8 +274,18 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         "-resultBundlePath", str(results / RESULT_BUNDLES["apple-build"]),
         "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
     ]
-    steps: list[Step] = [(BUILD_STEP, build, {}, "")]
+    steps: list[Step] = [] if xctestrun else [(BUILD_STEP, build, {}, "")]
     products = results / "DerivedData" / "Build" / "Products"
+    if mac_startup:
+        steps.append((
+            SIGN_MAC_STARTUP_STEP,
+            [
+                sys.executable, str(Path(__file__).resolve()), "sign-macos-startup",
+                str(products / "Debug" / "OpenMates.app"),
+            ],
+            {},
+            "",
+        ))
     recorded = mode == "apple-ui" and len(only) <= MAX_RECORDED_UI_SPECS
     if recorded:
         steps.append((
@@ -235,15 +321,18 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         # A recorded run tests from the patched copy of the built .xctestrun; `-scheme`
         # would run Xcode's own unpatched one.
         source = (
-            ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", f"platform=iOS Simulator,name={SIMULATOR}"]
-            if recorded else shared
+            ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", destination]
+            if recorded
+            else ["-xctestrun", str(xctestrun), "-destination", destination]
+            if xctestrun
+            else shared
         )
         test = [
             "xcodebuild", "test-without-building", *source,
             "-resultBundlePath", str(results / RESULT_BUNDLES[mode]),
             "-test-timeouts-enabled", "YES",
-            "-default-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
-            "-maximum-test-execution-time-allowance", str(TEST_ALLOWANCE_SECONDS),
+            "-default-test-execution-time-allowance", str(allowance),
+            "-maximum-test-execution-time-allowance", str(allowance),
         ]
         if mode == "apple-ui":
             # One simulator, one test at a time: UI tests share the app's on-device state.
@@ -251,7 +340,12 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         for selector in only:
             test += ["-only-testing", selector]
         # Build settings belong to the scheme run; the patched .xctestrun carries the built ones.
-        steps.append((f"xcodebuild test {' '.join(only)}"[:160], test + ([] if recorded else settings), {}, ""))
+        steps.append((
+            f"xcodebuild test {' '.join(only)}"[:160],
+            test + ([] if recorded or xctestrun else settings),
+            {},
+            "",
+        ))
     return [
         (
             "design tokens and locales",
@@ -270,6 +364,59 @@ def xcode_plan(mode: str, results: Path, specs: list[str]) -> list[Step]:
         ),
         *steps,
     ]
+
+
+def sign_macos_startup_app(root: Path, app: Path) -> None:
+    """Apply the existing Personal Team signing recipe to the hosted Debug bundle."""
+    import plistlib
+    import subprocess
+
+    # Match apple_local_macos.sh. taskgated rejects the ordinary paid-team
+    # entitlements when the hosted runner ad-hoc signs without a profile.
+    app_entitlements = root / "apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements"
+    extension_entitlements = root / (
+        "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOSPersonalTeam.entitlements"
+    )
+    allowed = {
+        app_entitlements: {
+            "com.apple.security.files.user-selected.read-only",
+            "com.apple.security.device.camera",
+            "com.apple.security.device.audio-input",
+        },
+        extension_entitlements: {
+            "com.apple.security.app-sandbox",
+            "com.apple.security.network.client",
+        },
+    }
+    for path, allowed_keys in allowed.items():
+        entitlements = plistlib.loads(path.read_bytes())
+        if (
+            not isinstance(entitlements, dict)
+            or entitlements.keys() - allowed_keys
+            or any(value is not True for value in entitlements.values())
+        ):
+            raise ValueError("The hosted macOS ad-hoc signature requires unrestricted entitlements")
+
+    contents = app / "Contents"
+    info_path = contents / "Info.plist"
+    info = plistlib.loads(info_path.read_bytes())
+    if info.get("CFBundleIdentifier") != "org.openmates.app":
+        raise ValueError("The hosted macOS startup build did not produce the OpenMates app")
+    # An ad-hoc app uses its default Keychain access. Leaving the production
+    # override in this copy makes KeychainHelper ask for a group it cannot use.
+    if "OpenMatesKeychainAccessGroup" in info:
+        del info["OpenMatesKeychainAccessGroup"]
+        info_path.write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
+
+    for extension in sorted((contents / "PlugIns").glob("*.appex")):
+        subprocess.run(
+            ["codesign", "--force", "--sign", "-", "--entitlements", str(extension_entitlements), str(extension)],
+            check=True,
+        )
+    subprocess.run(
+        ["codesign", "--force", "--sign", "-", "--entitlements", str(app_entitlements), str(app)], check=True,
+    )
+    subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
 
 
 def keep_recordings(products: Path) -> int:
@@ -317,14 +464,182 @@ def swift_errors(lines: list[str], root: Path) -> list[str]:
     return list(seen)[:MAX_SWIFT_ERRORS]
 
 
-def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
-    import ci_rust_checks as checks
+def run_private_benchmark(root: Path, command: list[str], output: Path, credentials: dict[str, str]) -> int:
+    """Never stream real-account XCTest output to the public Actions log."""
+    import subprocess
 
+    credential_file = root / "apple/.openmates-live-test-account.env"
+    if any("\n" in value or "\r" in value for value in credentials.values()):
+        raise ValueError("Invalid personal benchmark credential format")
+    with os.fdopen(os.open(credential_file, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as handle:
+        handle.writelines(f"{key}={value}\n" for key, value in credentials.items())
+    try:
+        with (output / "private-xcode.log").open("w") as log:
+            return subprocess.run(command, cwd=root, stdout=log, stderr=subprocess.STDOUT, check=False).returncode
+    finally:
+        collect_app_samples(output / "private-samples")
+        credential_file.unlink()
+
+
+def collect_app_samples(folder: Path, home: Path | None = None, temp_glob: str = APP_SAMPLE_TEMP_GLOB) -> None:
+    """Move the benchmark app's own main-thread samples into the private evidence."""
+    import glob
+    import shutil
+
+    home = home or Path.home()
+    found = [Path(path) for pattern in APP_SAMPLE_FILE_GLOBS for path in glob.glob(str(home / pattern))]
+    found += [Path(path) for path in glob.glob(temp_glob)]
+    folder.mkdir(parents=True, exist_ok=True)
+    for source in found:
+        shutil.move(str(source), folder / source.name)
+    (folder / "sampler.log").write_text(f"app sample files {len(found)}\n")
+
+
+# Build once, test many (ci_coordinator.py): the first Xcode job of one owner's round on one
+# source publishes its build products; that owner's other apple-unit/apple-ui jobs on the same
+# source test them instead of compiling the same tree again. The producer runs in two phases
+# (CI_APPLE_PHASE=build, then =test) so the workflow uploads the products between them.
+PRODUCTS_FORMAT = 1
+PRODUCTS_ARCHIVE = "products.tar"
+PRODUCTS_MANIFEST = "apple-products.json"
+REUSE_STEP = "reuse shared build products"
+PHASE_STATE = "phase-results.json"
+SHARE_MODES = ("apple-unit", "apple-ui")
+
+
+def build_identity(mode: str, specs: list[str]) -> str:
+    """Digest of the build command with this job's output folder blanked out.
+
+    Two jobs share products only when they would run exactly this build: same scheme,
+    destination, configuration and settings. The private benchmark never shares.
+    """
+    import hashlib
+
+    marker = Path("/__results__")
+    build = next(cmd for name, cmd, _, _ in xcode_plan(mode, marker, specs) if name == BUILD_STEP)
+    normalized = [arg.replace(str(marker), "<results>") for arg in build]
+    return hashlib.sha256(json.dumps(normalized).encode()).hexdigest()
+
+
+def source_identity(root: Path) -> dict:
+    import subprocess
+
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
+
+    return {"source_commit": git("rev-parse", "HEAD"), "tree": git("rev-parse", "HEAD^{tree}")}
+
+
+def pack_shared_products(root: Path, out: Path, mode: str, specs: list[str], dest: Path) -> None:
+    """Archive the built products (symlinks and modes kept) with the identity they were built for."""
+    import subprocess
+
+    dest.mkdir(parents=True, exist_ok=True)
+    build_dir = out / "DerivedData" / "Build"
+    subprocess.run(["tar", "-cf", str(dest / PRODUCTS_ARCHIVE), "-C", str(build_dir), "Products"], check=True)
+    manifest = {"format": PRODUCTS_FORMAT, "build": build_identity(mode, specs), **source_identity(root)}
+    (dest / PRODUCTS_MANIFEST).write_text(json.dumps(manifest, indent=2))
+    size = (dest / PRODUCTS_ARCHIVE).stat().st_size
+    print(f"shared build products: {size / 1e9:.2f} GB for {manifest['source_commit']}", flush=True)
+
+
+def restore_shared_products(root: Path, out: Path, mode: str, specs: list[str], folder: Path) -> tuple[Path | None, str]:
+    """Unpack verified shared products into this job's DerivedData; (built .xctestrun, note).
+
+    Returns (None, reason) whenever the products are missing or were built for another
+    source or build, so the job builds itself exactly as before; a mismatch is never used.
+    """
+    import subprocess
+
+    manifest_path = folder / PRODUCTS_MANIFEST
+    if not manifest_path.is_file() or not (folder / PRODUCTS_ARCHIVE).is_file():
+        return None, "shared build products were not downloaded; building here"
+    manifest = json.loads(manifest_path.read_text())
+    expected = {"format": PRODUCTS_FORMAT, "build": build_identity(mode, specs), **source_identity(root)}
+    mismatched = sorted(key for key, value in expected.items() if manifest.get(key) != value)
+    if mismatched:
+        return None, f"shared build products differ in {', '.join(mismatched)}; building here"
+    build_dir = out / "DerivedData" / "Build"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["tar", "-xf", str(folder / PRODUCTS_ARCHIVE), "-C", str(build_dir)], check=True)
+    products = build_dir / "Products"
+    built = [p for p in sorted(products.glob("*.xctestrun")) if p.name != RECORDED_XCTESTRUN]
+    if len(built) != 1:
+        return None, f"shared build products hold {len(built)} .xctestrun files; building here"
+    return built[0], f"tests the products built for {manifest['source_commit']} by the round's first job"
+
+
+def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
     specs = validate_specs(mode, specs)
+    benchmark = os.environ.get("CI_APPLE_PRIVATE_STARTUP") == "1"
+    credentials = {key: os.environ.pop(key, "") for key in PERSONAL_CREDENTIAL_KEYS}
+    benchmark_platform = startup_benchmark_platform(specs)
+    if benchmark and (mode != "apple-ui" or benchmark_platform is None):
+        raise ValueError("Private Apple startup runs require both exact benchmark selectors for one platform")
+    if benchmark_platform == "macOS" and not benchmark:
+        raise ValueError("The macOS startup benchmark requires private evidence")
+    if benchmark and not all(credentials.values()):
+        raise ValueError("The private Apple startup lane requires repository test credentials")
+
     out = root / "test-results" / mode
     out.mkdir(parents=True, exist_ok=True)
     os.environ["RUST_CI_RESULTS"] = str(out / "rows")
-    plan = core_plan(root, out) if mode == "apple-core" else xcode_plan(mode, out, specs)
+    phase = os.environ.get("CI_APPLE_PHASE", "")
+    shared_in = os.environ.get("CI_APPLE_PRODUCTS_IN", "")
+    shared_out = os.environ.get("CI_APPLE_PRODUCTS_OUT", "")
+    if phase not in ("", "build", "test") or (phase and mode not in XCODE_MODES):
+        raise ValueError("CI_APPLE_PHASE must be build or test, and only for an Xcode lane")
+    if (shared_in or shared_out) and (benchmark or mode == "apple-core" or (shared_in and mode not in SHARE_MODES)):
+        raise ValueError("Shared build products are only for ordinary Xcode lanes")
+    xctestrun = None
+    if shared_in and phase != "test":
+        started = time.monotonic()
+        xctestrun, note = restore_shared_products(root, out, mode, specs, Path(shared_in))
+        print(f"::notice title={REUSE_STEP}::{note}", flush=True)
+        results.append({
+            "suite": f"{mode}:{REUSE_STEP}", "target": specs[0], "command": REUSE_STEP,
+            "exit_code": 0, "seconds": round(time.monotonic() - started, 1), "diagnostics": 0,
+            "failures": [], **({} if xctestrun else {"skipped": note}),
+        })
+    if mode == "apple-core":
+        plan = core_plan(root, out)
+    else:
+        plan = xcode_plan(mode, out, specs, benchmark=benchmark, xctestrun=xctestrun)
+    if phase:
+        # The producer's two phases: the build (generated inputs and the build step), and
+        # after the workflow uploaded the products, the rest of the same plan.
+        cut = next(i for i, step in enumerate(plan) if step[0] == BUILD_STEP) + 1
+        state = out / PHASE_STATE
+        if phase == "build":
+            stopped = execute(root, out, results, mode, specs, plan[:cut], benchmark, credentials)
+            state.write_text(json.dumps({"results": results, "stopped": stopped}))
+            if not stopped and results and results[-1]["exit_code"] == 0 and shared_out:
+                import subprocess
+
+                try:
+                    pack_shared_products(root, out, mode, specs, Path(shared_out))
+                except (OSError, subprocess.CalledProcessError) as exc:
+                    # This job's own tests still run; the round's other jobs then build
+                    # themselves because no products were published.
+                    print(f"::warning title=shared build products::not published: {exc}", flush=True)
+            return
+        saved = json.loads(state.read_text())
+        results.extend(saved["results"])
+        if saved.get("error"):
+            raise ValueError(saved["error"])
+        if not saved["stopped"]:
+            execute(root, out, results, mode, specs, plan[cut:], benchmark, credentials)
+        return
+    execute(root, out, results, mode, specs, plan, benchmark, credentials)
+
+
+def execute(
+    root: Path, out: Path, results: list[dict], mode: str, specs: list[str],
+    plan: list[Step], benchmark: bool, credentials: dict[str, str],
+) -> bool:
+    """Run the steps in order, appending result rows; True when a failure ended the lane."""
+    import ci_rust_checks as checks
+
     for name, command, extra_env, skip in plan:
         if skip:
             print(f"::notice title={name}::{skip}", flush=True)
@@ -336,6 +651,15 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 }
             )
             continue
+        if benchmark and command[:2] == ["xcodebuild", "test-without-building"]:
+            started = time.monotonic()
+            code = run_private_benchmark(root, command, out, credentials)
+            results.append({
+                "suite": f"{mode}:private startup", "target": specs[0],
+                "command": "xcodebuild test-without-building", "exit_code": code,
+                "seconds": round(time.monotonic() - started, 1), "diagnostics": 0, "failures": [],
+            })
+            return False
         saved = {key: os.environ.get(key) for key in extra_env}
         os.environ.update(extra_env)
         try:
@@ -365,12 +689,12 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
             }
         )
         if mode in XCODE_MODES and code != 0 and not (mode == "apple-build" and name == BUILD_STEP):
-            break  # the test run cannot proceed without its generated inputs or its build
+            return True  # the test run cannot proceed without its generated inputs or its build
+    return False
 
 
 def main() -> None:
     """Runner entrypoint: execute the mode and write the coordinator's ci-results.json."""
-    import json
     import subprocess
 
     root = Path.cwd()
@@ -381,6 +705,13 @@ def main() -> None:
         run(root, results, mode, json.loads(os.environ["CI_SPECS_JSON"]))
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         error = str(exc)  # reported in the result payload, never swallowed
+    if os.environ.get("CI_APPLE_PHASE") == "build":
+        # The test phase writes the one result payload, including a build-phase error.
+        if error:
+            state = root / "test-results" / mode / PHASE_STATE
+            state.parent.mkdir(parents=True, exist_ok=True)
+            state.write_text(json.dumps({"results": results, "stopped": True, "error": error}))
+        raise SystemExit(0)
     payload = {
         "source_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True
@@ -408,5 +739,7 @@ def main() -> None:
 if __name__ == "__main__":
     if sys.argv[1:2] == ["keep-recordings"]:
         keep_recordings(Path(sys.argv[2]))
+    elif sys.argv[1:2] == ["sign-macos-startup"]:
+        sign_macos_startup_app(Path.cwd(), Path(sys.argv[2]))
     else:
         main()

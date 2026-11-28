@@ -396,6 +396,10 @@ private struct DevComponentPreviewCanvas: View {
             NativeVoiceCallControlsFixture(headerPill: true)
         case .composer where configuration.variant == "native-voice-call-consent":
             NativeVoiceCallControlsFixture(consent: true)
+        #if os(iOS)
+        case .composer where configuration.variant == "native-voice-call-audio-engine":
+            DevVoiceCallAudioEnginePreview()
+        #endif
         case .composer where configuration.variant == "assistant-speech":
             DevAssistantSpeechPreview()
         case .composer where configuration.variant == "assistant-speech-public":

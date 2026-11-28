@@ -44,18 +44,14 @@ async def project_code_fence_mode(request_data: Any, sources: list[dict[str, Any
     Machine-folder Projects and users without E2B consent keep the Project file tools.
     """
     from backend.apps.ai.processing.project_file_tools import default_operation_source_id
-    from backend.core.api.app.services import e2b_upload_consent
+    from backend.apps.ai.processing.project_sandbox_gate import sandbox_applies_to_project
 
-    if hosted_project_focus(request_data) is None or default_operation_source_id(sources or [], "write_request"):
+    if default_operation_source_id(sources or [], "write_request"):
         return False
-    from fastapi import HTTPException
-
-    try:
-        decision = await e2b_upload_consent.get_decision(request_data.user_id, directus_service)
-    except HTTPException as exc:
-        logger.warning("Project code fences off: sandbox consent unavailable (status %s)", exc.status_code)
-        return False
-    return decision.get("decision") == "allowed"
+    return await sandbox_applies_to_project(
+        user_id=request_data.user_id, focus=hosted_project_focus(request_data),
+        directus_service=directus_service,
+    )
 
 
 def project_file_path(filename: Any) -> str | None:

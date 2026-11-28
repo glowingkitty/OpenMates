@@ -1319,8 +1319,9 @@ async def _async_delete_user_account(
             shared_chats = await directus_service.get_items(
                 "chats",
                 params={
+                    # chats has no user_created field (Directus 403); ownership is hashed_user_id.
                     "filter": {
-                        "user_created": {"_eq": user_id},
+                        "hashed_user_id": {"_eq": user_id_hash},
                         "is_shared": {"_eq": True},
                     },
                     "fields": "id",

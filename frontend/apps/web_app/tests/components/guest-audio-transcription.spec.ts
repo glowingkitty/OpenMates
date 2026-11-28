@@ -1,20 +1,23 @@
 // playwright-account: not_required reason=isolated_component_preview
-import { expect, test } from '../helpers/cookie-audit';
+import { expect, test as auditedTest } from '../helpers/cookie-audit';
 import type { Page } from '@playwright/test';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { proofAudioLaunchArgs, withProofAudio } from '../helpers/proof-audio';
 import { allowFixtureMicrophone } from '../helpers/recording-permission';
 
+const test = withProofAudio(auditedTest);
 const RAW = 'please schedule the project review';
 const CORRECTED = 'Please schedule the project review.';
 const GUEST_ID = 'guest-dictation-component';
 
 test.use({
-  launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+  launchOptions: { args: proofAudioLaunchArgs({ voiceWav: null }) },
   permissions: ['microphone'], hasTouch: true,
 });
 
-async function openGuest(page: Page, width: number, denial?: 'initial' | 'streaming') {
+async function openGuest(page: Page, width: number, failure?: 'initial' | 'streaming' | 'transport') {
   let exhausted = false;
+  let interruptCapture: (() => void) | undefined;
   let releaseCorrection: (() => void) | undefined;
   const connections: string[] = [];
   const frames: Array<{ type: string }> = [];
@@ -39,7 +42,7 @@ async function openGuest(page: Page, width: number, denial?: 'initial' | 'stream
       socket.send(JSON.stringify({ type: 'session.error', code: 'per_identity_exhausted', signup_required: true,
         message: 'Free usage limit reached' }));
     };
-    if (denial === 'initial') { deny(); return; }
+    if (failure === 'initial') { deny(); return; }
     socket.send(JSON.stringify({ type: 'session.ready', sample_rate: 16000 }));
     let transcriptSent = false;
     socket.onMessage(raw => {
@@ -47,8 +50,11 @@ async function openGuest(page: Page, width: number, denial?: 'initial' | 'stream
       frames.push(frame);
       if (frame.type === 'input_audio.append' && !transcriptSent) {
         transcriptSent = true;
-        if (denial === 'streaming') { deny(); return; }
         socket.send(JSON.stringify({ type: 'transcription.text.delta', text: RAW }));
+        if (failure === 'streaming') interruptCapture = deny;
+        if (failure === 'transport') {
+          interruptCapture = () => socket.close({ code: 1011, reason: 'fixture transport closed' });
+        }
       }
       if (frame.type === 'input_audio.end') {
         socket.send(JSON.stringify({ type: 'transcription.done', transcript: RAW, model: 'fixture-transcription' }));
@@ -65,7 +71,7 @@ async function openGuest(page: Page, width: number, denial?: 'initial' | 'stream
   await editor.fill('Existing notes. ');
   await editor.press('ControlOrMeta+End');
   await expect(field.getByTestId('record-audio-button')).toBeVisible();
-  return { field, editor, connections, frames, uploads, release: async () => {
+  return { field, editor, connections, frames, uploads, interrupt: () => interruptCapture?.(), release: async () => {
     await expect.poll(() => !!releaseCorrection).toBe(true);
     releaseCorrection!();
   } };
@@ -109,6 +115,10 @@ for (const denial of ['initial', 'streaming'] as const) {
   test(`guest ${denial} allowance denial closes recording, preserves notes and offers signup`, async ({ page }) => {
     const state = await openGuest(page, 680, denial);
     await state.field.getByTestId('record-audio-button').dispatchEvent('mousedown', { button: 0 });
+    if (denial === 'streaming') {
+      await expect(state.editor).toContainText(RAW);
+      state.interrupt();
+    }
     const notice = page.getByTestId('notification').filter({ hasText: "You've reached the free usage limit." });
     await expect(notice).toBeVisible();
     await expect(notice.getByTestId('notification-action')).toHaveText('Sign up');
@@ -119,3 +129,20 @@ for (const denial of ['initial', 'streaming'] as const) {
     expect(state.uploads).toEqual([]);
   });
 }
+
+// contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3,message-input.audio.live-editor-transcript
+test('guest transport loss leaves admitted words editable', async ({ page }, testInfo) => {
+  const state = await openGuest(page, 680, 'transport');
+  await state.field.getByTestId('record-audio-button').dispatchEvent('mousedown', { button: 0 });
+  await expect(state.editor).toContainText(RAW);
+  state.interrupt();
+
+  await expect(page.getByTestId('record-overlay')).toHaveCount(0);
+  await expect(state.editor).toHaveText(`Existing notes. ${RAW}`);
+  await expect(state.editor).toBeFocused();
+  await expect(page.getByTestId('user-message-content')).toHaveCount(0);
+  expect(state.uploads).toEqual([]);
+  await testInfo.attach('guest-dictation-after-transport-loss', {
+    body: await state.field.screenshot(), contentType: 'image/png',
+  });
+});

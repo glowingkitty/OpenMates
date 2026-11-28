@@ -33,6 +33,11 @@ GIB = 1024 ** 3
 # One hard floor, an emergency line only (owner decision 2026-11-17, TASK-7646): the
 # hourly category budgets keep the disk near 57%. No percent ceiling (100 = off).
 MIN_FREE = 10 * GIB
+# Cleanup aims above the floor, not at it (TASK-5181): below CLEANUP_TARGET_FREE the
+# coordinator runs every cleanup kind every few minutes and the budgets switch to
+# their emergency windows, so the 10 GiB floor is reached only if nothing is left
+# that is safe to delete.
+CLEANUP_TARGET_FREE = int(float(os.environ.get("OPENMATES_DISK_CLEANUP_TARGET_GIB", "40")) * GIB)
 MAX_USED_PERCENT = 100
 RESULT_AGE_SECONDS = 14 * 24 * 3600
 # Hard age cap: after this, terminal CI payloads and candidate patches of

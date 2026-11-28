@@ -116,7 +116,8 @@ def component_status(component: Component, latest: Mapping[str, CheckResult],
     return "operational"
 
 
-def update_incidents(incidents: list[Incident], alerts: Mapping[str, OpenAlert], now: float) -> list[Incident]:
+def update_incidents(incidents: list[Incident], alerts: Mapping[str, OpenAlert], now: float,
+                     known_checks: set[str] | None = None) -> list[Incident]:
     """Open one incident per affected component; resolve it when its checks recover."""
     open_by_component = {i.component: i for i in incidents if i.resolved_at is None}
     for component in COMPONENTS:
@@ -126,7 +127,9 @@ def update_incidents(incidents: list[Incident], alerts: Mapping[str, OpenAlert],
             started = min(a.down_since for a in down)
             incidents.append(Incident(f"{component.id}-{int(started)}", component.id,
                                       f"{component.name} disruption", started))
-        elif not down and current is not None:
+        elif not down and current is not None and (
+            known_checks is None or any(c.key in known_checks for c in component.checks)
+        ):
             current.resolved_at = now
     incidents.sort(key=lambda i: i.started_at, reverse=True)
     return incidents[:MAX_INCIDENTS]

@@ -336,6 +336,13 @@ def test_token_broker_route_validates_current_and_legacy_provider_identity(
     from backend.core.api.app.services.directus.team_methods import hash_id
 
     class FakeDirectus:
+        def __init__(self) -> None:
+            self.updates: list = []
+
+        async def update_item(self, collection, item_id, data):
+            self.updates.append((collection, item_id, data))
+            return {"id": item_id, **data}
+
         async def get_items(self, _collection: str, params: dict[str, Any] | None = None):
             assert params and params["filter[id][_eq]"] == "acct-1"
             return [
@@ -380,6 +387,8 @@ def test_token_broker_route_validates_current_and_legacy_provider_identity(
         assert response.json()["detail"] == "Connected account provider mismatch"
     else:
         assert len(response.json()["refs"]) == 1
+    # Last use is recorded by the client, encrypted; minting a ref never writes the row.
+    assert app.state.directus_service.updates == []
 
 
 # contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
@@ -391,9 +400,12 @@ async def test_batch_token_refs_clean_up_if_later_account_is_rejected():
     from backend.core.api.app.services.directus.team_methods import hash_id
 
     class Directus:
+        async def update_item(self, collection, item_id, data):
+            return {"id": item_id, **data}
+
         async def get_items(self, collection, params):
             assert collection == "connected_accounts"
-            return [{"provider_type_hash": hash_id("google")}] if params["filter[id][_eq]"] == "owned" else []
+            return [{"id": "owned", "provider_type_hash": hash_id("google")}] if params["filter[id][_eq]"] == "owned" else []
 
     cache = FakeCache()
     body = CreateTurnTokenRefsRequest(chat_id="chat", message_id="message", refs=[{

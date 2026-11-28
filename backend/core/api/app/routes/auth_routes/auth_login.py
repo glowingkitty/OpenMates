@@ -11,7 +11,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
-from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
+from backend.core.api.app.schemas.user import UserResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -25,6 +25,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
+from backend.core.api.app.routes.auth_routes.auth_common import read_ai_preferences_for_auth
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_client, get_cookie_domain, store_account_lifecycle_contact_email
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
 from backend.core.api.app.utils.newsletter_utils import update_newsletter_registration_status
@@ -870,6 +871,7 @@ async def login(
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
                     ui_font=user_profile.get("ui_font", "lexend"),
+                    **await read_ai_preferences_for_auth(directus_service, user_id, user_profile),
                     encrypted_key=user_profile.get("encrypted_key"),
                     encrypted_settings=user_profile.get("encrypted_settings"),
                     key_iv=user_profile.get("key_iv"),
@@ -1108,6 +1110,7 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         ui_font=user_profile.get("ui_font", "lexend"),
+                        **await read_ai_preferences_for_auth(directus_service, user_id, user_profile),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         encrypted_settings=user_profile.get("encrypted_settings"),
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
@@ -1436,6 +1439,7 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         ui_font=user_profile.get("ui_font", "lexend"),
+                        **await read_ai_preferences_for_auth(directus_service, user_id, user_profile),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         encrypted_settings=user_profile.get("encrypted_settings"),
                         key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API

@@ -10,6 +10,7 @@ import pytest
 from backend.shared.python_utils.queued_turn_marker import QUEUED_TURN_PENDING, queued_turn_pending_key
 from backend.shared.python_utils.focus_continuation_history import (
     FocusContinuationHistoryError,
+    admit_child_focus_source,
     publish_current_focus_continuation_failure,
     rebuild_focus_continuation_history,
     resolve_continuation_embed_references,
@@ -37,6 +38,32 @@ def _cache(rows: list[str], latest: str = "source") -> SimpleNamespace:
 
 def _crypto() -> SimpleNamespace:
     return SimpleNamespace(decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content))
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.sub-chats.focus-inheritance
+@pytest.mark.parametrize("latest", ["source", "newer"])
+async def test_claimed_child_admits_encrypted_source_without_superseding_newer_turn(latest: str) -> None:
+    cache = _cache([], latest=latest)
+    redis = SimpleNamespace(set=AsyncMock(return_value=latest == "source"))
+    cache.client = AsyncMock(return_value=redis)()
+    cache.add_ai_message_to_history = AsyncMock(return_value=True)
+    encryption = SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("vault:v1:sealed", None)))
+    request = SimpleNamespace(user_id="owner", chat_id="child", message_id="source", message_history=[
+        SimpleNamespace(role="user", message_id="source", content="Check the assumption", sender_name="user", created_at=1),
+    ])
+
+    await admit_child_focus_source(cache, encryption, request, "vault-key")
+
+    assert redis.set.await_args.kwargs["nx"] is True
+    if latest == "newer":
+        encryption.encrypt_with_user_key.assert_not_awaited()
+        cache.add_ai_message_to_history.assert_not_awaited()
+        return
+    owner, child, serialized = cache.add_ai_message_to_history.await_args.args
+    assert (owner, child) == ("owner", "child")
+    assert json.loads(serialized)["encrypted_content"] == "vault:v1:sealed"
+    assert "Check the assumption" not in serialized
 
 
 def _pending(**fields: str) -> dict:
@@ -156,10 +183,15 @@ async def test_real_focus_dispatch_branches_use_exact_source_history(
         _row("user", "source", "Current request"),
         _row("system", "prior-transition", "Prior transition"),
     ]
-    cache = _cache(rows)
+    redis = SimpleNamespace(publish=AsyncMock(), eval=AsyncMock(return_value=1))
+
+    class ConversationCache(SimpleNamespace):
+        @property
+        async def client(self):
+            return redis
+
+    cache = ConversationCache(**{name: value for name, value in vars(_cache(rows)).items() if name != "client"})
     cache.get_and_delete_pending_focus_activation.return_value = _pending()
-    redis = SimpleNamespace(publish=AsyncMock())
-    cache.client = AsyncMock(return_value=redis)()
     from backend.core.api.app.services import cache as cache_module
     from backend.core.api.app.services import directus as directus_module
     from backend.core.api.app.utils import encryption as encryption_module

@@ -160,6 +160,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
       const dom = document.createElement("div");
       dom.setAttribute("contenteditable", "false");
       dom.classList.add("embed-preview-large-node");
+      dom.setAttribute("data-testid", "embed-preview-large-node");
       // A hidden invocation placeholder is not a preview: it takes no space
       // and is not found by preview selectors.
       function syncHidden() {

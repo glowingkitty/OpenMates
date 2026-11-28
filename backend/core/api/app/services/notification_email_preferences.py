@@ -71,8 +71,11 @@ def push_chat_title_enabled(push_preferences: Any) -> bool:
     return _json_object(push_preferences).get("includeChatTitle", True) is not False
 
 def push_preview_enabled(push_preferences: Any) -> bool:
-    """Answer text in the sealed push body is an explicit opt-in (default off)."""
-    return _json_object(push_preferences).get("includePreview") is True
+    """Answer excerpt in the device-sealed push body: default on, explicit opt-out
+    (owner decision, 27 Nov: notifications must show the actual answer). The older
+    default-off `includePreview` key is deliberately not read: web settings stored
+    its default `false`, which is indistinguishable from a real opt-out."""
+    return _json_object(push_preferences).get("includeAnswerText", True) is not False
 
 
 def notification_headline(sender: str, title: str | None) -> str:

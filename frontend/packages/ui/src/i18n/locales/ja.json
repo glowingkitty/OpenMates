@@ -959,6 +959,12 @@
         "description": {
           "text": "Figma のデザインを読み取り、構造、スタイル、コード引き継ぎ情報を取得します。"
         }
+      },
+      "author": {
+        "text": "デザインを作成",
+        "description": {
+          "text": "編集できるチラシ、投稿、モックアップを作成します。"
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "タスクを作成",
-          "description": {
-            "text": "タイトル、説明、担当者付きのタスクを作成します。"
-          }
-        },
         "search": {
           "text": "タスクを検索",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "チャットの例"
       },
+      "sub_chat": {
+        "text": "サブチャット"
+      },
       "shared_chat": {
         "text": "共有チャット"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "もっと表示"
+      },
+      "account_total": {
+        "text": "アカウント内のチャット: {count} 件"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "{label} を折りたたむ"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "タスク"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid 図"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "グラフィックを読み込み中…"
+        },
+        "progress_checking": {
+          "text": "デザインを確認中…"
+        },
+        "progress_adjusting": {
+          "text": "刺繍用にデザインを調整中…"
+        },
+        "progress_stitching": {
+          "text": "ステッチとプレビューを作成中…"
+        },
+        "progress_saving": {
+          "text": "マシンファイルを保存中…"
+        },
         "threads": {
           "text": "糸"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "デザインをダウンロード"
+        },
+        "current_page": {
+          "text": "現在のページ"
+        },
+        "all_pages": {
+          "text": "すべてのページ"
+        },
+        "image_unavailable": {
+          "text": "このデバイスで利用できない画像があります。ページを開き、画像の読み込みが終わってからもう一度お試しください。"
+        },
+        "failed": {
+          "text": "デザインをダウンロードできませんでした。もう一度お試しください。"
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "無料で試す"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "メールドメインが許可されていません。"
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "音声通話は Mistral の文字起こし、ElevenLabs v4 Turbo の音声、通常の OpenMates AI ルーティング、従量課金を使用します。"
-    },
     "privacy_description": {
       "text": "Mistral がマイク音声を文字起こしし、ElevenLabs v4 Turbo が回答テキストと音声設定からアシスタントの音声を生成します。会話には通常の OpenMates AI ルーティングとスキルが使われます。各プロバイダーは自身のポリシーに従ってリクエストデータを保持する場合があります。"
     },

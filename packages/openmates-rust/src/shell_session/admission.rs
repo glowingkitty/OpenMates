@@ -40,13 +40,87 @@ impl<'a> FreshSessionAdmission<'a> {
     where
         'a: 'b,
     {
+        Self::admit_for_principal(client, session, credentials, cancel, None, None)
+    }
+
+    /// Admit a restored account whose previously authorized local profile is
+    /// already visible. Match its principal before saving validation results and
+    /// close the temporary local profile read as soon as validation settles.
+    ///
+    /// # Errors
+    /// Admission and persistence errors, or `Expired` if the principal changed.
+    pub fn admit_restored<'b, S: ByteStore + 'static>(
+        client: &'a mut Client,
+        session: &'b ShellSession<S>,
+        credentials: &'b dyn CredentialPersistence,
+        cancel: &'b CancellationToken,
+        principal: String,
+        close_local_profile: &'b (dyn Fn() + Send + Sync),
+    ) -> BoxFuture<'b, Result<Self>>
+    where
+        'a: 'b,
+    {
+        Self::admit_for_principal(
+            client, session, credentials, cancel, Some(principal), Some(close_local_profile),
+        )
+    }
+
+    /// Revalidate an existing client while retaining its in-memory window.
+    /// The network response must authenticate the same principal before its
+    /// credentials or account state can be persisted.
+    ///
+    /// # Errors
+    /// Admission and persistence errors, or `Expired` if the principal changed.
+    pub fn readmit_existing<'b, S: ByteStore + 'static>(
+        client: &'a mut Client,
+        session: &'b ShellSession<S>,
+        credentials: &'b dyn CredentialPersistence,
+        cancel: &'b CancellationToken,
+    ) -> BoxFuture<'b, Result<Self>>
+    where
+        'a: 'b,
+    {
+        let expected = Self::principal(client).map(str::to_owned);
+        Box::pin(async move {
+            let expected = expected.ok_or(Error::Authentication)?;
+            Self::admit_for_principal(client, session, credentials, cancel, Some(expected), None).await
+        })
+    }
+
+    fn principal(client: &Client) -> Option<&str> {
+        ["id", "user_id"]
+            .into_iter()
+            .filter_map(|key| client.user()[key].as_str())
+            .find(|id| !id.is_empty())
+    }
+
+    fn admit_for_principal<'b, S: ByteStore + 'static>(
+        client: &'a mut Client,
+        session: &'b ShellSession<S>,
+        credentials: &'b dyn CredentialPersistence,
+        cancel: &'b CancellationToken,
+        expected: Option<String>,
+        close_local_profile: Option<&'b (dyn Fn() + Send + Sync)>,
+    ) -> BoxFuture<'b, Result<Self>>
+    where
+        'a: 'b,
+    {
         Box::pin(async move {
             let ops = session.ops().clone();
             let generation = ops.generation();
             let admitted = {
                 let validation = async {
                     current(client, &ops, generation, cancel)?;
-                    let handoff = client.validate_session_for_recovery(cancel).await?;
+                    let validation = client.validate_session_for_recovery(cancel).await;
+                    if let Some(expected) = expected.as_deref()
+                        && (close_local_profile.is_none() || validation.is_ok())
+                        && client.session().is_some()
+                        && Self::principal(client) != Some(expected)
+                    {
+                        client.forget_session();
+                        return Err(Error::Expired);
+                    }
+                    let handoff = validation?;
                     current(client, &ops, generation, cancel)?;
                     Ok(handoff)
                 };
@@ -59,6 +133,9 @@ impl<'a> FreshSessionAdmission<'a> {
                     ).await.unwrap_or(Err(Error::Cancelled)),
                 }
             };
+            if let Some(close_local_profile) = close_local_profile {
+                close_local_profile();
+            }
             let saved = session.persist(client, credentials).await;
             let auth_handoff = match (admitted, saved) {
                 (_, Err(error)) | (Err(error), Ok(())) => return Err(error),

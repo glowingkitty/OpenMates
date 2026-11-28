@@ -212,7 +212,8 @@ Accessible from fullscreen view of any versioned embed (code, doc, sheet):
 ## Edge Cases
 
 - **Cache miss during diff apply:** Fetch content from Directus (same pattern as embed cache miss)
-- **Concurrent edits:** Last-write-wins (single user, no CRDT needed)
+- **Concurrent edits:** The server never overwrites a newer version. Right before the write it re-reads the embed; if `version_number` moved past the version the assistant read, nothing is written and the diff falls back to the suggestion card (task eafb0277).
+- **Live collaboration (`feature_flags.live_collaboration` on):** for documents, sheets and slide decks the server writes no version. It sends the requester's devices `embed_assistant_editing {embed_id, scope}` and `embed_assistant_change {embed_id, turn_id, base_version, new_text_form, mate_name, scope}`; the client core merges it and reports `applied | same_spot | target_deleted | needs_recheck` to `POST /v1/embeds/{id}/assistant-change-outcome`. `same_spot` or an unresolved `needs_recheck` ends in the suggestion card; `target_deleted` adds a short note to the reply. With no device online the change waits 24 h in the vault-sealed cache and is flushed on reconnect (`flush_pending_assistant_changes`). Not built yet: regenerating the edit once against the newer text on `same_spot`.
 - **Diff on empty embed:** If embed has status=processing, queue the diff until finalized
 - **Embed shared mid-history:** Recipient gets latest snapshot + full diff history via share key
 - **Cold storage:** `embed_diffs` rows follow same cold-storage rules as parent embed

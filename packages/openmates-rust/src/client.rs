@@ -38,7 +38,7 @@ mod browser;
 pub use browser::BrowserProfileCacheReadiness;
 #[doc(hidden)]
 pub use browser::OwnedBrowserProfileCacheAbsence;
-#[cfg(all(feature="browser-metadata-prototype",any(target_arch="wasm32",test)))]
+#[cfg(any(target_arch = "wasm32", test))]
 #[doc(hidden)]
 pub use browser::{PreparedBrowserFirstSession,BrowserFirstSessionControl,BrowserFirstSessionReceipt};
 #[cfg(all(target_arch="wasm32",feature="browser-metadata-prototype"))]
@@ -66,7 +66,9 @@ mod context;
 mod project_memories;
 mod project_memory_request;
 mod send_project_binding;
+mod design_scene;
 mod direct;
+pub(crate) use direct::{previous_team_keys, refuse_sealed_team_key};
 mod docs;
 mod browser_draft;
 mod browser_draft_offline;
@@ -101,6 +103,7 @@ pub mod video_timeline;
 pub mod saved_embed;
 #[doc(hidden)]
 pub mod shared_items;
+pub mod live;
 mod saved_embed_selector;
 mod focus;
 mod answer_withdrawal;
@@ -124,6 +127,11 @@ pub(crate) use monitor::test_peer as monitor_test_peer;
 pub use monitor::{PreparedInitialSync,InitialSyncControl,InitialSyncRead,InitialSyncMetadataBatch};
 #[doc(hidden)]
 pub use monitor::{PreparedOwnedChatMonitor,OwnedChatMonitorStartStep,OwnedChatMonitorStartApply,OwnedChatMonitorReady,OwnedChatMonitorStartControl,OwnedChatMonitorStartTerminal};
+/// Native selected-file reader for the already admitted cached-chat view.
+#[cfg(not(target_arch = "wasm32"))]
+pub use monitor::cached_view::{CachedChatFilePublication, CachedChatFileReader};
+mod native_personal_offline;
+pub use native_personal_offline::{NativePersonalOfflineIssuance, NativePersonalOfflineReceipt};
 pub use monitor::cached_view::{CacheSettlementCandidate, CacheSettlementPublication, ChatFirstPageCandidate, ChatFirstPagePublication, ChatFirstPageSink, CanonicalChatCandidate, CanonicalChatPublication, CachedChatPublication, CachedChatViews, CachedChatWindow, ChatOwnerLease, ChatViewRead};
 pub use monitor::{
     ChatInvalidation, ChatModels, ChatMonitor, ChatMonitorAccessDenial, ChatPublication,
@@ -177,11 +185,18 @@ mod chat_tombstones;
 // architecture.sync@2 overview order and incremental chat sync feed.
 pub mod overview;
 mod sync_feed;
+mod recently_opened;
+/// Validate one authoritative opened-chat startup list.
+pub use recently_opened::parse_startup_opened_chat_ids;
+pub(crate) use recently_opened::{StartupForegroundBudget, opened_tail_needs_read, opened_wire_version};
+pub(crate) use saved_chat_read::metadata::timestamp as chat_metadata_timestamp;
 mod mention_context;
 mod search;
 mod send;
 /// Opt-in send diagnostic hook for JSON decode failures (see `refusal_trace`).
 pub(crate) use send::refusal_trace::note_caller as note_protocol_caller;
+/// Pure "this resent turn already completed" match, shared with the web outbox decision.
+pub(crate) use send::finished_turn::finished_assistant_id as finished_turn_assistant_id;
 // Composer attachments and caller PII mappings of a turn (native shells).
 mod send_attachments;
 mod send_observations;
@@ -732,6 +747,7 @@ pub struct Client {
     /// Opt-in WebSocket capabilities for the next saved-turn socket only
     /// (for example `project_create_requests`); cleared after connecting.
     extra_socket_capabilities: Vec<&'static str>,
+    parallel_chat_turns: bool,
     /// Last successful native session validation (see auth.rs reuse rules).
     recent_validation: Option<auth::RecentValidation>,
     /// Verification the last native session check asked for (session_verification.rs).
@@ -747,6 +763,8 @@ pub struct Client {
     chat_details_cache: BTreeMap<String, chat_details_cache::ChatDetailsCache>,
     /// Incremental chat sync feed cursor and overview inputs (sync_feed.rs).
     chat_sync_feed: sync_feed::FeedState,
+    recently_opened: recently_opened::RecentlyOpened,
+    startup_opened_policy_enabled: bool,
     /// Display name cached in the index section for the first paint (sync.rs).
     display_name_hint: Option<String>,
 }
@@ -812,6 +830,8 @@ impl Client {
             cached_content: Default::default(),
             chat_details_cache: BTreeMap::new(),
             chat_sync_feed: Default::default(),
+            recently_opened: Default::default(),
+            startup_opened_policy_enabled: false,
             display_name_hint: None,
             fresh_auth: Default::default(),
             inventory_network: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -877,17 +897,20 @@ impl Client {
             completion_recovery_jobs: BTreeMap::new(),
             metadata_recovery_jobs: BTreeMap::new(),
             extra_socket_capabilities: Vec::new(),
+            parallel_chat_turns: false,
         })
     }
     pub fn reset(&mut self, api: &str, session: Option<Session>) -> Result<()> {
         let mut next = Self::with_options(api, session, self.options.clone())?;
         next.credential_revision = self.credential_revision;
+        next.startup_opened_policy_enabled = self.startup_opened_policy_enabled;
         next.credential_updates = self.credential_updates.take();
         next.consent = self.consent.take();
         next.e2b_consent = self.e2b_consent.take();
         next.ephemeral_chats = std::mem::take(&mut self.ephemeral_chats);
         next.operation_parent = self.operation_parent.clone();
         next.operation_cancel = next.operation_parent.child_token();
+        next.parallel_chat_turns = self.parallel_chat_turns;
         *self = next;
         self.credentials_changed();
         Ok(())
@@ -983,6 +1006,10 @@ impl Client {
         self.scoped_send_gate.invalidate_publications();
         self.fresh_auth.advance_operation();
         self.options.interactive = interactive;
+    }
+    /// Opt in when the terminal shell can present multiple replies in one chat.
+    pub fn set_parallel_chat_turns(&mut self, enabled: bool) {
+        self.parallel_chat_turns = enabled;
     }
     pub(super) fn lifecycle(&self) -> Value {
         let interactive = self.options.identity == ClientIdentity::Cli && self.options.interactive;
@@ -1155,6 +1182,7 @@ impl Client {
         self.saved_embed_cache=saved_embed_selector::SelectorCache::Legacy;
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.recently_opened = Default::default();
         self.chat_details_cache.clear();
         self.direct_identity = None;
         self.team_key = None;
@@ -1332,6 +1360,10 @@ impl Client {
         self.operation_cancel = cancel.child_token();
         self.operation_parent = cancel;
     }
+    #[cfg(all(test, not(target_arch = "wasm32")))]
+    pub(crate) fn operation_token_for_test(&self) -> CancellationToken {
+        self.operation_cancel.clone()
+    }
     pub fn set_consent_receiver(
         &mut self,
         receiver: mpsc::UnboundedReceiver<(String, Vec<String>)>,
@@ -1364,6 +1396,7 @@ impl Client {
         self.embeds.clear();
         self.embed_keys.clear();
         self.cached_content = Default::default();
+        self.recently_opened = Default::default();
         self.chat_details_cache.clear();
         self.display_name_hint = None;
         crate::model::zeroize_json(&mut self.user);

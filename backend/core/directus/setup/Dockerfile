@@ -17,5 +17,11 @@ RUN mkdir -p /usr/src/app/schemas
 # Make script executable
 RUN chmod +x setup_schemas.py
 
+RUN groupadd --gid 10002 cmsschema \
+    && useradd --uid 10002 --gid cmsschema --no-create-home --shell /usr/sbin/nologin cmsschema
+
+ENV PYTHONDONTWRITEBYTECODE=1
+USER cmsschema
+
 # Run setup script
 CMD ["python", "setup_schemas.py"]

@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.32.0"
+    MARKETING_VERSION: "0.33.0"
     CURRENT_PROJECT_VERSION: 13
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -784,6 +784,8 @@ targets:
     platform: macOS
     sources:
       - path: OpenMatesMacUITests
+      - path: OpenMatesUITests/ChatFlowRealAccountUITests.swift
+      - path: OpenMatesUITests/RealAccountUITestSupport.swift
       - path: OpenMatesUITests/ChatHistoryMacParityUITests.swift
       - path: OpenMatesUITests/MacMenuBarQuickCaptureUITests.swift
       - path: OpenMatesUITests/TooltipHelpParityUITests.swift

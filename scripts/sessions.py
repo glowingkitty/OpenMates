@@ -3071,6 +3071,15 @@ def _integration_worktree_path(session_id: str) -> Path:
     return AGENT_WORKTREES_DIR / f"{INTEGRATION_WORKTREE_PREFIX}{safe_session_id}-{secrets.token_hex(6)}"
 
 
+def _integration_checkout_landed(path: Path, target_ref: str) -> bool:
+    """Whether a leftover integration checkout's changes are all pushed (scripts/integration_checkout_expiry.py)."""
+    try:
+        from scripts.integration_checkout_expiry import integration_checkout_landed
+    except ModuleNotFoundError:
+        from integration_checkout_expiry import integration_checkout_landed
+    return integration_checkout_landed(path, target_ref)
+
+
 def _is_integration_worktree_path(path: Path) -> bool:
     """Return whether path is a direct managed disposable integration checkout."""
     if ".." in path.parts:
@@ -3157,6 +3166,33 @@ def _regenerate_rust_migration_artifacts(checkout_root: Path, files: list[str]) 
     if rc != 0:
         raise RuntimeError(f"Could not inspect regenerated Rust migration YAML: {stderr}")
     return sorted(line.strip() for line in stdout.splitlines() if line.strip())
+
+
+AGENTS_MD = "AGENTS.md"
+
+
+def _regenerate_agents_md(checkout_root: Path) -> list[str]:
+    """Rebuild and stage AGENTS.md (Codex instructions) from CLAUDE.md, rules and skills.
+
+    Runs on every deploy, so a CLAUDE.md, rule or skill change, or a drift another
+    deploy left on dev, never reaches dev without its AGENTS.md (owner, 23 Nov: a stale
+    AGENTS.md must never block Codex chats). Returns ["AGENTS.md"] when it differs from HEAD.
+    """
+    script = checkout_root / "scripts" / "agents_md.py"
+    if not script.exists():
+        return []
+    rc, stdout, stderr = _run_cmd([sys.executable, str(script), "generate", "--repo", str(checkout_root)],
+                                  cwd=str(checkout_root), timeout=60)
+    if rc != 0:
+        raise RuntimeError(f"AGENTS.md generation failed: {stderr or stdout}")
+    rc, _stdout, stderr = _run_cmd(["git", "add", "--", AGENTS_MD], cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not stage regenerated AGENTS.md: {stderr}")
+    rc, stdout, stderr = _run_cmd(["git", "diff", "--cached", "--name-only", "HEAD", "--", AGENTS_MD],
+                                  cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect regenerated AGENTS.md: {stderr}")
+    return [AGENTS_MD] if stdout.strip() else []
 
 
 def _numstat_deletions(
@@ -3368,6 +3404,7 @@ def _apply_worktree_diff_to_checkout(
                 )
         _regenerate_specification_artifacts(checkout_root, specification_generated_files)
         _regenerate_rust_migration_artifacts(checkout_root, files)
+        _regenerate_agents_md(checkout_root)
         _enforce_no_integration_deletion_amplification(
             source_metadata,
             patch_files,
@@ -3459,6 +3496,7 @@ def _apply_worktree_diff_to_checkout(
 
     _regenerate_specification_artifacts(checkout_root, specification_generated_files)
     _regenerate_rust_migration_artifacts(checkout_root, files)
+    _regenerate_agents_md(checkout_root)
     _enforce_no_integration_deletion_amplification(
         source_metadata,
         patch_files,
@@ -4708,7 +4746,7 @@ def _managed_worktree_records() -> list[dict]:
         paths[str(path)] = {**linked, "linked": True}
     if AGENT_WORKTREES_DIR.is_dir():
         for path in AGENT_WORKTREES_DIR.iterdir():
-            if not path.is_dir():
+            if not path.name.startswith("agent-") or not path.is_dir():
                 continue
             resolved = path.resolve(strict=False)
             try:
@@ -5002,9 +5040,16 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     if not path.exists():
         return True, "missing"
     metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    landed = False
     try:
         if _candidate_changed_files(path, metadata):
-            return False, "unique_changes"
+            # A leftover deploy checkout whose patch is on the target branch (or still in
+            # its lane) holds nothing unpushed (TASK-541); everything else is unique work.
+            landed = _is_integration_worktree_path(path) and _integration_checkout_landed(path, target_ref)
+            if not landed:
+                return False, "unique_changes"
         if any(
             Path(name).name not in WORKTREE_EXPIRY_REPRODUCIBLE_DIRS
             or not (path / name).is_dir()
@@ -5017,11 +5062,9 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     rc, head, _stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
     if rc != 0 or not head.strip():
         return False, "inspection_failed"
-    session = record.get("session") if isinstance(record.get("session"), dict) else {}
-    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
     if not _git_is_ancestor(head.strip(), target_ref):
         return False, "unmerged_head"
-    return True, "reachable_clean_head"
+    return True, "integration_landed" if landed else "reachable_clean_head"
 
 
 def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]:
@@ -5292,6 +5335,7 @@ def expire_managed_worktrees(
     max_age_hours: int = WORKTREE_HARD_MAX_AGE_HOURS,
     now_timestamp: float | None = None,
     dry_run: bool = False,
+    preserve_unfinished: bool = False,
 ) -> dict:
     """Delete inactive worktrees only when their changes are recoverable.
 
@@ -5327,7 +5371,8 @@ def expire_managed_worktrees(
             continue
         disposable, reason = _hard_expiry_record_is_safely_disposable(record)
         candidate = {**record, "age_hours": age_hours}
-        if disposable or reason in {"unique_changes", "unique_ignored_files", "unmerged_head"}:
+        if disposable or (not preserve_unfinished
+                          and reason in {"unique_changes", "unique_ignored_files", "unmerged_head"}):
             candidate["requires_archive"] = not disposable
             expired.append(candidate)
         else:
@@ -7581,6 +7626,24 @@ def bind_agent_task_session(
     return _mutate_sessions(bind)
 
 
+def release_archived_agent_bindings(chat_ids: set[str]) -> list[str]:
+    """Release stopped, archived owners on this host while preserving their worktrees."""
+    host = socket.gethostname()
+
+    def release(data: dict) -> list[str]:
+        released = []
+        for sid, record in data.get("sessions", {}).items():
+            if record.get("agent_host") != host or record.get("agent_task_id") not in chat_ids:
+                continue
+            record["archived_agent_task_id"] = record["agent_task_id"]
+            record["agent_task_id"] = None
+            record["agent_host"] = None
+            released.append(sid)
+        return released
+
+    return _mutate_sessions(release)
+
+
 def _session_zellij_owner(agent_task: str | None) -> str | None:
     """A shared task host is not a task-owned terminal."""
     return None if agent_task else os.environ.get("ZELLIJ_SESSION_NAME")
@@ -8440,7 +8503,8 @@ def cmd_doctor(args: argparse.Namespace) -> None:
 
 def cmd_ci_source(args: argparse.Namespace) -> None:
     """Publish this session's reviewed source without deploying shared dev."""
-    from ci_source import publish
+    from ci_source import publication_lock, publish
+    from heavy_slot import ci_source_slot
 
     session = _load_sessions().get("sessions", {}).get(args.session)
     if not session:
@@ -8448,10 +8512,12 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     root = _session_checkout_root(session)
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI source publication requires the session's managed worktree")
-    tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
-    result = publish(root, args.session, tracked,
-                     base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
-                     patch_sha256=args.patch_sha256 or "")
+    os.nice(max(0, 10 - os.nice(0)))
+    with publication_lock(CONTROL_PLANE_ROOT, args.session), ci_source_slot():
+        tracked = _auto_track_lane_untracked_files(args.session, root, list(session.get("modified_files", [])))
+        result = publish(root, args.session, tracked,
+                         base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
+                         patch_sha256=args.patch_sha256 or "")
     # Presigned candidate URLs are credentials. The dispatcher reads them from
     # the mode-0600 local manifest; never print them into chat or shell logs.
     print(json.dumps({key: value for key, value in result.items() if key != "patch_url"}, sort_keys=True))
@@ -12135,6 +12201,73 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
         )
 
 
+def _generated_locale_path(path: str) -> bool:
+    return bool(re.fullmatch(r"frontend/packages/ui/src/i18n/locales/[a-z]{2}(?:-[A-Za-z0-9]+)?\.json", path))
+
+
+def _disposable_deploy_output(path: str) -> bool:
+    return (_generated_locale_path(path) or path in SPECIFICATION_GENERATED_ARTIFACTS
+            or path in RUST_MIGRATION_GENERATED_ARTIFACTS or path == "AGENTS.md")
+
+
+def _save_and_reset_generated_root(dirty: str) -> bool:
+    """Preserve and clear deploy-generated files only, while holding the deploy lock."""
+    lines = dirty.splitlines()
+    if not lines or any(not re.match(r"^[ MD]{2} ", line) for line in lines):
+        return False
+    paths = [line[3:] for line in lines]
+    if not all(_disposable_deploy_output(path) for path in paths):
+        return False
+    root = CONTROL_PLANE_ROOT
+    recovery = root / ".git" / "generated-deploy-recovery"
+    recovery.mkdir(mode=0o700, parents=True, exist_ok=True)
+    folder = Path(tempfile.mkdtemp(prefix="generated-", dir=recovery))
+    for path in paths:
+        source = root / path
+        if source.is_symlink() or (source.exists() and not source.is_file()):
+            return False
+        if source.is_file():
+            destination = folder / "files" / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+    for name, revisions in (("worktree", ["HEAD"]), ("index", ["--cached"])):
+        result = subprocess.run(["git", "diff", "--binary", *revisions, "--", *paths],
+                                cwd=root, capture_output=True, check=True, timeout=30)
+        (folder / f"{name}.patch").write_bytes(result.stdout)
+    (folder / "status.txt").write_text(dirty, encoding="utf-8")
+    for path in paths:
+        source, saved = root / path, folder / "files" / path
+        if source.is_file() != saved.is_file() or (saved.is_file() and _file_sha256(source) != _file_sha256(saved)):
+            return False
+    rc, _, stderr = _run_cmd(["git", "restore", "--source=HEAD", "--staged", "--worktree", "--", *paths],
+                             cwd=str(root), timeout=30)
+    if rc:
+        raise RuntimeError(f"Could not restore generated outputs after saving them at {folder}: {stderr}")
+    print(f"Saved and reset {len(paths)} generated outputs. Recovery copy: {folder}")
+    return True
+
+
+def _stage_generated_locales(checkout: Path) -> dict[str, str]:
+    """Stage locale bytes after the translation build and validation have passed."""
+    rc, output, stderr = _run_cmd(["git", "diff", "HEAD", "--name-only", "--",
+                                   "frontend/packages/ui/src/i18n/locales"], cwd=str(checkout))
+    if rc:
+        raise RuntimeError(f"Could not inspect generated locales: {stderr}")
+    files = [path for path in output.splitlines() if _generated_locale_path(path)]
+    if not files:
+        return {}
+    rc, _, stderr = _run_cmd(["git", "add", "--", *files], cwd=str(checkout))
+    if rc:
+        raise RuntimeError(f"Could not stage generated locales: {stderr}")
+    staged = {}
+    for path in files:
+        rc, oid, stderr = _run_cmd(["git", "rev-parse", f":{path}"], cwd=str(checkout))
+        if rc:
+            raise RuntimeError(f"Could not verify staged locale {path}: {stderr}")
+        staged[path] = oid.strip()
+    return staged
+
+
 def _enforce_control_plane_sync_ready(expected_base: str) -> None:
     """Make canonical dev a clean tracked mirror of the locked deploy base."""
     rc, branch, stderr = _run_cmd(
@@ -12146,13 +12279,14 @@ def _enforce_control_plane_sync_ready(expected_base: str) -> None:
             "Canonical checkout must have local dev checked out before deploy: "
             f"{stderr or branch or 'branch could not be resolved'}"
         )
-    rc, dirty, stderr = _run_cmd(
+    status = subprocess.run(
         ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=CONTROL_PLANE_ROOT, capture_output=True, text=True, timeout=30,
     )
-    if rc != 0:
-        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {stderr}")
-    if dirty.strip():
+    if status.returncode != 0:
+        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {status.stderr.strip()}")
+    dirty = status.stdout
+    if dirty.strip() and not _save_and_reset_generated_root(dirty):
         raise RuntimeError(
             "Canonical checkout has tracked changes, so local dev cannot be kept synchronized safely. "
             "Recover or import those root changes before retrying the deploy."
@@ -12532,8 +12666,10 @@ def _deploy_native_worktree(
                 checkout_root=checkout_root,
             )
             generated_rust_migration_files = _regenerate_rust_migration_artifacts(checkout_root, to_commit)
+            generated_agents_files = _regenerate_agents_md(checkout_root)
             commit_files = sorted(
-                set(to_commit).union(generated_specification_files, generated_rust_migration_files)
+                set(to_commit).union(generated_specification_files, generated_rust_migration_files,
+                                     generated_agents_files)
             )
             _run_deploy_gates(
                 commit_files,
@@ -12543,6 +12679,8 @@ def _deploy_native_worktree(
                 require_parity=require_parity,
                 session_id=sid,
             )
+            generated_locales = _stage_generated_locales(checkout_root) if _has_frontend_files(commit_files) else {}
+            commit_files = sorted(set(commit_files) | generated_locales.keys())
 
             _wait_and_acquire_session_lock(
                 "vercel_deploy",
@@ -12587,14 +12725,19 @@ def _deploy_native_worktree(
             if review:
                 reviewed_deploy.verify_staged(checkout_root, review)
             commit_message = _preflight_deploy_commit_message(args, session, commit_files)
+            _refuse_chat_links(commit_message, "commit message", check_name=True)
+            _check_public_tree(checkout_root)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")
             os.environ["OPENMATES_SKIP_PRECOMMIT_LOCALES"] = "1"
+            if generated_locales:
+                os.environ["OPENMATES_DEPLOY_GENERATED_LOCALES"] = json.dumps(generated_locales)
             try:
                 rc, _stdout, stderr = _run_cmd(commit_cmd, cwd=str(checkout_root), timeout=300)
             finally:
                 os.environ.pop("OPENMATES_SKIP_PRECOMMIT_LOCALES", None)
+                os.environ.pop("OPENMATES_DEPLOY_GENERATED_LOCALES", None)
             if rc != 0:
                 raise RuntimeError(f"git commit failed in integration worktree: {stderr}")
 
@@ -12843,6 +12986,7 @@ def _deploy_external_repo_locked(
 
     _validate_session_repo(repo)
     commit_msg = _integration_commit_message(args, session)
+    _refuse_chat_links(commit_msg, "commit message")
     commit_cmd = ["git", "commit", "-m", commit_msg]
     if no_verify:
         commit_cmd.append("--no-verify")
@@ -13000,8 +13144,97 @@ def _auto_fast_forward_worktree_for_deploy(sid: str, args: argparse.Namespace, w
     return _load_sessions().get("sessions", {}).get(sid)
 
 
+def _refuse_chat_links(text: str, where: str, *, check_name: bool = False) -> None:
+    """Apply the public text policy before creating the commit."""
+    try:
+        from scripts import public_link_guard
+    except ModuleNotFoundError:
+        import public_link_guard
+    try:
+        public_link_guard.refuse(text, where, check_name=check_name)
+    except public_link_guard.ChatLinkError as error:
+        raise RuntimeError(str(error)) from error
+
+
+def _check_public_tree(checkout_root: Path) -> None:
+    """Apply the repository naming rule even when local Git hooks are skipped."""
+    guard = checkout_root / "scripts/public_link_guard.py"
+    if guard.is_file():
+        rc, _, stderr = _run_cmd([sys.executable, str(guard), "tree"], cwd=str(checkout_root))
+        if rc:
+            raise RuntimeError(stderr.strip() or "Repository naming policy check failed")
+
+
+def _deploy_main_reconciliation(args: argparse.Namespace, session: dict, checkout: Path) -> None:
+    """Publish an exact-tree main reconciliation through the ordinary dev locks."""
+    sid = args.session
+    main = args.reconcile_main
+    if not re.fullmatch(r"[0-9a-f]{40}", main):
+        raise RuntimeError("Main reconciliation requires a full reviewed origin/main SHA.")
+    if any(getattr(args, option, None) for option in (
+        "reviewed_candidate", "reviewed_base", "only", "exclude", "use_staged",
+        "no_verify", "end_session", "expected_manifest_id",
+    )):
+        raise RuntimeError("Main reconciliation cannot be combined with patch deployment options.")
+    validate_worktree_binding_mode(session)
+    if not is_valid_managed_worktree_path(checkout):
+        raise RuntimeError("Main reconciliation requires this session's isolated worktree.")
+
+    def git(*argv: str) -> str:
+        rc, stdout, stderr = _run_cmd(["git", *argv], cwd=str(checkout), timeout=300)
+        if rc:
+            raise RuntimeError(f"Main reconciliation could not run git {argv[0]}: {stderr or stdout}")
+        return stdout
+
+    try:
+        from scripts.deploy_admission import admission_lock
+    except ModuleNotFoundError:
+        from deploy_admission import admission_lock
+
+    timeout = getattr(args, "lock_timeout", None)
+    with admission_lock(CONTROL_PLANE_ROOT / ".git" / "openmates-deploy-admission.lock", timeout=timeout or 900):
+        _wait_and_acquire_session_lock(
+            "vercel_deploy", sid, phase="reconciling_main_into_dev", timeout=timeout,
+            poll=getattr(args, "lock_poll", 30),
+        )
+        published = ""
+        try:
+            git("fetch", "origin", "main")
+            dev = _fetch_origin_dev_commit()
+            _enforce_control_plane_deploy_protocol_compatible(dev)
+            if git("rev-parse", "origin/main") != main:
+                raise RuntimeError("origin/main moved after review. Resolve again against current main.")
+            dev_tree = git("rev-parse", f"{dev}^{{tree}}")
+            if git("status", "--porcelain") or git("rev-parse", "HEAD^{tree}") != dev_tree:
+                raise RuntimeError("Resolve and stage the merge with the exact current dev tree before publishing.")
+            head = git("rev-parse", "HEAD")
+            if head == dev:
+                if git("rev-parse", "MERGE_HEAD") != main:
+                    raise RuntimeError("The staged merge does not use the reviewed origin/main commit.")
+                message = _integration_commit_message(args, session)
+                _refuse_chat_links(message, "merge message", check_name=True)
+                _check_public_tree(checkout)
+                git("commit", "-m", message)
+                head = git("rev-parse", "HEAD")
+            if git("show", "-s", "--format=%P", head).split() != [dev, main]:
+                raise RuntimeError("Expected exactly the current dev and reviewed main parents.")
+            if git("rev-parse", "HEAD^{tree}") != dev_tree:
+                raise RuntimeError("The merge changed the dev tree. Deploy content changes separately.")
+            _enforce_control_plane_sync_ready(dev)
+            git("push", "origin", "HEAD:refs/heads/dev")
+            published = head
+            _fast_forward_control_plane(head)
+        finally:
+            _release_session_lock("vercel_deploy", commit_sha=published, released_by=sid)
+    _save_last_deploy_sha(published)
+    _mark_worktree_deployed(sid, "", published)
+    _print_deployed_commit_handoff(published)
+
+
 def cmd_deploy(args: argparse.Namespace) -> None:
     """Execute deployment: lint, git add, commit, push."""
+    _refuse_chat_links(f"{getattr(args, 'title', '') or ''}\n{getattr(args, 'message', '') or ''}",
+                       "deploy --title/--message")
     try:  # a dev deploy freeze set by the owner refuses every deploy first (scripts/deploy_freeze.py)
         from scripts import deploy_freeze
     except ModuleNotFoundError:
@@ -13020,6 +13253,12 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     is_control_plane_repo = _session_is_control_plane_repo(session)
     worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
     checkout_root = _session_checkout_root(session)
+
+    if getattr(args, "reconcile_main", None):
+        if not worktree_metadata:
+            raise RuntimeError("Main reconciliation requires an OpenMates worktree.")
+        _deploy_main_reconciliation(args, session, checkout_root)
+        return
 
     reviewed_candidate = str(getattr(args, "reviewed_candidate", "") or "")
     reviewed_base = str(getattr(args, "reviewed_base", "") or "")
@@ -13460,6 +13699,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 commit_msg += "\n\n" + task_summary
 
     _validate_specification_commit_message(to_commit, commit_msg)
+    try:
+        _refuse_chat_links(commit_msg, "commit message", check_name=True)
+        _check_public_tree(CONTROL_PLANE_ROOT)
+    except RuntimeError:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        raise
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
@@ -13642,7 +13888,8 @@ def cmd_worktree(args: argparse.Namespace) -> None:
     if args.worktree_action == "expire":
         try:
             report = expire_managed_worktrees(
-                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False)
+                max_age_hours=args.max_age_hours, dry_run=getattr(args, "dry_run", False),
+                preserve_unfinished=getattr(args, "preserve_unfinished", False),
             )
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
@@ -15724,6 +15971,8 @@ def main() -> None:
         ),
     )
     p_worktree_expire.add_argument("--dry-run", action="store_true", help="Report only; archive, delete and prune nothing")
+    p_worktree_expire.add_argument("--preserve-unfinished", action="store_true",
+                                   help="Keep worktrees with changes or files that are not integrated")
     p_worktree_expire.add_argument("--format", choices=["text", "json"], default="text")
     p_worktree_restore = p_worktree_sub.add_parser(
         "restore-archive", help="Show the recovery archive of an expired worktree and how to restore it"
@@ -15959,6 +16208,10 @@ def main() -> None:
     p_deploy.add_argument("--full", action="store_true", help="Include the deployed file inventory")
     p_deploy.add_argument("--reviewed-candidate", help="Exact session CI candidate to deploy without changing its source worktree")
     p_deploy.add_argument("--reviewed-base", help="Exact reviewed candidate parent; selected upstream drift blocks deployment")
+    p_deploy.add_argument(
+        "--reconcile-main", metavar="MAIN_SHA",
+        help="Publish a resolved main-to-dev merge whose tree equals current origin/dev",
+    )
     p_deploy.add_argument(
         "--session", "-s", help="Session ID"
     )

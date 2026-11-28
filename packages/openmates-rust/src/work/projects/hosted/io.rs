@@ -7,6 +7,7 @@
 //! `commitHostedProjectFileRevision`). Cookie sessions only.
 use super::super::items::optional_text;
 use super::*;
+use crate::client::embed_user_revision::team_cipher::TeamRevisionCipher;
 
 /// Effects of one hosted file operation. Implemented by [`ProjectIo`] and by
 /// in-memory fakes in the unit tests.
@@ -15,6 +16,13 @@ pub(crate) trait HostedIo {
     async fn list_files(&mut self) -> HostedResult<Vec<HostedFile>>;
     /// The decrypted current head of one linked embed.
     async fn read_head(&mut self, embed_id: &str) -> HostedResult<HostedHead>;
+    /// The authorized device's current Team revision key, when the scope has rotated.
+    async fn revision_cipher(
+        &mut self,
+        _embed_id: &str,
+    ) -> HostedResult<Option<TeamRevisionCipher>> {
+        Ok(None)
+    }
     /// The committed receipt of exactly this operation, if any.
     async fn receipt(
         &mut self,
@@ -132,6 +140,16 @@ pub(crate) fn decode_head(
     project_id: &str,
     project_key: &[u8; 32],
 ) -> HostedResult<HostedHead> {
+    decode_head_with(response, embed_id, project_id, project_key, None)
+}
+
+fn decode_head_with(
+    response: &Value,
+    embed_id: &str,
+    project_id: &str,
+    project_key: &[u8; 32],
+    team_plain: Option<Zeroizing<String>>,
+) -> HostedResult<HostedHead> {
     let embed = response
         .get("embed")
         .filter(|e| e.is_object())
@@ -162,10 +180,13 @@ pub(crate) fn decode_head(
     let cipher = embed["encrypted_content"]
         .as_str()
         .ok_or(HostedFileError::Refused("file_key_unavailable"))?;
-    let plain = Zeroizing::new(
-        crypto::server_fields::decrypt_text(cipher, &embed_key, &[])
-            .map_err(|_| HostedFileError::Refused("file_decryption_failed"))?,
-    );
+    let plain = match team_plain {
+        Some(plain) => plain,
+        None => Zeroizing::new(
+            crypto::server_fields::decrypt_text(cipher, &embed_key, &[])
+                .map_err(|_| HostedFileError::Refused("file_decryption_failed"))?,
+        ),
+    };
     // npm `toonEncodeContent` falls back to JSON text when TOON cannot encode
     // a value; readers (`parseEmbedContentObject`) accept both.
     let content = crate::work::decode_content_fields(&plain)
@@ -216,7 +237,36 @@ impl HostedIo for ProjectIo<'_, '_> {
             .request(Method::GET, &route, None, None)
             .await?;
         self.active()?;
-        decode_head(&response, embed_id, &self.project_id, &self.key)
+        let team_plain = match self.projects.filters.team_id.clone() {
+            Some(team) => {
+                let row = &response["embed"];
+                let ciphertext = string(row, "encrypted_content")?;
+                let version = row["version_number"].as_i64().unwrap_or(1);
+                self.projects
+                    .hosted_client()?
+                    .open_team_revision_content(&team, embed_id, version, ciphertext)
+                    .await?
+            }
+            None => None,
+        };
+        self.active()?;
+        decode_head_with(&response, embed_id, &self.project_id, &self.key, team_plain)
+    }
+
+    async fn revision_cipher(
+        &mut self,
+        embed_id: &str,
+    ) -> HostedResult<Option<TeamRevisionCipher>> {
+        let Some(team) = self.projects.filters.team_id.clone() else {
+            return Ok(None);
+        };
+        let cipher = self
+            .projects
+            .hosted_client()?
+            .team_revision_cipher(&team, embed_id, None)
+            .await?;
+        self.active()?;
+        Ok(cipher)
     }
 
     async fn receipt(

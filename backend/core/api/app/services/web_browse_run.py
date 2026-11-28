@@ -636,7 +636,15 @@ class BrowseRun:
                 self.data = data
             self.sources = check.sources
             return
-        if data is None or check.matched == 0 or not validator.is_valid(check.pruned):
+        # A turn that requests no result (no output schema), executed steps and
+        # extracted nothing is an interaction turn, e.g. typing one answer into a
+        # form. The data check does not apply; only the review of the observed
+        # page decides. A no-schema turn that did extract an answer (reading a
+        # page after clicking or scrolling) keeps the data path below.
+        interaction_only = self.request.output_schema is None and bool(self.trail) and data is None
+        if not interaction_only and (
+            data is None or check.matched == 0 or not validator.is_valid(check.pruned)
+        ):
             self.finish(
                 "needs_user",
                 "The observed pages do not establish every requested result.",
@@ -649,7 +657,7 @@ class BrowseRun:
             verdict = await self.models.review(
                 self.request.task,
                 observation,
-                check.pruned,
+                {} if interaction_only else check.pruned,
                 evidence=self.ledger,
                 history=history,
             )
@@ -659,6 +667,10 @@ class BrowseRun:
                 "needs_user",
                 "The observed pages do not establish every requested result.",
             )
+            return
+        if interaction_only:
+            self.finish("completed", None)
+            self.sources = check.sources
             return
         full = verdict["answer_complete"] and not check.missing
         self.finish("completed", None if full else PARTIAL_REASON)

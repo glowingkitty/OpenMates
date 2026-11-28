@@ -19,6 +19,8 @@ from uuid import uuid4
 
 import httpx
 
+from backend.shared.python_utils.notification_spool import spool_notification
+
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.email_template import EmailTemplateService
@@ -67,6 +69,8 @@ async def _send_discord(webhook_url: str, content: str, png: bytes) -> bool:
             data={"payload_json": json.dumps({"content": content[:2000], "username": "OpenMates Operations"})},
             files={"files[0]": ("openmates-operational-report.png", png, "image/png")},
         )
+    if 200 <= response.status_code < 300:
+        spool_notification("operational_report", content[:2000], files=[("openmates-operational-report.png", png)])
     return 200 <= response.status_code < 300
 
 

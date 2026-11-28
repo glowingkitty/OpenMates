@@ -391,26 +391,56 @@ impl RestoreIo for ClientRestoreIo<'_> {
         // History rows of a hosted file hold its text, while the head holds
         // the code object; the new head is that object around the old text,
         // and the history keeps texts so later hosted patches still apply.
-        let text = crate::work::version_text(crate::work::replay_rows(&rows, &key, version)?);
-        let head_plain = Zeroizing::new(
-            crypto::server_fields::decrypt_text(&head.encrypted_content, &key, &[])
-                .map_err(|_| StepError::Refused("key_unavailable".into()))?,
+        let team = self.team_id.as_deref();
+        let text = crate::work::version_text(
+            self.client
+                .replay_stored_revision_history(team, embed_id, &rows, &key, version)
+                .await?,
         );
+        let framed_head = match team {
+            Some(team) => {
+                self.client
+                    .open_team_revision_content(
+                        team,
+                        embed_id,
+                        head.version,
+                        &head.encrypted_content,
+                    )
+                    .await?
+            }
+            None => None,
+        };
+        let head_plain = match framed_head {
+            Some(plain) => plain,
+            None => Zeroizing::new(
+                crypto::server_fields::decrypt_text(&head.encrypted_content, &key, &[])
+                    .map_err(|_| StepError::Refused("key_unavailable".into()))?,
+            ),
+        };
         let next = u64::try_from(head.version + 1).map_err(|_| Error::Protocol)?;
         let content = crate::work::content_with_text(&head_plain, &text, next)
             .map_err(|_| StepError::Refused("unsupported_file_content".into()))?;
-        let base_text = crate::work::version_text(head_plain);
+        let cipher = match team {
+            Some(team) => {
+                self.client
+                    .team_revision_cipher(team, embed_id, None)
+                    .await?
+            }
+            None => None,
+        };
         let from = i64::try_from(version).map_err(|_| Error::Protocol)?;
         let scope = restore_scope(&self.project_id, self.team_id.as_deref());
         let mut request = restore_request(head, scope, from, content)?;
-        request.history_text = Some((base_text, text));
+        if cipher.is_none() {
+            request.history_text = Some((crate::work::version_text(head_plain), text));
+        }
         request.operation_id = self
             .operation_id
             .as_deref()
             .map(|operation| derived_uuid(operation, embed_id));
         let outcome = self
             .client
-            .commit_embed_user_revision_with_key(request, None, key)
+            .commit_embed_user_revision_with_cipher(request, None, key, cipher)
             .await?;
         u64::try_from(outcome.commit.committed.version)
             .map_err(|_| StepError::Fatal(Error::Protocol))

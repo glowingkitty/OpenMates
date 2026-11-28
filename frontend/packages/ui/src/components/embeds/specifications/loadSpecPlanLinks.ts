@@ -4,12 +4,16 @@
  * in the Plan/Task services and chatPlanDetails. Failures resolve to null so the
  * cards stay as they are; only the error code is logged (no plaintext).
  */
-import { listUserPlans } from '../../../services/userPlanService';
+import { listUserPlans, type UserPlanAssumptionViewModel } from '../../../services/userPlanService';
 import { listUserTasks } from '../../../services/userTaskService';
 import { loadChatPlanDetails } from '../../chats/chatPlanDetails';
 import type { SpecPlanLinks } from './specPlanLinks';
 
-export async function loadSpecPlanLinks(chatId: string | null | undefined): Promise<SpecPlanLinks | null> {
+export interface LoadedSpecPlanLinks extends SpecPlanLinks {
+  assumptions: UserPlanAssumptionViewModel[];
+}
+
+export async function loadSpecPlanLinks(chatId: string | null | undefined): Promise<LoadedSpecPlanLinks | null> {
   if (!chatId) return null;
   try {
     const [chatTasks, plans] = await Promise.all([listUserTasks({ chatId }), listUserPlans({ chatId, limit: 6 })]);
@@ -20,7 +24,7 @@ export async function loadSpecPlanLinks(chatId: string | null | undefined): Prom
     const descriptions = new Map(chatTasks.map((task) => [task.task_id, task.description]));
     return {
       planId: plan.plan_id,
-      assumptions: detail.assumptions.map((item) => ({ text: item.text, status: item.status, linkedSubChatId: item.linkedSubChatId })),
+      assumptions: detail.assumptions,
       tasks: detail.tasks.map((task) => ({
         taskId: task.taskId,
         title: task.title,

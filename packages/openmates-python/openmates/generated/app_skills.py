@@ -2490,8 +2490,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'health',
   'app_namespace_py': 'health',
   'app_namespace_ts': 'health',
-  'description': 'Appointment search is currently unavailable because no permitted provider is '
-                 'configured. Report this limitation; do not attempt alternate provider access.',
+  'description': 'Use installed sources for live medical appointment requests. If none are '
+                 'installed, report unavailable. For a consultation about medication, request a '
+                 'prescribing clinician and treat generic or unverified slots as leads whose '
+                 'eligibility must be confirmed.',
   'description_key': 'app_skills.health.search_appointments.description',
   'schema': {'properties': {'requests': {'description': 'Array of appointment search requests. '
                                                         'Each request searches for available '
@@ -2529,15 +2531,31 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                     'control': 'location',
                                                                                     'location_mode': 'city'}},
                                                                   'days_ahead': {'default': 7,
-                                                                                 'description': 'Search '
-                                                                                                'is '
-                                                                                                'currently '
-                                                                                                'unavailable '
-                                                                                                'without '
+                                                                                 'description': 'Days '
+                                                                                                'to '
+                                                                                                'check '
+                                                                                                'for '
+                                                                                                'availability. '
+                                                                                                'Defaults '
+                                                                                                'to '
+                                                                                                'seven. '
+                                                                                                'Use '
+                                                                                                '30 '
+                                                                                                'or '
+                                                                                                '60 '
+                                                                                                'days '
+                                                                                                'when '
+                                                                                                'the '
+                                                                                                'user '
+                                                                                                'requests '
                                                                                                 'a '
-                                                                                                'permitted '
-                                                                                                'provider.',
-                                                                                 'enum': [1, 3, 7],
+                                                                                                'longer '
+                                                                                                'search.',
+                                                                                 'enum': [1,
+                                                                                          3,
+                                                                                          7,
+                                                                                          30,
+                                                                                          60],
                                                                                  'type': 'integer',
                                                                                  'x-ui': {'basic': True}},
                                                                   'insurance_sector': {'description': 'Insurance '
@@ -2623,15 +2641,88 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                   'minimum': 1,
                                                                                   'type': 'integer',
                                                                                   'x-ui': {'basic': False}},
+                                                                  'medication_visit': {'description': 'Use '
+                                                                                                      'initiation '
+                                                                                                      'for '
+                                                                                                      'discussing '
+                                                                                                      'starting '
+                                                                                                      'medication '
+                                                                                                      'and '
+                                                                                                      'continuation '
+                                                                                                      'for '
+                                                                                                      'continuing '
+                                                                                                      'treatment.',
+                                                                                       'enum': ['initiation',
+                                                                                                'continuation'],
+                                                                                       'type': 'string'},
                                                                   'provider_platform': {'description': 'Optional '
-                                                                                                       'source '
-                                                                                                       'identifier; '
-                                                                                                       'search '
-                                                                                                       'is '
-                                                                                                       'currently '
-                                                                                                       'unavailable.',
+                                                                                                       'identifier '
+                                                                                                       'of '
+                                                                                                       'an '
+                                                                                                       'installed '
+                                                                                                       'appointment '
+                                                                                                       'source.',
                                                                                         'type': 'string',
                                                                                         'x-ui': {'basic': False}},
+                                                                  'relevance_criteria': {'description': 'Optional '
+                                                                                                        'requirements '
+                                                                                                        'for '
+                                                                                                        'appointment '
+                                                                                                        'ranking. '
+                                                                                                        'Use '
+                                                                                                        'a '
+                                                                                                        'short, '
+                                                                                                        'impersonal '
+                                                                                                        'description '
+                                                                                                        'of '
+                                                                                                        'the '
+                                                                                                        'appointment '
+                                                                                                        'and '
+                                                                                                        'preferences. '
+                                                                                                        'Do '
+                                                                                                        'not '
+                                                                                                        'include '
+                                                                                                        'a '
+                                                                                                        "patient's "
+                                                                                                        'name, '
+                                                                                                        'contact '
+                                                                                                        'information '
+                                                                                                        'or '
+                                                                                                        'personal '
+                                                                                                        'history. '
+                                                                                                        'Omit '
+                                                                                                        'to '
+                                                                                                        'use '
+                                                                                                        'provider '
+                                                                                                        'order.',
+                                                                                         'type': 'string'},
+                                                                  'requires_external_diagnosis_acceptance': {'default': False,
+                                                                                                             'description': 'True '
+                                                                                                                            'if '
+                                                                                                                            'the '
+                                                                                                                            'existing '
+                                                                                                                            'diagnosis '
+                                                                                                                            'came '
+                                                                                                                            'from '
+                                                                                                                            'another '
+                                                                                                                            'practice '
+                                                                                                                            'and '
+                                                                                                                            'must '
+                                                                                                                            'be '
+                                                                                                                            'accepted.',
+                                                                                                             'type': 'boolean'},
+                                                                  'requires_prescribing_clinician': {'default': False,
+                                                                                                     'description': 'True '
+                                                                                                                    'for '
+                                                                                                                    'visits '
+                                                                                                                    'to '
+                                                                                                                    'discuss '
+                                                                                                                    'medication '
+                                                                                                                    'with '
+                                                                                                                    'a '
+                                                                                                                    'prescribing '
+                                                                                                                    'clinician.',
+                                                                                                     'type': 'boolean'},
                                                                   'speciality': {'description': 'Doctor '
                                                                                                 'speciality '
                                                                                                 'or '
@@ -5347,7 +5438,19 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                         '"invoice", "limit": 10}]}\n'
                                                         'Example recent-first: {"requests": '
                                                         '[{"limit": 10}]}\n',
-                                         'items': {'properties': {'end_date': {'description': 'Optional '
+                                         'items': {'properties': {'connected_account_id': {'description': 'Optional '
+                                                                                                          'connected '
+                                                                                                          'Google '
+                                                                                                          'account '
+                                                                                                          'id '
+                                                                                                          'when '
+                                                                                                          'the '
+                                                                                                          'user '
+                                                                                                          'has '
+                                                                                                          'several '
+                                                                                                          'accounts',
+                                                                                           'type': 'string'},
+                                                                  'end_date': {'description': 'Optional '
                                                                                               'inclusive '
                                                                                               'end '
                                                                                               'date '
@@ -5382,10 +5485,52 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                              'to '
                                                                                              'INBOX)',
                                                                               'type': 'string'},
+                                                                  'page_token': {'description': 'Continuation '
+                                                                                                'token '
+                                                                                                'from '
+                                                                                                'a '
+                                                                                                'previous '
+                                                                                                'Gmail '
+                                                                                                'search '
+                                                                                                '(next_page_token)',
+                                                                                 'type': 'string'},
+                                                                  'provider': {'description': 'Set '
+                                                                                              'to '
+                                                                                              '"google" '
+                                                                                              'to '
+                                                                                              'search '
+                                                                                              'the '
+                                                                                              "user's "
+                                                                                              'connected '
+                                                                                              'Gmail '
+                                                                                              'account '
+                                                                                              '(official '
+                                                                                              'Gmail '
+                                                                                              'API). '
+                                                                                              'Omit '
+                                                                                              'for '
+                                                                                              'the '
+                                                                                              'default '
+                                                                                              'mail '
+                                                                                              'provider.',
+                                                                               'enum': ['google'],
+                                                                               'type': 'string'},
                                                                   'query': {'description': 'Optional '
                                                                                            'search '
                                                                                            'text '
                                                                                            '(subject/from/body). '
+                                                                                           'With '
+                                                                                           'provider '
+                                                                                           '"google" '
+                                                                                           'the '
+                                                                                           'Gmail '
+                                                                                           'search '
+                                                                                           'syntax '
+                                                                                           'works '
+                                                                                           '(from:, '
+                                                                                           'subject:, '
+                                                                                           'has:attachment, '
+                                                                                           'label:). '
                                                                                            'Empty '
                                                                                            'means '
                                                                                            'recent-first '
@@ -8325,63 +8470,6 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
  {'app_id': 'tasks',
   'app_namespace_py': 'tasks',
   'app_namespace_ts': 'tasks',
-  'description': 'Create one or more user-visible tasks. Use this for planning, task capture, or '
-                 'breaking a request into trackable work. Default unclear assignees to the user.',
-  'description_key': 'tasks.skills.create.description',
-  'schema': {'properties': {'assignee': {'enum': ['user', 'openmates'], 'type': 'string'},
-                            'description': {'type': 'string'},
-                            'link_to_chat': {'default': True,
-                                             'description': 'Default chat-link choice for created '
-                                                            'Tasks; tasks[] can override it.',
-                                             'type': 'boolean'},
-                            'plan_id': {'description': 'Default Plan to link the created Tasks to. '
-                                                       'The Plan must belong to the user and be '
-                                                       'saved; a missing Plan fails the call.\n',
-                                        'type': 'string'},
-                            'tasks': {'items': {'properties': {'assignee': {'enum': ['user',
-                                                                                     'openmates'],
-                                                                            'type': 'string'},
-                                                               'description': {'type': 'string'},
-                                                               'link_to_chat': {'default': True,
-                                                                                'description': 'Link '
-                                                                                               'to '
-                                                                                               'the '
-                                                                                               'current '
-                                                                                               'chat; '
-                                                                                               'false '
-                                                                                               'leaves '
-                                                                                               'the '
-                                                                                               'Task '
-                                                                                               'unlinked.',
-                                                                                'type': 'boolean'},
-                                                               'plan_id': {'description': 'Link '
-                                                                                          'this '
-                                                                                          'Task to '
-                                                                                          'a saved '
-                                                                                          'Plan '
-                                                                                          '(overrides '
-                                                                                          'the '
-                                                                                          'top-level '
-                                                                                          'plan_id).',
-                                                                           'type': 'string'},
-                                                               'status': {'enum': ['backlog',
-                                                                                   'todo',
-                                                                                   'in_progress',
-                                                                                   'blocked'],
-                                                                          'type': 'string'},
-                                                               'title': {'type': 'string'}},
-                                                'type': 'object'},
-                                      'type': 'array'},
-                            'title': {'description': 'Single-task title when not using tasks[].',
-                                      'type': 'string'}},
-             'required': [],
-             'type': 'object'},
-  'skill_id': 'create',
-  'skill_method_py': 'create',
-  'skill_method_ts': 'create'},
- {'app_id': 'tasks',
-  'app_namespace_py': 'tasks',
-  'app_namespace_ts': 'tasks',
   'description': "Search the user's encrypted tasks through a connected capable client. Do not use "
                  'server-visible metadata as a private task-content search fallback.',
   'description_key': 'tasks.skills.search.description',
@@ -11292,7 +11380,7 @@ class HealthAppSkills:
         self._run_skill = run_skill
 
     def search_appointments(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Appointment search is currently unavailable because no permitted provider is configured. Report this limitation; do not attempt alternate provider access.
+        """Use installed sources for live medical appointment requests. If none are installed, report unavailable. For a consultation about medication, request a prescribing clinician and treat generic or unverified slots as leads whose eligibility must be confirmed.
 
         Description key: app_skills.health.search_appointments.description
         Skill: health/search_appointments
@@ -11638,14 +11726,6 @@ class SocialMediaAppSkills:
 class TasksAppSkills:
     def __init__(self, run_skill: SkillRunner):
         self._run_skill = run_skill
-
-    def create(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
-        """Create one or more user-visible tasks. Use this for planning, task capture, or breaking a request into trackable work. Default unclear assignees to the user.
-
-        Description key: tasks.skills.create.description
-        Skill: tasks/create
-        """
-        return self._run_skill("tasks", "create", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search the user's encrypted tasks through a connected capable client. Do not use server-visible metadata as a private task-content search fallback.

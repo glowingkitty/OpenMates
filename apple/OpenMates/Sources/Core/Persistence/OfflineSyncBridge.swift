@@ -7,6 +7,8 @@
 
 // Specification: specifications/features/apple-recent-offline-chats/specification.yml
 // Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+// Specification: specifications/features/chat-navigation/specification.yml
+// Assertions: chat-navigation.startup.useful-content, chat-navigation.open.local-first-coherent
 
 import CryptoKit
 import Foundation
@@ -48,12 +50,14 @@ final class OfflineSyncBridge: ObservableObject {
     private let eligibilityOverride: (@MainActor () -> Bool)?
     private let keyValidator: (@MainActor (Chat, [ChatKeyWrapperRecord]) async throws -> String?)?
 
+    private let usesCoreStartupHistory: Bool
     private let startupRecentChatLimit = 20
 
     init(chatStore: ChatStore, wsManager: WebSocketManager? = nil, offlineStore: OfflineStore = .shared,
          contentFetcher: (@MainActor (String) async throws -> Data)? = nil,
          prefetchEligibility: (@MainActor () -> Bool)? = nil,
-         keyValidator: (@MainActor (Chat, [ChatKeyWrapperRecord]) async throws -> String?)? = nil) {
+         keyValidator: (@MainActor (Chat, [ChatKeyWrapperRecord]) async throws -> String?)? = nil,
+         usesCoreStartupHistory: Bool = false) {
         self.chatStore = chatStore
         self.wsManager = wsManager
         self.offlineStore = offlineStore
@@ -61,6 +65,7 @@ final class OfflineSyncBridge: ObservableObject {
         self.contentFetcher = contentFetcher
         self.eligibilityOverride = prefetchEligibility
         self.keyValidator = keyValidator
+        self.usesCoreStartupHistory = usesCoreStartupHistory
     }
 
     deinit {
@@ -96,7 +101,7 @@ final class OfflineSyncBridge: ObservableObject {
 
     @discardableResult
     func startOfflinePrefetchIfEligible(reason: String) -> Task<Void, Never>? {
-        guard isCurrentSession else { return nil }
+        guard isCurrentSession, !usesCoreStartupHistory else { return nil }
         if reason == "startupSyncComplete" { hasCompletedInitialSync = true }
         offlinePrefetchNeedsRefresh = true
         if let offlinePrefetchTask { return offlinePrefetchTask }
@@ -263,19 +268,20 @@ final class OfflineSyncBridge: ObservableObject {
     func loadFromDisk(lastOpenedChatId: String? = nil) {
         guard isCurrentSession else { return }
         let start = NativeSyncPerfLog.now()
-        let lastOpenedLabel = lastOpenedChatId.map { String($0.prefix(8)) } ?? "none"
         chatStore.performWithoutPersistence {
             loadPersistedDataIntoStore(lastOpenedChatId: lastOpenedChatId)
         }
         NativeSyncPerfLog.info(
-            "phase=offlineColdLoad lastOpened=\(lastOpenedLabel) limit=\(startupRecentChatLimit) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
+            "phase=offlineColdLoad limit=\(startupRecentChatLimit) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
         )
     }
 
     private func loadPersistedDataIntoStore(lastOpenedChatId: String?) {
-        let embedKeys = offlineStore.loadEmbedKeys()
-        if !embedKeys.isEmpty {
-            EmbedKeyManager.shared.store(embedKeys, source: "offline")
+        if !usesCoreStartupHistory || offlineStore.mayHaveCachedTeamChats() {
+            let embedKeys = offlineStore.loadEmbedKeys()
+            if !embedKeys.isEmpty {
+                EmbedKeyManager.shared.store(embedKeys, source: "offline")
+            }
         }
 
         let chats = offlineStore.loadStartupChats(
@@ -286,15 +292,18 @@ final class OfflineSyncBridge: ObservableObject {
             chatStore.upsertChat(chat)
         }
 
-        for chat in chats.prefix(5) {
-            let messages = offlineStore.loadLatestMessageWindow(chatId: chat.id)
-            if !messages.isEmpty {
-                chatStore.setMessages(for: chat.id, messages: messages)
-            }
-            let embeds = offlineStore.loadEmbeds(chatId: chat.id)
-            if !embeds.isEmpty {
-                chatStore.upsertEmbeds(embeds, for: chat.id)
-            }
+        // The other chats have their sidebar headers. Their transcript and
+        // previews can load from the same local store when the user opens them.
+        guard !usesCoreStartupHistory else { return }
+        let resume = chats.first { $0.id == lastOpenedChatId } ?? chats.first
+        guard let resume else { return }
+        let messages = offlineStore.loadLatestMessageWindow(chatId: resume.id)
+        if !messages.isEmpty {
+            chatStore.setMessages(for: resume.id, messages: messages)
+        }
+        let embeds = offlineStore.loadEmbeds(chatId: resume.id)
+        if !embeds.isEmpty {
+            chatStore.upsertEmbeds(embeds, for: resume.id)
         }
     }
 

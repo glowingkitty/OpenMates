@@ -15,7 +15,8 @@ def test_briefing_has_no_marketing_or_build_week_phase():
         assert word not in briefing.MEETING_SCRIPT
 
 
-def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps():
+def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps(monkeypatch):
+    monkeypatch.setattr(briefing.worktree_wip, "briefing_lines", lambda: [])
     evidence = {
         "window": {"since": "2026-11-02T10:00+01:00", "until": "2026-11-03T10:00+01:00"},
         "focus_file": "# Focus\nWeek goals: record videos",
@@ -28,6 +29,7 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
         "tasks": {"changed_since_last_meeting": [{"id": "TASK-1", "title": "Send the journalist emails",
                                                   "from": "todo", "to": "in_progress"}]},
         "gaps": ["Mac offline"],
+        "production_blips": {"count": 2, "seconds": 420},
     }
     text = briefing.render(evidence, {"themes": [], "loose_ends": [], "chats": []},
                            date(2026, 11, 3), datetime(2026, 11, 3, 9, tzinfo=timezone.utc))
@@ -41,6 +43,7 @@ def test_render_includes_meeting_script_usage_and_decisions_template_with_gaps()
     assert "- **Apps inside chat:** search" in text
     assert "record videos" in text
     assert "Mac offline" in text
+    assert "2 short blips, total 7 minutes in the last 24 hours" in text
     assert "**Changed since the last meeting, still open (1):**" in text
     assert "- TASK-1 Send the journalist emails (todo → in_progress)" in text
 
@@ -56,11 +59,20 @@ def test_meeting_script_asks_exactly_one_question_at_a_time():
     assert "at most 3 questions" not in briefing.MEETING_SCRIPT
 
 
-def test_scheduled_run_only_proceeds_on_weekdays_from_1130_berlin():
+def test_scheduled_run_only_proceeds_on_weekdays_from_0830_berlin():
     from datetime import datetime
     berlin = briefing.TZ
-    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 11, 30, tzinfo=berlin))
-    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 11, 31, tzinfo=berlin))  # summer time
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 10, 30, tzinfo=berlin))
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 12, 30, tzinfo=berlin))
-    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 11, 30, tzinfo=berlin))  # Saturday
+    assert briefing.in_scheduled_slot(datetime(2026, 11, 11, 8, 30, tzinfo=berlin))
+    assert briefing.in_scheduled_slot(datetime(2026, 7, 1, 8, 31, tzinfo=berlin))  # summer time
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 8, 29, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 11, 9, 30, tzinfo=berlin))
+    assert not briefing.in_scheduled_slot(datetime(2026, 11, 14, 8, 30, tzinfo=berlin))  # Saturday
+
+
+def test_forgotten_tasks_render_as_one_bounded_list():
+    lines = briefing._forgotten_task_list({"count": 120, "items": [
+        {"id": "TASK-1", "title": "Verify backups", "days": 2},
+    ]})
+    assert lines.count("## Forgotten Tasks (120)") == 1
+    assert any("Verify backups" in line for line in lines)
+    assert any("119 more" in line for line in lines)

@@ -10,6 +10,7 @@ import XCTest
 
 @MainActor
 final class SettingsPrivacyParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testPrivacyRoutesUseCanonicalBackendContracts() {
         XCTAssertEqual(PrivacyAPIContract.autoDeleteChatsPath, "/v1/settings/auto-delete-chats")
         XCTAssertEqual(PrivacyAPIContract.connectedAccountsPath, "/v1/connected-accounts")
@@ -18,6 +19,7 @@ final class SettingsPrivacyParityTests: XCTestCase {
         XCTAssertNil(PrivacyAPIContract.autoDeleteFilesPath)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testAutoDeletionPeriodEncodesBackendPeriodSchema() throws {
         let data = try JSONEncoder().encode(AutoDeleteChatsRequest(period: .sixMonths))
         let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: String])
@@ -27,6 +29,7 @@ final class SettingsPrivacyParityTests: XCTestCase {
         XCTAssertEqual(AutoDeletionPeriod.from(days: nil), .never)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testFixedRetentionPoliciesMatchWebContract() {
         XCTAssertEqual(PrivacyRetentionPolicy.filesDays, 90)
         XCTAssertEqual(PrivacyRetentionPolicy.usageDataRetentionYears, 3)
@@ -34,6 +37,7 @@ final class SettingsPrivacyParityTests: XCTestCase {
         XCTAssertEqual(PrivacyRetentionPolicy.invoiceRetentionYears, 10)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testDiagnosticsPreferencePersistsThroughInjectedStore() {
         let suite = "SettingsPrivacyParityTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
@@ -51,6 +55,7 @@ final class SettingsPrivacyParityTests: XCTestCase {
         defaults.removePersistentDomain(forName: suite)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testConnectedAccountSummaryExcludesSecretEnvelope() throws {
         let row = ConnectedAccountEncryptedRow(
             id: "fixture-account",
@@ -60,7 +65,8 @@ final class SettingsPrivacyParityTests: XCTestCase {
             encryptedCapabilities: "encrypted-capabilities",
             encryptedAppPermissions: "encrypted-permissions",
             encryptedAccountDirectoryHint: nil,
-            updatedAt: 0
+            updatedAt: 0,
+            connectorStatus: nil
         )
         let summary = ConnectedAccountSummary(
             id: row.id,
@@ -77,6 +83,7 @@ final class SettingsPrivacyParityTests: XCTestCase {
         XCTAssertFalse(String(describing: summary).contains("refresh_token"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
     func testDebugSessionResponseUsesSnakeCaseBackendPayload() throws {
         let data = Data(#"{"active":true,"debugging_id":"dbg-abc123","expires_at":"2026-07-12T12:00:00Z","duration":"1h"}"#.utf8)
         let response = try JSONDecoder().decode(PrivacyDebugSession.self, from: data)

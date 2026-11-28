@@ -20,13 +20,17 @@ finished, and its decrypted content must carry the producing skill's identity.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Any, Callable, Mapping
+import re
+import unicodedata
+from datetime import date, datetime, timezone
+from typing import Any, Mapping
 
 from toon_format import decode
 
 from backend.apps.ai.utils.authored_result_fences import get_authoring_definitions
 from backend.core.api.app.services.authored_existing_cards import record_in_chat
+from backend.shared.python_utils.country_codes import iso_country
+from backend.shared.python_utils.search_relevance import normalize_url_for_deduplication
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +48,8 @@ def skill_result_card_kind(record: Mapping[str, Any], content: Any) -> str | Non
     if not isinstance(content, dict) or isinstance(content.get("authoring"), dict):
         return None
     for kind, definition in get_authoring_definitions().items():
-        if (definition["backend_type"] == record.get("type") == content.get("type")
+        if (definition["backend_type"] == record.get("type")
+                and content.get("type") in (None, definition["backend_type"])
                 and content.get("app_id") == definition["app_id"]
                 and content.get("skill_id") == definition["skill_id"]):
             return kind
@@ -75,10 +80,115 @@ def _connection_key(content: Mapping[str, Any]) -> tuple[str, str] | None:
     return (departure, arrival) if departure and arrival else None
 
 
-# Kinds whose researched items can duplicate a skill result, with their identity key.
-IDENTITY_KEYS: dict[str, Callable[[Mapping[str, Any]], tuple[str, ...] | None]] = {
-    "travel.connection": _connection_key,
-}
+_DATE_FIELDS = (
+    "date_start", "slot_datetime", "date", "check_in", "published_at",
+    "publication_date", "available_from", "release_date", "first_air_date",
+)
+_URL_FIELDS = ("canonical_url", "url", "detail_url", "source_url", "source_page_url",
+               "purchase_url", "apply_url", "booking_url", "link")
+_IDENTIFIER_FIELDS = ("full_name", "video_id", "icon_id", "part_number", "domain_ascii")
+
+
+def _text(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    return " ".join(re.findall(r"[^\W_]+", "".join(
+        char for char in normalized if not unicodedata.combining(char)
+    )))
+
+
+def _first(content: Mapping[str, Any], fields: tuple[str, ...]) -> str:
+    return next((value for field in fields if (value := _text(content.get(field)))), "")
+
+
+def _day(content: Mapping[str, Any]) -> str:
+    for field in _DATE_FIELDS:
+        value = content.get(field)
+        if not isinstance(value, str):
+            continue
+        try:
+            return date.fromisoformat(value[:10]).isoformat()
+        except ValueError:
+            continue
+    return ""
+
+
+def _place(content: Mapping[str, Any]) -> tuple[str, str, str]:
+    venue = content.get("venue") or content.get("location")
+    venue = venue if isinstance(venue, dict) else {}
+    country = venue.get("country") or content.get("venue_country") or content.get("country")
+    return (
+        iso_country(country) or _text(country),
+        _text(venue.get("city")) or _first(content, ("venue_city", "city", "location_name")),
+        _text(venue.get("address")) or _first(content, ("venue_address", "formatted_address", "address")),
+    )
+
+
+def _urls(content: Mapping[str, Any], kind: str) -> set[str]:
+    fields = (*_URL_FIELDS, "image_url", "public_image_url") if kind == "images.image_result" else _URL_FIELDS
+    return {url for field in fields
+            if isinstance(raw := content.get(field), str)
+            and (url := normalize_url_for_deduplication(raw))}
+
+
+def _same_result(kind: str, first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
+    if kind == "travel.connection":
+        key = _connection_key(first)
+        conflicting_route = any(
+            a != b
+            for field in ("origin", "destination")
+            if (a := _text(first.get(field))) and (b := _text(second.get(field)))
+        )
+        return key is not None and key == _connection_key(second) and not conflicting_route
+
+    first_place, second_place = _place(first), _place(second)
+    first_country, first_city, first_address = first_place
+    second_country, second_city, second_address = second_place
+    if first_country and second_country and first_country != second_country:
+        if bool(iso_country(first_country)) == bool(iso_country(second_country)):
+            return False
+    if first_city and second_city and first_city != second_city:
+        return False
+    online = tuple(content.get("online") is True or _text(content.get("event_type")) in {"online", "virtual"}
+                   for content in (first, second))
+    if kind == "events.event" and online[0] != online[1] and any(first_place + second_place):
+        return False
+    first_day, second_day = _day(first), _day(second)
+    if first_day and second_day and first_day != second_day:
+        return False
+
+    for field in _IDENTIFIER_FIELDS:
+        identifier = _text(first.get(field))
+        if identifier and identifier == _text(second.get(field)):
+            return True
+
+    title_fields = ("title", "name", "display_name", "company")
+    first_title, second_title = _first(first, title_fields), _first(second, title_fields)
+    if kind == "events.event":
+        first_title = re.sub(r" (?:19|20)\d{2}$", "", first_title)
+        second_title = re.sub(r" (?:19|20)\d{2}$", "", second_title)
+    if _urls(first, kind) & _urls(second, kind):
+        return not first_title or not second_title or first_title == second_title
+    if first_title != second_title or not first_title:
+        return False
+
+    if first_address and second_address and first_address != second_address:
+        return False
+    same_address = bool(first_address and first_address == second_address)
+    same_city = bool(first_city and first_city == second_city)
+    if kind in {"health.appointment", "fitness.class"}:
+        return same_address and first_day == second_day and bool(first_day) and any(
+            instant and instant == _instant(second.get(field))
+            for field in ("slot_datetime", "date_start")
+            if (instant := _instant(first.get(field)))
+        )
+    if kind == "travel.stay":
+        return same_address
+    if kind in {"events.event", "weather.weather_day", "news.website", "web.website", "social_media.social_post"}:
+        return bool(first_day and first_day == second_day
+                    and (same_city or same_address or all(online) or not any(first_place + second_place)))
+    return same_address
 
 
 class SkillResultMatcher:
@@ -92,10 +202,10 @@ class SkillResultMatcher:
         self._user_id_hash = user_id_hash
         self._user_vault_key_id = user_vault_key_id
         self._log_prefix = log_prefix
-        self._keys: dict[str, dict[tuple[str, ...], str]] | None = None
+        self._candidates: dict[str, list[tuple[str, dict[str, Any]]]] | None = None
 
-    async def _load(self) -> dict[str, dict[tuple[str, ...], str]]:
-        keys: dict[str, dict[tuple[str, ...], str]] = {}
+    async def _load(self) -> dict[str, list[tuple[str, dict[str, Any]]]]:
+        candidates: dict[str, list[tuple[str, dict[str, Any]]]] = {}
         embed_ids = list(dict.fromkeys(v for v in self._index.values() if isinstance(v, str) and v))
         for embed_id in embed_ids[-MAX_SKILL_RESULT_CANDIDATES:]:
             record = await self._service._get_cached_embed(embed_id, self._user_vault_key_id, self._log_prefix)
@@ -105,26 +215,20 @@ class SkillResultMatcher:
             toon = await self._service._get_cached_embed_toon(embed_id, self._user_vault_key_id, self._log_prefix)
             content = decode(toon) if toon else None
             kind = skill_result_card_kind(record, content)
-            identity = IDENTITY_KEYS.get(kind) if kind else None
-            key = identity(content) if identity else None
-            if key is not None:
-                # The first (oldest) card with a given identity wins; later duplicates are equal.
-                keys.setdefault(kind, {}).setdefault(key, embed_id)
-        return keys
+            if kind is not None:
+                candidates.setdefault(kind, []).append((embed_id, content))
+        return candidates
 
     async def match(self, kind: str, content: Mapping[str, Any]) -> str | None:
-        """Return the embed id of the skill result card this researched item repeats."""
-        identity = IDENTITY_KEYS.get(kind)
+        """Return the one authorized result this researched item repeats."""
         authoring = content.get("authoring")
-        origin = authoring.get("origin") if isinstance(authoring, dict) else None
-        if identity is None or origin != "researched" or not self._index:
+        if not isinstance(authoring, dict) or authoring.get("origin") != "researched" or not self._index:
             return None
-        key = identity(content)
-        if key is None:
-            return None
-        if self._keys is None:
-            self._keys = await self._load()
-        embed_id = self._keys.get(kind, {}).get(key)
-        if embed_id:
-            logger.info("%s Authored %s item reuses the matching skill result card", self._log_prefix, kind)
-        return embed_id
+        if self._candidates is None:
+            self._candidates = await self._load()
+        matches = [embed_id for embed_id, candidate in self._candidates.get(kind, ())
+                   if _same_result(kind, content, candidate)]
+        if len(matches) == 1:
+            logger.info("%s Authored %s item reuses its skill result card", self._log_prefix, kind)
+            return matches[0]
+        return None

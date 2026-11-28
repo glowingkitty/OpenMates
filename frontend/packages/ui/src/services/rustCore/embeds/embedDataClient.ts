@@ -69,6 +69,37 @@ export class EmbedDataClient {
 		});
 	}
 
+	async designTurnReference(markdown: string) {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('designTurnReference', { markdown });
+		} finally {
+			release();
+		}
+	}
+
+	async designSourceContext(content: string, embedId: string, baseVersion: number) {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('designSourceContext', { content, embedId, baseVersion });
+		} finally {
+			release();
+		}
+	}
+
+	/** Validate a Design scene locally in the core before Canvas receives it. */
+	async validateDesignScene(scene: string): Promise<boolean> {
+		const release = this.core.hold();
+		try {
+			const { unit } = await this.open();
+			return await unit.request('validateDesignScene', { scene }) === true;
+		} finally {
+			release();
+		}
+	}
+
 	/** Rust replay of one legacy version patch; rejects with `version_patch_refused` where Rust refuses it. */
 	async applyVersionPatch(content: string, patch: string): Promise<string> {
 		const release = this.core.hold();
@@ -220,6 +251,22 @@ export async function openStoredEmbedContent(key: Uint8Array, row: StoredEmbedRo
 	const fields = await client.openFields(key, row);
 	(openedRows ??= new WeakMap()).set(row, fields);
 	return fields.content;
+}
+
+/** Opens a stored Team revision in the selected chat through the shared core. */
+export async function openTeamChatEmbedContent(embedId: string, ciphertext: string,
+	hashedChatId?: string, version?: number): Promise<string | null> {
+	if (!hashedChatId || version === undefined) return null;
+	const [{ chatDB }, { activeChatStore }, { computeSHA256 }] = await Promise.all([
+		import('../../db'), import('../../../stores/activeChatStore'), import('../../../message_parsing/utils')
+	]);
+	const chatId = activeChatStore.get();
+	if (!chatId) return null;
+	const chat = await chatDB.getChat(chatId);
+	if (!chat?.team_id || await computeSHA256(chatId) !== hashedChatId) return null;
+	const { liveItemClient } = await import('../../live/liveItemClient');
+	const content = await liveItemClient().liveOpenTeamRevisionContent(embedId, chat.team_id, version, ciphertext);
+	return activeChatStore.get() === chatId ? content : null;
 }
 
 /** The type/preview Rust opened with this row's content, else the TS decrypt of `ciphertext`. */

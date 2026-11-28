@@ -1,0 +1,27 @@
+schema_version: 2
+profile: concise
+id: rich-sheets
+title: Rich Formatted Sheets
+status: implementing
+goal: Expand and test Sheets so it supports complex, formatted spreadsheets.
+specifications:
+  - feature.rich-sheets@1
+
+scope:
+  - Optional formatting and layout in the existing sheet embed, with legacy presentation preserved.
+  - Relevance-gated assistant authoring with strict validation and a clear error path.
+  - Cell and layout controls in the existing web fullscreen editor.
+  - Formatting in the shared live sheet model, undo and version history.
+  - XLSX formatting import and export, plus data-only CSV.
+  - Conditional formatting and basic charts are candidates for a later phase.
+
+decisions:
+  - The live-collaboration work owns transport, client-side encryption and version plumbing. Coordinate modifications to the sheet adapter and fullscreen integration with that work before editing shared paths.
+  - Use stable row and column identities for live formatting changes so inserting a row or column does not retarget a concurrent edit.
+  - Preserve the existing sheet embed identity and plain markdown table path.
+
+checks:
+  - Unit tests for schema validation, boundary conditions and XLSX round trips.
+  - Focused component preview covering legacy rendering and formatted edit mode at phone and desktop sizes in both themes.
+  - Playwright for real assistant creation, manual editing, two-user synchronization, undo, restore and old plain sheets.
+  - Screenshots and recordings from the verified code, followed by a dev deploy.

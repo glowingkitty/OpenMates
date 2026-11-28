@@ -175,7 +175,7 @@ def test_integration_items_skip_unconfigured_and_track_health() -> None:
     assert snapshots["integration_providers_stripe"].results[-1].success is False
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.escalation
+# contract-test: tooling
 def test_notification_batch_groups_checks_into_one_message() -> None:
     channels = notify.Channels("", "", "", "noreply@example.org", "Production", "https://status.example.org")
     batch = [Notification("down", f"k{i}", f"Check {i}", NOW - 300, 300) for i in range(5)]

@@ -1,9 +1,6 @@
-"""Escalation policy of the external status monitor (deployment/status_server/agent).
+"""Legacy escalation policy retained for the status cross-check before rollout."""
 
-Assertions: external-status-monitoring.alerts.confirmed-failures,
-external-status-monitoring.alerts.escalation, external-status-monitoring.alerts.resolved,
-external-status-monitoring.alerts.restart-safe.
-"""
+# contract-test-file: infrastructure
 
 from __future__ import annotations
 
@@ -30,14 +27,12 @@ def snap(*outcomes: bool, start: float = T0, every: float = MIN, stale_after: fl
     return CheckSnapshot(key="openmates_api", name="API", results=results, stale_after_s=stale_after)
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.confirmed-failures
 def test_single_failure_stays_silent() -> None:
     result = evaluate([snap(True, True, False)], {}, now=T0 + 2 * MIN)
     assert result.notifications == []
     assert result.state == {}
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.confirmed-failures
 def test_two_failures_in_a_row_alert_once_with_start_of_outage() -> None:
     result = evaluate([snap(True, False, False)], {}, now=T0 + 2 * MIN)
     assert [n.kind for n in result.notifications] == ["down"]
@@ -46,7 +41,6 @@ def test_two_failures_in_a_row_alert_once_with_start_of_outage() -> None:
     assert again.notifications == []
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.escalation
 def test_reminders_follow_15_minutes_1_hour_then_every_3_hours() -> None:
     state = {"openmates_api": OpenAlert(down_since=T0, notified_at=T0 + MIN)}
     failing = snap(*([False] * 5), start=T0)
@@ -60,7 +54,6 @@ def test_reminders_follow_15_minutes_1_hour_then_every_3_hours() -> None:
     assert sent_at == [15, 60, 240, 420]
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.escalation
 def test_reminder_reports_total_down_time() -> None:
     state = {"openmates_api": OpenAlert(down_since=T0, notified_at=T0 + MIN)}
     now = T0 + 16 * MIN
@@ -69,7 +62,6 @@ def test_reminder_reports_total_down_time() -> None:
     assert message_line(note) == "STILL DOWN: API has been down for 16 minutes."
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.resolved
 def test_first_success_resolves_once() -> None:
     state = {"openmates_api": OpenAlert(down_since=T0, notified_at=T0 + MIN, reminders_sent=1)}
     result = evaluate([snap(False, False, True, start=T0 + 60 * MIN)], state, now=T0 + 62 * MIN)
@@ -79,19 +71,16 @@ def test_first_success_resolves_once() -> None:
     assert evaluate([snap(False, False, True, True, start=T0 + 60 * MIN)], result.state, now=T0 + 63 * MIN).notifications == []
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.confirmed-failures
 def test_recovery_before_confirmation_sends_nothing() -> None:
     assert evaluate([snap(False, True)], {}, now=T0 + MIN).notifications == []
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.confirmed-failures
 def test_stale_results_count_as_outage() -> None:
     result = evaluate([snap(True, stale_after=10 * MIN)], {}, now=T0 + 11 * MIN)
     assert [n.kind for n in result.notifications] == ["down"]
     assert result.notifications[0].down_since == T0 + 10 * MIN
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.restart-safe
 def test_missing_check_keeps_state_and_does_not_fake_recovery() -> None:
     state = {"openmates_api": OpenAlert(down_since=T0, notified_at=T0 + MIN)}
     result = evaluate([], state, now=T0 + 5 * MIN)
@@ -99,13 +88,11 @@ def test_missing_check_keeps_state_and_does_not_fake_recovery() -> None:
     assert result.state == state
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.restart-safe
 def test_state_round_trips_through_json() -> None:
     alert = OpenAlert(down_since=T0, notified_at=T0 + MIN, reminders_sent=3)
     assert OpenAlert.from_json(alert.to_json()) == alert
 
 
-# contract-test: direct surface=tooling assertions=external-status-monitoring.alerts.escalation
 def test_format_duration() -> None:
     assert format_duration(30) == "less than a minute"
     assert format_duration(MIN) == "1 minute"

@@ -1,12 +1,14 @@
 //! The cached admitted user payload against a loopback API that can go offline: an offline restore returns the last admitted payload flagged not fresh, the next admission replaces it and flags it fresh, sign-out wipes it, and another account's restore never sees it.
 use crate::test_api::{LoopbackApi, Reply, serve};
 use crate::view_core_tests::{Events, Keychain, cache_files, private_dir};
-use crate::view_window_tests::{core, session};
+use crate::view_window_tests::{core, seed_cache, session};
 use crate::*;
 use openmates_sdk::session::Session;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
+use std::time::Duration;
+use tokio::sync::Notify;
 use zeroize::Zeroizing;
 
 /// Server states of [`api`].
@@ -142,4 +144,91 @@ async fn another_account_never_sees_the_cached_profile() {
         core.user_profile_json().await,
         Err(CoreError::Authentication)
     );
+}
+
+
+struct StalledRestore {
+    _dir: tempfile::TempDir,
+    core: Arc<ViewModelCore>,
+    events: Arc<Events>,
+    release: Arc<Notify>,
+    startup: tokio::task::JoinHandle<std::result::Result<(), CoreError>>,
+}
+
+async fn stalled_restore(admitted_principal: &'static str, team: bool) -> StalledRestore {
+    let dir = private_dir();
+    let state = Arc::new(AtomicU8::new(FIRST_NAME));
+    let (network_started, release) = (Arc::new(Notify::new()), Arc::new(Notify::new()));
+    let api = serve({
+        let (state, network_started, release) = (state.clone(), network_started.clone(), release.clone());
+        move |line, _| {
+            if !line.starts_with("POST /v1/auth/session ") { return Reply::Close; }
+            if state.load(Ordering::SeqCst) == FIRST_NAME {
+                return Reply::Json(json!({"success":true, "ws_token":"synthetic",
+                    "user":{"id":"synthetic-user", "username":"Original"}}));
+            }
+            network_started.notify_one();
+            Reply::GatedJson(release.clone(), json!({"success":true, "ws_token":"synthetic",
+                "user":{"id":admitted_principal, "username":"Renamed"}}))
+        }
+    }).await;
+    let mut stored = account(&api.url);
+    seed_cache(dir.path(), &stored).await;
+    let first = started(&dir, &api.url, &stored).await;
+    assert!(profile(&first).await.1);
+    drop(first);
+    state.store(SECOND_NAME, Ordering::SeqCst);
+    if team {
+        stored.active_team_id = Some("synthetic-team".into());
+    }
+
+    let (keychain, events) = (Keychain::holding(&stored, true), Arc::new(Events::default()));
+    let restored = core(dir.path(), &api.url, &keychain, &events);
+    let startup = tokio::spawn({
+        let restored = restored.clone();
+        async move { restored.start(None).await }
+    });
+    tokio::time::timeout(Duration::from_secs(3), network_started.notified()).await.unwrap();
+    StalledRestore { _dir: dir, core: restored, events, release, startup }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn personal_profile_and_cached_rows_publish_before_a_stalled_admission() {
+    let restored = stalled_restore("synthetic-user", false).await;
+    let (cached, fresh) = tokio::time::timeout(Duration::from_secs(1), profile(&restored.core)).await.unwrap();
+    assert!(!fresh);
+    assert_eq!(cached["username"], "Original");
+    assert!(restored.events.all().iter().any(|event| matches!(event,
+        ViewEventRecord::ChatList { rows, completeness: ListCompletenessRecord::Cached, .. } if !rows.is_empty()
+    )));
+    assert!(!restored.startup.is_finished());
+
+    restored.release.notify_one();
+    restored.startup.await.unwrap().unwrap();
+    let (admitted, fresh) = profile(&restored.core).await;
+    assert!(fresh);
+    assert_eq!(admitted["username"], "Renamed");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn a_mismatched_principal_revokes_the_temporary_personal_profile() {
+    let restored = stalled_restore("synthetic-other-user", false).await;
+    assert!(!tokio::time::timeout(Duration::from_secs(1), profile(&restored.core)).await.unwrap().1);
+    restored.release.notify_one();
+    assert!(matches!(restored.startup.await.unwrap(), Err(CoreError::Expired)));
+    assert!(matches!(restored.core.user_profile().await, Err(CoreError::Authentication)));
+    assert!(restored.events.all().iter().any(|event| matches!(
+        event, ViewEventRecord::Session { event: SessionEventRecord::Expired }
+    )));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn personal_cached_profile_does_not_unlock_a_stalled_team_restore() {
+    let restored = stalled_restore("synthetic-user", true).await;
+    assert!(tokio::time::timeout(Duration::from_millis(100), restored.core.user_profile()).await.is_err());
+    assert!(!restored.events.all().iter().any(|event| matches!(
+        event, ViewEventRecord::ChatList { rows, completeness: ListCompletenessRecord::Cached, .. } if !rows.is_empty()
+    )));
+    restored.release.notify_one();
+    let _ = restored.startup.await.unwrap();
 }

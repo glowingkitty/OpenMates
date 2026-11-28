@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from backend.apps.audio.assistant_speech.voice_profiles import ASSISTANT_VOICE_PROVIDER_IDS
+
 import re
 
 
@@ -114,6 +116,27 @@ ACKNOWLEDGEMENT_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
+# Reuse the existing recordings for answers and work. The additional clips
+# cover a spoken wait in the Mate's voice and the first Mandarin recordings.
+_VOICE_WAIT_TEXTS = {
+    "en-US": ("Sure, I'll wait.", "Of course. Take your time.", "Okay, I'll wait for you."),
+    "de-DE": ("Klar, ich warte.", "Natürlich. Lass dir Zeit.", "Okay, ich warte auf dich."),
+    "es-ES": ("Claro, espero.", "Por supuesto. Tómate tu tiempo.", "Vale, te espero."),
+    "fr-FR": ("Bien sûr, j'attends.", "D'accord, prends ton temps.", "Je t'attends."),
+    "zh-CN": ("好的，我等你。", "没问题，慢慢来。", "当然，我先等一下。"),
+}
+VOICE_FEEDBACK_TEXTS: dict[str, dict[str, tuple[str, ...]]] = {
+    locale: {"voice_wait": wait, "reasoning": ACKNOWLEDGEMENT_TEXTS[locale]["reasoning"],
+             "action": ACKNOWLEDGEMENT_TEXTS[locale]["action"]}
+    for locale, wait in _VOICE_WAIT_TEXTS.items()
+    if locale in ACKNOWLEDGEMENT_TEXTS
+}
+VOICE_FEEDBACK_TEXTS["zh-CN"] = {
+    "voice_wait": _VOICE_WAIT_TEXTS["zh-CN"],
+    "reasoning": ("好，让我想一想。", "我来仔细考虑一下。", "嗯，我先想想这个问题。"),
+    "action": ("好，我来处理。", "没问题，我这就开始。", "明白，我来办。"),
+}
+
 
 # Spoken lines of a call request that waits for the user's tap (Memory access
 # and other approvals). Recorded once per Mate voice, so they are played with
@@ -154,19 +177,46 @@ PERMISSION_PROMPT_TEXTS: dict[str, dict[str, str]] = {
 PERMISSION_PROMPT_VARIANT = 1
 
 
+# Static work updates. Labels are selected from confirmed worker state only.
+_WORK_LINES = {
+    "en-US": ("I'm still thinking about this.", "I'm still working on this.", "I'm writing the code.", "I'm putting together the spreadsheet.", "I'm drafting the document.", "I'm creating the slides."),
+    "de-DE": ("Ich denke noch darüber nach.", "Ich arbeite noch daran.", "Ich schreibe den Code.", "Ich erstelle die Tabelle.", "Ich schreibe das Dokument.", "Ich erstelle die Folien."),
+    "es-ES": ("Sigo pensando en ello.", "Sigo trabajando en ello.", "Estoy escribiendo el código.", "Estoy preparando la hoja de cálculo.", "Estoy redactando el documento.", "Estoy creando las diapositivas."),
+    "fr-FR": ("Je suis encore en train d’y réfléchir.", "Je travaille toujours dessus.", "J’écris le code.", "Je prépare la feuille de calcul.", "Je rédige le document.", "Je crée les diapositives."),
+    "zh-CN": ("我还在思考。", "我还在处理。", "我正在编写代码。", "我正在制作电子表格。", "我正在起草文档。", "我正在制作幻灯片。"),
+}
+RECORDED_WORK_CUE_LOCALES = frozenset({"en-US", "de-DE"})
+_WORK_CATEGORIES = ("still_thinking", "still_working", "writing_code", "writing_sheet", "writing_document", "writing_slides")
+WORK_CUE_TEXTS = {locale: {category: (line,) for category, line in zip(_WORK_CATEGORIES, lines, strict=True)}
+                  for locale, lines in _WORK_LINES.items()}
+
+
+def build_work_cue(*, voice_profile_id: str, language: str, category: str) -> dict[str, object] | None:
+    locale = _resolve_locale(language, WORK_CUE_TEXTS)
+    if (voice_profile_id not in ASSISTANT_VOICE_PROVIDER_IDS or locale not in RECORDED_WORK_CUE_LOCALES
+            or category not in WORK_CUE_TEXTS[locale]):
+        return None
+    return {
+        "clip_id": f"{voice_profile_id}-{locale}-{category}-1",
+        "asset_url": f"{ACKNOWLEDGEMENT_ASSET_ROOT}/{voice_profile_id}/{locale}/{category}-1.mp3",
+    }
+
+
 def build_acknowledgement_clips(
     *,
     voice_profile_id: str,
     voice_profile_version: int,
     language: str,
+    voice_feedback: bool = False,
 ) -> list[dict[str, object]]:
     """Build public static clip metadata for one approved mate and locale."""
-    locale = _resolve_locale(language)
+    catalog = VOICE_FEEDBACK_TEXTS if voice_feedback else ACKNOWLEDGEMENT_TEXTS
+    locale = _resolve_locale(language, catalog)
     if locale is None:
         return []
 
     clips: list[dict[str, object]] = []
-    for category, variants in ACKNOWLEDGEMENT_TEXTS[locale].items():
+    for category, variants in catalog[locale].items():
         for variant, _text in enumerate(variants, start=1):
             clip_id = f"{voice_profile_id}-{locale}-{category}-{variant}"
             clips.append(
@@ -217,7 +267,7 @@ def build_permission_prompt_clips(*, voice_profile_id: str, language: str) -> di
 def _resolve_locale(language: str, catalog: dict[str, object] = ACKNOWLEDGEMENT_TEXTS) -> str | None:
     if language in catalog:
         return language
-    base_language = language.split("-", maxsplit=1)[0].lower()
+    base_language = language.replace("_", "-").split("-", maxsplit=1)[0].lower()
     return next(
         (
             locale
@@ -275,5 +325,7 @@ def prerecorded_clip_text(asset_url: str) -> str:
     for catalog in (WAITING_LINE_TEXTS, PERMISSION_PROMPT_TEXTS):
         if category in catalog.get(locale, {}):
             return catalog[locale][category]
-    variants = ACKNOWLEDGEMENT_TEXTS.get(locale, {}).get(category, ())
+    variants = (WORK_CUE_TEXTS.get(locale, {}).get(category)
+                or VOICE_FEEDBACK_TEXTS.get(locale, {}).get(category)
+                or ACKNOWLEDGEMENT_TEXTS.get(locale, {}).get(category, ()))
     return variants[variant - 1] if variant <= len(variants) else ""

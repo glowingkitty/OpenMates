@@ -44,7 +44,9 @@ COPY . /app/
 
 RUN mkdir -p /app/logs && chmod 777 /app/logs
 RUN adduser --disabled-password --gecos '' celeryuser
-RUN mkdir -p /celerybeat-data && chown -R celeryuser:celeryuser /app /celerybeat-data
+RUN chown -R celeryuser:celeryuser /app \
+    && install -d -o celeryuser -g celeryuser -m 0750 \
+        /app/logs /app/backend/core/api/logs /celerybeat-data
 
 USER celeryuser
 

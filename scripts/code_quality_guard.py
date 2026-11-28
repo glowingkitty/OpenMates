@@ -9,10 +9,13 @@ reported as warnings unless CODE_QUALITY_GUARD_STRICT=1 is set.
 
 from __future__ import annotations
 
+import ast
+import json
 import os
 import re
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 import audit_embed_structure
@@ -81,6 +84,17 @@ WARN_PATTERNS = {
 
 def _git(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=check)
+
+
+def _verified_generated_locale(path: str) -> bool:
+    try:
+        expected = json.loads(os.environ.get("OPENMATES_DEPLOY_GENERATED_LOCALES", "{}")).get(path)
+    except (AttributeError, ValueError):
+        return False
+    if not expected:
+        return False
+    staged = _git(["rev-parse", f":{path}"], check=False)
+    return staged.returncode == 0 and staged.stdout.strip() == expected
 
 
 def _staged_files() -> list[str]:
@@ -229,6 +243,12 @@ def _python_function_blocks(source: str) -> list[tuple[int, str, str]]:
     return blocks
 
 
+def _literal_string_prefix(node: ast.AST) -> str:
+    if isinstance(node, ast.JoinedStr) and node.values:
+        node = node.values[0]
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else ""
+
+
 def _audit_backend_embed_vault_boundaries(staged_files: list[str]) -> list[str]:
     issues: list[str] = []
     for path in staged_files:
@@ -237,15 +257,57 @@ def _audit_backend_embed_vault_boundaries(staged_files: list[str]) -> list[str]:
         source = _staged_file_text(path)
         if "encrypt_with_user_key" not in source or "encrypted_" not in source:
             continue
-        for line_no, function_name, block in _python_function_blocks(source):
-            if "encrypt_with_user_key" not in block or "encrypted_content" not in block:
-                if "encrypt_with_user_key" not in block or "encrypted_" not in block:
-                    continue
+        try:
+            tree = ast.parse(source)
+        except SyntaxError as exc:
+            issues.append(f"{path}:{exc.lineno}: could not audit encryption boundaries: {exc.msg}")
+            continue
+        lines = source.splitlines()
+        for function in ast.walk(tree):
+            if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            line_no, function_name = function.lineno, function.name
+            block = "\n".join(lines[line_no - 1:function.end_lineno])
+            call_nodes = [node for node in ast.walk(function) if isinstance(node, ast.Call)]
+            call_names = {
+                node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
+                for node in call_nodes
+                if isinstance(node.func, (ast.Attribute, ast.Name))
+            }
+            if "encrypt_with_user_key" not in call_names or "encrypted_" not in block:
+                continue
             writes_directus_embed_content = (
-                "update_embed" in block or "create_embed" in block
+                bool(call_names & {"update_embed", "create_embed"})
             ) and "encrypted_content" in block
+            stores = Counter(node.id for node in ast.walk(function)
+                             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store))
+            lock_keys = {
+                node.targets[0].id
+                for node in ast.walk(function)
+                if isinstance(node, ast.Assign)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+                and stores[node.targets[0].id] == 1
+                and _literal_string_prefix(node.value).startswith("lock:")
+            }
+            cache_writes = [
+                node for node in call_nodes
+                if isinstance(node.func, ast.Attribute)
+                and node.func.attr == "set"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "client"
+                and not (
+                    node.args and any(
+                        kw.arg == "nx" and isinstance(kw.value, ast.Constant) and kw.value.value is True
+                        for kw in node.keywords
+                    ) and (
+                        _literal_string_prefix(node.args[0]).startswith("lock:")
+                        or isinstance(node.args[0], ast.Name) and node.args[0].id in lock_keys
+                    )
+                )
+            ]
             writes_embed_cache_content = (
-                "client.set" in block
+                bool(cache_writes)
                 and "embed:" in block
                 and "encrypted_content" in block
             )
@@ -403,7 +465,8 @@ def main() -> int:
             blocks.append(f"{path}: reported issue findings are local-only; use scripts/issues.py findings and keep notes untracked")
             continue
         if re.search(r"frontend/packages/ui/src/i18n/locales/.*\.json$", path):
-            blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
+            if not _verified_generated_locale(path):
+                blocks.append(f"{path}: generated translation JSON must not be committed directly; edit YAML sources instead")
             continue
         if suffix not in SOURCE_EXTENSIONS or path in GENERATED_SOURCE_PATHS:
             continue

@@ -173,7 +173,7 @@ export function isTeamAIInvocation(content: string): boolean {
   return Array.from(mentions).some((match) => knownMateIds.has(match[1].toLowerCase()));
 }
 
-const teamKeyCache = new Map<string, Uint8Array>();
+const teamKeyCache = new Map<string, { key: Uint8Array; wrapper: string }>();
 let teamKeyScope: string | null = null;
 const teamListCache = new WorkspaceQueryCache<TeamViewModel[]>({ ttlMs: 60_000, maxEntries: 1 });
 registerWorkspaceCacheClear(() => { teamKeyCache.clear(); teamKeyScope = null; });
@@ -285,12 +285,12 @@ async function teamKeyForRecord(record: TeamRecord, scope: TeamKeyScope): Promis
   const teamId = record.team_id;
   if (!teamId) return null;
   const cached = teamKeyCache.get(teamId);
-  if (cached) return cached;
   if (!record.encrypted_team_key) return null;
+  if (cached?.wrapper === record.encrypted_team_key) return cached.key;
   const teamKey = await decryptChatKeyWithMasterKey(record.encrypted_team_key);
   assertTeamKeyScope(scope);
   if (!teamKey) return null;
-  if (scope.identity) teamKeyCache.set(teamId, teamKey);
+  if (scope.identity) teamKeyCache.set(teamId, { key: teamKey, wrapper: record.encrypted_team_key });
   return teamKey;
 }
 
@@ -378,10 +378,10 @@ export async function deleteTeam(teamId: string): Promise<void> {
 export async function getTeamKey(teamId: string): Promise<Uint8Array> {
   const scope = ensureTeamKeyScope();
   const cached = teamKeyCache.get(teamId);
-  if (cached) return cached;
+  if (cached) return cached.key;
   const team = await getTeam(teamId);
   assertTeamKeyScope(scope);
-  const teamKey = teamKeyCache.get(teamId) ?? (team.encrypted.encrypted_team_key
+  const teamKey = teamKeyCache.get(teamId)?.key ?? (team.encrypted.encrypted_team_key
     ? await decryptChatKeyWithMasterKey(team.encrypted.encrypted_team_key)
     : null);
   assertTeamKeyScope(scope);
@@ -443,7 +443,7 @@ export async function createTeam(input: { name: string; description?: string | n
     const created = await workDecide<{ team_id: string; overrides: Array<[string, unknown]> }>(work, "teamCreatedRecord",
       { returned: data.team ?? null, sent: body, team_id: teamId });
     assertTeamKeyScope(scope);
-    if (scope.identity) teamKeyCache.set(created.team_id, teamKey);
+    if (scope.identity) teamKeyCache.set(created.team_id, { key: teamKey, wrapper: encryptedTeamKey });
     const decrypted = await decryptTeam({ ...(data.team ?? {}), ...Object.fromEntries(created.overrides) } as TeamRecord, scope);
     assertTeamKeyScope(scope);
     if (!decrypted) throw new Error("Created team could not be decrypted");
@@ -476,7 +476,7 @@ export async function createTeam(input: { name: string; description?: string | n
   const returnedTeam = data.team ?? {};
   assertTeamKeyScope(scope);
   const createdTeamId = returnedTeam.team_id ?? teamId;
-  if (scope.identity) teamKeyCache.set(createdTeamId, teamKey);
+  if (scope.identity) teamKeyCache.set(createdTeamId, { key: teamKey, wrapper: encryptedTeamKey });
   const createdRecord: TeamRecord = {
     ...returnedTeam,
     team_id: createdTeamId,

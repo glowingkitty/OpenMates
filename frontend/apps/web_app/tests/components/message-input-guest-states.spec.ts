@@ -159,4 +159,55 @@ test.describe('Signed-out composer states', () => {
 		await attach(testInfo, page, 'guest-demo-flag-send');
 		await expectNoDisabledSendSeen(page);
 	});
+
+	for (const knownDevice of [false, true]) {
+		for (const action of ['record', 'files'] as const) {
+			// contract-test: direct surface=gui.web assertions=message-input.signed-out-action-access
+			test(`blocks ${action} before media starts on a ${knownDevice ? 'known' : 'new'} device`, async ({ page }, testInfo) => {
+				// Files are account-only, even while free text and dictation are available.
+				await mockGuestStatus(page, { kind: 'json', body: action === 'record' ? EXHAUSTED : OPEN });
+				await page.addInitScript(() => {
+					const starts: string[] = [];
+					const destinations: string[] = [];
+					Object.assign(window, { starts, destinations });
+					for (const name of ['openLoginInterface', 'openSignupInterface']) {
+						window.addEventListener(name, () => destinations.push(name));
+					}
+					navigator.mediaDevices.getUserMedia = async () => {
+						starts.push('microphone');
+						throw new Error('A blocked action requested the microphone');
+					};
+					new MutationObserver(() => {
+						if (document.querySelector('[data-testid="record-overlay"]')) starts.push('recording');
+					}).observe(document, { childList: true, subtree: true });
+				});
+				const choosers: string[] = [];
+				page.on('filechooser', () => choosers.push('filechooser'));
+				await openSignedOutComposer(page, knownDevice
+					? () => localStorage.setItem('openmates:last-auth-method', 'email') : undefined);
+				if (knownDevice || action === 'record') {
+					await expect(page.getByTestId('composer-account-cta')).toHaveText(knownDevice ? /^log\s?in$/i : 'Sign up');
+					await expect(page.getByTestId('guest-access-reason')).toHaveAttribute('data-reason', knownDevice ? 'logged_in_before' : 'usage_limit');
+				} else {
+					await expect(page.getByTestId('composer-send-button')).toBeEnabled();
+				}
+				await attach(testInfo, page, `guest-${action}-${knownDevice ? 'known' : 'new'}`);
+				if (action === 'record') {
+					await page.getByTestId('record-audio-button').click();
+				} else {
+					await page.getByTestId('composer-attachment-menu-button').click();
+					await page.getByTestId('composer-attachment-files').click();
+				}
+				const observed = () => page.evaluate(() => {
+					const state = window as typeof window & { starts: string[]; destinations: string[] };
+					return { starts: state.starts, destinations: state.destinations };
+				});
+				await expect.poll(observed).toEqual({
+					starts: [],
+					destinations: [knownDevice ? 'openLoginInterface' : 'openSignupInterface'],
+				});
+				expect(choosers).toEqual([]);
+			});
+		}
+	}
 });

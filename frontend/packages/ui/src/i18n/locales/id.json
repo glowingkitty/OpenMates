@@ -959,6 +959,12 @@
         "description": {
           "text": "Baca desain Figma dan dapatkan struktur, gaya, dan serah terima kode."
         }
+      },
+      "author": {
+        "text": "Buat desain",
+        "description": {
+          "text": "Buat selebaran, kiriman, atau maket yang dapat diedit."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Buat tugas",
-          "description": {
-            "text": "Buat tugas dengan judul, deskripsi, dan penanggung jawab."
-          }
-        },
         "search": {
           "text": "Cari tugas",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Obrolan contoh"
       },
+      "sub_chat": {
+        "text": "Sub-chat"
+      },
       "shared_chat": {
         "text": "Chat bersama"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Tampilkan lebih banyak"
+      },
+      "account_total": {
+        "text": "{count} percakapan di akun Anda"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "Ciutkan {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Tugas"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Diagram Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Membaca grafik…"
+        },
+        "progress_checking": {
+          "text": "Memeriksa desain…"
+        },
+        "progress_adjusting": {
+          "text": "Menyesuaikan desain untuk bordir…"
+        },
+        "progress_stitching": {
+          "text": "Membuat jahitan dan pratinjau…"
+        },
+        "progress_saving": {
+          "text": "Menyimpan file mesin…"
+        },
         "threads": {
           "text": "Benang"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Unduh desain"
+        },
+        "current_page": {
+          "text": "Halaman saat ini"
+        },
+        "all_pages": {
+          "text": "Semua halaman"
+        },
+        "image_unavailable": {
+          "text": "Sebuah gambar tidak tersedia di perangkat ini. Buka halaman dan tunggu hingga gambar dimuat, lalu coba lagi."
+        },
+        "failed": {
+          "text": "Desain tidak dapat diunduh. Coba lagi."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Coba gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Domain e-mail tidak diizinkan."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Panggilan memakai transkripsi Mistral, suara ElevenLabs v4 Turbo, perutean AI OpenMates biasa, dan penagihan berdasarkan penggunaan."
-    },
     "privacy_description": {
       "text": "Mistral mentranskripsikan audio mikrofonmu; ElevenLabs v4 Turbo menghasilkan suara asisten dari teks balasan dan pengaturan suara. Percakapan memakai perutean AI dan keterampilan OpenMates seperti biasa. Penyedia dapat menyimpan data permintaan sesuai kebijakan mereka."
     },

@@ -165,20 +165,29 @@ phases:
          title, its outcome as the goal, and every still-open assumption in
          assumptions. A Plan written only as chat text does not count. It
          returns the plan_id and one assumption id per assumption.
-      2. If open assumptions exist, call start_sub_chats with one sub-chat
-         per assumption, each with link {kind: "assumption", plan_id, id}
+      2. If plans create returns open assumptions, the next action must be
+         start_sub_chats. Start one sub-chat per returned assumption, each
+         with link {kind: "assumption", plan_id, id} using exactly the returned ids,
          and a self-contained prompt to check that assumption against
          primary sources and report confirmed, corrected or unresolved with
          evidence. Add a focus_id only when the check needs a specific
-         focus. Wait for their results, then summarise them in a few lines
-         and ask the user only the decisions the results leave open.
-      3. Create Tasks with the tasks create skill and the plan_id, one per
-         independently verifiable step in build order, each naming the
-         requirement ids it delivers; assign build and test work to
-         openmates and every human confirmation or decision to the user,
-         all linked to this chat.
-      4. Implement each openmates Task in its own sub-chat: call
-         start_sub_chats with link {kind: "task", plan_id, id} and a prompt
+         focus. Wait for their results before creating any Tasks.
+      3. In the follow-up from the assumption sub-chats (or right away if the
+         Plan had no open assumptions), summarise the results and create Tasks
+         as openmates_task blocks containing one strict JSON object apiece.
+         Use "title", "description", "status": "todo", "assignee", and
+         "plan" with the exact plan_id returned by plans create. The Plan
+         already supplies the Project context, so leave "project" out of
+         these Task blocks. Write one Task per independently verifiable step
+         in build order, naming the requirement ids in its description.
+         Set "assignee" to "openmates" for build and test work and to "user"
+         for human confirmations or decisions. Ask for the decisions still
+         open and whether to start the Tasks.
+      4. When the user says to start, implement each openmates Task in its own
+         sub-chat. Call start_sub_chats with link {kind: "task", plan_id, id},
+         using the saved full or short Task ID from Visible Tasks. When the
+         Task appears in an inline Task card in this chat, its exact title
+         can identify it too. Never invent an identifier. Include a prompt
          that names the Task, its requirement ids and the acceptance Checks
          it must pass. Run dependent Tasks one after another
          (execution_mode sequential) and independent ones in parallel.
@@ -188,7 +197,7 @@ phases:
       the required Checks are green or a human confirmation is needed.
     requirements:
       - id: plan_started
-        text: A Plan carrying the open assumptions was created with the plans create skill, each open assumption was checked in its own linked sub-chat, and the Plan's Tasks were created with the tasks create skill.
+        text: A Plan carrying the open assumptions was created with the plans create skill, each open assumption was checked in its own linked sub-chat, and the Plan's Tasks were created as inline task blocks linked to the Plan.
       - id: tasks_delegated
         text: Each openmates Task was started in its own linked sub-chat, and this chat only summarised results and asked the user's decisions.
 

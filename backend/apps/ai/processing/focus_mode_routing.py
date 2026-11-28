@@ -65,11 +65,27 @@ LIFE_COMPASS_FOCUS_ID = "life_coaching-life_compass"
 # Skills an active focus keeps offered on every turn, because its instructions
 # call them at moments preprocessing does not recognise as tool turns.
 FOCUS_OFFERED_SKILLS: dict[str, tuple[str, ...]] = {
-    SPEC_AUTHORING_FOCUS_ID: ("plans-specification", "plans-check", "plans-create", "tasks-create"),
+    SPEC_AUTHORING_FOCUS_ID: ("plans-specification", "plans-check", "plans-create"),
     # Agreed next steps become Tasks (reminders where Tasks are off). tasks-search is not offered:
     # no client answers its pending search yet, so follow-ups recall steps from the approved Memory.
-    LIFE_COMPASS_FOCUS_ID: ("tasks-create", "reminder-set-reminder"),
+    LIFE_COMPASS_FOCUS_ID: ("reminder-set-reminder",),
 }
+# Apps whose instructions an active focus keeps in the prompt although no tool of theirs
+# is offered: Tasks are created with inline openmates_task blocks, not a skill.
+FOCUS_OFFERED_APPS: dict[str, tuple[str, ...]] = {
+    SPEC_AUTHORING_FOCUS_ID: ("tasks",),
+    LIFE_COMPASS_FOCUS_ID: ("tasks",),
+}
+
+
+def focus_offered_app_scope(
+    *, active_focus_id: str | None, selected_app_ids: list[str] | None, available_apps: list[str],
+) -> list[str] | None:
+    """Keep the apps an active focus authors inline blocks for in the app shortlist."""
+    offered = FOCUS_OFFERED_APPS.get(active_focus_id or "")
+    if selected_app_ids is None or not offered:
+        return selected_app_ids
+    return [*selected_app_ids, *[a for a in offered if a in available_apps and a not in selected_app_ids]]
 
 
 def focus_offered_skill_scope(

@@ -4,7 +4,10 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+from backend.apps.ai.tasks.async_skill_continuation import (
+    ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+    async_skill_latest_user_turn_key,
+)
 from backend.shared.python_utils.queued_turn_marker import is_queued_turn_pending
 
 
@@ -44,6 +47,39 @@ def _decoded_rows(cached: list[str]) -> list[dict[str, Any]]:
         if isinstance(row, dict):
             rows.append(row)
     return rows
+
+
+async def admit_child_focus_source(
+    cache: Any, encryption: Any, request: Any, vault_key_id: str,
+) -> None:
+    """Record a claimed child prompt with the same encrypted turn fence as a client send."""
+    messages = request.message_history
+    if len(messages) != 1 or messages[0].role != "user" or messages[0].message_id != request.message_id:
+        raise FocusContinuationHistoryError("invalid_source_turn")
+    source = messages[0]
+    latest_key = async_skill_latest_user_turn_key(request.user_id, request.chat_id)
+    rows = _decoded_rows(await cache.get_ai_messages_history(request.user_id, request.chat_id))
+    if any(row.get("role") == "user" and source.message_id not in _row_ids(row) for row in rows):
+        return
+    client = await cache.client
+    if client is None:
+        raise FocusContinuationHistoryError("source_turn_cache_unavailable")
+    if not await client.set(latest_key, source.message_id, nx=True, ex=ASYNC_SKILL_CONTINUATION_TTL_SECONDS):
+        if await cache.get(latest_key) != source.message_id:
+            return
+    if any(source.message_id in _row_ids(row) for row in rows):
+        return
+    ciphertext, _ = await encryption.encrypt_with_user_key(source.content, vault_key_id)
+    if not isinstance(ciphertext, str) or not ciphertext.startswith("vault:v"):
+        raise FocusContinuationHistoryError("invalid_source_turn")
+    if await cache.get(latest_key) != source.message_id:
+        return
+    saved = await cache.add_ai_message_to_history(request.user_id, request.chat_id, json.dumps({
+        "id": source.message_id, "chat_id": request.chat_id, "role": "user",
+        "sender_name": source.sender_name, "created_at": source.created_at, "encrypted_content": ciphertext,
+    }))
+    if not saved:
+        raise FocusContinuationHistoryError("source_turn_cache_unavailable")
 
 
 async def _rows_without_queued_followups(
@@ -317,10 +353,11 @@ def focus_cleanup_envelope(request) -> dict:
     return {**{field: getattr(request, field) for field in fields}, 'message_history': []}
 
 
-async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id: str) -> bool:
+async def find_cancellable_focus_execution(cache, user_id: str, chat_id: str, execution_id: str):
+    """Verify one owner-scoped Focus delivery still has its original active authority."""
     raw = await cache.get(f"focus_execution_root:{user_id}:{chat_id}:{execution_id}")
     if not raw:
-        return False
+        return None
     try:
         value = _decode_focus_authority_mapping(raw)
         from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -328,11 +365,19 @@ async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id
         root_id = value['root_id']
         object.__setattr__(request, '_focus_authority_task_id', root_id)
     except (TypeError, ValueError, KeyError):
-        return False
+        return None
     if (request.user_id != user_id or request.chat_id != chat_id
             or focus_authority_root(request, execution_id) != root_id
             or await cache.get_active_ai_task(chat_id) != root_id):
+        return None
+    return request, root_id
+
+
+async def cancel_focus_execution(cache, user_id: str, chat_id: str, execution_id: str) -> bool:
+    execution = await find_cancellable_focus_execution(cache, user_id, chat_id, execution_id)
+    if execution is None:
         return False
+    request, root_id = execution
     client = await cache.client
     await client.set(focus_authority_phase_key(user_id, chat_id, root_id), 'expired', ex=FOCUS_AUTHORITY_TTL)
     await client.eval(

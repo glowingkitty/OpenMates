@@ -10,6 +10,7 @@
 
 /** Raw embed data passed to every fullscreen component via the `data` prop */
 export interface EmbedFullscreenRawData {
+	embedType?: string;
 	decodedContent: Record<string, unknown>;
 	attrs?: Record<string, unknown>;
 	embedData?: Record<string, unknown>;

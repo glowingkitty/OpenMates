@@ -9,8 +9,10 @@
 import asyncio
 import hashlib
 import inspect
+import json
 import uuid as _uuid
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -595,6 +597,13 @@ class _Cache:
         self.data[key] = value
         return True
 
+    async def get_keys_by_pattern(self, pattern):
+        prefix = pattern.rstrip("*")
+        return [key for key in self.data if key.startswith(prefix)]
+
+    async def delete(self, key):
+        return self.data.pop(key, None) is not None
+
     async def get_discovered_apps_metadata(self):
         focus = SimpleNamespace(id="research")
         return {"web": SimpleNamespace(focuses=[focus])}
@@ -604,7 +613,7 @@ class _Cache:
 
 
 class _Directus:
-    def __init__(self, *, child_parent=_PARENT, task_owner=_USER) -> None:
+    def __init__(self, *, child_parent=_PARENT, task_owner=_USER, stored_tasks=None) -> None:
         self.child_parent = child_parent
         self.updates: list = []
         outer = self
@@ -622,6 +631,8 @@ class _Directus:
         class _Task:
             async def get_task(self, task_id, user_id, team_id=None):
                 if user_id != task_owner:
+                    return None
+                if stored_tasks is not None and task_id not in stored_tasks:
                     return None
                 return {"id": "row-1", "task_id": task_id, "plan_id": _PLAN}
 
@@ -652,7 +663,7 @@ def _bind_parent(cache: _Cache, directus: _Directus) -> None:
 
 def _request():
     return SimpleNamespace(
-        user_id=_USER, chat_id=_PARENT, is_incognito=False, team_id=None, active_focus_id=None,
+        user_id=_USER, chat_id=_PARENT, message_id="turn", is_incognito=False, team_id=None, active_focus_id=None,
     )
 
 
@@ -757,6 +768,123 @@ def test_task_link_refused_for_another_users_task() -> None:
     ))
     assert children[0]["link"] is None
     assert directus.updates == []
+
+
+# contract-test: supporting surface=gui.web assertions=plans.sub-chats.assumption-and-task-chats
+@pytest.mark.parametrize(("embed_owner", "vault_task_ids", "linked"), [
+    ("owner-hash", ["task-1"], True),
+    ("other-owner", ["task-1"], False),
+    ("owner-hash", ["task-1", "task-2"], False),
+])
+async def test_later_task_sub_chat_resolves_unambiguous_owned_title(
+    monkeypatch, embed_owner, vault_task_ids, linked,
+):
+    from toon_format import encode
+    from backend.core.api.app.utils import encryption
+
+    request = _request()
+    request.user_id_hash = "owner-hash"
+    request.embed_file_path_index = {f"task-{index}": str(index) for index in range(len(vault_task_ids))}
+    cache = _Cache()
+    cache.get_embed_from_cache = AsyncMock(return_value={
+        "type": "task", "status": "finished", "chat_id": _PARENT, "hashed_user_id": embed_owner,
+        "encrypted_content": "vault:v1:test",
+    })
+    cache.get_user_vault_key_id = AsyncMock(return_value="owner-vault")
+    decrypt = AsyncMock(return_value=[
+        encode({"title": "Build the importer", "type": "task", "task_id": task_id,
+                "task_source": json.dumps({"plan": _PLAN})})
+        for task_id in vault_task_ids
+    ])
+    monkeypatch.setattr(encryption, "EncryptionService", lambda **kwargs: SimpleNamespace(
+        decrypt_many_with_user_key=decrypt, close=AsyncMock(),
+    ))
+    directus = _Directus(stored_tasks=set(vault_task_ids))
+    children = [{"id": "child", "link": {"kind": "task", "plan_id": _PLAN, "id": "build the importer"}}]
+
+    await links.apply_inheritance_and_task_links(
+        children, request_data=request, directus_service=directus, log_prefix="test", cache_factory=lambda: cache,
+    )
+
+    if linked:
+        assert children[0]["link"]["id"] == "task-1"
+        assert directus.updates == [("user_tasks", "row-1", {"linked_sub_chat_id": "child"})]
+    else:
+        assert children[0]["link"] is None
+        assert directus.updates == []
+    if embed_owner != request.user_id_hash:
+        decrypt.assert_not_awaited()
+
+
+def _stage_create_job(cache: _Cache, task_id: str, owner: str = _USER) -> None:
+    from backend.apps.ai.processing.task_tool_executor import TASK_TOOL_JOB_CACHE_PREFIX
+    from backend.core.api.app.services.directus.user_task_methods import hash_id
+    cache.data[f"{TASK_TOOL_JOB_CACHE_PREFIX}job-{task_id}"] = {
+        "owner_hash": hash_id(owner), "task_id": task_id, "operation": "create", "state": "PENDING",
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=plans.sub-chats.assumption-and-task-chats
+def test_task_created_this_turn_is_linked_once_the_client_stores_it() -> None:
+    from backend.core.api.app.services.task_sub_chat_link_service import apply_pending_link
+    cache, directus = _Cache(), _Directus(stored_tasks=set())
+    _stage_create_job(cache, "t-new")
+    children = [{"id": "c9", "focus_id": None, "link": {"kind": "task", "plan_id": _PLAN, "id": "t-new"}}]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus, log_prefix="[t]",
+        cache_factory=lambda: cache,
+    ))
+    assert children[0]["link"]["id"] == "t-new"
+    assert directus.updates == []
+    stored = {"id": "row-7", "task_id": "t-new", "plan_id": _PLAN}
+    linked = asyncio.run(apply_pending_link(cache, directus, user_id=_USER, task=stored))
+    assert linked == "c9"
+    assert directus.updates == [("user_tasks", "row-7", {"linked_sub_chat_id": "c9"})]
+    assert asyncio.run(apply_pending_link(cache, directus, user_id=_USER, task=stored)) is None
+
+
+# contract-test: supporting surface=rest_api assertions=plans.sub-chats.assumption-and-task-chats
+def test_pending_task_link_needs_own_staged_task_and_same_plan() -> None:
+    from backend.core.api.app.services.task_sub_chat_link_service import apply_pending_link
+    cache, directus = _Cache(), _Directus(stored_tasks=set())
+    _stage_create_job(cache, "t-other", owner="someone-else")
+    _stage_create_job(cache, "t-mine")
+    children = [
+        {"id": "c1", "focus_id": None, "link": {"kind": "task", "plan_id": _PLAN, "id": "t-other"}},
+        {"id": "c2", "focus_id": None, "link": {"kind": "task", "plan_id": _PLAN, "id": "t-mine"}},
+    ]
+    asyncio.run(links.annotate_sub_chats(
+        children, request_data=_request(), directus_service=directus,
+        cache_service=cache, log_prefix="[t]",
+    ))
+    asyncio.run(links.apply_inheritance_and_task_links(
+        children, request_data=_request(), directus_service=directus, log_prefix="[t]",
+        cache_factory=lambda: cache,
+    ))
+    assert children[0]["link"] is None and children[1]["link"] is not None
+    other_plan = {"id": "row-8", "task_id": "t-mine", "plan_id": str(_uuid.uuid4())}
+    assert asyncio.run(apply_pending_link(cache, directus, user_id=_USER, task=other_plan)) is None
+    assert directus.updates == []
+
+
+# contract-test: supporting surface=rest_api assertions=chat-orchestration.sub-chats.work-links
+def test_task_short_id_is_resolved_to_the_canonical_plan_link() -> None:
+    cache, directus = _Cache(), _Directus(stored_tasks=set())
+    directus.user_task.get_task_by_short_id = AsyncMock(
+        return_value={"id": "row-1", "task_id": "canonical-task", "plan_id": _PLAN},
+    )
+    link = {"kind": "task", "plan_id": _PLAN, "id": "TASK-12"}
+    asyncio.run(links.apply_inheritance_and_task_links(
+        [{"id": "child", "link": link}], request_data=_request(), directus_service=directus,
+        log_prefix="[t]", cache_factory=lambda: cache,
+    ))
+    directus.user_task.get_task_by_short_id.assert_awaited_once_with("TASK-12", _USER, None)
+    assert link["id"] == "canonical-task"
+    assert directus.updates == [("user_tasks", "row-1", {"linked_sub_chat_id": "child"})]
 
 
 def test_expand_carries_focus_and_link_fields() -> None:

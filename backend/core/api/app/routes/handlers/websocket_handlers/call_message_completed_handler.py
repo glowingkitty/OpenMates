@@ -196,16 +196,19 @@ async def _finish_revision(directus_service: Any, cache_service: Any, user_id: s
 
 async def _persist_encrypted_call_message(
     *, directus_service: Any, cache_service: Any, user_id: str,
-    user_id_hash: str, session_hash: str, message: dict[str, Any],
+    user_id_hash: str, session_id: str | None, message: dict[str, Any],
+    legacy_session_hash: str | None = None,
 ) -> tuple[str, int, int, dict[str, Any] | None]:
     """Return outcome, message revision, canonical chat version, and newly settled row."""
-    if not session_hash:
+    if not session_id:
         raise CallMessageError("call_session_unavailable")
     try:
         await require_active_call(
-            cache_service, user_id=user_id, session_id=session_hash,
+            cache_service, user_id=user_id, session_id=session_id,
             chat_id=message["chat_id"], call_id=message["call_id"],
             message_id=message["message_id"], role=message["role"],
+            # Preserve retries for ciphertext issued before the logical-ID rollout.
+            legacy_session_hash=legacy_session_hash,
         )
     except ValueError as exc:
         raise CallMessageError("call_message_not_authorized") from exc
@@ -344,27 +347,29 @@ async def _persist_encrypted_call_message(
 
 async def persist_encrypted_call_message(
     *, directus_service: Any, cache_service: Any, user_id: str,
-    user_id_hash: str, session_hash: str, message: dict[str, Any],
+    user_id_hash: str, session_id: str | None, message: dict[str, Any],
 ) -> tuple[str, int]:
     """Return the existing outcome/message-revision pair for persistence callers."""
     outcome, revision, _messages_v, _changed = await _persist_encrypted_call_message(
         directus_service=directus_service, cache_service=cache_service, user_id=user_id,
-        user_id_hash=user_id_hash, session_hash=session_hash, message=message,
+        user_id_hash=user_id_hash, session_id=session_id, message=message,
     )
     return outcome, revision
 
 
 async def handle_call_message_completed(*, manager: Any, cache_service: Any,
                                         directus_service: Any, user_id: str,
-                                        user_id_hash: str, session_hash: str,
-                                        device_fingerprint_hash: str, payload: Any) -> None:
+                                        user_id_hash: str, session_id: str | None,
+                                        device_fingerprint_hash: str, payload: Any,
+                                        legacy_session_hash: str | None = None) -> None:
     request_id = payload.get("request_id") if isinstance(payload, dict) else None
     try:
         message = _validated_message(payload)
         outcome, revision, messages_v, changed = await _persist_encrypted_call_message(
             directus_service=directus_service, cache_service=cache_service,
             user_id=user_id, user_id_hash=user_id_hash,
-            session_hash=session_hash, message=message,
+            session_id=session_id, message=message,
+            legacy_session_hash=legacy_session_hash,
         )
         # A newly settled row also goes back to the sender: its client core
         # keeps its own chat history (the AI history of the next voice turn)

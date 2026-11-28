@@ -11,12 +11,84 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=message-input.audio.live-editor-transcript,message-input.audio.editable-transcript
+    func testWelcomeDictationStreamsEditableWordsAndFinishesWithoutAttachment() throws {
+        let app = launchFocusedWelcomeComposer(extraArguments: [
+            "--ui-test-composer-dictation", "--ui-test-welcome-mic-granted",
+        ])
+        try assertEditableDictation(in: app, evidence: "welcome")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.audio.live-editor-transcript,message-input.audio.editable-transcript
+    func testOpenChatDictationStreamsEditableWordsAndFinishesWithoutAttachment() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-chat-mic-granted", "--ui-test-composer-dictation"]
+        app.launch()
+        try assertEditableDictation(in: app, evidence: "open-chat")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=message-input.audio.editable-transcript,message-input.send.ownership
+    func testDictationSendArrowSubmitsFinalTextExactlyOnce() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "chat-opening", "--ui-test-chat-mic-granted",
+            "--ui-test-composer-dictation", "--ui-test-composer-send", "accepted"]
+        app.launch()
+        let mic = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(mic.waitForExistence(timeout: 20))
+        mic.tap()
+        let send = element(in: app, identifier: "record-send-button")
+        XCTAssertTrue(send.waitForExistence(timeout: 8))
+        send.tap()
+        let message = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-user", "Simulator dictation is editable."
+        ))
+        XCTAssertTrue(message.firstMatch.waitForExistence(timeout: 15))
+        XCTAssertEqual(message.count, 1)
+        XCTAssertFalse(send.exists)
+        let proof = XCTAttachment(screenshot: app.screenshot())
+        proof.name = "dictation-send-arrow-text-message"
+        proof.lifetime = .keepAlways
+        add(proof)
+    }
+
+    private func assertEditableDictation(in app: XCUIApplication, evidence: String) throws {
+        let mic = element(in: app, identifier: "record-audio-button")
+        XCTAssertTrue(mic.waitForExistence(timeout: 20))
+        mic.tap()
+        let editor = element(in: app, identifier: "message-editor")
+        let partial = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (editor.value as? String ?? "").contains("simulator dictation")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [partial], timeout: 10), .completed)
+        XCTAssertTrue(element(in: app, identifier: "record-send-button").isHittable)
+        let during = XCTAttachment(screenshot: app.screenshot())
+        during.name = "\(evidence)-dictation-live-editor"
+        during.lifetime = .keepAlways
+        add(during)
+
+        element(in: app, identifier: "record-finish-button").tap()
+        let final = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            (editor.value as? String ?? "").contains("Simulator dictation is editable.")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [final], timeout: 10), .completed)
+        XCTAssertFalse(element(in: app, identifier: "record-overlay").exists)
+        XCTAssertFalse(element(in: app, identifier: "composer-embed-node").exists)
+        XCTAssertFalse(element(in: app, identifier: "audio-recording-preview").exists)
+        editor.tap()
+        editor.typeText(" Extra")
+        XCTAssertTrue((editor.value as? String ?? "").contains("Extra"))
+        let finished = XCTAttachment(screenshot: app.screenshot())
+        finished.name = "\(evidence)-dictation-editable"
+        finished.lifetime = .keepAlways
+        add(finished)
+    }
+
     // contract-test: direct surface=gui.apple assertions=message-input.recording.lifecycle,message-input.drafts.preview-persistence
     func testRealAccountRecordingAppearsInComposerAndSurvivesRelaunch() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(
-            extraArguments: ["--ui-test-fresh-new-chat"]
+            extraArguments: ["--ui-test-fresh-new-chat", "-openmates.recording-transcription.preference", "off"]
         )
         // Keep this dedicated simulator's test-account session when present.
         // The unauthenticated header can remain in the accessibility tree while
@@ -78,7 +150,7 @@ final class MessageInputAudioRecordingUITests: XCTestCase {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
         let app = RealAccountUITestSupport.launchApp(
-            extraArguments: ["--ui-test-fresh-new-chat", "--ui-test-expose-chat-ids"]
+            extraArguments: ["--ui-test-fresh-new-chat", "-openmates.recording-transcription.preference", "off", "--ui-test-expose-chat-ids"]
         )
         if !app.buttons["referral-cta"].waitForExistence(timeout: 10) {
             RealAccountUITestSupport.logIn(app: app, credentials: credentials)

@@ -769,7 +769,8 @@ enum TaskWorkflowEmbedKind {
     @MainActor func subtitle(from raw: [String: AnyCodable]) -> String? {
         switch self {
         case .task:
-            return EmbedFieldReader.string(raw, keys: ["short_id", "task_id"])
+            // task_id is an internal UUID and is never displayed.
+            return EmbedFieldReader.string(raw, keys: ["short_id"])
                 ?? statusLabel(from: raw)
         case .workflow:
             return EmbedFieldReader.string(raw, keys: ["trigger_summary", "workflow_id"])
@@ -940,8 +941,11 @@ struct TaskWorkflowEmbedRenderer: View {
 
     private var previewCard: some View {
         HStack(alignment: .center, spacing: .spacing5) {
-            iconShell
-                .frame(width: 56)
+            // Web TaskEmbedPreview: a task card is text only; its icon is the embed corner.
+            if kind != .task {
+                iconShell
+                    .frame(width: 56)
+            }
 
             VStack(alignment: .leading, spacing: .spacing3) {
                 if let subtitle = kind.subtitle(from: raw) {
@@ -966,15 +970,33 @@ struct TaskWorkflowEmbedRenderer: View {
                 }
 
                 HStack(spacing: 6) {
-                    pill(kind.statusLabel(from: raw))
+                    pill(kind.statusLabel(from: raw), identifier: "task-embed-status")
+                    if let due = dueLabel {
+                        pill(due, identifier: "task-embed-due-date")
+                    }
                     if let assignee = kind.secondaryPill(from: raw), !assignee.isEmpty {
                         pill(assignee)
                     }
+                }
+
+                if !validationErrors.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(validationErrors.enumerated()), id: \.offset) { _, message in
+                            Text(message)
+                                .font(.omXs)
+                                .foregroundStyle(Color.error)
+                                .lineLimit(2)
+                                .accessibilityIdentifier("task-embed-validation-error")
+                        }
+                    }
+                    .accessibilityIdentifier("task-embed-validation-errors")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.spacing6)
+        // Task text starts where the header text starts (web: 54px).
+        .padding(.leading, kind == .task ? 54 - CGFloat.spacing6 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
@@ -1030,8 +1052,36 @@ struct TaskWorkflowEmbedRenderer: View {
         .clipShape(RoundedRectangle(cornerRadius: 18))
     }
 
-    private func pill(_ label: String) -> some View {
+    /// Short localized due date ("Due Nov 24") for a standalone task embed;
+    /// accepts `due_date` as YYYY-MM-DD (or ISO date-time) and falls back to `due_at` seconds.
+    private var dueLabel: String? {
+        guard kind == .task else { return nil }
+        var date: Date?
+        if let text = EmbedFieldReader.string(raw, keys: ["due_date"]), text.count >= 10 {
+            let parser = DateFormatter()
+            parser.locale = Locale(identifier: "en_US_POSIX")
+            parser.dateFormat = "yyyy-MM-dd"
+            date = parser.date(from: String(text.prefix(10)))
+        } else if let seconds = EmbedFieldReader.int(raw, keys: ["due_at"]) {
+            date = Date(timeIntervalSince1970: TimeInterval(seconds))
+        }
+        guard let date else { return nil }
+        let formatted = date.formatted(.dateTime.month(.abbreviated).day())
+        return "\(AppStrings.tasksDue) \(formatted)"
+    }
+
+    /// Error messages of `content.validation` when the assistant's task was invalid.
+    private var validationErrors: [String] {
+        guard kind == .task,
+              let validation = raw["validation"]?.value as? [String: Any],
+              (validation["status"] as? String) == "invalid",
+              let errors = validation["errors"] as? [Any] else { return [] }
+        return errors.compactMap { ($0 as? [String: Any])?["message"] as? String }
+    }
+
+    private func pill(_ label: String, identifier: String? = nil) -> some View {
         Text(label)
+            .accessibilityIdentifier(identifier ?? "task-embed-pill")
             .font(.omXs)
             .fontWeight(.semibold)
             .foregroundStyle(Color.fontSecondary)

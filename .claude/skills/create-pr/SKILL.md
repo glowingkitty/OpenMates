@@ -281,6 +281,8 @@ without publishing the internal waiver or deployment plan.
 
 ### Step 8 — Create the PR
 
+The title and body never contain a chat or session link (claude.ai, ChatGPT, Gemini, OpenMates share/chat links) or a session id, and no session footer: the Bash hook and the `Public text guard` CI check refuse them (`scripts/public_link_guard.py`).
+
 ```bash
 gh pr create --base main --head dev --title "Release: <user-noticeable highlights, no version, no technical work>" --body "$(cat <<'EOF'
 <PR description>

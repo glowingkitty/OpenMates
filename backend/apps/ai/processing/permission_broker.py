@@ -126,7 +126,7 @@ def _auto_decide_ask_reason(action: ConnectedAccountAction) -> str | None:
         return "Auto decide asks for bulk delete actions."
     if action.action in {"update", "delete"} and action.recurring:
         return "Auto decide asks for recurring event updates or deletes."
-    if action.action in {"write", "update", "delete", "send"} and action.external_attendees:
+    if action.action in {"write", "update", "delete", "draft"} and action.external_attendees:
         return "Auto decide asks for actions involving external attendees or recipients."
     return None
 

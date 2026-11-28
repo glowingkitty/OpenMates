@@ -18,10 +18,11 @@ use super::{
 use crate::{
     crypto::Key,
     error::{Error, Result},
+    startup_diagnostics::ChatRowMetadataField as ListField,
     view_model::{ChatRowMetadata, MessageMetadata, PiiMapping},
 };
 use serde_json::Value;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 /// Message id of a raw row: the first non-empty of `client_message_id`,
 /// `message_id`, `id` (the decoder's rule, so ids match the decoded messages).
@@ -94,27 +95,27 @@ fn plain_row_metadata(row: &Value) -> Result<ChatRowMetadata> {
         .get("sub_chat_settings")
         .filter(|value| !value.is_null());
     if settings.is_some_and(|value| !value.is_object()) {
-        return Err(Error::Protocol);
+        return ListField::SubChatSettings.observe(Err(Error::Protocol));
     }
     let setting = |name: &str| settings.map_or(Ok(None), |value| boolean(value, name));
     Ok(ChatRowMetadata {
-        is_shared_by_others: boolean(row, "is_shared_by_others")?,
-        last_visible_message_id: string(row, "last_visible_message_id")?
+        is_shared_by_others: ListField::SharedByOthers.observe(boolean(row, "is_shared_by_others"))?,
+        last_visible_message_id: ListField::LastVisibleMessage.observe(string(row, "last_visible_message_id"))?
             .filter(|id| !id.is_empty()),
-        app_id: string(row, "app_id")?.filter(|id| !id.is_empty()),
-        sub_chat_wait_for_completion: setting("wait_for_completion")?,
-        sub_chat_report_trigger: settings
-            .map_or(Ok(None), |value| string(value, "report_trigger"))?,
-        parent_id: string(row, "parent_id")?.filter(|id| !id.is_empty()),
-        is_sub_chat: boolean(row, "is_sub_chat")?,
-        is_shared: boolean(row, "is_shared")?,
-        is_private: boolean(row, "is_private")?,
-        is_hidden: boolean(row, "is_hidden")?,
-        last_message_at: timestamp(row, "last_message_timestamp")?,
-        last_edited_at: timestamp(row, "last_edited_overall_timestamp")?,
-        budget_limit: unsigned(row, "budget_limit")?,
-        budget_spent: unsigned(row, "budget_spent")?,
-        draft_v: unsigned(row, "draft_v")?,
+        app_id: ListField::App.observe(string(row, "app_id"))?.filter(|id| !id.is_empty()),
+        sub_chat_wait_for_completion: ListField::SubChatWait.observe(setting("wait_for_completion"))?,
+        sub_chat_report_trigger: ListField::SubChatReport.observe(settings
+            .map_or(Ok(None), |value| string(value, "report_trigger")))?,
+        parent_id: ListField::Parent.observe(string(row, "parent_id"))?.filter(|id| !id.is_empty()),
+        is_sub_chat: ListField::IsSubChat.observe(boolean(row, "is_sub_chat"))?,
+        is_shared: ListField::IsShared.observe(boolean(row, "is_shared"))?,
+        is_private: ListField::IsPrivate.observe(boolean(row, "is_private"))?,
+        is_hidden: ListField::IsHidden.observe(boolean(row, "is_hidden"))?,
+        last_message_at: ListField::LastMessageAt.observe(timestamp(row, "last_message_timestamp"))?,
+        last_edited_at: ListField::LastEditedAt.observe(timestamp(row, "last_edited_overall_timestamp"))?,
+        budget_limit: ListField::BudgetLimit.observe(unsigned(row, "budget_limit"))?,
+        budget_spent: ListField::BudgetSpent.observe(unsigned(row, "budget_spent"))?,
+        draft_v: ListField::DraftVersion.observe(unsigned(row, "draft_v"))?,
         ..ChatRowMetadata::default()
     })
 }
@@ -157,11 +158,11 @@ impl Client {
             return Ok(ChatRowMetadata::default());
         };
         let mut metadata = plain_row_metadata(row)?;
-        let team = self.team()?.map(str::to_owned);
-        if let Some(key) = self.projection_key(row)? {
-            metadata.icon = projection_encrypted(row, "encrypted_icon", &key)?;
+        let team = ListField::Team.observe(self.team())?.map(str::to_owned);
+        if let Some(key) = ListField::Key.observe(self.projection_key(row))? {
+            metadata.icon = ListField::Icon.observe(projection_encrypted(row, "encrypted_icon", &key))?;
             metadata.active_focus_id =
-                projection_encrypted(row, "encrypted_active_focus_id", &key)?;
+                ListField::ActiveFocus.observe(projection_encrypted(row, "encrypted_active_focus_id", &key))?;
         }
         let has_draft = row
             .get("encrypted_draft_md")
@@ -171,7 +172,7 @@ impl Client {
             match self.native_master_key() {
                 Ok(master) => {
                     metadata.draft_preview =
-                        projection_encrypted(row, "encrypted_draft_preview", master)?;
+                        ListField::DraftPreview.observe(projection_encrypted(row, "encrypted_draft_preview", master))?;
                 }
                 Err(Error::Unavailable { .. }) => {}
                 Err(error) => return Err(error),
@@ -181,18 +182,32 @@ impl Client {
         Ok(metadata)
     }
 
-    /// Message metadata by message id for every encrypted row the client
-    /// holds for `chat_id` (full history, the sync message window, the
-    /// selected first page; the first row found for an id wins). Empty when
-    /// the chat has no row or its key is not readable in this scope.
+    /// Plain sidebar metadata for an already locked row that has no key.
+    /// Other locked rows retain the normal metadata and error checks.
+    pub(crate) fn locked_sidebar_chat_metadata(&self, id: &str) -> Result<ChatRowMetadata> {
+        if let Some(row) = self.chats.get(id)
+            && ListField::Key.observe(self.has_absent_personal_sidebar_key(row))?
+        {
+            return plain_row_metadata(row);
+        }
+        self.chat_row_metadata(id)
+    }
+
+    /// Metadata for the requested window IDs only. Full history, the sync
+    /// window and the selected first page are searched in that order. The
+    /// first row for an ID wins. Empty when the chat or its key is unavailable.
     ///
     /// # Errors
     /// As [`message_metadata`]; `Protocol` for a stored row that is not JSON.
     pub(crate) fn message_metadata_by_id(
         &self,
         chat_id: &str,
+        message_ids: &HashSet<&str>,
     ) -> Result<BTreeMap<String, MessageMetadata>> {
         let mut found = BTreeMap::new();
+        if message_ids.is_empty() {
+            return Ok(found);
+        }
         let Some(key) = self
             .chats
             .get(chat_id)
@@ -227,10 +242,13 @@ impl Client {
             let Some(id) = row_message_id(row) else {
                 continue;
             };
-            if found.contains_key(id) {
+            if !message_ids.contains(id) || found.contains_key(id) {
                 continue;
             }
             found.insert(id.to_owned(), message_metadata(row, &key)?);
+            if found.len() == message_ids.len() {
+                break;
+            }
         }
         Ok(found)
     }

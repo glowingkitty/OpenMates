@@ -72,7 +72,7 @@ import { renderShoppingSearch, renderShoppingProduct } from '../components/embed
 import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
-import { renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
+import { renderDesignDocument, renderDesignEmbroidery, renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
 import { renderNutritionSearch, renderNutritionRecipe } from '../components/embeds/nutrition/nutritionEmbedText';
 import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
@@ -165,7 +165,14 @@ function renderTask(content: Record<string, unknown>): string {
 	const lines = [`**${title}**`];
 	if (status) lines.push(`status: ${status}`);
 	if (assignee) lines.push(`assignee: ${assignee}`);
+	const due = str(content.due_date);
+	if (due) lines.push(`due: ${due}`);
 	if (description) lines.push(trunc(description, 240));
+	const validation = content.validation as Record<string, unknown> | undefined;
+	if (validation?.status === 'invalid' && Array.isArray(validation.errors)) {
+		lines.push('validation: invalid (fix with a diff against this task embed)');
+		for (const error of validation.errors) lines.push(`error: ${typeof error === 'string' ? error : str((error as Record<string, unknown>)?.message) ?? ''}`);
+	}
 	return lines.join('\n');
 }
 
@@ -230,6 +237,8 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
+	'app:design:author': renderGenericAppSkill,
+	'app:design:get_design': renderGenericAppSkill,
 	'app:design:embroidery': renderGenericAppSkill,
 	'app:nutrition:search_recipes': renderNutritionSearch,
 	'app:events:search': renderEventsSearch,
@@ -322,6 +331,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'code-test-result': renderTestResult,
 	'file-file': renderFile,
 	'docs-doc': renderDoc,
+	'design-document': renderDesignDocument,
 	'slides-deck': renderSlidesDeck,
 	'slides-template': renderSlidesTemplate,
 	'sheets-sheet': renderSheet,
@@ -346,15 +356,15 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 		'calendar_event': renderCalendarEvent,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
-		'diagrams-html': renderDiagramText,
-		'diagram_html': renderDiagramText,
+		'diagrams-html': (content, children) => renderDiagramText(content, children !== undefined),
+		'diagram_html': (content, children) => renderDiagramText(content, children !== undefined),
 		'events-event': renderEvent,
 	'fitness-location': renderFitnessResult,
 	'fitness-class': renderFitnessResult,
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
-	'jobs-job-result': renderJobResult,
+	'jobs-job-result': (content) => renderJobResult(content),
 	'hosting-domain': renderHostingDomain,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,

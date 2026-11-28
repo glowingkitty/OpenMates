@@ -13,6 +13,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsE2bConsent from './privacy/SettingsE2bConsent.svelte';
     import { authStore } from '../../stores/authStore';
+    import { openGuestAccountEntry } from '../../utils/guestAccountEntry';
     import { personalDataStore } from '../../stores/personalDataStore';
     import { userProfile, updateProfile } from '../../stores/userProfile';
 
@@ -56,7 +57,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
      */
     function navigateToHidePersonalData() {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -70,12 +71,12 @@ Based on Figma design: settings/privacy (node 1895:20576)
 
     function navigateToConnectedAccounts() {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
         dispatch('openSettings', {
-            settingsPath: 'privacy/connected-accounts',
+            settingsPath: 'account/connected-accounts',
             direction: 'forward',
             icon: 'privacy',
             title: $text('settings.privacy.connected_accounts.title')
@@ -101,7 +102,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
      */
     function toggleStabilityLogs(): void {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -128,7 +129,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
      */
     function toggleDebugLogging(): void {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -141,7 +142,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
      */
     function navigateToShareDebugLogs() {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 
@@ -161,7 +162,7 @@ Based on Figma design: settings/privacy (node 1895:20576)
      */
     function navigateToAutoDeletion(category: string) {
         if (!$authStore.isAuthenticated) {
-            window.dispatchEvent(new CustomEvent('openSignupInterface'));
+            openGuestAccountEntry();
             return;
         }
 

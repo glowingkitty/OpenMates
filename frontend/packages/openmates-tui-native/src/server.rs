@@ -56,6 +56,7 @@ impl Drop for SecretFlags {
     }
 }
 const CONFIG: &str = "server.json";
+const ROUTING_WORKER: &str = "app-ai-routing-worker";
 const WORKERS: &[&str] = &[
     "task-worker",
     "user-init-worker",
@@ -274,6 +275,27 @@ fn installation(flags: &Flags, state: &Path) -> Result<Configuration> {
     Ok(selected)
 }
 fn services(c: &Configuration, flags: &Flags) -> Result<Vec<String>> {
+    let compose_path = c.install_path.join(marker(&c.server_role, &c.install_mode));
+    let has_worker = c.server_role == "core"
+        && compose_path.try_exists()?
+        && compose_has_routing_worker(&fs::read(&compose_path, 16 * 1024 * 1024)?)?;
+    services_for_compose(c, flags, has_worker)
+}
+
+fn compose_has_routing_worker(contents: &[u8]) -> Result<bool> {
+    let compose: serde_yaml::Value =
+        serde_yaml::from_slice(contents).map_err(|_| Error::Invalid("Invalid Compose YAML."))?;
+    Ok(compose
+        .get("services")
+        .and_then(|services| services.get(ROUTING_WORKER))
+        .is_some())
+}
+
+fn services_for_compose(
+    c: &Configuration,
+    flags: &Flags,
+    has_routing_worker: bool,
+) -> Result<Vec<String>> {
     let mut known: Vec<&str> = match c.server_role.as_str() {
         "core" => CORE
             .iter()
@@ -318,6 +340,10 @@ fn services(c: &Configuration, flags: &Flags) -> Result<Vec<String>> {
         "upload" => known.clone(),
         _ => vec!["preview", "admin-sidecar"],
     };
+    if has_routing_worker {
+        known.push(ROUTING_WORKER);
+        defaults.push(ROUTING_WORKER);
+    }
     fn entries(flags: &Flags, key: &str) -> Result<Vec<String>> {
         let Some(value) = flags.get(key) else {
             return Ok(vec![]);
@@ -557,7 +583,7 @@ fn write_environment(path: &Path, tag: Option<&str>, source: bool) -> Result<()>
     env_set(&mut content, "GIT_WORK_DIR", &format!("\"{absolute}\""));
     fs::write(&path.join(".env"), content.as_bytes(), 0o600)
 }
-fn image_files(path: &Path, role: &str) -> Result<()> {
+fn image_compose(role: &str) -> Result<String> {
     let data = match role {
         "core" => include_str!("../assets/selfhost/core/docker-compose.selfhost.yml"),
         "upload" => include_str!("../assets/selfhost/upload/docker-compose.yml"),
@@ -568,16 +594,23 @@ fn image_files(path: &Path, role: &str) -> Result<()> {
         "upload" => "upload/docker-compose.yml",
         _ => "preview/docker-compose.preview.yml",
     };
-    let data = if let Some(root) = std::env::var_os("OPENMATES_SELFHOST_TEMPLATE_DIR") {
+    if let Some(root) = std::env::var_os("OPENMATES_SELFHOST_TEMPLATE_DIR") {
         String::from_utf8(fs::read(
             &PathBuf::from(root).join(template),
             8 * 1024 * 1024,
         )?)
-        .map_err(|_| Error::Io)?
+        .map_err(|_| Error::Io)
     } else {
-        data.to_owned()
-    };
-    fs::write(&path.join(marker(role, "image")), data.as_bytes(), 0o600)?;
+        Ok(data.to_owned())
+    }
+}
+
+fn image_files(path: &Path, role: &str) -> Result<()> {
+    fs::write(
+        &path.join(marker(role, "image")),
+        image_compose(role)?.as_bytes(),
+        0o600,
+    )?;
     fs::public_directory(&path.join("config/providers"))?;
     if !path.join("config/backend_config.yml").try_exists()? {
         fs::public_write(

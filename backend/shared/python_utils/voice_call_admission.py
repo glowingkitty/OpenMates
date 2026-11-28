@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import re
 from typing import Any, Mapping
 
-from backend.shared.python_utils.voice_call_registry import require_active_call
+from backend.shared.python_utils.voice_call_registry import VoiceCallBinding, require_active_call
 
 _CALL_ID = re.compile(r"^[a-f0-9]{32}$")
 
@@ -20,6 +20,7 @@ class VoiceCallDelivery:
     voice_mode: bool = False
     voice_call_id: str | None = None
     voice_turn_id: str | None = None
+    state_cues: bool = False
 
 
 def _value(request: Any, key: str, default: Any = None) -> Any:
@@ -40,7 +41,7 @@ async def admit_voice_call_turn(
     """Bind a completed canonical WS turn to the authenticated call session."""
     if message.get("voice_mode") is not True:
         return VoiceCallDelivery()
-    session_id = websocket_scope.get("voice_call_session_hash")
+    session_id = websocket_scope.get("voice_call_session_id")
     call_id, turn_id = message.get("voice_call_id"), message.get("voice_turn_id")
     _identity(call_id, turn_id, message_id)
     if not isinstance(session_id, str) or not session_id:
@@ -51,14 +52,14 @@ async def admit_voice_call_turn(
     )
     if binding.state != "active":
         raise ValueError("Voice call has ended")
-    return VoiceCallDelivery(True, call_id, turn_id)
+    return VoiceCallDelivery(True, call_id, turn_id, binding.state_cues)
 
 
-async def require_active_voice_dispatch(cache: Any, request: Any) -> None:
+async def require_active_voice_dispatch(cache: Any, request: Any) -> VoiceCallBinding | None:
     """Recheck trusted ordinary-request identities immediately before paid work.
 
     WS admission already checked the exact authenticated session. A queued
-    worker reloads that registry session instead of adding its hash to payloads.
+    worker reloads that registry session instead of adding its ID to payloads.
     Ownership, chat, issued role, and lifecycle are checked again atomically by
     require_active_call. This does not select any model or provider.
     """
@@ -82,6 +83,7 @@ async def require_active_voice_dispatch(cache: Any, request: Any) -> None:
     )
     if binding.state != "active":
         raise ValueError("Voice call has ended")
+    return binding
 
 
 def queued_voice_delivery(members: list[dict[str, Any]]) -> dict[str, Any]:

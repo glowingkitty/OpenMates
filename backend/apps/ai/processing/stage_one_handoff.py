@@ -1,6 +1,7 @@
 """Encrypted, short-lived internal routing decisions; references grant no authority."""
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import secrets
@@ -64,9 +65,17 @@ async def load_stage_one(*, cache: Any, encryption: Any, request: Any, directus:
             return None
         if not await routing_admission_is_current(directus, request, task_id):
             return None
-        vault_key = await cache.get_user_vault_key_id(request.user_id)
-        client = await cache.client
-        ciphertext = await client.get(KEY_PREFIX + reference)
+        async def read_ciphertext():
+            client = await cache.client
+            return await client.get(KEY_PREFIX + reference)
+
+        # Both lookups are reads within the already verified task scope. Join
+        # them before decrypting and cancel the peer if either lookup fails.
+        async with asyncio.TaskGroup() as reads:
+            key_read = reads.create_task(cache.get_user_vault_key_id(request.user_id))
+            ciphertext_read = reads.create_task(read_ciphertext())
+        vault_key = key_read.result()
+        ciphertext = ciphertext_read.result()
         if not vault_key or not ciphertext:
             return None
         if isinstance(ciphertext, bytes):

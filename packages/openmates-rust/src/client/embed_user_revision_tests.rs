@@ -56,6 +56,9 @@ fn edit(scope: RevisionScope) -> UserRevisionRequest {
         media_index: None,
         operation_id: Some("op-1".into()),
         history_text: None,
+        version_kind: None,
+        version_name: None,
+        contributors: None,
     }
 }
 
@@ -598,4 +601,26 @@ fn transport_failures_keep_a_specific_stable_code_without_detail() {
     for (error, code) in cases {
         assert_eq!(UserRevisionError::Transport(error).code(), code);
     }
+}
+
+#[test]
+fn version_metadata_is_optional_and_the_name_is_sealed() {
+    let plain = prepare(&edit(chat_scope()));
+    for key in ["version_kind", "encrypted_version_name", "contributors"] {
+        assert!(plain.body().get(key).is_none(), "{key} must be omitted");
+    }
+
+    let mut request = edit(chat_scope());
+    request.version_kind = Some("named".into());
+    request.version_name = Some(Zeroizing::new("Before the kitchen rework".into()));
+    request.contributors = Some(vec![json!({"user_hash": "a".repeat(64)})]);
+    let body = prepare(&request).body().clone();
+    assert_eq!(body["version_kind"], "named");
+    assert_eq!(body["contributors"][0]["user_hash"], "a".repeat(64));
+    let sealed = body["encrypted_version_name"].as_str().expect("name");
+    assert!(!sealed.contains("kitchen"));
+    assert_eq!(
+        decrypt_text(sealed, &KEY, None).expect("open").as_str(),
+        "Before the kitchen rework"
+    );
 }

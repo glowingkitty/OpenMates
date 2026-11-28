@@ -5,12 +5,13 @@
  * inference fixture. Audio upload, batch transcription and embed-reference
  * requests are rejected so a regression cannot permanently store the recording.
  */
-import { test, expect } from './helpers/cookie-audit';
+import { test as auditedTest, expect } from './helpers/cookie-audit';
 import type { Page } from '@playwright/test';
-import { allowFixtureMicrophone } from './helpers/recording-permission';
+import { proofAudioLaunchArgs, useProofMicrophone, withProofAudio } from './helpers/proof-audio';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 const { withMockMarker } = require('./signup-flow-helpers');
+const test = withProofAudio(auditedTest);
 
 const AUDIO_SEND_PROMPT = withMockMarker('Please respond to this voice note.', 'test_hello');
 const RAW_TRANSCRIPT = 'please schedule project review thursday';
@@ -27,23 +28,34 @@ async function rejectPermanentRecordingStorage(page: Page): Promise<string[]> {
 }
 
 async function mockRealtimeRecording(page: Page, options: {
+	captureFailure?: Promise<void>;
 	correctionRelease?: Promise<void>;
 	failCorrection?: boolean;
+	skipCorrection?: boolean;
 } = {}): Promise<void> {
 	let sentLiveDelta = false;
 	await page.routeWebSocket(/\/v1\/apps\/audio\/realtime-transcription(?:\?|$)/, (socket) => {
+		expect(new URL(socket.url()).searchParams.get('correction_context')).toBe('dictation');
 		socket.send(JSON.stringify({ type: 'session.ready', sample_rate: 16000 }));
 		socket.onMessage(async (rawMessage) => {
 			const message = JSON.parse(String(rawMessage));
 			if (message.type === 'input_audio.append' && !sentLiveDelta) {
 				sentLiveDelta = true;
 				socket.send(JSON.stringify({ type: 'transcription.text.delta', text: RAW_TRANSCRIPT }));
+				if (options.captureFailure) {
+					await options.captureFailure;
+					socket.send(JSON.stringify({ type: 'session.error', code: 'recording_timeout' }));
+				}
 				return;
 			}
 			if (message.type !== 'input_audio.end') return;
 			socket.send(JSON.stringify({ type: 'transcription.done', transcript: RAW_TRANSCRIPT, model: 'test-realtime' }));
 			socket.send(JSON.stringify({ type: 'correction.started', model: 'test-correction' }));
 			if (options.correctionRelease) await options.correctionRelease;
+			if (options.skipCorrection) {
+				socket.send(JSON.stringify({ type: 'correction.skipped', transcript: RAW_TRANSCRIPT }));
+				return;
+			}
 			socket.send(JSON.stringify(options.failCorrection
 				? { type: 'session.error', message: 'Synthetic correction failure' }
 				: { type: 'correction.done', transcript: CORRECTED_TRANSCRIPT, correction_model: 'test-correction' }));
@@ -51,28 +63,29 @@ async function mockRealtimeRecording(page: Page, options: {
 	});
 }
 
-async function openAuthenticatedRecording(page: Page): Promise<void> {
+async function openAuthenticatedRecording(page: Page, notes = AUDIO_SEND_PROMPT): Promise<void> {
 	const log = (message: string, metadata?: Record<string, unknown>) => {
 		console.log(`[TEST][audio-transcript-send] ${message}`, metadata ?? '');
 	};
 	await loginToTestAccount(page, log, async () => undefined);
 	await startNewChat(page, log);
+	await useProofMicrophone(page);
 	const editor = page.getByTestId('message-editor').locator('.ProseMirror');
 	await expect(editor).toBeVisible({ timeout: 20000 });
-	await editor.fill(`${AUDIO_SEND_PROMPT} `);
+	await editor.fill(`${notes} `);
 	await editor.press('End');
 	await page.getByTestId('message-field').last().getByTestId('record-audio-button')
 		.dispatchEvent('mousedown', { button: 0 });
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
 	// Live words stream into the editor after the notes, not into the overlay.
-	await expect(editor).toContainText(`${AUDIO_SEND_PROMPT} ${RAW_TRANSCRIPT}`, { timeout: 10000 });
+	await expect(editor).toContainText(`${notes} ${RAW_TRANSCRIPT}`, { timeout: 10000 });
 	await expect(overlay.getByTestId('recording-live-transcript')).toHaveCount(0);
 }
 
-async function expectProcessingRawTranscript(page: Page): Promise<void> {
+async function expectProcessingRawTranscript(page: Page, notes = AUDIO_SEND_PROMPT): Promise<void> {
 	const editor = page.getByTestId('message-editor').locator('.ProseMirror');
-	await expect(editor).toContainText(AUDIO_SEND_PROMPT);
+	await expect(editor).toContainText(notes);
 	await expect(editor.getByTestId('recording-transcript-processing')).toHaveText(RAW_TRANSCRIPT);
 	await expect(page.getByTestId('record-overlay')).toHaveAttribute('data-recording-processing', 'true');
 }
@@ -130,13 +143,48 @@ async function expectDirectTranscriptSent(page: Page): Promise<void> {
 
 test.use({
 	launchOptions: {
-		args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream']
+		args: proofAudioLaunchArgs()
 	},
 	permissions: ['microphone']
 });
 
-test.beforeEach(async ({ page }) => {
-	await allowFixtureMicrophone(page, '**/*');
+// contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3,message-input.audio.live-editor-transcript
+test('keeps admitted words in the draft after dictation transport fails', async ({ page }, testInfo) => {
+	const storageRequests = await rejectPermanentRecordingStorage(page);
+	const notes = 'Keep the interrupted dictation notes.';
+	let interruptCapture!: () => void;
+	const captureFailure = new Promise<void>((resolve) => { interruptCapture = resolve; });
+	await mockRealtimeRecording(page, { captureFailure });
+	await openAuthenticatedRecording(page, notes);
+	interruptCapture();
+	await expect(page.getByTestId('record-overlay')).toHaveCount(0);
+	const field = page.getByTestId('message-field').last();
+	await expect(field.getByTestId('message-editor').getByRole('textbox')).toHaveText(`${notes} ${RAW_TRANSCRIPT}`);
+	await expect(page.getByTestId('message-user')).toHaveCount(0);
+	expect(storageRequests).toEqual([]);
+	await testInfo.attach('retained-dictation-draft', {
+		body: await field.screenshot(), contentType: 'image/png',
+	});
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.correction-gate,message-input.audio.editable-transcript
+test('skipped correction leaves the original dictation editable with the typed draft', async ({ page }, testInfo) => {
+	const storageRequests = await rejectPermanentRecordingStorage(page);
+	await mockRealtimeRecording(page, { skipCorrection: true });
+	await openAuthenticatedRecording(page);
+	await page.getByTestId('record-overlay').getByTestId('record-finish-button').click();
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible();
+	const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+	await expect(editor).toHaveText(`${AUDIO_SEND_PROMPT} ${RAW_TRANSCRIPT}`);
+	await expect(editor).toBeFocused();
+	await expect(editor.locator('audio, [data-embed-id]')).toHaveCount(0);
+	await expect(page.getByTestId('message-user')).toHaveCount(0);
+	await page.keyboard.type('!');
+	await expect(editor).toContainText('!');
+	expect(storageRequests).toEqual([]);
+	await testInfo.attach('editable-original-dictation', {
+		body: await page.getByTestId('message-field').last().screenshot(), contentType: 'image/png',
+	});
 });
 
 for (const phase of ['recording', 'correction']) {
@@ -179,20 +227,26 @@ for (const phase of ['recording', 'correction']) {
 }
 
 // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
-test('cancelling a pending recording Send preserves notes without submitting', async ({ page }) => {
+test('cancelling a pending recording Send preserves notes without submitting', async ({ page }, testInfo) => {
 	test.setTimeout(120000);
 	const storageRequests = await rejectPermanentRecordingStorage(page);
+	const notes = testInfo.retry ? 'Keep the workshop notes.' : 'Keep the meeting notes.';
 	await mockRealtimeRecording(page, { correctionRelease: new Promise(() => {}) });
-	await openAuthenticatedRecording(page);
+	await openAuthenticatedRecording(page, notes);
 	const overlay = page.getByTestId('record-overlay');
 	await overlay.getByTestId('record-send-button').click();
 	await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
 	await expect(overlay.getByTestId('record-send-button')).toBeDisabled();
-	await expectProcessingRawTranscript(page);
+	await expectProcessingRawTranscript(page, notes);
 	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible();
-	// Cancel removes the unedited dictated words and keeps the typed notes.
-	await expect(page.getByTestId('message-editor').locator('.ProseMirror')).toHaveText(AUDIO_SEND_PROMPT);
+	// Send has already minimized the composer. Reopen the preserved draft to
+	// verify Cancel discarded the unedited dictation and recovered the notes.
+	await expect(page.getByTestId('message-user')).toHaveCount(0);
+	const draft = page.getByTestId('resume-chat-draft-card').filter({ hasText: notes });
+	await expect(draft).toBeVisible();
+	await draft.click();
+	await expect(page.getByTestId('message-editor').getByRole('textbox')).toHaveText(notes);
 	await expect(page.getByTestId('message-user')).toHaveCount(0);
 	expect(storageRequests).toEqual([]);
 });

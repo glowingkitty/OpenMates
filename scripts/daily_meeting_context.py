@@ -4,10 +4,10 @@
 Run by the `daily-meeting-and-orchestration` skill at the start of each meeting:
   python3 scripts/daily_meeting_context.py collect
 writes logs/daily-meetings/YYYY-MM-DD-context.json (gitignored, private) with
-Claude chats since the previous meeting, git activity incl. the marketing repo,
+Agent chats since the previous meeting, git activity incl. the marketing repo,
 the work-type mix, OpenMates Tasks changes, nightly test status, and the Apple
-Reminders overview (via scripts/mac_reminders.py). Task records carry no
-timestamps, so "changed since the last meeting" diffs a saved status snapshot.
+Reminders overview (via scripts/mac_reminders.py). "Changed since the last
+meeting" diffs a saved Task status snapshot.
 Docs: docs/contributing/guides/daily-meeting.md
 """
 
@@ -92,6 +92,7 @@ def _text_blocks(content) -> list[str]:
 
 def summarize_transcript(path: Path, since: datetime) -> dict | None:
     prompts, replies, steered, title, first, last, branch, tools = [], [], [], "", None, None, "", set()
+    active_days = set()
     try:
         lines = path.read_text(errors="replace").splitlines()
     except OSError:
@@ -116,6 +117,7 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         texts = [t for t in _text_blocks((row.get("message") or {}).get("content")) if t.strip()]
         if not texts:
             continue
+        active_days.add(ts.astimezone(TZ).date().isoformat())
         origin = row.get("turnOrigin", (row.get("origin") or {}).get("kind"))
         if kind == "user" and origin == "human":
             body = "\n".join(texts)
@@ -142,13 +144,18 @@ def summarize_transcript(path: Path, since: datetime) -> dict | None:
         "steered_by_other_sessions": steered[:3],
         "user_prompts": prompts[:6] + ([f"(+{len(prompts) - 6} more prompts)"] if len(prompts) > 6 else []),
         "final_reply": clean(replies[-1], 1500) if replies else "",
+        "active_days": sorted(active_days),
         "_sort": last.isoformat(),
     }
 
 
 def claude_chats(since: datetime, base: Path = TRANSCRIPTS) -> list[dict]:
     chats = []
-    for path in sorted(base.glob("*/*.jsonl")):
+    paths = set(base.glob("*/*.jsonl"))
+    if base == TRANSCRIPTS:
+        from codex_chats import transcripts
+        paths.update(transcripts().values())
+    for path in sorted(paths):
         try:
             if datetime.fromtimestamp(path.stat().st_mtime, timezone.utc) < since:
                 continue
@@ -179,6 +186,7 @@ def git_summary(root: Path, since: datetime, gaps: list[str]) -> dict:
     for line in log.splitlines():
         sha, when, subject = (line.split("\x1f") + ["", ""])[:3]
         commits.append({"sha": sha, "when": parse_ts(when).astimezone(TZ).strftime("%a %H:%M"),
+                        "day": parse_ts(when).astimezone(TZ).date().isoformat(),
                         "subject": clean(subject, 160)})
     return {
         "commits_on_dev": commits,
@@ -208,6 +216,7 @@ def task_snapshot(gaps: list[str], status: dict | None = None) -> list[dict] | N
     if not data.get("complete", True):
         gaps.append("OpenMates Tasks list reported an incomplete page")
     return [{
+        "updated_at": t.get("updated_at"),
         "id": t.get("short_id"), "title": clean(t.get("title", ""), 160), "status": t.get("status"),
         "priority": t.get("priority_level") or "none",
         "blocked": t.get("blocked_reason_code") or "", "due": t.get("due_at") or "",
@@ -243,6 +252,47 @@ def _compact(task: dict) -> dict:
     return {key: value for key, value in task.items() if value and value != "none" and key != "status"}
 
 
+
+def forgotten_tasks(tasks: list[dict] | None, now: float, registry: dict, live: set[str],
+                    native_links: dict[str, str]) -> dict:
+    """One bounded briefing list, based on positive evidence the linked chat stopped."""
+    rows = []
+    for task in tasks or []:
+        if task.get("status") not in {"todo", "in_progress", "blocked", "backlog"}:
+            continue
+        provider, _, ident = (task.get("chat") or "").partition(":")
+        if not ident or provider not in {"claude", "codex"}:
+            continue
+        cid = native_links.get(ident, ident) if provider == "codex" else ident
+        if cid in live or ident in live:
+            continue
+        stopped = registry.get(cid) or {}
+        if stopped.get("state") not in {"idle", "stopped", "done", "archived"}:
+            continue
+        stamps = [parse_ts(stopped.get(key)) for key in ("stopped_at", "last_activity")]
+        seconds = [stamp.timestamp() for stamp in stamps if stamp]
+        if not seconds or now - max(seconds) < 86400:
+            continue
+        rows.append((max(seconds), task))
+    rows.sort(key=lambda row: row[0])
+    return {"count": len(rows),
+            "items": [{"id": task.get("id"), "title": task["title"],
+                       "days": int((now - stamp) // 86400)} for stamp, task in rows[:8]]}
+
+
+def forgotten_task_snapshot(tasks: list[dict] | None, now: datetime) -> dict:
+    import claude_idle_chats
+    import codex_chats
+    import worktree_wip
+
+    state = claude_idle_chats.state_dir()
+    registry = claude_idle_chats.load_registry(state)
+    native_links = {record["thread_id"]: record["chat_id"] for record in codex_chats.records()
+                    if record.get("thread_id")}
+    live = set(codex_chats.live()) | worktree_wip._running_chat_ids()
+    return forgotten_tasks(tasks, now.timestamp(), registry, live, native_links)
+
+
 def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
                  active_chats: set[str] | None = None) -> dict:
     """OpenMates Tasks are the agents' work queue (Reminders are the user's capture inbox)."""
@@ -258,6 +308,10 @@ def task_summary(tasks: list[dict] | None, previous: list[dict] | None,
     changes = [{"id": t["id"], "title": t["title"], "from": old.get(t["id"], "new"), "to": t["status"]}
                for t in tasks if old.get(t["id"]) != t["status"]] if previous else []
     done_now = [c for c in changes if c["to"] == "done"]
+    updated = {t["id"]: t.get("updated_at") for t in by_status.get("done", [])}
+    for item in done_now:
+        if stamp := updated.get(item["id"]):
+            item["updated_at"] = stamp
     return {
         "counts": {k: len(v) for k, v in by_status.items()},
         "done_since_last_meeting": done_now,
@@ -392,6 +446,32 @@ def alerts(gaps: list[str]) -> dict:
     import daily_meeting_health  # noqa: E402 - sibling script, path set just above
 
     return daily_meeting_health.collect_alerts(gaps)
+
+
+def production_blips(root: Path, now: datetime, gaps: list[str]) -> dict | None:
+    """Read the last 24 hours of host incidents and the status server's aggregate."""
+    if __package__:
+        from scripts.production_uptime import store_for
+    else:
+        from production_uptime import store_for
+
+    store = store_for(root)
+    started = now.timestamp() - 86400
+    count, seconds = store.short_blips(started, now.timestamp())
+    try:
+        request = urllib.request.Request("https://status.openmates.org/data/status.json",
+                                         headers={"User-Agent": "OpenMates Daily Briefing"})
+        with urllib.request.urlopen(request, timeout=10) as response:
+            data = json.load(response)
+        if now.timestamp() - float(data["generated_at"]) > 600:
+            raise ValueError("Status monitor data is stale")
+        external = data["short_blips_24h"]
+        return {"count": count + int(external["count"]), "seconds": seconds + float(external["seconds"])}
+    except (OSError, ValueError, KeyError, TypeError):
+        if not store.path.is_file():
+            return None
+        gaps.append("external status monitor blips unavailable")
+        return {"count": count, "seconds": seconds, "host_only": True}
 
 
 def growth(root: Path, out: Path, since: datetime, day: str, gaps: list[str]) -> dict | None:
@@ -595,10 +675,12 @@ def collect(root: Path, now: datetime, since: datetime, out: Path) -> tuple[dict
         "work_mix": work_mix(root),
         "marketing": marketing(since),
         "tasks": task_summary(tasks, previous, {c["session"] for c in chats}),
+        "forgotten_tasks": forgotten_task_snapshot(tasks, now),
         "nightly": nightly(root, since),
         "tasks_status": tasks_status,
         "waiting_chats": waiting(tasks, out, now, focus(root)),
         "alerts": alerts(gaps),
+        "production_blips": production_blips(root, now, gaps),
         "growth": (growth_data := growth(root, out, since, today, gaps)),
         "drop_log": drop_log(gaps),
         "marketing_block": marketing_block(out, growth_data, now.astimezone(TZ).date()),
@@ -631,7 +713,8 @@ def main(argv: list[str] | None = None) -> int:
     now = datetime.now(timezone.utc)
     day = now.astimezone(TZ).date().isoformat()
     state = load_state(out)
-    since = parse_ts(args.since) or window_start(state, now)
+    yesterday = now.astimezone(TZ).date() - timedelta(days=1)
+    since = parse_ts(args.since) or min(window_start(state, now), datetime.combine(yesterday, datetime.min.time(), TZ))
     evidence, tasks = collect(root, now, since, out)
     path = out / f"{day}-context.json"
     path.write_text(json.dumps(evidence, indent=1, ensure_ascii=False))

@@ -81,6 +81,8 @@ export interface SocketObservation {
   inputListening?: boolean;
   processing?: boolean;
   creditsCharged?:number;
+  creditsAccrued?: number;
+  sttDuration?: number;
   checkpointId?: string;
   coveredCount?: number;
   compressedMessageCount?: number;
@@ -189,6 +191,7 @@ export interface NativeVoiceInputEvidence {
   workersCreated: number;
   workersTerminated: number;
   detectorReady: number;
+  failDetector: () => void;
   readyUploadedSamples: number;
   error: boolean;
   play: (short: boolean) => void;
@@ -202,7 +205,7 @@ export async function installNativeVoiceInput(page: Page): Promise<void> {
       nativeTracks: [], outputTracks: [], contexts: [], pageContexts: [], localToneStarts: 0, samples: 0, sampleRate: 0,
       capturedSpeech: false, capturedQuietSamples: 0,
       captureRequests: 0, interruptOnPermission: false, permissionInterruptions: 0, speechReady: false, playing: false, workersCreated: 0,
-      workersTerminated: 0, detectorReady: 0, readyUploadedSamples: 0, error: false, play: () => {},
+      workersTerminated: 0, detectorReady: 0, failDetector: () => {}, readyUploadedSamples: 0, error: false, play: () => {},
     };
     Object.assign(window, { __nativeVoiceInput: state });
     // Observe only the queue's exact public silent grant. Native play and its
@@ -282,6 +285,7 @@ export async function installNativeVoiceInput(page: Page): Promise<void> {
         const worker: Worker = Reflect.construct(Target, args);
         if (String(args[0]).includes('voiceCallDetector.worker')) {
           state.workersCreated++;
+          state.failDetector = () => worker.dispatchEvent(new ErrorEvent('error'));
           let stopped = false;
           const terminate = worker.terminate.bind(worker);
           worker.terminate = () => { if (!stopped) { stopped = true; state.workersTerminated++; } terminate(); };

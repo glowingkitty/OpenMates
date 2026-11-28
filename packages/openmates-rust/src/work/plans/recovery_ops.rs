@@ -34,7 +34,10 @@ impl Plans<'_> {
     }
     async fn recovery_get(&mut self, route: &str) -> Result<Value> {
         let route = path(route, self.tasks.filters.team_id.as_deref(), &[]);
-        self.tasks.backend.request(Method::GET, &route, None, None).await
+        self.tasks
+            .backend
+            .request(Method::GET, &route, None, None)
+            .await
     }
     /// Decrypt and project one canonical Project ID's Plans, Tasks, dependency
     /// edges, assumptions and revisions. Never touches chats or other Projects.
@@ -45,16 +48,22 @@ impl Plans<'_> {
         let (mut dependencies, mut assumptions, mut revisions) = (vec![], vec![], vec![]);
         for plan in &plans {
             let id = string(&plan.raw, "plan_id")?.to_owned();
-            let edges = self.recovery_get(&format!("/v1/user-plans/{id}/dependencies")).await?;
+            let edges = self
+                .recovery_get(&format!("/v1/user-plans/{id}/dependencies"))
+                .await?;
             for edge in edges["dependencies"].as_array().ok_or(Error::Protocol)? {
                 dependencies.push(json!({"source_ref": format!("plan:{id}"), "target_ref": string(edge, "target_ref")?}));
             }
-            let rows = self.recovery_get(&format!("/v1/user-plans/{id}/assumptions")).await?;
+            let rows = self
+                .recovery_get(&format!("/v1/user-plans/{id}/assumptions"))
+                .await?;
             for row in rows["assumptions"].as_array().ok_or(Error::Protocol)? {
                 let decrypted = child_public::<PlanAssumptionInput>(row, &plan.key)?;
                 assumptions.push(projection::assumption_projection(&id, &decrypted)?);
             }
-            let rows = self.recovery_get(&format!("/v1/user-plans/{id}/revisions")).await?;
+            let rows = self
+                .recovery_get(&format!("/v1/user-plans/{id}/revisions"))
+                .await?;
             for row in rows["revisions"].as_array().ok_or(Error::Protocol)? {
                 let snapshot = task_crypto::text(row, "encrypted_snapshot", &plan.key)?;
                 revisions.push(projection::revision_projection(&id, row, &snapshot)?);
@@ -62,14 +71,19 @@ impl Plans<'_> {
         }
         for task in &tasks {
             let id = string(task, "task_id")?.to_owned();
-            let edges = self.recovery_get(&format!("/v1/user-tasks/{id}/dependencies")).await?;
+            let edges = self
+                .recovery_get(&format!("/v1/user-tasks/{id}/dependencies"))
+                .await?;
             for edge in edges["dependencies"].as_array().ok_or(Error::Protocol)? {
                 dependencies.push(json!({"source_ref": format!("task:{id}"), "target_ref": string(edge, "target_ref")?}));
             }
         }
         Ok(projection::document(
             project_id,
-            plans.iter().map(|plan| projection::plan_projection(&plan.public)).collect(),
+            plans
+                .iter()
+                .map(|plan| projection::plan_projection(&plan.public))
+                .collect(),
             tasks.iter().map(projection::task_projection).collect(),
             dependencies,
             assumptions,
@@ -93,17 +107,27 @@ impl Plans<'_> {
             .iter()
             .map(|task| string(task, "task_id").map(str::to_owned))
             .collect::<Result<Vec<_>>>()?;
-        Ok(projection::find_conflicts(document, project_id, &plan_ids, &task_ids))
+        Ok(projection::find_conflicts(
+            document, project_id, &plan_ids, &task_ids,
+        ))
     }
     /// Validate and report what a restore would create; writes nothing.
-    pub async fn recovery_dry_run(&mut self, document: &Value, project_id: &str) -> RecoveryResult<Value> {
+    pub async fn recovery_dry_run(
+        &mut self,
+        document: &Value,
+        project_id: &str,
+    ) -> RecoveryResult<Value> {
         projection::validate_document(document)?;
         let conflicts = self.recovery_conflicts(document, project_id).await?;
         Ok(projection::dry_run_report(document, project_id, &conflicts))
     }
     /// Restore into an empty Project, then regenerate and verify semantic
     /// equality. Not cross-object atomic: a failure reports what was applied.
-    pub async fn recovery_restore(&mut self, document: &Value, project_id: &str) -> RecoveryResult<Vec<String>> {
+    pub async fn recovery_restore(
+        &mut self,
+        document: &Value,
+        project_id: &str,
+    ) -> RecoveryResult<Vec<String>> {
         projection::validate_document(document)?;
         if document["project"]["project_id"].as_str() != Some(project_id) {
             return Err(RecoveryError::Invalid(
@@ -118,8 +142,15 @@ impl Plans<'_> {
             )));
         }
         let mut applied = vec![];
-        if let Err(error) = self.recovery_apply(document, project_id, &mut applied).await {
-            let done = if applied.is_empty() { "nothing".to_owned() } else { applied.join(", ") };
+        if let Err(error) = self
+            .recovery_apply(document, project_id, &mut applied)
+            .await
+        {
+            let done = if applied.is_empty() {
+                "nothing".to_owned()
+            } else {
+                applied.join(", ")
+            };
             return Err(RecoveryError::Invalid(format!(
                 "Recovery restore partially applied ({done}); it is not cross-object atomic. {error}"
             )));
@@ -158,7 +189,11 @@ impl Plans<'_> {
             restored
                 .iter()
                 .find(|plan| plan.raw["plan_id"] == id)
-                .ok_or_else(|| RecoveryError::Invalid(format!("Restored plan {id} was not available for its {purpose}.")))
+                .ok_or_else(|| {
+                    RecoveryError::Invalid(format!(
+                        "Restored plan {id} was not available for its {purpose}."
+                    ))
+                })
         };
         for record in records("assumptions") {
             let plan_id = record_string(&record, "plan_id")?;
@@ -166,12 +201,23 @@ impl Plans<'_> {
             let payload = assumption_payload(&record, &plan.key)?;
             self.tasks
                 .backend
-                .request(Method::POST, &format!("/v1/user-plans/{plan_id}/assumptions"), Some(payload), None)
+                .request(
+                    Method::POST,
+                    &format!("/v1/user-plans/{plan_id}/assumptions"),
+                    Some(payload),
+                    None,
+                )
                 .await?;
-            applied.push(format!("assumption:{}", record_string(&record, "assumption_id")?));
+            applied.push(format!(
+                "assumption:{}",
+                record_string(&record, "assumption_id")?
+            ));
         }
         for dependency in records("dependencies") {
-            let (source, target) = (record_string(&dependency, "source_ref")?, record_string(&dependency, "target_ref")?);
+            let (source, target) = (
+                record_string(&dependency, "source_ref")?,
+                record_string(&dependency, "target_ref")?,
+            );
             let (kind, id) = split_ref(source);
             let target_ref = target_from_ref(target)?;
             if kind == "plan" {
@@ -189,9 +235,17 @@ impl Plans<'_> {
                 "encrypted_snapshot": crypto::server_fields::encrypt_text(&snapshot, &plan.key, &[])?, "created_at": now()});
             self.tasks
                 .backend
-                .request(Method::POST, &format!("/v1/user-plans/{plan_id}/revisions"), Some(payload), None)
+                .request(
+                    Method::POST,
+                    &format!("/v1/user-plans/{plan_id}/revisions"),
+                    Some(payload),
+                    None,
+                )
                 .await?;
-            applied.push(format!("revision:{}", record_string(&record, "revision_id")?));
+            applied.push(format!(
+                "revision:{}",
+                record_string(&record, "revision_id")?
+            ));
         }
         Ok(())
     }
@@ -213,7 +267,10 @@ fn target_from_ref(reference: &str) -> RecoveryResult<DependencyTarget> {
             )));
         }
     };
-    Ok(DependencyTarget { kind, id: id.into() })
+    Ok(DependencyTarget {
+        kind,
+        id: id.into(),
+    })
 }
 
 /// The existing CLI's assumption create body; every private field is encrypted

@@ -38,7 +38,7 @@ warnings=""
 
 # 1. Hardcoded hex colors in property values
 #    Allowed: custom property definitions (--foo: #hex), var(--) refs, comments
-hex_hits=$(grep -n '#[0-9a-fA-F]\{3,8\}' "$file" 2>/dev/null \
+hex_hits=$(grep -n '#[0-9a-fA-F]\{3,8\}\>' "$file" 2>/dev/null \
   | grep -v '^\s*/[/*]' \
   | grep -v '\-\-[a-z].*:.*#' \
   | grep -v 'var(--' \

@@ -18,6 +18,24 @@ use crate::crypto::master::decode_browser_base64;
 use crate::error::{Error, Result};
 use serde::Serialize;
 use serde_json::Value;
+use zeroize::Zeroize;
+
+/// Validates a locally decrypted Design scene before any shell projects its pages.
+///
+/// Returns a fixed error without echoing scene data when unsupported or malformed.
+pub fn validate_design_scene(content: &str) -> Result<()> {
+    super::super::design_scene::decode(content).map(|_| ())
+}
+
+/// Return content-free Design attachment routing metadata and the remaining composer text.
+pub fn design_turn_reference(markdown: &str) -> Option<String> {
+    super::super::design_scene::turn_reference(markdown).map(|reference| reference.to_string())
+}
+
+/// Package the explicitly supplied Design for the existing private turn-context protocol.
+pub fn design_source_context(content: &str, embed_id: &str, base_version: u32) -> Result<String> {
+    super::super::design_scene::source_context(content, embed_id, base_version).map(|source| source.to_string())
+}
 
 /// Decrypted, render-ready fields of one stored embed row.
 #[derive(Debug, Default, PartialEq, Eq, Serialize)]
@@ -91,7 +109,17 @@ pub async fn open_fields(key: &dyn AeadBatchKey, fields: [Option<&str>; 3]) -> R
             Err(other) => return Err(other),
         }
     }
-    let [content, embed_type, text_preview] = opened;
+    let [mut content, embed_type, mut text_preview] = opened;
+    if embed_type.as_deref() == Some(super::super::design_scene::EMBED_TYPE) {
+        // A browser renderer only receives a Design scene after core validation.
+        if let Some(invalid) = content.take_if(|text| validate_design_scene(text).is_err()) {
+            let mut invalid = invalid;
+            invalid.zeroize();
+            if let Some(mut preview) = text_preview.take() {
+                preview.zeroize();
+            }
+        }
+    }
     Ok(OpenedEmbedFields { content_failed: present[0] && content.is_none(), content, embed_type, text_preview })
 }
 

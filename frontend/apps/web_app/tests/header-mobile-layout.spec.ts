@@ -16,7 +16,7 @@ async function expectGuestHeaderLogin(page: Page, width: number): Promise<void> 
   const profile = page.getByTestId('profile-container');
   await expect(header.locator('.mobile-logo-icon')).toBeHidden();
   await expect(select).toBeVisible();
-  await expect(select).toHaveValue('/#apps');
+  await expect(select).toHaveAttribute('data-active-workspace', '/#apps');
   await expect(login).toBeVisible();
   await expect(login).toHaveText('Login', { useInnerText: true });
   await expect(profile).toBeVisible();
@@ -38,6 +38,52 @@ async function expectGuestHeaderLogin(page: Page, width: number): Promise<void> 
   await login.click();
   await expect(page.getByTestId('login-modal')).toBeVisible();
 }
+
+// contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
+test('the compact workspace picker switches the real app and keeps the active workspace', async ({ page }: { page: Page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+  const picker = page.getByTestId('workspace-mobile-select');
+  const panel = page.getByTestId('workspace-picker-panel');
+  await picker.click();
+  await expect(panel.getByRole('link', { name: /chats?/i })).toHaveAttribute('aria-current', 'page');
+  await panel.getByRole('link', { name: 'Apps', exact: true }).click();
+  await expect(page.getByTestId('apps-workspace-home')).toBeVisible({ timeout: 30_000 });
+  await expect(panel).toBeHidden();
+  await expect(picker).toHaveAttribute('data-active-workspace', '/#apps');
+  await picker.click();
+  await expect(panel.getByRole('link', { name: 'Apps', exact: true })).toHaveAttribute('aria-current', 'page');
+  await test.info().attach('apps-selected-in-compact-picker', { body: await page.screenshot(), contentType: 'image/png' });
+  await panel.getByRole('link', { name: /chats?/i }).click();
+  await expect(picker).toHaveAttribute('data-active-workspace', '/');
+  await expect(panel).toBeHidden();
+});
+
+// contract-test: direct surface=gui.web assertions=workspace-shell.nav.compact-picker-dismissal
+test('clicking the dimmed chat sidebar button closes only the workspace picker', async ({ page }: { page: Page }) => {
+  await page.setViewportSize({ width: 640, height: 800 });
+  await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+  const sidebar = page.getByTestId('chat-sidebar');
+  const sidebarButton = page.getByTestId('sidebar-toggle');
+  const picker = page.getByTestId('workspace-mobile-select');
+  const dialog = page.getByTestId('workspace-picker-dialog');
+  await expect(sidebar).toHaveClass(/\bclosed\b/);
+  await expect(sidebarButton).toBeVisible();
+  const button = (await sidebarButton.boundingBox())!;
+  const point = { x: button.x + button.width / 2, y: button.y + button.height / 2 };
+  const hitTarget = () => page.evaluate(({ x, y }) =>
+    document.elementFromPoint(x, y)?.closest('[data-testid]')?.getAttribute('data-testid'), point);
+  expect(await hitTarget()).toBe('sidebar-toggle');
+
+  await picker.click();
+  await expect(dialog).toBeVisible();
+  await expect.poll(hitTarget).toBe('workspace-picker-backdrop');
+  await page.mouse.click(point.x, point.y);
+  await expect(dialog).toBeHidden();
+  await expect(picker).toBeFocused();
+  await expect(sidebar).toHaveClass(/\bclosed\b/);
+  expect(await hitTarget()).toBe('sidebar-toggle');
+});
 
 // contract-test: supporting surface=gui.web assertions=workspace-shell.nav.released-surfaces-visible
 test('returning guests can open Login from the 320px app header', async ({ page }: { page: Page }) => {

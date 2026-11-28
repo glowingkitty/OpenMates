@@ -21,6 +21,7 @@ use openmates_sdk::view_model::{
 use openmates_sdk::client::ChatOwnerLease;
 use futures_util::future::BoxFuture;
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
@@ -78,16 +79,17 @@ impl TerminalSink {
             ViewEvent::Session(SessionEvent::VerificationRequired(_)) => return Err(Error::VerificationRequired),
             // The terminal paints a send's turn from its stream updates.
             ViewEvent::ChatList { .. } | ViewEvent::ChatWindow { .. } if self.send.is_some() => None,
-            ViewEvent::Stream { event, .. } => Some(View::Stream(update_from_stream(event)?)),
+            ViewEvent::Stream { request, event, .. } => Some(View::Stream { request, update: update_from_stream(event)? }),
             // Reply text reaches the terminal through the `Stream` content update.
             ViewEvent::MessageUpdated { .. } => None,
-            ViewEvent::ChatList { rows, .. } => {
+            ViewEvent::ChatList { rows, total_count, .. } => {
                 let items = rows.iter().map(item_from_row).collect();
-                Some(if self.live { View::LiveItems(self.fence(items)) } else { View::Items(Workspace::Chats, items) })
+                Some(if self.live { View::LiveItems(self.fence((items, total_count))) } else { View::Items(Workspace::Chats, items, total_count) })
             }
             ViewEvent::ChatWindow { window, .. } => {
                 // Fail closed: a window without an owner lease is never queued.
                 if self.owner.is_none() { return Err(Error::Cancelled); }
+                openmates::native_chat_open_trace::window(window.source);
                 Some(View::Window(self.fence(window)))
             }
             ViewEvent::ChatUnavailable { chat_id } => Some(View::ChatUnavailable(chat_id)),
@@ -247,9 +249,43 @@ impl ViewHost<CacheBytes> for Actor {
                 .await.is_ok_and(|pending| pending.is_empty())
         })
     }
+    fn read_cold_window_before_recovery(&self) -> bool { true }
     fn recover_before_open<'a>(&'a mut self, sink: &'a TerminalSink, chat_id: &'a str) -> BoxFuture<'a, Result<()>> {
         Box::pin(async move {
-            self.recover_before_view(&sink.replies, sink.epoch, Some(chat_id.to_owned()), true).await.map(|_| ())
+            use openmates::native_chat_open_trace::phase;
+            phase("open.recovery.start", Ok(()));
+            let result = self.recover_before_view(&sink.replies, sink.epoch, Some(chat_id.to_owned()), true)
+                .await
+                .map(drop);
+            phase("open.recovery.finish", result);
+            result
+        })
+    }
+    fn recover_after_cold_open<'a>(&'a mut self, sink: &'a TerminalSink, chat_id: &'a str) -> BoxFuture<'a, Result<bool>> {
+        Box::pin(async move {
+            // A cached or authenticated first page is already eligible to paint.
+            // The separate recovery socket and its foreground grant drop on
+            // timeout. The existing pump resumes from durable checkpoints.
+            use openmates::native_chat_open_trace::phase;
+            phase("open.recovery.start", Ok(()));
+            let recovery = self.recover_before_view_with_inventory(
+                &sink.replies, sink.epoch, Some(chat_id.to_owned()), true, false,
+            );
+            let result = match tokio::time::timeout(Duration::from_secs(3), recovery).await {
+                Ok(result) => result.map(|outcome| outcome.canonical_changed || outcome.attempted > 0 || outcome.deferred > 0),
+                Err(_) if sink.request.is_cancelled() => Err(Error::Cancelled),
+                // An auth denial can already have cleared the Client while
+                // durable cleanup is still waiting. Never retry that as a read.
+                Err(_) if self.core.client().session().is_none() => Err(Error::Expired),
+                Err(_) => {
+                    self.recovery_start_needed = false;
+                    self.recovery_blocked = false;
+                    self.recovery_retry_at = Some(tokio::time::Instant::now() + Duration::from_secs(5));
+                    Ok(true)
+                }
+            };
+            phase("open.recovery.finish", result.map(drop));
+            result
         })
     }
     fn offline_cache_allowed(&self) -> bool { !self.cached_views_blocked }

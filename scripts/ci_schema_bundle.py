@@ -772,6 +772,28 @@ def verify_carrier_metadata(image: str) -> None:
             raise RuntimeError(f"Schema carrier label {label} mismatch")
 
 
+def start_schema_consumer_database() -> None:
+    """Report the database startup failure before the disposable volume is removed."""
+    try:
+        compose("up", "-d", "--no-build", "--wait", "--wait-timeout", "300", "cms-database")
+    except subprocess.CalledProcessError as error:
+        compose_detail = safe_docker_diagnostic(io.BytesIO((error.stderr or b"")[-512:]))
+        try:
+            result = compose("logs", "--no-log-prefix", "--tail", "40", "cms-database")
+            logs = result.stdout + b"\n" + result.stderr
+        except subprocess.CalledProcessError:
+            logs = b""
+        # Report filesystem setup errors because database logs can contain SQL data.
+        entrypoint_errors = b"\n".join(
+            line for line in logs.splitlines()
+            if line.startswith((b"initdb: error:", b"chmod:", b"mkdir:", b"chown:"))
+        )
+        entrypoint_detail = safe_docker_diagnostic(io.BytesIO(entrypoint_errors))
+        raise RuntimeError(
+            f"Schema consumer failed to start{compose_detail}{entrypoint_detail}"
+        ) from error
+
+
 def verify_image(image: str) -> dict:
     """Restore-test a carrier twice without sharing volumes or credentials."""
     require_runner()
@@ -795,15 +817,10 @@ def verify_image(image: str) -> dict:
         credentials.add(fresh_password)
         write_profile(profile)
         try:
-            compose(
-                "up",
-                "-d",
-                "--no-build",
-                "--wait",
-                "--wait-timeout",
-                "300",
-                "cms-database",
-            )
+            start_schema_consumer_database()
+            uid = compose("exec", "-T", "cms-database", "id", "-u").stdout.strip()
+            if uid == b"0":
+                raise RuntimeError("Prepared schema container starts as root")
             wait_for_restored_schema()
             require_routing_proof_table()
             actual_dump = database_dump()

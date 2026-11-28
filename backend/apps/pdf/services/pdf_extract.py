@@ -23,7 +23,7 @@ def extract_unique_images(pdf_bytes: bytes, max_images: int = MAX_UNIQUE_IMAGES)
     Identical images (logos repeated on every page) are returned once, tiny images are skipped
     and the largest ``max_images`` are kept.
     """
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     try:

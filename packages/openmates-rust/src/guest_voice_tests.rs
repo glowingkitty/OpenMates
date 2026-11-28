@@ -20,6 +20,10 @@ fn opens_guest_socket_with_encoded_identity_and_privacy_ack() {
         serde_json::from_str::<Value>(result["start"].as_str().unwrap()).unwrap(),
         json!({"type":"start","privacy_ack_version":3})
     );
+    assert_eq!(
+        serde_json::from_str::<Value>(result["quiet"].as_str().unwrap()).unwrap(),
+        json!({"type":"audio_stream_end","verified_silence":true})
+    );
 }
 
 #[test]
@@ -32,6 +36,37 @@ fn maps_allowance_and_final_transcript_events() {
     assert_eq!(
         event(json!({"type":"transcript","final":true,"turn_id":2,"text":" Hello "})),
         json!({"type":"transcript","submitted":true,"messageId":"2","text":"Hello"})
+    );
+}
+
+#[test]
+fn waiting_frames_require_a_matching_known_clip() {
+    let event = |frame: Value| plan(json!({"operation":"receive", "frame":frame.to_string()}));
+    assert_eq!(
+        event(json!({"type":"waiting","active":true,"line":"waiting_start"})),
+        json!({"type":"waiting","active":true,"line":"waiting_start"})
+    );
+    let frame = json!({"type":"waiting","active":false,"line":"waiting_start"});
+    let command = json!({"operation":"receive","frame":frame.to_string()});
+    assert_eq!(plan_json(&command.to_string()), Err("invalid_frame"));
+}
+
+#[test]
+fn guest_voice_feedback_accepts_only_static_paths() {
+    let event = |clip: Value| {
+        let frame = json!({"type":"voice_feedback","clip":clip});
+        plan(json!({"operation":"receive","frame":frame.to_string()}))
+    };
+    let path = "/audio/assistant-acknowledgements/ace/en-US/reasoning-1.mp3";
+    assert_eq!(
+        event(json!({"clip_id":"ace-en-US-reasoning-1","asset_url":path})),
+        json!({"type":"voice_feedback","clip":{"id":"ace-en-US-reasoning-1","url":path}})
+    );
+    assert_eq!(
+        event(
+            json!({"clip_id":"invalid","asset_url":"/audio/assistant-acknowledgements/../ace/a.mp3"})
+        ),
+        Value::Null
     );
 }
 

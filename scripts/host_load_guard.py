@@ -51,10 +51,10 @@ class Thresholds:
     def __init__(
         self,
         block_mem_available_bytes: int = int(1.5 * GIB),
-        block_load1_per_cpu: float = 3.0,
+        block_load1_per_cpu: float = 1.0,
         block_mem_psi_some_avg10: float = 20.0,
         resume_mem_available_bytes: int = int(2.5 * GIB),
-        resume_load1_per_cpu: float = 1.5,
+        resume_load1_per_cpu: float = 0.85,
         resume_mem_psi_some_avg10: float = 10.0,
     ) -> None:
         self.block_mem_available_bytes = block_mem_available_bytes
@@ -196,7 +196,7 @@ def evaluate(sample: Sample, was_overloaded: bool, t: Thresholds = THRESHOLDS) -
     if sample.mem_available_bytes < t.block_mem_available_bytes:
         block_reasons.append(f"MemAvailable {gib:.1f} GiB < {t.block_mem_available_bytes / GIB:g} GiB")
     if sample.load1 > t.block_load1_per_cpu * sample.cpus:
-        block_reasons.append(f"load1 {sample.load1:.0f} > {t.block_load1_per_cpu:g}x{sample.cpus} cpus")
+        block_reasons.append(f"load1 {sample.load1:.2f} > {t.block_load1_per_cpu:g}x{sample.cpus} cpus")
     if psi is not None and psi > t.block_mem_psi_some_avg10:
         block_reasons.append(f"memory PSI some avg10 {psi:.0f} > {t.block_mem_psi_some_avg10:g}")
     if block_reasons:
@@ -208,7 +208,7 @@ def evaluate(sample: Sample, was_overloaded: bool, t: Thresholds = THRESHOLDS) -
     if sample.mem_available_bytes <= t.resume_mem_available_bytes:
         pending.append(f"MemAvailable {gib:.1f} GiB not yet > {t.resume_mem_available_bytes / GIB:g} GiB")
     if sample.load1 >= t.resume_load1_per_cpu * sample.cpus:
-        pending.append(f"load1 {sample.load1:.0f} not yet < {t.resume_load1_per_cpu:g}x{sample.cpus} cpus")
+        pending.append(f"load1 {sample.load1:.2f} not yet < {t.resume_load1_per_cpu:g}x{sample.cpus} cpus")
     if psi is not None and psi >= t.resume_mem_psi_some_avg10:
         pending.append(f"memory PSI some avg10 {psi:.0f} not yet < {t.resume_mem_psi_some_avg10:g}")
     if pending:
@@ -266,7 +266,7 @@ def current_decision(directory: Path | None = None) -> tuple[Sample, Decision]:
 def describe(sample: Sample, decision: Decision) -> str:
     psi = "n/a" if sample.mem_psi_some_avg10 is None else f"{sample.mem_psi_some_avg10:.0f}"
     head = (
-        f"load1={sample.load1:.0f} (cpus={sample.cpus}) "
+        f"load1={sample.load1:.2f} (cpus={sample.cpus}) "
         f"MemAvailable={sample.mem_available_bytes / GIB:.1f}GiB memPSI10={psi}"
     )
     if not decision.overloaded:

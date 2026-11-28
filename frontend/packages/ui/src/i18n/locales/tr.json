@@ -959,6 +959,12 @@
         "description": {
           "text": "Bir Figma tasarımını okuyup yapı, stiller ve kod aktarımı sağlar."
         }
+      },
+      "author": {
+        "text": "Tasarım oluştur",
+        "description": {
+          "text": "Düzenlenebilir bir broşür, gönderi veya taslak oluşturun."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Görev oluştur",
-          "description": {
-            "text": "Başlıklar, açıklamalar ve sorumlularla görevler oluşturun."
-          }
-        },
         "search": {
           "text": "Görev ara",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Örnek sohbet"
       },
+      "sub_chat": {
+        "text": "Alt sohbet"
+      },
       "shared_chat": {
         "text": "Paylaşılan sohbet"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Daha fazla göster"
+      },
+      "account_total": {
+        "text": "Hesabında {count} sohbet"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "{label} öğesini daralt"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Görev"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid Diyagramı"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Grafik okunuyor…"
+        },
+        "progress_checking": {
+          "text": "Tasarım kontrol ediliyor…"
+        },
+        "progress_adjusting": {
+          "text": "Tasarım nakış için uyarlanıyor…"
+        },
+        "progress_stitching": {
+          "text": "Dikişler ve önizleme oluşturuluyor…"
+        },
+        "progress_saving": {
+          "text": "Makine dosyaları kaydediliyor…"
+        },
         "threads": {
           "text": "İplikler"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Tasarımı indir"
+        },
+        "current_page": {
+          "text": "Geçerli sayfa"
+        },
+        "all_pages": {
+          "text": "Tüm sayfalar"
+        },
+        "image_unavailable": {
+          "text": "Bir görsel bu cihazda kullanılamıyor. Sayfayı açıp görsellerin yüklenmesini bekleyin ve tekrar deneyin."
+        },
+        "failed": {
+          "text": "Tasarım indirilemedi. Tekrar deneyin."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Ücretsiz dene"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-posta etki alanına izin verilmiyor."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Sesli aramalar Mistral transkripsiyonu, ElevenLabs v4 Turbo sesi, OpenMates’in normal yapay zekâ yönlendirmesi ve kullanıma dayalı ücretlendirme kullanır."
-    },
     "privacy_description": {
       "text": "Mistral mikrofon sesini yazıya döker; ElevenLabs v4 Turbo yanıt metni ve ses ayarlarından asistan sesini üretir. Görüşme, OpenMates’in normal yapay zekâ yönlendirmesini ve becerilerini kullanır. Sağlayıcılar istek verilerini kendi politikalarına göre saklayabilir."
     },

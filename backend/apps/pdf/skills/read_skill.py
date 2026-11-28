@@ -46,6 +46,7 @@ from backend.apps.pdf.utils.final_gate import (
     require_final_pdf,
 )
 from cryptography.exceptions import InvalidTag
+from backend.shared.python_utils.pdf_ocr_readiness import PdfNotReadyError
 
 logger = logging.getLogger(__name__)
 
@@ -498,6 +499,15 @@ class ReadSkill(BaseSkill):
                 continuation_hint=continuation_hint,
             ).dict()
 
+        except PdfNotReadyError as e:
+            # Expected while upload processing is still running: the user is told
+            # to ask again, so this is not a server error.
+            logger.info(f"{log_prefix} pdf.read: PDF not ready yet")
+            return ReadResponse(
+                success=False,
+                file_path=file_path,
+                error=f"Failed to read PDF pages: {e}",
+            ).dict()
         except (
             RuntimeError, ValueError, KeyError, TypeError, OSError, httpx.HTTPError, InvalidTag,
         ) as e:

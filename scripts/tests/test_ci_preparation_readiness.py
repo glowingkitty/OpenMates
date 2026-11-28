@@ -327,7 +327,7 @@ def test_fixed_workflow_requires_optin_native_and_only_sanitized_diagnostic_ente
     workflow = yaml.safe_load(
         (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     )
-    steps = next(iter(workflow["jobs"].values()))["steps"]
+    steps = workflow["jobs"]["test"]["steps"]
     native_step = next(
         s for s in steps if "ci_artifacts.py native-build" in s.get("run", "")
     )
@@ -358,6 +358,7 @@ def test_fixed_workflow_requires_optin_native_and_only_sanitized_diagnostic_ente
     assert set(checkout["with"]["sparse-checkout"].split()) == {
         "scripts",
         ".github/workflows",
+        ".github/requirements",
     }
 
 
@@ -493,7 +494,7 @@ def clean_python_literal():
     workflow = yaml.safe_load(
         (ROOT / ".github/workflows/isolated-tests.yml").read_text()
     )
-    steps = next(iter(workflow["jobs"].values()))["steps"]
+    steps = workflow["jobs"]["test"]["steps"]
     setup = next(s for s in steps if s.get("id") == "setup-python")
     capability = next(
         i

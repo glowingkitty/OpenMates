@@ -329,6 +329,25 @@ async def test_only_context_index_and_matching_owner_authorize_references(author
     assert "Foreign private source" not in json.dumps(child)
 
 
+
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse,authored-results.media.safe-and-attributed
+@pytest.mark.parametrize("written", ["embed:{ref}", " {ref} ", "`embed:{ref}`", "<embed:{ref}>"])
+@pytest.mark.asyncio
+async def test_source_reference_copied_in_link_form_still_resolves(authored_service, written):
+    """Regression LF4MY: source refs copied as `embed:<ref>` were dropped as unavailable."""
+    h = authored_service
+    carrier = await h.create()
+    known = str(uuid.uuid4())
+    await h.put_reference(known, {"type": "document", "title": "Authorized source"})
+    h.service.authoring_reference_index = {"known.pdf": known}
+    item = valid_authored_item()
+    item["sources"] = [{"embed_ref": written.format(ref="known.pdf")}, {"embed_ref": "embed:unknown.pdf"}]
+    assert await h.update(carrier, [item])
+    parent = await h.content(carrier)
+    child = await h.content(parent["embed_ids"][0])
+    assert [source["embed_ref"] for source in child["authoring"]["sources"]] == [written.format(ref="known.pdf")]
+    assert sum(w["code"] == "unavailable_source_reference" for w in parent["validation"]["warnings"]) == 1
+
 async def _image_reference(h, *, reference="venue.jpg", owner_hash=OWNER_HASH):
     embed_id = str(uuid.uuid4())
     key = base64.b64encode(b"k" * 32).decode()
@@ -1098,10 +1117,37 @@ async def test_existing_cards_prompt_still_lists_only_authored_cards(authored_se
 
 # contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
 def test_connection_identity_compares_instants_across_offsets():
-    from backend.core.api.app.services.authored_skill_result_reuse import IDENTITY_KEYS
-
-    key = IDENTITY_KEYS["travel.connection"]
+    from backend.core.api.app.services.authored_skill_result_reuse import _connection_key as key
     assert key({"departure": "2026-11-16T20:52:00+01:00", "arrival": "2026-11-17T09:05:00+01:00"}) == key(
         {"legs": [{"departure": "2026-11-16T19:52:00Z", "arrival": "x"},
                   {"arrival": "2026-11-17T08:05:00+00:00"}]})
     assert key({"departure": "2026-11-16T20:52:00", "arrival": "2026-11-17T09:05:00+01:00"}) is None
+
+
+@pytest.mark.parametrize("kind, app, skill, embed_type, original, authored", [
+    ("events.event", "events", "search", "event",
+     {"title": "FOSDEM", "date_start": "2027-01-30", "venue_city": "Brussels",
+      "venue_address": "Avenue Franklin Roosevelt 50", "url": "https://fosdem.org/2027/"},
+     {"title": "FOSDEM 2027", "date_start": "2027-01-30", "venue": {"city": "Brussels"},
+      "url": "https://example.org/fosdem"}),
+    ("shopping.product", "shopping", "search_products", "product",
+     {"title": "Portable keyboard", "url": "https://shop.example/keyboard"},
+     {"title": "Portable keyboard", "url": "https://shop.example/keyboard"}),
+])
+# contract-test: direct surface=rest_api assertions=authored-results.groups.same-response-and-reuse
+@pytest.mark.asyncio
+async def test_researched_event_and_product_reuse_skill_children(
+    authored_service, kind, app, skill, embed_type, original, authored,
+):
+    h = authored_service
+    await h.put_reference(SKILL_CONNECTION, {
+        **original, "type": embed_type, "app_id": app, "skill_id": skill, "embed_ref": "original-abc",
+    }, parent=SKILL_SEARCH)
+    h.service.authoring_reference_index = {"original-abc": SKILL_CONNECTION}
+    carrier = await h.create()
+    assert await h.update(carrier, raw=_followup_source({
+        "id": "repeat", "kind": kind, "origin": "researched", "title": authored["title"],
+        "sources": [{"url": authored["url"]}], "details": authored,
+    }))
+    assert (await h.content(carrier))["member_ids"] == [SKILL_CONNECTION]
+    assert h.record(carrier)["embed_ids"] == []

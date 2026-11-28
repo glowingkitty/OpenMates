@@ -4,6 +4,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from backend.shared.providers.transcript_correction_accounting import (
+    CorrectionAccountingError, correction_accountant,
+)
 from backend.shared.providers.typesafe.models import ChoiceAnswer, DecisionResponse
 from backend.shared.python_utils import voice_pause_decision as vpd
 
@@ -51,6 +54,29 @@ def test_low_confidence_and_unknown_choices_degrade_safely():
     assert vpd.parse_pause_decision({}).verdict == "unsure"
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting,video-call.audio.waiting-language
+async def test_feedback_uses_the_same_transcript_only_decision():
+    answers = response().answers | {"feedback": answer("working"), "feedback_language": answer("de")}
+    with patch(f"{MODULE}.JevDecisionClient") as client:
+        client.return_value.evaluate = AsyncMock(return_value=DecisionResponse(model="jev", answers=answers))
+        decision = await vpd.classify_voice_pause("Schreib mir eine Einladung.", None, with_feedback=True)
+        call = client.return_value.evaluate.call_args.kwargs
+    assert call["state"] == {"speech": "Schreib mir eine Einladung."}
+    assert set(call["questions"]) == {"verdict", "intent", "feedback", "feedback_language"}
+    assert (decision.feedback, decision.feedback_language) == ("working", "de")
+    result = vpd.parse_pause_decision(answers | {"feedback_language": answer("other")})
+    assert result.feedback_language is None
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+def test_feedback_switch_requires_capable_web_call_and_allows_disabling(monkeypatch):
+    monkeypatch.delenv("VOICE_CALL_INSTANT_FEEDBACK", raising=False)
+    assert vpd.instant_feedback_enabled({"instant_feedback": True})
+    assert not vpd.instant_feedback_enabled({})
+    monkeypatch.setenv("VOICE_CALL_INSTANT_FEEDBACK", "0")
+    assert not vpd.instant_feedback_enabled({"instant_feedback": True})
+
+
 # contract-test: supporting surface=rest_api assertions=video-call.audio.pause-verdict
 async def test_provider_failure_and_timeout_fail_open_without_private_text(caplog):
     with patch(f"{MODULE}.JevDecisionClient") as client:
@@ -64,6 +90,33 @@ async def test_provider_failure_and_timeout_fail_open_without_private_text(caplo
     assert failed.verdict == timed_out.verdict == "unavailable"
     assert failed.wait_seconds == .5 and failed.intent == "none"
     assert "PRIVATE" not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.guest-calls,billing.anonymous.hard-capped-provider-metering
+async def test_guest_hold_check_requires_admission_and_settles_only_one_attempt():
+    operation = AsyncMock()
+    meter = AsyncMock()
+    meter.reserve_correction.return_value = operation
+    binding = correction_accountant.set(meter)
+    try:
+        with patch(f"{MODULE}.JevDecisionClient") as client:
+            async def evaluate(**_):
+                assert meter.reserve_correction.await_count == 1
+                client.call_args.kwargs["accounting"].append({"input_tokens": 100, "output_tokens": 0})
+                return response("wait", "wait")
+
+            client.return_value.evaluate = evaluate
+            assert (await vpd.classify_metered_voice_pause("Give me a second.", None)).intent == "wait"
+            operation.settle.assert_awaited_once_with(100, 0)
+            assert client.call_count == 1 and client.call_args.kwargs["max_retries"] == 0
+            assert not client.call_args.kwargs["allow_gemini"]
+
+            meter.reserve_correction.side_effect = RuntimeError("denied")
+            with pytest.raises(CorrectionAccountingError):
+                await vpd.classify_metered_voice_pause("Give me a second.", None)
+            assert client.call_count == 1
+    finally:
+        correction_accountant.reset(binding)
 
 
 # contract-test: supporting surface=rest_api assertions=video-call.audio.pause-verdict
@@ -91,3 +144,16 @@ def test_fixture_hold_string_is_a_wait_decision_without_deadline_and_still_think
     assert (hold.verdict, hold.intent, hold.wait_seconds) == ("wait", "none", None)
     thinking = vpd.as_pause_decision("incomplete")
     assert (thinking.verdict, thinking.wait_seconds) == ("still_thinking", 2.0)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.pause-verdict,video-call.audio.intentional-interruption
+async def test_playback_control_uses_same_bounded_decision_only_when_requested():
+    result = response("finished", "pause_playback")
+    assert vpd.parse_pause_decision(result.answers).intent == "none"
+    with patch(f"{MODULE}.JevDecisionClient") as client:
+        client.return_value.evaluate = AsyncMock(return_value=result)
+        decision = await vpd.classify_voice_pause("give me a second", None, playback_control=True)
+        request = client.return_value.evaluate.call_args.kwargs
+    assert "pause_playback" in request["questions"]["intent"]["criteria"]
+    assert set(request["questions"]) == {"verdict", "intent"}
+    assert decision.intent == "pause_playback"

@@ -1,10 +1,13 @@
 <!--
-  Chat preview for the plans.create skill result: a draft Plan card with the
-  proposed title and goal. Wraps the shared Plan card.
+  Chat preview for the plans.create skill result. Shows the saved Plan's
+  progress once the browser can read it.
 -->
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
   import PlanEmbedPreview from './PlanEmbedPreview.svelte';
-  import { planDataFromCreate } from './planCreateData';
+  import { planDataFromCreate, watchCreatedPlan } from './planCreateData';
+  import type { PlanEmbedData } from './planEmbedModel';
 
   interface Props {
     id: string;
@@ -12,7 +15,13 @@
     onFullscreen: () => void;
   }
   let { id, data, onFullscreen }: Props = $props();
-  const planData = $derived(planDataFromCreate(data, id));
+  const source = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  let saved = $state<PlanEmbedData | null>(null);
+  const planData = $derived(saved ?? planDataFromCreate(data, id));
+  $effect(() => {
+    saved = null;
+    return watchCreatedPlan(data, source, (plan) => { saved = plan; });
+  });
 </script>
 
-<PlanEmbedPreview data={planData} onOpen={() => onFullscreen()} />
+<PlanEmbedPreview {id} data={planData} {onFullscreen} />

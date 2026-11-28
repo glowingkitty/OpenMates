@@ -9,6 +9,8 @@ from typing import Any, Awaitable, Callable, Optional
 
 from fastapi import HTTPException
 
+from backend.apps.ai.assistant_live_changes import live_collaboration_enabled
+from backend.core.api.app.services.live_items.relay import publish_project_editor_event
 from backend.core.api.app.services.embed_version_transaction_service import (
     EmbedVersionTransactionError,
     EmbedVersionTransactionService,
@@ -19,6 +21,7 @@ from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationService,
 )
 from backend.shared.providers.e2b_project_sandbox import ProjectSandboxError
+from backend.core.api.app.utils.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,7 @@ async def commit_revisions(
                                           directus_service=directus_service, **common)
         else:
             await _commit_one(handle, rev, path, embed_id, kind, dict(transaction), result,
+                              cache_service=cache_service,
                               directus_service=directus_service, transactions=transactions,
                               head_loader=head_loader, **common)
         if len(result.rejected) + len(result.conflicts) > before:
@@ -147,7 +151,7 @@ async def _apply_item_transaction(handle, rev, path, kind, transaction, result, 
 
 
 async def _commit_one(handle, rev, path, embed_id, kind, transaction, result, *, user_id, chat_id,
-                      project_id, team_id, operation_id, directus_service, authorization, transactions,
+                      project_id, team_id, operation_id, directus_service, authorization, transactions, cache_service,
                       publish, head_loader) -> None:
     merged = False
     for _attempt in range(MAX_MERGE_ATTEMPTS):
@@ -165,12 +169,22 @@ async def _commit_one(handle, rev, path, embed_id, kind, transaction, result, *,
         try:
             await _authorize(authorization, user_id=user_id, chat_id=chat_id, project_id=project_id,
                              team_id=team_id, operation_id=op_id, digest=digest)
+            live_edit = kind == "update" and live_collaboration_enabled(ConfigManager())
+            if live_edit:
+                await publish_project_editor_event(cache_service, user_id, "embed_assistant_editing", {
+                    "embed_id": embed_id, "scope": [], "mate_name": "Assistant",
+                })
             outcome = await transactions.commit_sandbox_revision(payload, user_id=user_id)
         except (ProjectWriteAuthorizationError, EmbedVersionTransactionError) as exc:
             logger.warning("Sandbox write-back rejected: code=%s", exc.code)
             result.rejected.append({"path": path, "code": exc.code})
             return
         if outcome.get("status") == "committed":
+            if live_edit and not outcome.get("idempotent"):
+                await publish_project_editor_event(cache_service, user_id, "embed_assistant_project_commit", {
+                    "embed_id": embed_id, "project_id": project_id, "operation_id": op_id,
+                    "current_revision": outcome["current_revision"],
+                })
             (result.merged if merged else result.committed).append(path)
             await _after_commit(handle, publish, path, embed_id, outcome.get("current_revision"),
                                 chat_id=chat_id, project_id=project_id, operation_id=op_id,

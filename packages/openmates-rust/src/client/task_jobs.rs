@@ -1,7 +1,13 @@
 //! Owner-scoped Task update-job leases and separate durable event confirmation.
 //! This module remains unexported until its synthetic protocol checks pass.
 use super::task_job_payload::{TaskJobClaim, event_message, persist_payload};
-use super::transport::{Socket, send};
+use super::transport::Socket;
+#[cfg(target_arch = "wasm32")]
+use task_job_io::BrowserExchange;
+use task_job_io::TaskJobTransport;
+
+#[path = "task_job_io.rs"]
+mod task_job_io;
 use super::*;
 pub(super) fn capture(
     kind: &str,
@@ -44,6 +50,51 @@ impl Client {
         active: Option<(&str, &[u8; 32], &str)>,
         cancel: &CancellationToken,
     ) -> Result<std::collections::BTreeSet<String>> {
+        self.persist_task_jobs_with(socket, jobs, events, active, cancel)
+            .await
+    }
+
+    /// Persist offered jobs from the browser's authenticated socket using its
+    /// borrowed Worker session and existing page transport. No keys leave Rust.
+    #[cfg(target_arch = "wasm32")]
+    pub async fn run_browser_task_jobs<F, Fut>(&mut self, offer: &Value, exchange: F) -> Result<Vec<String>>
+    where
+        F: FnMut(Value) -> Fut,
+        Fut: std::future::Future<Output = Result<Value>>,
+    {
+        if self.browser_credentials.is_none() || self.team()?.is_some() {
+            return Err(Error::Forbidden);
+        }
+        self.require_work_authority()?;
+        let mut jobs = BTreeMap::new();
+        capture("task_update_jobs_available", offer, &mut jobs)?;
+        if let Some(chat) = offer.get("chat_id") {
+            let message = required(offer, "message_id")?;
+            for job in jobs.values_mut() {
+                if &job["chat_id"] != chat {
+                    return Err(Error::Forbidden);
+                }
+                job["message_id"] = json!(message);
+            }
+        }
+        let cancel = self.operation_cancel.clone();
+        let handled = self
+            .persist_task_jobs_with(&mut BrowserExchange(exchange), &jobs, &[], None, &cancel)
+            .await?;
+        handled
+            .iter()
+            .map(|id| required(&jobs[id], "task_id").map(str::to_owned))
+            .collect()
+    }
+
+    async fn persist_task_jobs_with(
+        &mut self,
+        transport: &mut impl TaskJobTransport,
+        jobs: &BTreeMap<String, Value>,
+        events: &[Value],
+        active: Option<(&str, &[u8; 32], &str)>,
+        cancel: &CancellationToken,
+    ) -> Result<std::collections::BTreeSet<String>> {
         if jobs.len() > 256 || events.len() > 1024 {
             return Err(Error::Protocol);
         }
@@ -62,7 +113,12 @@ impl Client {
             let event = events
                 .iter()
                 .find(|event| event["task_update_job_id"] == *job_id);
-            if active.is_some() && event.is_none() {
+            // Inline Task jobs omit the system event. In an active send, only
+            // a job captured from that chat and user turn can proceed without it.
+            if let Some((chat, _, user_message)) = active
+                && event.is_none()
+                && (job["chat_id"] != chat || job["message_id"] != user_message)
+            {
                 continue;
             }
             if job["expires_at"]
@@ -78,6 +134,9 @@ impl Client {
             let preflight_key = if active.is_none() {
                 let source = required(job, "chat_id")?;
                 let fresh = async {
+                    if self.browser_credentials.is_some() {
+                        return self.edit_chat_key(source).await;
+                    }
                     self.open_chat_live(source).await?;
                     let wrapping = self.wrapping_key().await?;
                     self.chat_key(self.chats.get(source).ok_or(Error::Protocol)?, &wrapping)
@@ -102,23 +161,15 @@ impl Client {
                 return Err(Error::Forbidden);
             }
             let request = uuid::Uuid::new_v4().to_string();
-            send(
-                socket,
-                "task_update_job_claim",
-                json!({"protocol_version":1,"job_id":job_id,"request_id":request}),
-            )
-            .await?;
-            let raw = match crate::platform::time::timeout(
-                Duration::from_secs(20),
-                super::transport::wait_task_job(
-                    socket,
+            let raw = match transport
+                .job(
+                    "task_update_job_claim",
+                    json!({"protocol_version":1,"job_id":job_id,"request_id":request}),
                     "task_update_job_claimed",
                     &request,
                     job_id,
-                ),
-            )
-            .await
-            .map_err(|_| Error::Offline)?
+                )
+                .await
             {
                 Ok(value) => value,
                 Err(Error::Conflict) => continue,
@@ -165,10 +216,14 @@ impl Client {
             let fallback = json!({"event_id":format!("task-event-{}",claim.job_id),"chat_id":claim.chat_id,"task_id":claim.task_id,"event_type":match claim.operation.as_str(){"create"=>"created","move"=>"moved","update"=>"updated","complete"=>"completed","block"=>"blocked","unblock"=>"unblocked",_=>return Err(Error::Protocol)},"title":claim.private_patch["title"],"status":claim.safe_metadata["status"],"created_at":claim.safe_metadata["updated_at"].as_u64().unwrap_or(now_ms()/1000),"task_update_job_id":claim.job_id});
             let event = event.unwrap_or(&fallback);
             let system = if let Some(system) = self.existing_task_event(&claim)? {
-                system
+                Some(system)
             } else {
                 event_message(job_id, &claim.message_id, event, &key, now_ms() / 1000)?
             };
+            let system_cipher = system
+                .as_ref()
+                .map(|system| required(system, "encrypted_content"))
+                .transpose()?;
             if claim.state == "LEASED" {
                 let (encrypted, task_key, wrapping) = self
                     .tasks()
@@ -182,23 +237,19 @@ impl Client {
                     return Err(Error::Conflict);
                 }
                 let request = uuid::Uuid::new_v4().to_string();
-                let mut payload =
-                    persist_payload(&claim, encrypted, required(&system, "encrypted_content")?)?;
+                let mut payload = persist_payload(&claim, encrypted, system_cipher)?;
                 let expected = payload["encrypted_task_payload"].clone();
                 payload["request_id"] = json!(request);
-                send(socket, "task_update_job_persist", payload).await?;
                 // After dispatch, finish the canonical receipt even if cancelled.
-                let receipt = crate::platform::time::timeout(
-                    Duration::from_secs(20),
-                    super::transport::wait_task_job(
-                        socket,
+                let receipt = transport
+                    .job(
+                        "task_update_job_persist",
+                        payload,
                         "task_update_job_persisted",
                         &request,
                         job_id,
-                    ),
-                )
-                .await
-                .map_err(|_| Error::Offline)??;
+                    )
+                    .await?;
                 if receipt["task_id"] != claim.task_id
                     || !matches!(
                         receipt["state"].as_str(),
@@ -207,13 +258,6 @@ impl Client {
                 {
                     return Err(Error::Protocol);
                 }
-                let mut canonical =
-                    self.request_committed_task(&claim.task_id, false).await?["task"].clone();
-                if canonical["task_id"] != claim.task_id {
-                    return Err(Error::Forbidden);
-                }
-                let wrappers = self.request_committed_task(&claim.task_id, true).await?;
-                canonical["key_wrappers"] = wrappers["key_wrappers"].clone();
                 let version = if claim.operation == "create" {
                     1
                 } else {
@@ -222,59 +266,66 @@ impl Client {
                         .checked_add(1)
                         .ok_or(Error::Protocol)?
                 };
-                crate::work::verify_task_job_persistence(
-                    canonical,
-                    &wrapping,
-                    team.as_deref(),
-                    &task_key,
-                    &expected,
-                    version,
-                    &owner,
-                )?;
+                if let Some(wrapping) = wrapping {
+                    let mut canonical =
+                        self.request_committed_task(&claim.task_id, false).await?["task"].clone();
+                    if canonical["task_id"] != claim.task_id {
+                        return Err(Error::Forbidden);
+                    }
+                    let wrappers = self.request_committed_task(&claim.task_id, true).await?;
+                    canonical["key_wrappers"] = wrappers["key_wrappers"].clone();
+                    crate::work::verify_task_job_persistence(
+                        canonical,
+                        &wrapping,
+                        team.as_deref(),
+                        &task_key,
+                        &expected,
+                        version,
+                        &owner,
+                    )?;
+                } else {
+                    self.tasks()
+                        .verify_personal_job_write(&claim.task_id, &task_key, &expected, version)
+                        .await?;
+                }
             } else {
                 // A replay still proves canonical Task ownership/Team wrappers.
-                let current = self.tasks().show(&claim.task_id).await?;
+                let current = if self.browser_credentials.is_some() {
+                    self.tasks()
+                        .read_personal_job_result(&claim.task_id)
+                        .await?
+                } else {
+                    self.tasks().show(&claim.task_id).await?
+                };
                 verify_persisted_claim(&claim, &current)?;
             }
             self.task_job_owner(&owner, generation, team.as_deref())?;
-            let mut payload = json!({"chat_id":claim.chat_id,"message":system});
-            if let Some(team) = &team {
-                payload["team_id"] = json!(team)
-            }
-            send(socket, "chat_system_message_added", payload).await?;
-            let confirmed = crate::platform::time::timeout(
-                Duration::from_secs(20),
-                super::transport::wait(
-                    socket,
-                    "system_message_confirmed",
-                    "message_id",
-                    required(&system, "message_id")?,
-                ),
-            )
-            .await
-            .map_err(|_| Error::Offline)??;
-            if confirmed["chat_id"]
-                .as_str()
-                .is_some_and(|id| id != claim.chat_id)
-            {
-                return Err(Error::Forbidden);
-            }
-            self.task_job_owner(&owner, generation, team.as_deref())?;
-            let request = uuid::Uuid::new_v4().to_string();
-            send(socket,"task_update_job_event_confirmed",json!({"protocol_version":1,"job_id":job_id,"request_id":request,"event_system_message_id":system["message_id"]})).await?;
-            let receipt = crate::platform::time::timeout(
-                Duration::from_secs(20),
-                super::transport::wait_task_job(
-                    socket,
+            if let Some(system) = &system {
+                let mut payload = json!({"chat_id":claim.chat_id,"message":system});
+                if let Some(team) = &team {
+                    payload["team_id"] = json!(team)
+                }
+                let confirmed = transport
+                    .system_message(payload, required(system, "message_id")?)
+                    .await?;
+                if confirmed["chat_id"]
+                    .as_str()
+                    .is_some_and(|id| id != claim.chat_id)
+                {
+                    return Err(Error::Forbidden);
+                }
+                self.task_job_owner(&owner, generation, team.as_deref())?;
+                let request = uuid::Uuid::new_v4().to_string();
+                let receipt = transport.job(
+                    "task_update_job_event_confirmed",
+                    json!({"protocol_version":1,"job_id":job_id,"request_id":request,"event_system_message_id":system["message_id"]}),
                     "task_update_job_event_confirmed",
                     &request,
                     job_id,
-                ),
-            )
-            .await
-            .map_err(|_| Error::Offline)??;
-            if receipt["state"] != "TERMINAL" || receipt["task_id"] != claim.task_id {
-                return Err(Error::Protocol);
+                ).await?;
+                if receipt["state"] != "TERMINAL" || receipt["task_id"] != claim.task_id {
+                    return Err(Error::Protocol);
+                }
             }
             self.task_job_owner(&owner, generation, team.as_deref())?;
             handled.insert(job_id.clone());
@@ -288,7 +339,7 @@ impl Client {
         {
             return Err(Error::Cancelled);
         }
-        self.require_session()?;
+        self.require_work_authority()?;
         Ok(())
     }
     fn existing_task_event(&self, claim: &TaskJobClaim) -> Result<Option<Value>> {

@@ -1,142 +1,168 @@
-# backend/core/api/app/routes/handlers/websocket_handlers/cancel_ai_task_handler.py
-# Handles WebSocket requests to cancel an ongoing AI Celery task.
+"""Scoped cancellation for an authenticated first-party assistant turn."""
 
 import logging
-from typing import Dict, Any, Optional
-from fastapi import WebSocket
+import re
+from typing import Any
 
-from backend.core.api.app.routes.connection_manager import ConnectionManager
-from backend.core.api.app.tasks.celery_config import app as celery_app # Celery app instance
-from backend.core.api.app.services.cache import CacheService
-from backend.shared.python_utils.ai_task_cancellation import record_cancellation_intent
+from backend.core.api.app.routes.connection_manager import volatile_ai_live_key
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, project_direct_chat_metadata
+from backend.core.api.app.services.directus.team_methods import TEAM_ROLES, TeamPermissionError, hash_id
+from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.shared.python_utils.independent_chat_reply import independent_reply_is_active
+from backend.shared.python_utils.ai_task_cancellation import (
+    cancellation_scope_key,
+    fence_cancelled_turn_if_idle,
+    record_cancellation_intent,
+)
 
 logger = logging.getLogger(__name__)
+_IDENTITY = re.compile(r"[a-zA-Z0-9_:-]{1,255}")
+
+
+async def _authorized_chat_scope(
+    *, cache: Any, directus: Any, manager: Any, user_id: str,
+    device_fingerprint_hash: str, chat_id: str, task_id: str,
+) -> bool:
+    """Require current personal ownership or the task actor's current Team/live scope."""
+    actor = await cache.get(cancellation_scope_key(chat_id, task_id))
+    if not isinstance(actor, dict) or (
+        actor.get("user_id"), actor.get("chat_id"), actor.get("task_id"),
+    ) != (user_id, chat_id, task_id):
+        actor = {}
+    team_id = actor.get("team_id")
+    session_nonce = actor.get("session_nonce")
+    if session_nonce:
+        if (manager.get_volatile_session_nonce(user_id, device_fingerprint_hash) != session_nonce
+                or await cache.get(volatile_ai_live_key(session_nonce)) != hash_id(user_id)):
+            return False
+    else:
+        chat = await directus.chat.get_chat_metadata(chat_id, admin_required=True)
+        if not isinstance(chat, dict) or chat.get("id") != chat_id or "hashed_team_id" not in chat:
+            return False
+        if not chat["hashed_team_id"]:
+            return chat.get("hashed_user_id") == hash_id(user_id) and not is_direct_chat(chat)
+        if not isinstance(team_id, str) or hash_id(team_id) != chat["hashed_team_id"]:
+            return False
+        if is_direct_chat(chat):
+            try:
+                project_direct_chat_metadata(chat, user_id)
+            except (ValueError, PermissionError):
+                return False
+    if team_id:
+        try:
+            await directus.team.require_team_role(team_id, user_id, TEAM_ROLES - {"viewer"})
+        except TeamPermissionError:
+            return False
+    return True
+
+
+async def cancel_owned_ai_task(
+    *, cache_service: Any, directus_service: Any, manager: Any, user_id: str,
+    device_fingerprint_hash: str, chat_id: str | None, task_id: str,
+) -> str | None:
+    """Apply the explicit Stop action to exactly one currently authorized execution."""
+    if not isinstance(task_id, str) or not _IDENTITY.fullmatch(task_id):
+        return None
+    from backend.apps.ai.tasks.async_skill_continuation import (
+        ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+        async_skill_latest_user_turn_key,
+        cancel_same_turn_source,
+    )
+    from backend.shared.python_utils.focus_continuation_history import (
+        cancel_focus_execution,
+        find_cancellable_focus_execution,
+    )
+
+    mapped_chat_id = await cache_service.get_chat_id_for_task(task_id)
+    if chat_id is None:
+        chat_id = mapped_chat_id
+    if (not isinstance(chat_id, str) or not _IDENTITY.fullmatch(chat_id)
+            or (mapped_chat_id is not None and mapped_chat_id != chat_id)
+            or not await _authorized_chat_scope(
+                cache=cache_service, directus=directus_service, manager=manager,
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                chat_id=chat_id, task_id=task_id,
+            )):
+        return None
+
+    foreground = (mapped_chat_id == chat_id and await cache_service.get_active_ai_task(chat_id) == task_id)
+    independent = (not foreground and mapped_chat_id == chat_id and await independent_reply_is_active(
+        cache_service, user_id=user_id, chat_id=chat_id, task_id=task_id,
+    ))
+    focus = not foreground and not independent and await find_cancellable_focus_execution(
+        cache_service, user_id, chat_id, task_id,
+    )
+    if independent:
+        await record_cancellation_intent(cache_service, user_id, chat_id, task_id)
+        celery_app.control.revoke(task_id, terminate=True, signal="SIGUSR1")
+        status = "revocation_sent"
+    elif foreground or focus:
+        # Record intent before SIGUSR1. The worker may observe this signal
+        # before Celery records REVOKED and must seal an interrupted reply.
+        latest_key = async_skill_latest_user_turn_key(user_id, chat_id)
+        latest_turn = await cache_service.get(latest_key) if foreground else None
+        await record_cancellation_intent(cache_service, user_id, chat_id, task_id)
+        celery_app.control.revoke(task_id, terminate=True, signal="SIGUSR1")
+        paused_cancelled = await cancel_same_turn_source(
+            cache_service, user_id=user_id, chat_id=chat_id, source_task_id=task_id,
+        )
+        focus_cancelled = await cancel_focus_execution(cache_service, user_id, chat_id, task_id)
+        if (foreground and not focus_cancelled
+                and await cache_service.complete_active_ai_task_if_queue_empty(chat_id, task_id) == 1
+                and not paused_cancelled):
+            await fence_cancelled_turn_if_idle(
+                cache_service, chat_id=chat_id, latest_key=latest_key,
+                expected_latest=latest_turn, task_id=task_id,
+                ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
+            )
+        status = "revocation_sent"
+    elif await cancel_same_turn_source(
+        cache_service, user_id=user_id, chat_id=chat_id, source_task_id=task_id,
+    ):
+        status = "paused_turn_cancelled"
+    else:
+        return None
+    return status
 
 
 async def handle_cancel_ai_task(
-    websocket: WebSocket,
-    manager: ConnectionManager,
-    user_id: str,
-    device_fingerprint_hash: str,
-    payload: Dict[str, Any],
-    cache_service: Optional[CacheService] = None,
-    user_otel_attrs: dict = None,):
-    """
-    Handles a request to cancel an AI task.
-    
-    This handler:
-    1. Sends a revocation signal to Celery to stop the task
-    2. Releases an empty chat, or retains ownership until queued follow-ups hand off.
-       The cancellation acknowledgement stops the originating client's indicator.
-    
-    Payload is expected to contain:
-    {
-        "task_id": "celery_task_id_to_cancel",
-        "chat_id": "chat_id_where_task_is_running"  # Required to clear active task marker
-    }
-    """
-    _otel_span, _otel_token = None, None
+    *, websocket: Any, manager: Any, user_id: str, device_fingerprint_hash: str,
+    payload: dict[str, Any], cache_service: Any, directus_service: Any,
+    user_otel_attrs: dict | None = None,
+) -> None:
+    """Signal only a presently bound delivery, or settle its exact parked turn."""
+    task_id = payload.get("task_id")
+    chat_id = payload.get("chat_id")
+    span, token = None, None
     try:
         from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
-        _otel_span, _otel_token = start_ws_handler_span("cancel_ai_task", user_id, payload, user_otel_attrs)
+        span, token = start_ws_handler_span("cancel_ai_task", user_id, payload, user_otel_attrs)
     except Exception:
         pass
+
+    async def send(kind: str, details: dict[str, Any]) -> None:
+        await manager.send_personal_message(
+            message={"type": kind, "payload": details},
+            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+        )
+
     try:
-        task_id_to_cancel = payload.get("task_id")
-        chat_id = payload.get("chat_id")
-        log_prefix = f"[CancelAI Task][User: {user_id[:6]}][Device: {device_fingerprint_hash[:6]}]"
-
-        if not task_id_to_cancel:
-            payload_keys = sorted(payload.keys()) if isinstance(payload, dict) else []
-            logger.warning(
-                f"{log_prefix} 'task_id' not provided in cancel_ai_task payload. "
-                f"payload_keys={payload_keys}"
-            )
-            await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": "Task ID is required for cancellation.", "details": "missing_task_id"}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
+        if not isinstance(task_id, str) or not _IDENTITY.fullmatch(task_id):
+            await send("error", {"code": "invalid_ai_task_cancel", "message": "A task ID is required."})
             return
-
-        logger.info(f"{log_prefix} Received request to cancel AI task_id: {task_id_to_cancel}, chat_id: {chat_id}")
-
-        try:
-            # SIGUSR1 may reach the worker before Celery records REVOKED. Persist
-            # the owner's intent first so terminal cleanup cannot misclassify Stop
-            # as a timeout and skip encrypted completion recovery.
-            if chat_id:
-                if not cache_service:
-                    cache_service = CacheService()
-                await record_cancellation_intent(cache_service, user_id, chat_id, task_id_to_cancel)
-            celery_app.control.revoke(task_id_to_cancel, terminate=True, signal="SIGUSR1")
-            logger.info(f"{log_prefix} Revocation signal sent for task_id: {task_id_to_cancel}")
-
-            # The worker's failure cleanup needs this fence to hand off accepted
-            # follow-ups. Release only an empty queue, atomically with admission;
-            # a plain matching clear strands followers when Stop races cleanup.
-            if chat_id:
-                focus_cancelled = False
-                paused_cancelled = False
-                cleared = False
-                try:
-                    if not cache_service:
-                        cache_service = CacheService()
-                    from backend.apps.ai.tasks.async_skill_continuation import cancel_same_turn_source
-                    paused_cancelled = await cancel_same_turn_source(
-                        cache_service, user_id=user_id, chat_id=chat_id,
-                        source_task_id=task_id_to_cancel,
-                    )
-                    from backend.shared.python_utils.focus_continuation_history import cancel_focus_execution
-                    focus_cancelled = await cancel_focus_execution(
-                        cache_service, user_id, chat_id, task_id_to_cancel,
-                    )
-                    cleared = focus_cancelled or (
-                        await cache_service.complete_active_ai_task_if_queue_empty(
-                            chat_id, task_id_to_cancel,
-                        ) == 1
-                    )
-                    if cleared:
-                        logger.info(f"{log_prefix} Cleared active_ai_task marker for chat {chat_id}")
-                    else:
-                        logger.debug(f"{log_prefix} Retained queued or superseded active task ownership for chat {chat_id}")
-                except Exception as cache_err:
-                    logger.warning(f"{log_prefix} Failed to clear active_ai_task marker: {cache_err}")
-                try:
-                    from backend.apps.ai.tasks.async_skill_continuation import (
-                        ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-                        async_skill_latest_user_turn_key,
-                    )
-                    if not cache_service:
-                        cache_service = CacheService()
-                    if cleared and not paused_cancelled and not focus_cancelled:
-                        await cache_service.set(
-                            async_skill_latest_user_turn_key(user_id, chat_id),
-                            f"cancelled:{task_id_to_cancel}",
-                            ttl=ASYNC_SKILL_CONTINUATION_TTL_SECONDS,
-                        )
-                except Exception as cache_err:
-                    logger.warning(f"{log_prefix} Failed to fence async continuations: {cache_err}")
-            else:
-                logger.warning(f"{log_prefix} chat_id not provided - cannot clear active_ai_task marker. Typing indicator may persist until task processes revocation.")
-
-            await manager.send_personal_message(
-                message={"type": "ai_task_cancel_requested", "payload": {"task_id": task_id_to_cancel, "status": "revocation_sent"}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-        except Exception as e:
-            logger.error(f"{log_prefix} Error revoking task_id {task_id_to_cancel}: {e}", exc_info=True)
-            await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": f"Failed to send cancellation for task {task_id_to_cancel}.", "details": str(e)}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-
+        status = await cancel_owned_ai_task(
+            cache_service=cache_service, directus_service=directus_service, manager=manager,
+            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, chat_id=chat_id,
+            task_id=task_id,
+        )
+        if status is None:
+            await send("error", {"code": "ai_task_cancel_unavailable", "message": "This task is unavailable to stop."})
+            return
+        await send("ai_task_cancel_requested", {"task_id": task_id, "status": status})
+    except Exception:
+        logger.exception("Verified AI task cancellation did not settle")
+        await send("error", {"code": "ai_task_cancel_failed", "message": "The task stop could not be confirmed."})
     finally:
-        if _otel_span is not None:
-            try:
-                from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span as _end_span
-                _end_span(_otel_span, _otel_token)
-            except Exception:
-                pass
+        if span and token:
+            from backend.shared.python_utils.tracing.ws_span_helper import end_ws_handler_span
+            end_ws_handler_span(span, token)

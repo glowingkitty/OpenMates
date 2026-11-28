@@ -106,3 +106,29 @@ fn scope_query_names_the_chat_or_project_and_team() {
         "&project_id=project-1&team_id=team-1"
     );
 }
+
+#[test]
+fn reads_timeline_kind_sealed_name_and_contributors() {
+    let parsed = parse_version_history_page(
+        EMBED,
+        &page(
+            json!([
+                {"version_number": 1, "revision_origin": "assistant"},
+                {"version_number": 2, "revision_origin": "user", "revision_action": "edit",
+                    "version_kind": "named", "encrypted_version_name": "sealed-name",
+                    "contributors": [{"user_hash": "ab"}, {"mate_name": "Sophia"}]}
+            ]),
+            2,
+            Value::Null,
+        ),
+    )
+    .expect("page");
+    assert_eq!(parsed.entries[0].kind, None);
+    assert!(parsed.entries[0].contributors.is_empty());
+    assert_eq!(parsed.entries[1].kind.as_deref(), Some("named"));
+    assert_eq!(
+        parsed.entries[1].encrypted_version_name.as_deref(),
+        Some("sealed-name")
+    );
+    assert_eq!(parsed.entries[1].contributors.len(), 2);
+}

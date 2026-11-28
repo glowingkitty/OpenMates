@@ -209,6 +209,33 @@ def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
     )
 
 
+def test_private_apple_startup_profile_is_limited_to_the_exact_read_only_tests(tmp_path):
+    import base64
+
+    from scripts.ci_apple import MAC_STARTUP_BENCHMARK_SPECS, STARTUP_BENCHMARK_SPECS
+
+    queue = Queue(tmp_path / "queue.db")
+    source = "a" * 40
+    selectors = sorted(STARTUP_BENCHMARK_SPECS)
+    certificate = b"-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n"
+    profile = "apple-startup:" + base64.b64encode(certificate).decode("ascii")
+
+    job = queue.enqueue("owner", source, selectors, mode="apple-ui", proof_profile=profile)
+    assert job["proof_profile"] == profile
+    mac_selectors = sorted(MAC_STARTUP_BENCHMARK_SPECS)
+    mac_job = queue.enqueue("owner", source, mac_selectors, mode="apple-ui", proof_profile=profile)
+    assert mac_job["proof_profile"] == profile
+    assert mac_job["id"] != job["id"]
+    with pytest.raises(ValueError, match="Private Apple startup"):
+        queue.enqueue("owner", source, [selectors[0], mac_selectors[1]], mode="apple-ui", proof_profile=profile)
+    with pytest.raises(ValueError, match="Private Apple startup"):
+        queue.enqueue("owner", source, selectors[:1], mode="apple-ui", proof_profile=profile)
+    with pytest.raises(ValueError, match="Private Apple startup"):
+        queue.enqueue("owner", source, selectors, mode="apple-unit", proof_profile=profile)
+    with pytest.raises(ValueError, match="Private Apple startup"):
+        queue.enqueue("owner", source, selectors, mode="apple-ui", proof_profile="apple-startup:invalid?")
+
+
 def test_owned_prerequisite_runs_first_without_exceeding_four_slots(tmp_path):
     import pytest
     queue = Queue(tmp_path / "queue.db", max_active=4, lightweight_reserve=0)
@@ -1176,7 +1203,7 @@ class FakeE2B:
     def available(self):
         return self.free
 
-    def start(self, repo, token, timeout_minutes, root, *, mode="", specs=None):
+    def start(self, repo, token, timeout_minutes, root, *, mode="", specs=None, owner="", source=""):
         self.started.append((repo, token, timeout_minutes))
         self.meta = {"mode": mode, "specs": specs}
         if not self.accept:

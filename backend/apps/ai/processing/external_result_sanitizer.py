@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import binascii
 import copy
 import logging
 import re
@@ -71,6 +73,34 @@ LONG_TEXT_HINTS = {
     "nearby_places",
     "amenities",
 }
+
+
+# Only decode free-text fields. Google IDs, paging tokens and etags are opaque
+# and must remain byte-for-byte intact for follow-up provider calls.
+CONNECTED_ACCOUNT_TEXT_FIELDS = {
+    "attachments", "body", "cc", "description", "from", "location", "name",
+    "recipient", "sender", "snippet", "subject", "title", "to",
+}
+BASE64_TEXT_TOKEN = re.compile(r"(?<![\w+/=-])[A-Za-z0-9+/_-]{16,20000}={0,2}(?![\w+/=-])")
+
+
+def _decode_embedded_base64_text(text: str) -> str:
+    """Normalize readable Base64 passages so classifiers can see their text."""
+
+    def decode_token(match: re.Match[str]) -> str:
+        token = match.group()
+        try:
+            decoded = base64.b64decode(token + "=" * (-len(token) % 4), altchars=b"-_", validate=True)
+            candidate, _ = sanitize_text_for_ascii_smuggling(decoded.decode("utf-8"), include_stats=True)
+        except (binascii.Error, UnicodeDecodeError):
+            return token
+        if not any(char.isspace() for char in candidate.strip()) or any(
+            not char.isprintable() and char not in "\r\n\t" for char in candidate
+        ):
+            return token
+        return candidate
+
+    return BASE64_TEXT_TOKEN.sub(decode_token, text)
 
 
 def _key_name_for_path(path: str) -> str:
@@ -176,24 +206,29 @@ def _collect_string_fields(
     min_chars: int,
     collected: List[Tuple[str, str]],
     skip_field_names: Optional[set[str]] = None,
+    *,
+    include_all: bool = False,
 ) -> None:
     if isinstance(value, dict):
         for key, nested in value.items():
             next_path = f"{base_path}.{key}" if base_path else str(key)
-            _collect_string_fields(nested, next_path, min_chars, collected, skip_field_names)
+            _collect_string_fields(
+                nested, next_path, min_chars, collected, skip_field_names, include_all=include_all,
+            )
         return
 
     if isinstance(value, list):
         for idx, nested in enumerate(value):
             next_path = f"{base_path}[{idx}]" if base_path else f"[{idx}]"
-            _collect_string_fields(nested, next_path, min_chars, collected, skip_field_names)
+            _collect_string_fields(
+                nested, next_path, min_chars, collected, skip_field_names, include_all=include_all,
+            )
         return
 
-    if isinstance(value, str) and _should_sanitize_field(
-        base_path,
-        value,
-        min_chars=min_chars,
-        skip_field_names=skip_field_names,
+    if isinstance(value, str) and (
+        bool(value.strip()) if include_all else _should_sanitize_field(
+            base_path, value, min_chars=min_chars, skip_field_names=skip_field_names,
+        )
     ):
         collected.append((base_path, value))
 
@@ -290,6 +325,7 @@ async def sanitize_long_text_fields_in_payload(
     app_id: Optional[str] = None,
     skill_id: Optional[str] = None,
     timeout_seconds: float = 20.0,
+    require_complete_scan: bool = False,
 ) -> Any:
     """
     Sanitize long external text fields in a nested payload.
@@ -298,11 +334,15 @@ async def sanitize_long_text_fields_in_payload(
     before editing a copy. Uncertainty and technical failure preserve cleaned
     text; external task cancellation still propagates. max_parallel is retained
     for existing callers; concurrency and batch count are bounded centrally.
+    Private mailbox and calendar results require a verdict for every string,
+    including short fields and strings resembling URLs or encoded content.
     """
     payload, _ = sanitize_text_payload_for_ascii_smuggling(payload)
     candidates: List[Tuple[str, str]] = []
     normalized_skip = {field.lower() for field in skip_field_names or set()}
-    if always_sanitize_field_names:
+    if require_complete_scan:
+        _collect_string_fields(payload, "", min_chars, candidates, include_all=True)
+    elif always_sanitize_field_names:
         normalized_always = {field.lower() for field in always_sanitize_field_names}
         _collect_string_fields_with_overrides(
             payload,
@@ -329,6 +369,8 @@ async def sanitize_long_text_fields_in_payload(
     cleaned_by_path: Dict[str, str] = {}
     for path, text in candidates:
         cleaned, _ = sanitize_text_for_ascii_smuggling(text, include_stats=True)
+        if require_complete_scan and _key_name_for_path(path) in CONNECTED_ACCOUNT_TEXT_FIELDS:
+            cleaned = _decode_embedded_base64_text(cleaned)
         cleaned_by_path[path] = cleaned
         if cleaned.strip():
             units.extend(_split_text_units(path, cleaned, len(units)))
@@ -342,7 +384,10 @@ async def sanitize_long_text_fields_in_payload(
         if serialized_units_size(units) > SEMANTIC_SCAN_BATCH_TARGET_CHARS * MAX_DECISION_BATCHES:
             raise StructuredScanError("OUTPUT_SAFETY_TOO_LARGE")
         decisions_by_id = await asyncio.wait_for(
-            classify_text_units(units, task_id=task_id, secrets_manager=secrets_manager, cache_service=cache_service),
+            classify_text_units(
+                units, task_id=task_id, secrets_manager=secrets_manager, cache_service=cache_service,
+                require_complete_scan=require_complete_scan,
+            ),
             timeout=timeout_seconds,
         )
         if set(decisions_by_id) != {unit["id"] for unit in units} or any(
@@ -350,6 +395,8 @@ async def sanitize_long_text_fields_in_payload(
             for d in decisions_by_id.values()
         ):
             raise StructuredScanError("OUTPUT_SAFETY_INVALID")
+        if require_complete_scan and any(d.verdict == "uncertain" for d in decisions_by_id.values()):
+            raise StructuredScanError("OUTPUT_SAFETY_UNAVAILABLE")
         replacements: Dict[str, str] = dict(cleaned_by_path)
         for path, _ in candidates:
             field_units = [unit for unit in units if unit["path"] == path]
@@ -369,6 +416,9 @@ async def sanitize_long_text_fields_in_payload(
         reason = "OUTPUT_SAFETY_TIMEOUT" if isinstance(exc, TimeoutError) else (
             str(exc) if isinstance(exc, StructuredScanError) else "OUTPUT_SAFETY_UNAVAILABLE"
         )
+        if require_complete_scan:
+            logger.warning("[%s] Withholding external result: %s", task_id, reason)
+            raise StructuredScanError(reason) from None
         logger.warning("[%s] Semantic scan status=unscanned reason=%s; returning ASCII-cleaned content", task_id, reason)
         return payload
 

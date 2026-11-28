@@ -20,13 +20,13 @@ async function inspectSavedBundleState(
 			open.onerror = () => reject(open.error);
 		});
 		try {
-			const tx = db.transaction(['messages', 'chats', 'embeds', 'embed_keys'], 'readonly');
+			const tx = db.transaction([(db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'chats', 'embeds', 'embed_keys'], 'readonly');
 			const read = <T>(request: IDBRequest<T>): Promise<T> => new Promise((resolve, reject) => {
 				request.onsuccess = () => resolve(request.result);
 				request.onerror = () => reject(request.error);
 			});
 			const [message, chat, head, keys] = await Promise.all([
-				read(tx.objectStore('messages').get(messageId)),
+				read(tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').get(messageId)),
 				read(tx.objectStore('chats').get(chatId)),
 				read(tx.objectStore('embeds').get(`embed:${embedId}`)),
 				read(tx.objectStore('embed_keys').index('hashed_embed_id').getAll(hashedEmbedId)),
@@ -77,10 +77,11 @@ test('v31 sealed turn journal is indexed when the app upgrades to v32', async ({
 		let snapshotBytes = 0;
 		try {
 			for (const name of Array.from(previous.objectStoreNames)) {
+				if (name === 'opened_history_coverage') continue;
 				const tx = previous.transaction(name, 'readonly');
 				const source = tx.objectStore(name);
 				const saved: SavedStore = {
-					name, keyPath: source.keyPath, autoIncrement: source.autoIncrement,
+					name: name === 'saved_messages_v34' ? 'messages' : name, keyPath: source.keyPath, autoIncrement: source.autoIncrement,
 					indexes: Array.from(source.indexNames, (indexName) => {
 						const index = source.index(indexName);
 						return { name: indexName, keyPath: index.keyPath, unique: index.unique, multiEntry: index.multiEntry };
@@ -158,7 +159,7 @@ test('v31 sealed turn journal is indexed when the app upgrades to v32', async ({
 					else store.put(value);
 				}
 			}
-			tx.objectStore('messages').put(row);
+			tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').put(row);
 			tx.oncomplete = () => resolve();
 			tx.onerror = () => reject(tx.error);
 			tx.onabort = () => reject(tx.error);
@@ -183,8 +184,8 @@ test('v31 sealed turn journal is indexed when the app upgrades to v32', async ({
 			open.onerror = () => reject(open.error);
 		});
 		try {
-			const tx = db.transaction('messages', 'readonly');
-			const store = tx.objectStore('messages');
+			const tx = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly');
+			const store = tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages');
 			const indexes = ['status_created_at_message_id', 'pending_turn_created_at_message_id']
 				.every((name) => store.indexNames.contains(name));
 			const get = store.get(messageId);
@@ -212,8 +213,8 @@ test('v31 sealed turn journal is indexed when the app upgrades to v32', async ({
 			});
 			try {
 				await new Promise<void>((resolve, reject) => {
-					const tx = db.transaction('messages', 'readwrite');
-					tx.objectStore('messages').delete(messageId);
+					const tx = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readwrite');
+					tx.objectStore(tx.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').delete(messageId);
 					tx.oncomplete = () => resolve();
 					tx.onerror = () => reject(tx.error);
 					tx.onabort = () => reject(tx.error);

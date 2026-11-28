@@ -78,6 +78,7 @@ export async function buildChatZipRequest(
 		transcripts: files.transcripts.map((file) => file.filename),
 		images: files.images.map((file) => file.filename),
 		generatedAudio: files.generatedAudio.map((file) => file.filename),
+		...(files.generatedFiles.length > 0 && { generatedFiles: files.generatedFiles.map((file) => file.filename) }),
 		staticFiles: files.staticFiles.map((file) => file.filename),
 		audio: files.audio.map((file) => file.filename),
 		pdfs: files.pdfs.map((pdf) => ({ folderName: pdf.folderName, pages: pdf.pages.map((page) => page.filename) })),
@@ -102,6 +103,7 @@ export function resolveZipSource(src: [string, number, number?], input: ChatZipI
 		case 'transcript': return files.transcripts[index].content;
 		case 'image': return files.images[index].blob;
 		case 'generatedAudio': return files.generatedAudio[index].blob;
+		case 'generatedFile': return files.generatedFiles[index].blob;
 		case 'staticFile': return files.staticFiles[index].blob;
 		case 'audio': return files.audio[index].blob;
 		case 'audioTranscript': return files.audio[index].transcript;

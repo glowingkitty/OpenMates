@@ -1,0 +1,109 @@
+schema_version: 2
+id: health-appointment-horizon-and-relevance
+goal: Implement and test longer appointment searches and evaluate natural-language filtering for the adult ADHD
+  example and other doctor appointment searches.
+scope:
+  in:
+  - Seven-day default and explicitly requested thirty- and sixty-day windows.
+  - Source-grounded visit eligibility and optional appointment ranking.
+  - Private implementation and live verification of explicitly installed sources on dev.
+  out:
+  - Provider-specific names or implementation in the public repository.
+  - Booking or treatment advice.
+title: Extend appointment availability windows and evaluate optional ranking
+status: verified
+scenarios:
+- id: S-1
+  title: Search appointments with booking evidence
+  given:
+  - An explicitly installed appointment source serves the requested specialty.
+  when:
+  - The user asks for appointments within 30 or 60 days or supplies visit requirements.
+  then:
+  - The search returns observed availability and separates unverified medical eligibility from confirmed appointment
+    requirements.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Verify the long-window requests on dev and compare optional ranking on identical candidates for psychiatry
+    and other specialties.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-DEV
+tests:
+- id: T-DEV
+  type: manual
+  assertions:
+  - Extended windows return provider-backed dates and the evidence survives direct and ordinary chat requests.
+  - Ranking comparison records the provider candidate sets, request latency, and the impact on useful appointments.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      reason: Live dev CLI chats exercised both extended windows through installed sources. Calendar checks
+        compared request counts and elapsed time, and a replay of identical candidates compared eligibility
+        and ordering with relevance ranking off and on.
+      subject_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
+      timestamp: '2026-11-27T10:37:21Z'
+implementation_state:
+  subject_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
+approvals:
+  plan:
+    status: approved
+    reason: The owner requested implementation, testing and comparison.
+    approved_at: '2026-11-26T15:26:14.177024+00:00'
+  specification:
+    status: pending
+decisions:
+- id: D-1
+  status: active
+  decision: Keep ranking optional while measuring its impact and preserve the seven-day default.
+  reason: The extended window and ranking are under evaluation.
+  decided_at: '2026-11-26T15:26:14.177024+00:00'
+attempts:
+- id: A-1
+  outcome: succeeded
+  approach: Measured upstream request counts, payload sizes and calendar yield with fixed candidates.
+  task_id: TASK-1
+  recorded_at: '2026-11-26T15:26:14.177024+00:00'
+handoff:
+  next_action: Review the draft Specification for the supported windows and optional ranking.
+  current_task_id: TASK-1
+  command: python3 scripts/plan_verify.py docs/plans/health-appointment-horizon-and-relevance/plan.yml --phase complete
+  expected_outcome: The implementation remains verified while Specification approval is pending.
+  last_verified_commit: 0a74c5aeb114d33ebb1812166df6c63bb54248ae
+tasks:
+- id: TASK-1
+  title: Implement and verify extended appointment searches and optional ranking
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - backend/apps/health/skills/search_appointments_skill.py
+  - backend/tests/test_health_search_appointments_skill.py
+  verification_ids:
+  - T-DEV
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - backend/apps/health/skills/search_appointments_skill.py
+    - backend/tests/test_health_search_appointments_skill.py
+    shared_files:
+    - backend/shared/app_packages/delegate_skill.py
+    - backend/shared/python_utils/search_relevance.py

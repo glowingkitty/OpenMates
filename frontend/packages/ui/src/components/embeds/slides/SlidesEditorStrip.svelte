@@ -30,9 +30,11 @@
     onDuplicate: () => void;
     onDelete: () => void;
     onMove: (delta: -1 | 1) => void;
+    /** Slide id to the name of an assistant (mate) editing it: shows "<mate> is editing here". */
+    badges?: Record<string, string>;
   }
 
-  let { slides, width, height, template, theme, currentId, onOpen, onAdd, onDuplicate, onDelete, onMove }: Props = $props();
+  let { slides, width, height, template, theme, currentId, onOpen, onAdd, onDuplicate, onDelete, onMove, badges = {} }: Props = $props();
 
   const actionsId = $props.id();
   let position = $derived(slides.findIndex((slide) => slide.id === currentId));
@@ -84,6 +86,9 @@
         >
           <SlideCanvas motion={false} slide={toRenderSlide(slide)} {width} {height} {template} {theme} />
         </button>
+        {#if badges[slide.id]}
+          <span class="slides-editor-slide-badge" data-testid="slides-editor-mate-badge">{$text('embed_user_edits.live_editing_here', { values: { name: badges[slide.id] } })}</span>
+        {/if}
       </div>
     {/each}
     <div role="listitem" class="slides-editor-strip-cell slides-editor-strip-add">
@@ -170,6 +175,16 @@
   }
 
   /* Reset of the global button sizing (buttons.css). */
+  .slides-editor-slide-badge {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--font-size-tiny);
+    color: var(--color-font-secondary);
+  }
+
   .slides-editor-thumb {
     display: block;
     height: 64px;

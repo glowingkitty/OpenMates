@@ -147,6 +147,7 @@ impl Peer {
     // 4=current disabled terminal, 5=foreign/unbound typed terminal before current.
     // 8=force next-auth accept before polling the completed old proof socket.
     // 9=wrapper-only protected cache, 10=populated metadata/history without sidecars.
+    // 11=pending main recovery; 12=bounded recent rows with a larger account total.
     async fn start_protocol(
         include_main: bool,
         complete_markers: bool,
@@ -303,6 +304,21 @@ impl Peer {
                         );
                         phase_payload["embed_keys"] = baseline["embed_keys"].clone();
                     }
+                }
+                if protocol == 12 {
+                    let key = crypto::encrypt_bytes(&[8;32], &[1;32]).unwrap();
+                    let title = crypto::encrypt_combined("Recent chat", &[8;32]).unwrap();
+                    let rows = (0..100).map(|index| json!({"chat_details":{
+                        "id":format!("12345678-1234-4321-8321-{index:012}"),
+                        "messages_v":1, "encrypted_chat_key":key, "encrypted_title":title
+                    }})).collect::<Vec<_>>();
+                    phase_payload = json!({"chats":rows,"total_chat_count":1200,"authoritative":false});
+                } else {
+                    let ids = phase_payload["chats"].as_array().unwrap().iter()
+                        .map(|wrapper| wrapper["chat_details"]["id"].clone()).collect::<Vec<_>>();
+                    phase_payload["total_chat_count"] = json!(ids.len());
+                    phase_payload["authoritative"] = json!(true);
+                    phase_payload["authoritative_chat_ids"] = json!(ids);
                 }
                 let mut frames =
                     vec![json!({"type":"phase_2_last_20_chats_ready","payload":phase_payload})];
@@ -1309,5 +1325,31 @@ async fn original_pending_main_lease_prevents_empty_inventory_without_offer_or_c
         let(jobs,proof)=client.completion_recovery_jobs_with_inventory(&cancel).await.unwrap();
         assert!(jobs.is_empty());assert!(proof.is_none(),"a live pending lease is not absence");
         client.set_foreground_completion_recovery(false).unwrap();client.list(Workspace::Chats).await.unwrap();peer.finish(2).await;
+    }).await.unwrap();
+}
+
+// contract-test: supporting surface=sdks.rust assertions=sync.startup.recent-metadata-cap,sync.deletion.partial-window-not-authoritative
+#[tokio::test]
+async fn proven_recent_window_reuses_the_same_batch_without_claiming_complete_list_freshness() {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let peer = Peer::start_protocol(true, true, 0, 0, 0, false, 12).await;
+        let mut client = peer.client();
+        client.set_chat_cache_clock_provider(Some(Arc::new(|| {
+            CacheClockEvidence::from_platform("fixture".into(), 100, 100)
+        })));
+        let cancel = CancellationToken::new();
+        client.set_foreground_completion_recovery(true).unwrap();
+        let (jobs, proof) = client.completion_recovery_jobs_with_inventory(&cancel).await.unwrap();
+        assert!(jobs.is_empty());
+        client.set_foreground_completion_recovery(false).unwrap();
+
+        let (rows, complete) = client.list_with_fresh_chat_inventory_marked(
+            Workspace::Chats, proof.expect("same-batch recovery was settled"), &cancel,
+        ).await.unwrap();
+        assert_eq!(rows.len(), 100);
+        assert_eq!(client.chat_total_count(), Some(1200));
+        assert!(!complete);
+        assert!(client.ciphertext_snapshot().get(chat_list_freshness::SNAPSHOT_FIELD).is_none());
+        peer.finish(1).await;
     }).await.unwrap();
 }

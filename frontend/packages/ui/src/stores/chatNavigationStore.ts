@@ -20,6 +20,7 @@
  *      activeChatStore to persist the selection (same as Chats.svelte handleChatClick)
  */
 
+import { cancelOpenedChatStartup } from "../services/rustCore/startupOpenedChats";
 import { writable } from "svelte/store";
 import type { Chat } from "../types/chat";
 import { activeChatStore } from "./activeChatStore";
@@ -29,7 +30,7 @@ import {
   getAllExampleChats,
   translateDemoChat,
 } from "../demo_chats";
-import { convertDemoChatToChat } from "../demo_chats/convertToChat";
+import { convertDemoChatToChat, isPublicChat } from "../demo_chats/convertToChat";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "../services/drafts/draftConstants";
 import { isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import {
@@ -80,6 +81,7 @@ let currentChatId: string | null = null;
  */
 let chatListOwnedByChatsComponent = false;
 let navigationGeneration = 0;
+const RECENT_CHAT_LIMIT = 100;
 
 function inActiveContext(chats: Chat[], teamId: string | null): Chat[] {
   return chats.filter((chat) => !chat.chat_id.startsWith("legal-") && (chat.team_id ?? null) === teamId);
@@ -234,18 +236,22 @@ export async function navigateNext(): Promise<void> {
  *   1. If Chats.svelte already populated chatList, just update the active ID
  *      and recompute hasPrev/hasNext — never overwrite the authoritative list.
  *   2. If chatListCache has a fresh snapshot, build the navigable list from it.
- *   3. If the cache is empty (cold boot, sidebar never opened), load the full
- *      chat list from IndexedDB in the background and update when ready.
+ *   3. If the cache is empty (cold boot, sidebar never opened), read the recent
+ *      root chat window in the background. Include an explicitly selected
+ *      older chat from the already-resolved display header.
  *
  * Called by ActiveChat.loadChat() on every chat switch.
  */
-export function updateNavFromCache(activeChatId: string): void {
+export function updateNavFromCache(activeChatId: string, selectedChat?: Chat): void {
   const generation = ++navigationGeneration;
   const context = getActiveTeamContextSnapshot();
-  // ── Case 1: List already populated ───────────────────────────────────────
-  //
-  // If Chats.svelte owns the list (sidebar is/was open), it keeps the list
-  // up-to-date via its own reactive $effect, so we can safely reuse it here.
+  if (chatListOwnedByChatsComponent) {
+    currentChatId = activeChatId;
+    updateNavigationFlags(activeChatId);
+    return;
+  }
+
+  // ── Case 1: Provisional list already populated ────────────────────────────
   //
   // If the list is only provisional (built during cold boot from intro/legal
   // with possibly zero example chats), we must check whether example chats
@@ -253,14 +259,6 @@ export function updateNavFromCache(activeChatId: string): void {
   // new example chats are available, we fall through to Case 3 to rebuild
   // rather than returning stale hasPrev=false / hasNext=false.
   if (chatList.length > 0) {
-    if (chatListOwnedByChatsComponent) {
-      // Chats.svelte manages the list — just update position.
-      currentChatId = activeChatId;
-      updateNavigationFlags(activeChatId);
-      return;
-    }
-
-    // Provisional list — check if it needs rebuilding.
     const idx = chatList.findIndex((c) => c.chat_id === activeChatId);
     const exampleCountInList = chatList.filter(
       (c) => c.group_key === "examples",
@@ -278,11 +276,22 @@ export function updateNavFromCache(activeChatId: string): void {
     // Fall through to Case 3 to rebuild the list from scratch.
   }
 
+  const withSelectedHeader = (chats: Chat[]): Chat[] => {
+    if (!selectedChat || selectedChat.chat_id !== activeChatId ||
+        (selectedChat.team_id ?? null) !== context.teamId ||
+        selectedChat.parent_id || selectedChat.is_sub_chat ||
+        selectedChat.is_anonymous || selectedChat.is_incognito ||
+        isPublicChat(activeChatId) || chats.some(chat => chat.chat_id === activeChatId)) return chats;
+    const header = { ...selectedChat };
+    delete header.messages;
+    return [...chats, header];
+  };
+
   // ── Case 2: Cache already populated by Chats.svelte ──────────────────────
   const cached = chatListCache.getCache();
   const contextCached = cached ? inActiveContext(cached, context.teamId) : [];
   if (contextCached.length > 0) {
-    _applyNavigableList(contextCached, activeChatId);
+    _applyNavigableList(withSelectedHeader(contextCached), activeChatId);
     return;
   }
 
@@ -318,23 +327,24 @@ export function updateNavFromCache(activeChatId: string): void {
     _applyNavigableList(publicOnlyChats, activeChatId);
   }
 
-  // ── Case 3b: Async DB fetch to pick up authenticated user chats ───────────
-  // Lazily import chatDB to avoid circular deps. This refines the list once
-  // the DB resolves — if the user has real chats they should appear in nav.
-  // We import chatDB lazily to avoid a circular dependency at module load time.
+  // The closed sidebar fallback uses the same recent window as the sidebar.
+  // Skip the read if the sidebar took ownership while the DB module loaded.
+  const stillCurrent = () => generation === navigationGeneration &&
+    !chatListOwnedByChatsComponent && isActiveTeamContext(context.teamId, context.epoch);
   import("../services/db")
-    .then(({ chatDB }) => chatDB.getAllChats())
-    .then((dbChats) => {
-      if (generation !== navigationGeneration ||
-          !isActiveTeamContext(context.teamId, context.epoch)) return;
-      // Skip if Chats.svelte has since mounted and taken ownership
-      if (chatListOwnedByChatsComponent) return;
-      // Skip if there are no user chats to add (avoids re-sorting unnecessarily)
-      if (!dbChats || dbChats.length === 0) return;
+    .then(async ({ chatDB }) => {
+      if (!stillCurrent()) return;
+      const dbChats = await chatDB.getAllChats(undefined, {
+        limit: RECENT_CHAT_LIMIT,
+        teamId: context.teamId,
+        rootsOnly: true,
+      });
+      if (!stillCurrent()) return;
 
-      // Combine: real user chats first, then public in-memory chats.
+      const recentChats = withSelectedHeader(inActiveContext(dbChats, context.teamId));
+      if (recentChats.length === 0) return;
       const allChats = [
-        ...inActiveContext(dbChats, context.teamId),
+        ...recentChats,
         ...(context.teamId ? [] : introChats),
         ...(context.teamId ? [] : getAllExampleChats().map((chat) => ({
           ...chat,
@@ -429,6 +439,8 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
  * chatSyncService, and dispatching the window event for +page.svelte.
  */
 async function selectChat(chat: Chat): Promise<void> {
+  const openedIn = getActiveTeamContextSnapshot();
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE === "1") cancelOpenedChatStartup(chat.chat_id);
   // Update local tracking immediately so rapid clicks work correctly
   currentChatId = chat.chat_id;
 
@@ -459,7 +471,7 @@ async function selectChat(chat: Chat): Promise<void> {
   if (!(chat as Chat & { is_hidden?: boolean }).is_hidden) {
     try {
       const { chatSyncService } = await import("../services/chatSyncService");
-      await chatSyncService.sendSetActiveChat(chat.chat_id);
+      await chatSyncService.sendSetActiveChat(chat.chat_id, openedIn);
     } catch (error) {
       console.error(
         "[chatNavigationStore] Error persisting active chat:",

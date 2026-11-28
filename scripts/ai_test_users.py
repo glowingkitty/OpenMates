@@ -7,14 +7,15 @@ redeems a single-use 1,000-credit gift card, uses the app in a disposable E2B br
 `backend/scripts/ai_test_users/session.py` inside the api container, files up to 3 reports through the
 app's own issue reporting, and deletes its account. A Gemini judge and Jev review the findings.
 
-  python3 scripts/ai_test_users.py daily [--date YYYY-MM-DD] [--dry-run]
+  python3 scripts/ai_test_users.py daily [--date YYYY-MM-DD] [--dry-run] [--dev-only]
   python3 scripts/ai_test_users.py run [--target dev|prod] [--personas all|id,id] [--parallel 10]
   python3 scripts/ai_test_users.py tasks --run DIR [--exclude persona#n,...] [--dry-run]
+  python3 scripts/ai_test_users.py message --run RUN_ID        # dry run of the run's Discord message
+  python3 scripts/ai_test_users.py debug --env dev|prod --issue SHORT_ID   # Marco approved an issue
 
 `daily` follows the rotation in `ai_test_users_schedule.py` (Monday to Friday 3 dev + 2 prod personas; no
-scheduled run on Saturday or Sunday), retries failed account deletions, writes run.json and report.md, and sends the run's one
-Discord message (`ai_test_users_message.py`). Reports only collect findings: no debug chat starts from them
-(owner, 20 Nov 2026). Prod runs need the flag file
+scheduled run on Saturday or Sunday), retries failed account deletions, writes the local summary, and sends a single Discord alert when there are findings or failures (`ai_test_users_message.py`). Clear functional errors start a debugging chat by themselves;
+subjective findings wait for Marco's approval (`ai_test_users_triage.py`, owner, 23 Nov 2026). Prod runs need the flag file
 ~/.openmates/ai-test-users/prod-enabled and a gift card code in prod-gift-cards.txt. Everything is written
 to ~/.openmates/ai-test-users/<run-id>/ (outside the repository). Cap: 3 USD per daily run.
 """
@@ -24,6 +25,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -35,9 +37,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import ai_test_users_accounts as accounts  # noqa: E402 - sibling script modules
+import ai_test_users_deploy_guard as deploy_guard  # noqa: E402
 import ai_test_users_exec as execution  # noqa: E402
 import ai_test_users_message as message_text  # noqa: E402
 import ai_test_users_report as reporting  # noqa: E402
+import ai_test_users_triage as triage  # noqa: E402
 import ai_test_users_scenarios as scenarios
 import ai_test_users_video as video  # noqa: E402
 import ai_test_users_schedule as schedule  # noqa: E402
@@ -92,6 +96,31 @@ def run_groups(groups: dict[str, list[dict]], run_id: str, run_dir: Path, cfg: e
         return list(pool.map(lambda j: execution.run_persona(j[0], j[1], run_id, run_dir, cfg), jobs))
 
 
+def prod_update_blocker() -> str | None:
+    """Return why production must be skipped, leaving the dev schedule free to proceed."""
+    try:
+        return deploy_guard.blocker(deploy_guard.current())
+    except (deploy_guard.GuardUnavailable, OSError, subprocess.SubprocessError, ValueError, KeyError) as exc:
+        return f"production update state unknown: {exc}"
+
+
+def mark_prod_update_overlap(run: dict, run_dir: Path, started_at: datetime) -> None:
+    """Mark a run whose prod personas overlapped a production update (owner, 23 Nov 2026)."""
+    if not any(r.get("target") == "prod" for r in run["personas"]):
+        return
+    try:
+        reason = deploy_guard.overlap(started_at, datetime.now(UTC), deploy_guard.current())
+    except deploy_guard.GuardUnavailable as exc:
+        reason = f"production update state unknown after the run: {exc}"
+    if not reason:
+        return
+    run["prod_update_overlap"] = reason
+    run["problems"].append(f"PRODUCTION issues of this run are deploy-time ({reason}); no debug chats for them")
+    (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+    (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
+    log(f"run overlapped a production update: {reason}")
+
+
 def finish_run(run_id: str, run_dir: Path, kind: str, day: str, results: list[dict], areas: list[str],
                estimate: float, cap: float, started: float, deletions: list[dict]) -> dict:
     message_text.mark_suspects(results, base=accounts.HOME)
@@ -115,37 +144,111 @@ def command_daily(args: argparse.Namespace) -> int:
     day = reporting.parse_date(args.date)
     plan = schedule.personas_for(day, [p["id"] for p in PERSONAS])
     by_id = {p["id"]: p for p in PERSONAS}
-    groups = {t: [by_id[i] for i in plan[t]] for t in ("dev", "prod") if plan[t]}
+    targets = ("dev",) if args.dev_only else ("dev", "prod")
+    groups = {target: [by_id[i] for i in plan[target]] for target in targets if plan[target]}
     if plan["kind"] == "none":
         log("no scheduled run on Saturdays and Sundays")
         return 0
-    chosen = [i for t in groups for i in plan[t]]
+    chosen = [i for target in groups for i in plan[target]]
     areas = schedule.areas_for(chosen, PERSONAS)
     count = sum(len(v) for v in groups.values())
     cfg = execution.Settings(base=accounts.HOME)
     reporting.check_cap(count, cfg.harness_cap_usd, cfg.e2b_cap_usd, args.total_cap_usd)
     estimate = reporting.estimate_usd(count, cfg.harness_cap_usd, cfg.e2b_cap_usd)
     cap = reporting.cap_for(args.total_cap_usd)
-    log(f"{plan['kind']} run {day}: dev {plan['dev']} prod {plan['prod']} estimate {estimate} USD; areas {areas}")
+    selected = {target: plan[target] for target in groups}
+    log(f"{plan['kind']} run {day}: {selected} estimate {estimate} USD; areas {areas}")
     if args.dry_run:
         return 0
     if not dev_test_account.server_is_development():
         raise SystemExit("the AI test users run from the development server.")
+    check_stock = "prod" in groups and accounts.prod_enabled()
+    prod_skipped = prod_update_blocker() if check_stock else None
+    if prod_skipped:
+        log(f"prod personas skipped: {prod_skipped}")
+        groups.pop("prod")
     run_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     run_dir = accounts.home() / run_id
     run_dir.mkdir(parents=True)
     started = time.monotonic()
+    started_at = datetime.now(UTC)
     with dev_stack_lease(run_id):
         results = run_groups(groups, run_id, run_dir, cfg, args.parallel)
-        deletions = execution.retry_deletions(run_id, run_dir, cfg)
+        deletions = execution.retry_deletions(run_id, run_dir, cfg, targets=groups.keys())
     run = finish_run(run_id, run_dir, plan["kind"], day.isoformat(), results, areas, estimate, cap, started,
                      deletions)
+    if prod_skipped:
+        run["problems"].append(f"PRODUCTION personas skipped: {prod_skipped}")
+        (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+        (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
+    mark_prod_update_overlap(run, run_dir, started_at)
     log(f"done: {run_dir / 'report.md'} total {run['totals']['total_usd']} USD")
-    if reporting.push_due(accounts.HOME, day.isoformat()):
-        message_text.push(message_text.run_message(f"AI test users daily run {day.isoformat()}", results,
-                                                   run["problems"]))
+    issues = triage_run(run, run_dir, dispatch=not args.dev_only)
+    summary = message_text.run_message(f"AI test users daily run {day.isoformat()}", results,
+                                       run["problems"], issues=issues)
+    (run_dir / "summary.txt").write_text(summary + "\n")
+    log(summary.splitlines()[0])
+    if not args.dev_only and (issues or run["problems"]) and reporting.push_due(accounts.HOME, day.isoformat()):
+        message_text.push(summary)
         reporting.mark_pushed(accounts.HOME, day.isoformat())
+    if check_stock:
+        accounts.notify_low_codes()
     return 0
+
+
+def triage_run(run: dict, run_dir: Path, dispatch: bool) -> list[dict]:
+    """Route the run's issues, link open Tasks and chats that cover them, start the automatic debug chats
+    (`dispatch`), and keep the outcome in run.json (owner, 23 Nov 2026)."""
+    try:
+        tasks = open_tasks()
+    except (RuntimeError, OSError, json.JSONDecodeError, subprocess.TimeoutExpired) as exc:
+        problem = f"open Tasks could not be checked for duplicates: {exc}"
+        log(problem)
+        run["problems"].append(problem)
+        (run_dir / "report.md").write_text(reporting.report_markdown(run, run_dir))
+        tasks = None  # no automatic chat starts without the duplicate check
+    chats = triage.running_chats()
+    if run.get("prod_update_overlap"):
+        # Deploy-time PRODUCTION issues start no chat; they are retested after the update instead.
+        dev = [r for r in run["personas"] if r.get("target") != "prod"]
+        prod = [r for r in run["personas"] if r.get("target") == "prod"]
+        issues = triage.triage(dev, accounts.HOME, dispatch, tasks=tasks, chats=chats)
+        deploy_time = triage.triage(prod, accounts.HOME, False, tasks=tasks, chats=chats)
+        for issue in deploy_time:
+            issue["debug"]["status"] = "deploy_time"
+            issue["during_prod_update"] = True
+        issues += deploy_time
+    else:
+        issues = triage.triage(run["personas"], accounts.HOME, dispatch, tasks=tasks, chats=chats)
+    for issue in issues:
+        log(f"{issue['env']} {issue.get('short_issue_id') or '-'}: {issue['debug']['status']} ({issue['title'][:80]})")
+    if dispatch:
+        run["issues"] = [{k: i.get(k) for k in ("env", "title", "short_issue_id", "issue_id", "debug",
+                                                "during_prod_update")} for i in issues]
+        (run_dir / "run.json").write_text(json.dumps(run, indent=1, ensure_ascii=False))
+    return issues
+
+
+def command_message(args: argparse.Namespace) -> int:
+    """Dry run of an earlier run's push: routes, Task/chat coverage and the Discord payload; starts nothing."""
+    run_dir = accounts.home() / args.run
+    run = json.loads((run_dir / "run.json").read_text())
+    issues = triage_run(run, run_dir, dispatch=False)
+    text = message_text.run_message(f"AI test users daily run {run['date']}", run["personas"],
+                                    run.get("problems") or [], run.get("flows"), issues=issues)
+    print(json.dumps(message_text.discord_payload(text), indent=1, ensure_ascii=False))
+    return 0
+
+
+def command_debug(args: argparse.Namespace) -> int:
+    """Marco approved an issue that waited for approval: start its debugging chat (no daily cap)."""
+    import claude_dispatch
+    import issues as issue_api
+
+    issue_id = issue_api.resolve_issue_identifier(args.env, args.issue)
+    outcome = claude_dispatch.launch_test_user_chat(issue_id, args.issue.upper(), args.env, ignore_cap=True)
+    log(f"{args.env} {args.issue}: {outcome['status']} {outcome.get('chat_title', '')} {outcome.get('note', '')}")
+    return 0 if outcome["status"] in ("started", "queued") else 1
 
 
 DAILY_UNIT = "ai-test-users.service"
@@ -153,20 +256,32 @@ DAILY_UNIT = "ai-test-users.service"
 
 def failure_detail(unit: str) -> str:
     """systemd result plus the last error line of the unit's journal (logs never carry codes or passwords)."""
-    shown = subprocess.run(["systemctl", "--user", "show", unit, "-p", "Result", "-p", "ExecMainStatus", "--value"],
-                           capture_output=True, text=True, timeout=30, check=False).stdout.split()
-    journal = subprocess.run(["journalctl", "--user", "-u", unit, "-n", "40", "--no-pager", "-o", "cat"],
-                             capture_output=True, text=True, timeout=30, check=False).stdout.splitlines()
-    lines = [line.strip() for line in journal if line.strip()]
-    errors = [line for line in lines if "Error" in line or "Exit" in line or "error" in line]
-    last = (errors or lines or ["no log"])[-1]
-    return f"{' '.join(shown) or 'unknown result'}: {last}"
+    shown = subprocess.run(
+        ["systemctl", "--user", "show", unit, "-p", "Result", "-p", "ExecMainStatus", "-p", "InvocationID"],
+        capture_output=True, text=True, timeout=30, check=False,
+    ).stdout.splitlines()
+    fields = dict(line.split("=", 1) for line in shown if "=" in line)
+    result = fields.get("Result", "unknown result")
+    if result == "timeout":
+        return "systemd reached the service start deadline"
+    invocation = fields.get("InvocationID")
+    if not invocation:
+        return result
+    journal = subprocess.run(
+        ["journalctl", "--user", f"_SYSTEMD_INVOCATION_ID={invocation}", "-n", "40", "--no-pager", "-o", "cat"],
+        capture_output=True, text=True, timeout=30, check=False,
+    ).stdout.splitlines()
+    errors = [line.strip() for line in journal if "error" in line.lower()]
+    detail = errors[-1] if errors else f"status {fields.get('ExecMainStatus', 'unknown')}"
+    return f"{result}: {detail}"
 
 
 def command_notify_failure(args: argparse.Namespace) -> int:
     """OnFailure hook of the daily unit: one alert push for a run that crashed, timed out or was killed."""
     day = datetime.now(UTC).date().isoformat()
-    accounts._push(reporting.crash_text(day, failure_detail(args.unit)), "AI test users")
+    if reporting.push_due(accounts.HOME, day):
+        accounts._push(reporting.crash_text(day, failure_detail(args.unit)), "AI test users")
+        reporting.mark_pushed(accounts.HOME, day)
     return 0
 
 
@@ -187,6 +302,10 @@ def copy_worker_into_container() -> str:
 def command_run(args: argparse.Namespace) -> int:
     if args.target == "prod" and not accounts.prod_enabled():
         raise SystemExit("prod_disabled: create ~/.openmates/ai-test-users/prod-enabled first")
+    if args.target == "prod" and not args.during_prod_update:
+        blocked = prod_update_blocker()
+        if blocked:
+            raise SystemExit(f"prod_update: {blocked} (rerun later, or pass --during-prod-update on purpose)")
     if not dev_test_account.server_is_development():
         raise SystemExit("AI test users run from the development server.")
     personas = scenarios.personas_for(args.scenario, args.repeat, args.flows) if args.scenario else select(args.personas)
@@ -203,12 +322,14 @@ def command_run(args: argparse.Namespace) -> int:
     run_dir.mkdir(parents=True)
     log(f"run {run_id}: {len(personas)} personas on {args.target}, budget cap {budget:.2f} USD, output {run_dir}")
     started = time.monotonic()
+    started_at = datetime.now(UTC)
     with dev_stack_lease(run_id):
         results = run_groups({args.target: personas}, run_id, run_dir, cfg, args.parallel)
         deletions = execution.retry_deletions(run_id, run_dir, cfg)
     run = finish_run(run_id, run_dir, "manual", datetime.now(UTC).date().isoformat(), results,
                      schedule.areas_for([p["id"] for p in personas], PERSONAS), budget, args.total_cap_usd,
                      started, deletions)
+    mark_prod_update_overlap(run, run_dir, started_at)
     log(f"done: {run_dir / 'run.json'} total {run['totals']['total_usd']} USD")
     title = f"AI test users manual run on {args.target} {run['date']}"
     if args.scenario:
@@ -221,6 +342,8 @@ def command_run(args: argparse.Namespace) -> int:
     message = message_text.run_message(title, results, run["problems"], run.get("flows"))
     if args.notify:
         message_text.push(message)
+    if args.target == "prod":
+        accounts.notify_low_codes()
     return 0
 
 
@@ -282,9 +405,16 @@ def cluster_findings(findings: list[dict], groups: list[list[str]]) -> list[list
     return clusters
 
 
+def openmates_cli() -> str:
+    """Resolve the CLI for both interactive callers and the systemd user service."""
+    return shutil.which("openmates") or str(Path.home() / ".npm-global/bin/openmates")
+
+
 def open_tasks() -> list[dict]:
-    result = subprocess.run(["openmates", "tasks", "list", "--json"], capture_output=True, text=True, timeout=120,
+    result = subprocess.run([openmates_cli(), "tasks", "list", "--json"], capture_output=True, text=True, timeout=120,
                             check=False)
+    if result.returncode:
+        raise RuntimeError(f"openmates tasks list failed: {(result.stderr or result.stdout).strip()[-200:]}")
     data = json.loads(result.stdout or "[]")
     rows = data.get("tasks", data) if isinstance(data, dict) else data
     return [t for t in rows if isinstance(t, dict) and str(t.get("status", "")).lower() not in ("done", "skipped")]
@@ -363,7 +493,7 @@ def command_tasks(args: argparse.Namespace) -> int:
         lines.append(f"Transcript: {persona_dir(run_dir, cluster[0]['persona']) / 'transcript.json'} (local)")
         priority = {"high": "high", "medium": "medium", "low": "low"}.get(str(head.get("severity")), "medium")
         result = subprocess.run(
-            ["openmates", "tasks", "create", "--title", title[:150], "--description", "\n".join(lines),
+            [openmates_cli(), "tasks", "create", "--title", title[:150], "--description", "\n".join(lines),
              "--label", TASK_LABEL, "--priority", priority, "--project", TASK_PROJECT, "--assign", "unassigned",
              "--json"],
             capture_output=True, text=True, timeout=120, check=False,
@@ -406,15 +536,24 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--repeat", type=int, default=2, help="accounts per scenario flow (flaky = mixed results)")
     run.add_argument("--notify", action="store_true",
                      help="send the run summary push (an alert listing the problems when anything failed)")
+    run.add_argument("--during-prod-update", action="store_true",
+                     help="start a prod run although production is updating (its issues are still marked)")
     notify = sub.add_parser("notify-failure")
     notify.add_argument("--unit", default=DAILY_UNIT)
     daily = sub.add_parser("daily")
     daily.add_argument("--date", default=None)
     daily.add_argument("--dry-run", action="store_true")
+    daily.add_argument("--dev-only", action="store_true",
+                       help="run the dev rotation and write its summary without sending alerts or starting debug chats")
     daily.add_argument("--parallel", type=int, default=5)
     daily.add_argument("--total-cap-usd", type=float, default=None, help="override the daily cap")
     videos = sub.add_parser("videos", help="upload an earlier run's recordings and link them in its report")
     videos.add_argument("--run", required=True)
+    message = sub.add_parser("message", help="dry run of an earlier run's Discord message (starts no chat)")
+    message.add_argument("--run", required=True)
+    debug = sub.add_parser("debug", help="start the debugging chat for an issue Marco approved")
+    debug.add_argument("--env", choices=("dev", "prod"), required=True)
+    debug.add_argument("--issue", required=True, help="short issue id from the run message")
     tasks = sub.add_parser("tasks")
     tasks.add_argument("--run", required=True)
     tasks.add_argument("--exclude", default="", help="finding ids a reviewer rejected (persona#n,...)")
@@ -423,7 +562,8 @@ def main(argv: list[str] | None = None) -> int:
     tasks.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
     return {"run": command_run, "daily": command_daily, "tasks": command_tasks,
-            "notify-failure": command_notify_failure, "videos": command_videos}[args.command](args)
+            "notify-failure": command_notify_failure, "videos": command_videos,
+            "message": command_message, "debug": command_debug}[args.command](args)
 
 
 if __name__ == "__main__":

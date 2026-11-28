@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.message-input
-version: 13
+version: 17
 status: approved
 title: Message Input
 summary: 'The OpenMates chat composer owns user text, embeds, draft state, focus-driven background interaction gating,
@@ -396,7 +396,10 @@ assertions:
   must: In the shared web composer, microphone recordings are transient input for transcription and correction.
     On success, the corrected transcript becomes ordinary editable text where it was dictated, as defined by
     message-input.audio.live-editor-transcript, while preserving existing notes and other content. Finish or Enter
-    leaves the corrected text unsent for review. During recording and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
+    leaves the text unsent for review. For a signed-in user with text already streamed into the chat composer,
+    Finish or Enter returns keyboard editing to that draft while final transcription and correction continue.
+    Append trailing streamed words at the dictated range and preserve the user's caret and edits when reconciling the final result.
+    During recording and correction, additionally offer the existing compact round orange up-arrow Send control with its accessible
     Send name. Choosing Send finishes capture if needed and requests exactly one submission of the complete draft
     after correction succeeds, through the normal composer send gates, without another button press. Repeated activation
     cannot duplicate submission. Do not create a recording embed or permanently upload/store the audio. Cancellation,
@@ -430,8 +433,19 @@ assertions:
   depends_on: [examples.composer_ghost]
 - id: message-input.audio.realtime-voxtral3
   type: behavior
-  must: Web microphone dictation streams through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. Settings are acknowledged before audio; partial text remains visible while speaking and stopping finalizes the full transcript before normal correction and editable insertion. Preserve the Audio transcribe app skill and its model. Display the existing ten-credit-per-minute realtime transcription rate, but charge proportionally to measured audio seconds, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
+  must: Web cloud microphone dictation streams speech windows through the first-party proxy to Voxtral Mini Transcribe Realtime 3 with the configured one-second preview delay. A healthy local detector buffers roughly 400 ms of speech onset in memory and streams a short tail before pausing upload. A detector fault falls back to ordinary streaming. Settings are acknowledged before forwarding audio. Partial text is editable after Finish while trailing text and correction continue in the background. A quiet pause does not automatically Finish the composer draft. Finish retains the streamed and trailing words. If the transcription connection fails, already streamed words stay editable and unsent. Preserve the Audio transcribe app skill and its model. Charge 0.25 credits per second of microphone audio forwarded to the transcription provider, rounding the final total up to whole credits with a one-credit minimum per positive-duration recording. Empty recordings cost zero. Completed and interrupted recordings settle idempotently, and users with one credit can start dictation. Official-cloud guests may use the same pipeline under the guest admission and metering requirements.
   depends_on: [examples.voxtral3_dictation]
+- id: message-input.audio.correction-gate
+  type: behavior
+  must: For text-only dictation in the shared web composer, a fast Jev decision checks each transcript part.
+    If it confidently needs no correction, insert the original words and skip the correction model.
+    For signed-in dictation, start the check on the available text at Finish if it can be handled as one pending batch.
+    Reuse that decision and correction when the batch is unchanged. If further words arrive, check and correct the complete batch.
+    Obvious errors, names, numbers, mixed languages and uncertainty require the existing correction.
+    A gate failure falls back to correction, subject to existing admission limits.
+    Dictation correction generates no recording title. Saved audio recordings keep their title behavior.
+    Gate logs contain decisions and timing without transcript text.
+  depends_on: [examples.dictation_correction_gate]
 - id: message-input.audio.guest-admission
   type: security
   must: Official-cloud guests can dictate without an account session while their existing anonymous identity/IP and shared daily, weekly and monthly budgets have room. Require an allowed first-party Origin, bounded session duration and idle time, and identity/IP rate and concurrency admission. Every transcription and correction provider operation, including fallback attempts, must have a conservative atomic reservation before dispatch; denial dispatches no provider work and shows existing usage-limit or signup guidance. Completion, cancellation, disconnect and failure settle known work idempotently and retain ambiguous dispatched work without storing audio or transcript content. Invalid supplied account credentials must not silently become guest access. Guest access cannot authorize account-owned chat state or workflow actions, and exhausting guest allowance does not affect authenticated users with credits.
@@ -467,6 +481,15 @@ assertions:
     whose local preparation (privacy scan, model or storage readiness, status refresh) does not finish within fifteen
     seconds stops with a visible notification and an active Send again instead of hanging, and never sends twice.
   depends_on: [examples.signed_out_states]
+
+- id: message-input.signed-out-action-access
+  type: behavior
+  must: On web and mobile web, the dictation and voice call buttons check guest free usage before starting.
+    File upload from the composer button requires an account. When the composer blocks one of these actions,
+    it opens the same account flow as a blocked text send, Log in on a browser used to log in before and
+    Sign up for a new browser. No microphone prompt, recording controls, file chooser, or call setup starts
+    for the blocked action. Signed-in visitors retain the normal action behavior.
+  depends_on: [examples.signed_out_action_access]
 applies_to:
   rest_api:
     required: false

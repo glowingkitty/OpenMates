@@ -55,7 +55,10 @@ impl BrowserOwnedMessageReadHandle {
     /// held while network, opaque key operations or native IO are pending.
     pub async fn next(&mut self)->Result<BrowserOwnedMessageReadStepHandle,JsValue>{
         worker_only()?;
-        let step=self.driver.as_mut().ok_or_else(||JsValue::from_str("unavailable"))?.next().await.map_err(failure)?;
+        let step=self.driver.as_mut().ok_or_else(||JsValue::from_str("unavailable"))?.next().await.map_err(|error| match error {
+            openmates_sdk::Error::Cancelled => JsValue::from_str("cancelled"),
+            other => failure(other),
+        })?;
         if matches!(&step,OwnedBrowserReadStep::Selected(_)|OwnedBrowserReadStep::Metadata(_)){self.driver.take();}
         Ok(BrowserOwnedMessageReadStepHandle{id:uuid::Uuid::new_v4().to_string(),step:Some(step),binding:self.binding.clone(),request:self.request.clone()})
     }

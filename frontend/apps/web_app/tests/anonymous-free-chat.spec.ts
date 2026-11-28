@@ -325,14 +325,14 @@ async function getAnonymousIndexedDbState(page: any) {
 				request.onerror = () => reject(request.error);
 				request.onsuccess = () => {
 					const db = request.result;
-					if (!db.objectStoreNames.contains('chats') || !db.objectStoreNames.contains('messages')) {
+					if (!db.objectStoreNames.contains('chats') || !(db.objectStoreNames.contains('messages') || db.objectStoreNames.contains('saved_messages_v34'))) {
 						db.close();
 						resolve({ anonymousChats: [], anonymousMessages: [] });
 						return;
 					}
-					const transaction = db.transaction(['chats', 'messages'], 'readonly');
+					const transaction = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
 					const chatsRequest = transaction.objectStore('chats').getAll();
-					const messagesRequest = transaction.objectStore('messages').getAll();
+					const messagesRequest = transaction.objectStore(transaction.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages').getAll();
 
 					transaction.onerror = () => {
 						db.close();
@@ -531,9 +531,9 @@ test.describe('Anonymous free chat', () => {
 			request.onerror = () => reject(request.error);
 			request.onsuccess = () => {
 				const db = request.result;
-				const transaction = db.transaction(['chats', 'messages'], 'readonly');
+				const transaction = db.transaction(['chats', (db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')], 'readonly');
 				const chats = transaction.objectStore('chats');
-				const messages = transaction.objectStore('messages');
+				const messages = transaction.objectStore(transaction.db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages');
 				const chatRequest = chats.get(chatId);
 				const rawMessagesRequest = messages.getAll();
 				const indexedMessagesRequest = messages.index('chat_id_created_at').getAll(

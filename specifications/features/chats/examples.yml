@@ -1,5 +1,19 @@
 schema_version: 1
 specification: feature.chats@7
+image_gestures:
+- id: website-image-gestures-on-phone
+  given: A reader opens a website or news result with a lead image on a phone in the web or Apple app.
+  when: They pinch outward on the image, drag across it, then double-tap it.
+  then: The lead image enlarges, pans inside the same space, and returns to fit. The app stays at its existing scale and location.
+- id: embroidery-view-switch
+  given: A reader has enlarged the stitches view of an embroidery result.
+  when: They switch to the graphic and pinch outward on it.
+  then: The graphic opens fitted and magnifies within its own area while the header and controls remain fixed.
+embed_zoom_view:
+- id: diagram-or-document-zoom
+  given: A reader opens a read-only document, diagram, or mind map on a phone.
+  when: They double-tap the content, pan it, and pinch outward.
+  then: The viewer's zoom percentage changes and its content moves inside the viewer, while the surrounding browser page stays at its original scale.
 independent_metadata:
 - id: delayed-header-and-suggestions
   assertion_ids: [chats.completion.independent-metadata]
@@ -374,7 +388,7 @@ memory_only_summary:
 - id: summary-expiry-keeps-old-chat-private
   assertion_ids:
   - chats.context.memory-only-summary
-  given: A SocialHub response completes at 10:00 and produces a transient summary; the chat is no longer active.
+  given: A Harbor response completes at 10:00 and produces a transient summary; the chat is no longer active.
   when: Another chat selects context at 10:20, then tries again after the thirty-minute window and after a cache
     restart.
   then: Only the eligible Vault-encrypted memory copy can be used at 10:20. Reads do not extend eligibility; expired/restarted
@@ -383,10 +397,10 @@ related_work_selection:
 - id: relevant-cross-project-work
   assertion_ids:
   - chats.context.related-work-selection
-  given: SocialHub debugging under the live SocialHub Project focus has a same-Project retry Task, a relevant SocialHub
+  given: Harbor debugging under the live Harbor Project focus has a same-Project retry Task, a relevant Harbor
     queue chat that finished ten minutes ago, and a shared-queue chat in another Project that the user did not mention.
   when: Jev selects related summaries for the retry investigation.
-  then: The retry Task and SocialHub queue chat are included with status and freshness; the other Project's chat is
+  then: The retry Task and Harbor queue chat are included with status and freshness; the other Project's chat is
     not read or selected. No other Project is activated and its files/Tasks are not claimed.
 - id: regular-chat-no-chat-summaries
   assertion_ids:

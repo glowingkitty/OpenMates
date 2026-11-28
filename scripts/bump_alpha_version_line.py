@@ -258,6 +258,15 @@ def migrate(root: Path, major: int, minor: int, check: bool = False) -> list[str
             if path.exists():
                 record(path, replace_text(path, replacements))
 
+        # The generated manifests and Rust asset checksum follow the new default image tag.
+        if (root / "backend/core/core-compose.dev-overrides.yml").is_file():
+            if __package__:
+                from . import sync_core_compose
+            else:
+                import sync_core_compose
+
+            sync_core_compose.synchronize(root)
+
     stale = audit_old_references(root, audit_minor)
     if stale:
         fail("Stale active version references remain:\n" + "\n".join(stale))

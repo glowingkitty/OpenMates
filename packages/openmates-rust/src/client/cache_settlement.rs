@@ -170,6 +170,15 @@ impl Client {
         uuid::Uuid::parse_str(id).map_err(|_| Error::Invalid("A full chat ID is required."))?;
         if self.is_ephemeral_chat(id) { return Err(Error::Invalid("Volatile chat history exists only in the caller's memory.")); }
         if !self.task_watch_authority.cached_chat_allowed(id) { return Ok(None); }
+        // With no local message source, let the selected-chat reader perform
+        // exact-ID authorization as part of its first-page request sequence.
+        if !refresh_latest
+            && self.history.get(id).is_none_or(Vec::is_empty)
+            && !self.selected_first_pages.contains_key(id)
+            && !self.sync_message_windows.contains_key(id)
+        {
+            return Ok(None);
+        }
         let scope = AsyncCryptoScope::begin(self)?;
         let old = self.chats.get(id).cloned();
         let Some(metadata) = self.request_chat_metadata(id).await? else { return Ok(None); };
@@ -202,8 +211,14 @@ impl Client {
             scope.check_chat(self, id)?;
             // Admission validates the normal server page, keeps ALL older cache
             // rows encrypted, and never moves them to complete-history state.
-            self.retain_settlement_page(&row, &page)?;
-            rows = self.owned_settlement_rows(&row)?;
+            match self.retain_settlement_page(&row, &page) {
+                Ok(()) => rows = self.owned_settlement_rows(&row)?,
+                // A cache projection with invalid counts or pagination cannot
+                // replace retained rows. Let the caller do its normal strict
+                // read, which independently checks ownership and history.
+                Err(Error::Protocol) => return Ok(None),
+                Err(error) => return Err(error),
+            }
         }
         let mut seen = HashSet::new();
         let mut messages = Plain::new(Vec::<crate::model::Message>::new());

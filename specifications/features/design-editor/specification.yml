@@ -1,0 +1,34 @@
+schema_version: 1
+id: feature.design-editor
+version: 1
+status: approved
+title: Built-in Design view
+summary: Open and navigate a saved OpenMates design rendered from its typed pages and layers.
+scope:
+  includes:
+    - Read-only viewing of a saved Design embed using its existing access permissions.
+    - Client-side encrypted design documents and embedded assets.
+  excludes:
+    - Editing, assistant generation and export, which ship in subsequent phases.
+assertions:
+  - id: design-editor.view.validated-scene
+    type: behavior
+    must: >
+      The viewer displays the pages of a supported versioned typed scene in document order.
+      A page may contain up to 250 layers. Malformed and unsupported scenes are refused before rendering.
+  - id: design-editor.view.client-side-encrypted
+    type: security
+    must: >
+      The client reads designs and their assets only with the existing embed and asset permissions.
+      Saved scene and asset content stays client-side encrypted and is decrypted locally for viewing.
+    invariants:
+      - An unauthorized reader receives no readable canvas content or asset data.
+applies_to:
+  gui:
+    required: true
+    implementations:
+      web: {required: true, role: Read-only Design Embed preview, fullscreen and page navigation.}
+      apple: {required: false, role: Follows the web viewer.}
+examples:
+  file: examples.yml
+  required_groups: [view]

@@ -38,7 +38,8 @@ if [ -f "$REPO_ROOT/.env" ]; then
     set -u
 fi
 
-find "$REPO_ROOT" -path '*/test-results/proof-videos' -type d -print0 2>/dev/null |
-while IFS= read -r -d '' proof_root; do
+for proof_root in "$REPO_ROOT/test-results/proof-videos" \
+        "$REPO_ROOT"/.openmates-agent-worktrees/agent-*/test-results/proof-videos; do
+    [ -d "$proof_root" ] && [ ! -L "$proof_root" ] || continue
     timeout 10m python3 "$REPO_ROOT/scripts/spec_demo.py" sweep-expired --root "$proof_root"
 done

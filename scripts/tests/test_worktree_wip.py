@@ -124,24 +124,34 @@ def status_with(*entries: dict) -> dict:
                             **entry} for entry in entries]}
 
 
-def test_nightly_wake_resumes_a_stopped_owner_once_per_state(repo, tmp_path):
-    transcript = tmp_path / "claude" / "projects" / "-repo" / "c1.jsonl"
-    transcript.parent.mkdir(parents=True)
-    transcript.write_text("{}\n")
-    calls = []
-    launch = lambda chat_id, prompt: calls.append((chat_id, prompt)) or "ok"  # noqa: E731
-    first = wip.wake_owners(status_with({}), launch=launch)
-    assert first == [{"chat_id": "c1", "state": "resumed", "note": "ok"}]
-    assert "session s1 (agent-s1: 3 files not on dev: app.py (+2 more)" in calls[0][1]
-    assert wip.wake_owners(status_with({}), launch=launch) == [] and len(calls) == 1
-    wip.wake_owners(status_with({"snapshot": {"tree": "t2"}}), launch=launch)
-    assert len(calls) == 2  # new worktree state: woken again
+def test_worktree_recovery_retries_a_stopped_owner_every_half_hour():
+    marks, calls = {}, []
+
+    def launch(chat_id, prompt):
+        calls.append((chat_id, prompt))
+        return "ok"
+
+    status = status_with({"parked": {"reason": "waiting for the CI worker"}})
+    def run(now):
+        return wip.periodic_owners(status, set(), set(), set(), now, marks, launch, lambda _: True)
+
+    assert run(1000)[0]["state"] == "resumed"
+    assert "session s1 (agent-s1: 3 files not on dev" in calls[0][1]
+    assert run(2799)[0]["state"] == "retry due"
+    assert run(2800)[0]["state"] == "resumed"
+    assert len(calls) == 2
 
 
-def test_nightly_wake_skips_parked_work_and_lists_gone_owners(repo):
-    launch = lambda *_args: pytest.fail("must not resume")  # noqa: E731
-    assert wip.wake_owners(status_with({"parked": {"reason": "waits"}}), launch=launch) == []
-    assert wip.wake_owners(status_with({}), launch=launch)[0]["state"] == "no_transcript"
+@pytest.mark.parametrize(("running", "protected", "held", "history", "reason"), [
+    ({"c1"}, set(), set(), True, "the owning chat is open"),
+    (set(), {"c1"}, set(), True, "waiting for Marco"),
+    (set(), set(), {"c1"}, True, "parked or withdrawn by Marco"),
+    (set(), set(), set(), False, "the chat history is unavailable"),
+])
+def test_recovery_leaves_protected_and_running_owners_alone(running, protected, held, history, reason):
+    outcome = wip.periodic_owners(status_with({}), running, protected, held, 1000, {},
+                                 lambda *_: pytest.fail("unexpected wake"), lambda _: history)
+    assert outcome[0]["note"] == reason
 
 
 def test_briefing_lists_unfinished_and_parked_work(tmp_path):
@@ -152,7 +162,7 @@ def test_briefing_lists_unfinished_and_parked_work(tmp_path):
     lines = wip.briefing_lines(report)
     assert "NOT ready; 1 blocking worktrees, 1 with unfinished work, 1 parked" in lines[0]
     assert any("`s1`" in line and "resumed" in line for line in lines)
-    assert any("parked `s2`" in line and "owner answers" in line for line in lines)
+    assert any("`s2`" in line and ("owner answers" in line or "resumed" in line) for line in lines)
 
 
 # --- the chat lifecycle's finish wake (claude_idle_chats.guard_unfinished) ---------------------------

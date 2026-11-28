@@ -1,6 +1,7 @@
 //! Source-authored supporting proof. Synthetic real AES port; no browser key,
 //! account association, server ACK, real transport or persistence proof.
 // contract-test: supporting surface=sdks.rust assertions=sdk.encryption.local-only,auth.session.isolation,auth.session.authoritative-enforcement
+use super::phase_key::previous_epoch_key;
 use super::*;
 use crate::crypto::master::{MasterCrypto, MasterCryptoFuture};
 use base64::Engine;
@@ -246,11 +247,14 @@ fn opaque_does_not_grant_direct_team_or_local_profile_authority() {
     let (mut client, calls) = client("opaque", None);
     assert!(client.native_master_key().is_err());
     let team = "33333333-3333-4333-8333-333333333333";
-    let row = json!({"id":CHAT,"chat_key_wrappers":[{"hashed_chat_id":sha256(CHAT),"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":2,"wrapper_version":1,"encrypted_chat_key":"not-decrypted"}]});
+    let row = json!({"id":CHAT,"chat_key_wrappers":[{"hashed_chat_id":sha256(CHAT),"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":0,"wrapper_version":1,"encrypted_chat_key":"not-decrypted"}]});
     assert!(matches!(
         validate_selected_team_recovery_wrapper(&row, CHAT, Some(team)),
         Err(Error::Conflict)
     ));
+    // A rotated Team's later epochs are valid wrappers.
+    let rotated = json!({"id":CHAT,"chat_key_wrappers":[{"hashed_chat_id":sha256(CHAT),"key_type":"team","hashed_team_id":sha256(team),"team_key_epoch":2,"wrapper_version":1,"encrypted_chat_key":"not-decrypted"}]});
+    assert!(validate_selected_team_recovery_wrapper(&rotated, CHAT, Some(team)).is_ok());
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     client.browser_local_read_only = true;
     assert!(matches!(
@@ -369,4 +373,18 @@ async fn final_fence_revocation_wipes_successful_plaintext_before_caller_can_ado
         assert!(matches!(result, Err(Error::Cancelled)));
         assert!(wiped.load(Ordering::SeqCst));
     }
+}
+
+#[test]
+fn team_chat_wrapper_uses_the_previous_key_for_its_epoch_and_the_current_key_otherwise() {
+    let old: Key = zeroize::Zeroizing::new([1; 32]);
+    let previous = vec![(1u64, old.clone())];
+    let older = json!({"team_key_epoch":1});
+    let current = json!({"team_key_epoch":2});
+    assert_eq!(
+        previous_epoch_key(&older, &previous).as_deref(),
+        Some(&[1u8; 32])
+    );
+    assert!(previous_epoch_key(&current, &previous).is_none());
+    assert!(previous_epoch_key(&json!({}), &previous).is_none());
 }

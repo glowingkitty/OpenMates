@@ -32,6 +32,7 @@
     getLastAuthMethod,
     type LastAuthMethod,
   } from "../utils/lastAuthMethod";
+  import WorkspaceAccountButton from "./workspace/WorkspaceAccountButton.svelte";
   import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
   import { connectionFeedback } from "../stores/connectionFeedbackStore";
   import { voiceCallController } from "../services/voiceCall";
@@ -270,19 +271,6 @@
           },
         ]
       : []),
-    ...(isLoggedIn && tasksEnabled
-      ? [
-          {
-            id: "/#tasks",
-            href: "/#tasks",
-            testId: "tasks-nav-link",
-            label: $text("navigation.tasks"),
-            iconClass: "task-icon" as const,
-            active: isTasksRoute,
-            disabled: false,
-          },
-        ]
-      : []),
     ...(workflowsEnabled
       ? [
           {
@@ -292,6 +280,19 @@
             label: $text("navigation.workflows"),
             iconClass: "workflow-icon" as const,
             active: isWorkflowsRoute,
+            disabled: false,
+          },
+        ]
+      : []),
+    ...(isLoggedIn && tasksEnabled
+      ? [
+          {
+            id: "/#tasks",
+            href: "/#tasks",
+            testId: "tasks-nav-link",
+            label: $text("navigation.tasks"),
+            iconClass: "task-icon" as const,
+            active: isTasksRoute,
             disabled: false,
           },
         ]
@@ -307,7 +308,60 @@
     webappWorkspaceTabs[activeWorkspaceIndex] ?? webappWorkspaceTabs[0],
   );
   let activeWorkspaceHref = $derived(activeWorkspaceTab?.href ?? "/");
-  let selectedWorkspaceHref = $state("/");
+  const pickerId = $props.id();
+  let pickerTrigger = $state<HTMLButtonElement>();
+  let pickerDialog = $state<HTMLDialogElement>();
+  let pickerOpen = $state(false);
+  let pickerAnimation: Animation | undefined;
+  let pickerClosing = false;
+
+  function openWorkspacePicker() {
+    if (!pickerTrigger || !pickerDialog || pickerDialog.open) return;
+    const trigger = pickerTrigger.getBoundingClientRect();
+    pickerDialog.style.setProperty("--picker-top", `${trigger.top}px`);
+    pickerDialog.style.setProperty("--picker-center", `${trigger.left + trigger.width / 2}px`);
+    pickerDialog.showModal();
+    pickerOpen = true;
+    pickerDialog.querySelector<HTMLButtonElement>(".workspace-picker-close")?.focus();
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      pickerAnimation = pickerDialog.animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: 180,
+        easing: "ease-in-out",
+      });
+    }
+  }
+
+  async function closeWorkspacePicker() {
+    const dialog = pickerDialog;
+    if (!dialog?.open || pickerClosing) return;
+    pickerClosing = true;
+    const opacity = getComputedStyle(dialog).opacity;
+    pickerAnimation?.cancel();
+    // Keep the modal in the top layer so the background remains inert during the fade.
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      pickerAnimation = dialog.animate([{ opacity }, { opacity: 0 }], {
+        duration: 140,
+        easing: "ease-in-out",
+        fill: "forwards",
+      });
+      await pickerAnimation.finished.catch(() => undefined);
+    }
+    dialog.close();
+    pickerAnimation?.cancel();
+    pickerOpen = false;
+    pickerClosing = false;
+    pickerTrigger?.focus({ preventScroll: true });
+  }
+
+  $effect(() => {
+    const trigger = pickerTrigger;
+    if (!pickerOpen || !trigger) return;
+    const observer = new ResizeObserver(() => {
+      if (!trigger.getClientRects().length) void closeWorkspacePicker();
+    });
+    observer.observe(trigger);
+    return () => observer.disconnect();
+  });
 
   const prefetchWorkspaceIfReady = (href: string) => {
     if (
@@ -318,24 +372,6 @@
     )
       return;
     prefetchWorkspaceForHref(href);
-  };
-
-  $effect(() => {
-    selectedWorkspaceHref = activeWorkspaceHref;
-  });
-
-  const handleWorkspaceSelectChange = async (event: Event) => {
-    const target = event.currentTarget as HTMLSelectElement;
-    const selectedTab = webappWorkspaceTabs.find(
-      (item) => item.href === target.value,
-    );
-    if (!selectedTab || selectedTab.disabled) {
-      selectedWorkspaceHref = activeWorkspaceHref;
-      return;
-    }
-
-    prefetchWorkspaceIfReady(selectedTab.href);
-    await goto(selectedTab.href, { replaceState: false });
   };
 
   const handleWorkspaceIntent = (item: IconTabItem) => {
@@ -564,6 +600,8 @@
   }
 </script>
 
+<svelte:window onresize={closeWorkspacePicker} />
+
 <header
   bind:this={headerDiv}
   data-testid="global-header"
@@ -738,24 +776,77 @@
               onNavigate={(event, item) => handleClick(event, item.href ?? null)}
             />
           </div>
-          <div class="workspace-select-shell" data-testid="header-workspace-switcher" aria-label="Workspace switcher">
-            <span
-              class={`workspace-select-icon ${activeWorkspaceTab?.iconClass ?? "chat-icon"}`}
-              aria-hidden="true"
-            ></span>
-            <select
-              bind:value={selectedWorkspaceHref}
-              onchange={handleWorkspaceSelectChange}
-              aria-label="Workspace switcher"
+          {@const activeIcon = activeWorkspaceTab?.iconClass ?? "chat-icon"}
+          {@const activeLabel = activeWorkspaceTab?.label ?? $text("common.chat")}
+          <div class="workspace-select-shell" data-testid="header-workspace-switcher">
+            <button
+              bind:this={pickerTrigger}
+              type="button"
+              class="workspace-trigger"
+              onclick={openWorkspacePicker}
+              aria-controls={pickerId}
+              aria-label={`Workspace switcher, ${activeLabel}`}
+              aria-expanded={pickerOpen}
               data-testid="workspace-mobile-select"
+              data-active-workspace={activeWorkspaceHref}
             >
-              {#each webappWorkspaceTabs as item}
-                <option value={item.href} disabled={item.disabled}
-                  >{item.label}</option
+              <span class={`workspace-select-icon ${activeIcon}`} aria-hidden="true"></span>
+              <span class="workspace-select-icon workspace-select-chevron" aria-hidden="true"></span>
+            </button>
+            <dialog
+              bind:this={pickerDialog}
+              id={pickerId}
+              class="workspace-picker-dialog"
+              aria-label="Workspaces"
+              data-testid="workspace-picker-dialog"
+              oncancel={(event) => {
+                event.preventDefault();
+                void closeWorkspacePicker();
+              }}
+            >
+              <button
+                type="button"
+                class="workspace-picker-backdrop"
+                tabindex="-1"
+                onclick={closeWorkspacePicker}
+                aria-label="Dismiss workspace picker"
+                data-testid="workspace-picker-backdrop"
+              ></button>
+              <div role="navigation" class="workspace-picker-panel" aria-label="Workspaces" data-testid="workspace-picker-panel">
+                <button
+                  type="button"
+                  class="workspace-trigger workspace-picker-close"
+                  onclick={closeWorkspacePicker}
+                  data-testid="workspace-picker-close"
+                  aria-label={`Close workspace switcher, ${activeLabel}`}
                 >
-              {/each}
-            </select>
-            <span class="workspace-select-chevron" aria-hidden="true"></span>
+                  <span class={`workspace-select-icon ${activeIcon}`} aria-hidden="true"></span>
+                  <span>{activeLabel}</span>
+                  <span class="workspace-select-icon workspace-select-chevron" aria-hidden="true"></span>
+                </button>
+                <div class="workspace-picker-options">
+                  {#each webappWorkspaceTabs as item (item.id)}
+                    <a
+                      href={item.href}
+                      aria-current={item.href === activeWorkspaceHref ? "page" : undefined}
+                      data-testid="workspace-picker-option"
+                      onfocus={() => handleWorkspaceIntent(item)}
+                      onpointerenter={() => handleWorkspaceIntent(item)}
+                      onclick={(event) => {
+                        void closeWorkspacePicker();
+                        void handleClick(event, item.href);
+                      }}
+                    >
+                      <span class={`workspace-select-icon ${item.iconClass}`} aria-hidden="true" data-testid="workspace-option-icon"></span>
+                      <span class="workspace-option-label">{item.label}</span>
+                      {#if item.href === activeWorkspaceHref}
+                        <span class="workspace-select-icon workspace-option-check" aria-hidden="true" data-testid="workspace-option-check"></span>
+                      {/if}
+                    </a>
+                  {/each}
+                </div>
+              </div>
+            </dialog>
           </div>
         {/if}
 
@@ -781,28 +872,12 @@
                 <span class="header-github-icon" aria-hidden="true"></span>
               </a>
             {/if}
-            <button
-              class="login-signup-button"
-              class:cta-hidden={!publicationLabel && $introBannerVisible}
-              data-testid="header-login-signup-btn"
-              onclick={(e) => {
-                e.preventDefault();
-                if (onPrimaryCta) {
-                  onPrimaryCta();
-                  return;
-                }
-                window.dispatchEvent(
-                  new CustomEvent(
-                    ctaOpensLogin
-                      ? "openLoginInterface"
-                      : "openSignupInterface",
-                  ),
-                );
-              }}
-              aria-label={primaryCtaLabel ?? loginButtonText}
-            >
-              {primaryCtaLabel ?? loginButtonText}
-            </button>
+            <WorkspaceAccountButton
+              class={!publicationLabel && $introBannerVisible ? 'cta-hidden' : ''}
+              testId="header-login-signup-btn"
+              label={primaryCtaLabel ?? loginButtonText}
+              onPress={onPrimaryCta}
+            />
           </div>
         {/if}
       </nav>
@@ -1218,33 +1293,7 @@
     mask-repeat: no-repeat;
   }
 
-  .login-signup-button {
-    border: none;
-    margin: 0;
-    min-width: 0;
-    padding: var(--spacing-4) var(--spacing-6);
-    border-radius: var(--radius-3);
-    background: var(--color-button-primary);
-    color: var(--color-font-button, white);
-    cursor: pointer;
-    max-width: 240px;
-    overflow: hidden;
-    transition: all var(--duration-normal) var(--easing-default);
-    white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-
-  .login-signup-button:hover {
-    transform: scale(1.02);
-  }
-
-  .login-signup-button:active {
-    background-color: var(--color-button-primary-pressed);
-    transform: scale(0.98);
-    box-shadow: none;
-  }
-
-  .login-signup-button.cta-hidden {
+  .right-section :global(.login-signup-button.cta-hidden) {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
@@ -1256,7 +1305,7 @@
 
   /* Layout measurement (fitGuestHeader) sees the CTA at its final width. The attribute is
      set from script, so it is :global to keep Svelte from pruning the rule. */
-  nav:global([data-measuring="true"]) .login-signup-button.cta-hidden {
+  nav:global([data-measuring="true"]) :global(.login-signup-button.cta-hidden) {
     max-width: none;
     padding-inline: var(--spacing-6);
     transition: none;
@@ -1333,60 +1382,166 @@
 
   .workspace-select-shell {
     display: none;
-    align-items: center;
-    justify-content: center;
-    gap: var(--spacing-3);
+    box-sizing: border-box;
     width: 7.5rem;
     height: 2.75rem;
     padding: 0 var(--spacing-4);
-    border-radius: 3.25rem;
-    background: linear-gradient(
-      135deg,
-      var(--color-primary-start),
-      var(--color-primary-end)
-    );
-    filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.12));
+    border-radius: var(--radius-full);
+    background: var(--gradient-primary);
+    box-shadow: var(--shadow-xs);
     left: 50%;
     position: absolute;
     transform: translateX(-50%);
     z-index: var(--z-index-raised);
   }
 
-  .workspace-select-shell select {
+  .workspace-trigger {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    filter: none;
+    scale: 1;
+    transition: none;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    padding: 0;
+    /* White stays fixed against the native-style blue gradient in both themes. */
+    color: white;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .workspace-select-icon {
+    flex: none;
+    width: 1.375rem;
+    height: 1.375rem;
+    background: currentColor;
+    mask-size: contain;
+    mask-position: center;
+    mask-repeat: no-repeat;
+    pointer-events: none;
+  }
+
+  .workspace-select-chevron,
+  .workspace-option-check {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .workspace-select-chevron {
+    mask-image: url("@openmates/ui/static/icons/dropdown.svg");
+  }
+
+  .workspace-option-check {
+    mask-image: url("@openmates/ui/static/icons/check.svg");
+  }
+
+  .workspace-picker-dialog {
+    --picker-gutter: var(--spacing-10);
+    --picker-width: min(17.5rem, calc(100vw - 2 * var(--picker-gutter)));
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .workspace-picker-dialog::backdrop {
+    background: transparent;
+  }
+
+  .workspace-picker-dialog .workspace-picker-backdrop {
     all: unset;
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    cursor: pointer;
-    opacity: 0;
+    background: color-mix(in srgb, black 72%, transparent);
   }
 
-  .workspace-select-icon {
-    width: 1.35rem;
-    height: 1.35rem;
-    background: #fff;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    pointer-events: none;
+  .workspace-picker-panel {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    inset: var(--picker-top, 0) auto auto
+      clamp(var(--picker-gutter), calc(var(--picker-center, 50vw) - var(--picker-width) / 2),
+        calc(100vw - var(--picker-width) - var(--picker-gutter)));
+    box-sizing: border-box;
+    margin: 0;
+    width: var(--picker-width);
+    max-height: calc(100dvh - var(--picker-top, 0px) - var(--spacing-4));
+    padding: 0;
+    border: 0;
+    border-radius: calc(var(--radius-8) + var(--spacing-5));
+    background: var(--gradient-primary);
+    /* Match the fixed white foreground and dimmed canvas of the Apple picker. */
+    color: white;
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
   }
 
-  .workspace-select-chevron {
-    width: 0;
-    height: 0;
-    border-left: 0.55rem solid transparent;
-    border-right: 0.55rem solid transparent;
-    border-top: 0.55rem solid #fff;
-    pointer-events: none;
+  .workspace-picker-close {
+    position: static;
+    flex-shrink: 0;
+    min-height: 2.75rem;
   }
 
-  .workspace-select-shell:focus-within {
-    outline: 0.125rem solid #fff;
-    outline-offset: 0.125rem;
+  .workspace-picker-close .workspace-select-chevron {
+    rotate: 180deg;
+  }
+
+  .workspace-picker-options {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-block: var(--spacing-8);
+  }
+
+  .workspace-picker-options a {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-10);
+    min-height: 3.75rem;
+    padding-inline: var(--spacing-12);
+    color: inherit;
+    font-weight: 700;
+    text-decoration: none;
+  }
+
+  .workspace-picker-options a .workspace-select-icon:first-child {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .workspace-option-label {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .workspace-picker-options a:is(:hover, :focus-visible),
+  .workspace-picker-close:hover {
+    background: color-mix(in srgb, white 12%, transparent);
+  }
+
+  .workspace-trigger:focus-visible,
+  .workspace-picker-options a:focus-visible {
+    outline: 0.125rem solid currentColor;
+    outline-offset: -0.25rem;
   }
 
   @media (max-width: 894px) {
@@ -1591,7 +1746,7 @@
       gap: var(--spacing-2);
     }
     header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
-    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { width: .875rem; height: .875rem; }
   }
   @container main-content (max-width: 380px) {
     header.webapp.voice-call-pill-visible .workspace-select-shell,
@@ -1601,7 +1756,7 @@
       gap: var(--spacing-2);
     }
     header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
-    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { width: .875rem; height: .875rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {

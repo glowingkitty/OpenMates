@@ -11,17 +11,16 @@ chats may take on.
    OpenMates and Personal Tasks reminders from the Mac (Tailscale) to
    `~/.local/state/openmates/reminders-cache.json` (private). The Mac is often
    offline in the morning, so the briefing uses the latest copy.
-2. **Weekdays 11:30 Europe/Berlin** `scripts/daily_meeting_briefing.py --scheduled` (the crontab fires at
-   09:30 and 10:30 UTC to cover winter and summer time; only the 11:30 Berlin run proceeds):
-   - `scripts/daily_meeting_context.py collect` gathers Claude Code chats since
+2. **Weekdays 08:30 Europe/Berlin** the user-level `openmates-daily-meeting.timer`
+   runs the existing briefing builder, including the morning check-in.
+   - `scripts/daily_meeting_context.py collect` gathers Claude Code and Codex chats since
      the last meeting, commits (incl. `openmates-marketing`), OpenMates Tasks
      changes, nightly tests, open GitHub issues (`gh`) and Linear issues
      (`scripts/daily_meeting_issues.py`; needs `LINEAR_API_KEY` in the cron
      environment, else reported as a data gap), FOCUS.md and the reminders (live,
      else the copy);
    - Gemini Flash (`scripts/_gemini_flash_container.py`, run inside the `api`
-     container with the Vault key) summarizes the chats — Claude Code stores only
-     titles, no summaries;
+     container with the Vault key) summarizes the chats;
    - renders `logs/daily-meetings/YYYY-MM-DD-briefing.md` (private): meeting
      instructions for Claude, FOCUS.md, progress, reminders, then
      appendices with all reminders/chats/Tasks/commits;
@@ -46,9 +45,35 @@ chats may take on.
    cleanup that is skipped when energy is low. Ideas that come up mid-meeting are
    parked in one line, and it ends with a three-line read-back. The meeting ends
    with a `DECISIONS <date>` note whose first line is `Check-in:`.
-4. **Write-back:** paste the note into a Claude Code chat on the dev server; the
-   `daily-meeting-and-orchestration` skill updates FOCUS.md, Reminders and
-   OpenMates Tasks and can start the approved work chats.
+4. **Write-back:** submit the dated note through the existing `submit_decisions`
+   connector tool. The `daily-meeting-and-orchestration` skill applies the decisions
+   to FOCUS.md, Reminders and OpenMates Tasks. From 11:00 Berlin, the timer sends
+   reminders every 30 minutes until the connector records today's submission or
+   a dated decisions note is saved. The first reminder day is Tuesday, 24 November 2026.
+5. **Weekday evenings:** the same timer sends a Discord check-in at 22:00, 23:00,
+   00:00, 01:00 and 02:00 Berlin until you reply. Friday's final three slots
+   fall on Saturday. Leave a nonempty comment in Activity on the linked private
+   Evening check-in Task. The scheduler checks for an undeleted comment from
+   you posted since that evening's 22:00 before each send. If it cannot read
+   Activity, it defers the push and can retry within the slot. The next morning
+   briefing includes the latest reply for the previous weekday check-in.
+
+## Pause or resume the pushes
+
+On the dev host, run `systemctl --user disable --now openmates-daily-meeting.timer`
+to pause all three scheduled pushes. Resume with
+`systemctl --user enable --now openmates-daily-meeting.timer`. The connector's
+`meeting_refresh` still builds the briefing on demand.
+
+The dev-host unit files live in `scripts/systemd/`. Install them into
+`~/.config/systemd/user/` and reload the user manager. Retire the old
+`daily_meeting_briefing.py --scheduled` crontab entry when enabling the timer.
+Store the personal Task UUID in `~/.config/openmates/daily-meeting-task-id`
+with permissions `0600` under the same dev account that runs the unit.
+To inspect scheduling without sending, run
+`python3 scripts/daily_meeting_accountability.py --dry-run`.
+`--preview-push` sends one labeled evening sample through the real webhook
+without marking the scheduled check-in delivered.
 
 ## Apple Reminders
 `scripts/mac_reminders.py` (`sync`, `overview`, `list`, `create`, `complete`,

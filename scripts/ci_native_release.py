@@ -74,6 +74,7 @@ SOURCE_FILES = (
     "Cargo.lock",
     "scripts/check_rust_cli_package.py",
     "scripts/sync_rust_cli_assets.py",
+    "backend/core/docker-compose.selfhost.yml",
     "backend/tests/fixtures/encryption_compatibility/legacy_layouts.json",
     "frontend/apps/web_app/tests/cli-rust-core-essential.spec.ts",
     "frontend/apps/web_app/tests/helpers/native-prepared-release.cjs",

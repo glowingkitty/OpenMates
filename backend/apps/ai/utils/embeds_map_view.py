@@ -242,9 +242,8 @@ def append_missing_embeds_map_view_block(
 
     if not content or any(f"```{language}" in content for language in EMBEDS_RESULTS_VIEW_FENCE_LANGUAGES):
         return content, False
-    known_source_refs = _dedupe_refs(
-        [*extract_map_capable_source_refs(content), *(source_refs or [])]
-    )
+    registered = _dedupe_refs(source_refs or [])
+    known_source_refs = registered or extract_map_capable_source_refs(content)
     inline_refs = extract_inline_embed_refs(content)
     if not known_source_refs and not inline_refs:
         return content, False
@@ -429,7 +428,10 @@ def validate_embeds_map_view_sources(
         requested = _normalize_refs(fields.get("sources", ""))
         if not requested:
             return match.group(0)
-        valid = [ref for ref in requested if ref in available_sources]
+        canonical = {available_sources[ref]: ref for ref in requested
+                     if ref in available_sources and ref != available_sources[ref]}
+        valid = _dedupe_refs(canonical.get(available_sources[ref], ref)
+                             for ref in requested if ref in available_sources)
         if valid == requested:
             return match.group(0)
         if not valid and not fields.get("embeds") and len(repair_ids) == 1:

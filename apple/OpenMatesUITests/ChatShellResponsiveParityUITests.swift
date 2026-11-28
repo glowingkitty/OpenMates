@@ -158,16 +158,22 @@ final class ChatShellResponsiveParityUITests: XCTestCase {
         let chatsTab = app.buttons["chats-nav-link"]
         if !chatsTab.isHittable { app.buttons["workspace-switcher"].tap() }
         chatsTab.tap()
-        app.buttons["sidebar-toggle"].tap()
+        let menu = app.buttons["sidebar-toggle"]
+        try waitForVisibleSidebarControl(menu, in: app)
+        let menuCenter = menu.frame.midX
+        menu.tap()
         let chatSearch = app.buttons["search-button"]
+        let chatClose = app.buttons["chat-sidebar-close"]
         try waitForVisibleSidebarControl(chatSearch, in: app)
+        try waitForVisibleSidebarControl(chatClose, in: app)
+        XCTAssertEqual(chatClose.frame.midX, menuCenter, accuracy: 1)
+        XCTAssertLessThan(chatClose.frame.midX, chatSearch.frame.midX)
         chatSearch.tap()
         let chatSearchInput = app.textFields["search-input"]
         XCTAssertTrue(chatSearchInput.waitForExistence(timeout: 5))
         try waitForVisibleSidebarControl(chatSearchInput, in: app)
         app.buttons["search-close-button"].tap()
         XCTAssertTrue(chatSearchInput.waitForNonExistence(timeout: 5))
-        let chatClose = app.buttons["chat-sidebar-close"]
         try waitForVisibleSidebarControl(chatClose, in: app)
         chatClose.tap()
         _ = try waitForMetric("chat-panel-open", equals: false, in: metrics)

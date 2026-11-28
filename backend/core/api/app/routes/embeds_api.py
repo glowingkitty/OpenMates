@@ -940,7 +940,7 @@ async def _read_version_rows(
         "fields": ("version_number,created_at,has_snapshot,has_patch,archive_state,"
                    "encrypted_snapshot,encrypted_patch,archive_object_key,archive_checksum"
                    if include_payload else "version_number,created_at,has_snapshot,has_patch,archive_state,"
-                   "revision_origin,revision_action"),
+                   "revision_origin,revision_action,version_kind,encrypted_version_name,contributors,compacted_at"),
         "sort": ["-version_number" if descending else "version_number"],
         "limit": limit,
     }
@@ -962,7 +962,30 @@ def _version_meta(row: dict) -> dict:
         # Plaintext non-content provenance (feature.embed-user-edits): null origin is assistant.
         "revision_origin": row.get("revision_origin") or "assistant",
         "revision_action": row.get("revision_action"),
+        "version_kind": derive_version_kind(row),
+        "encrypted_version_name": row.get("encrypted_version_name"),
+        "contributors": _contributors(row.get("contributors")),
+        "compacted": row.get("compacted_at") is not None,
     }
+
+
+def derive_version_kind(row: dict) -> str:
+    """Stored kind, else the legacy rule: assistant origin, restore action, any other user edit is a session."""
+    stored = row.get("version_kind")
+    if stored:
+        return str(stored)
+    if (row.get("revision_origin") or "assistant") != "user":
+        return "assistant"
+    return "restore" if row.get("revision_action") == "restore" else "session"
+
+
+def _contributors(value: object) -> list:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return []
+    return value if isinstance(value, list) else []
 
 
 async def _require_project_embed_access(

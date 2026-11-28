@@ -121,5 +121,26 @@ deployed and the affected services restarted with `sessions.py docker restart`.
   playback. Feed it two short TTS-generated MP3/WAV utterances and the personal
   account, in a disposable Project as above.
 
+### Voice check after every deploy and update
+
+`scripts/voice_post_update_check.py` starts a real voice call for a temporary
+signed-in test user and for a signed-out visitor, speaks one sentence, confirms a
+spoken reply and requires a `*-with-audio.webm` with audible sound. It writes
+`summary.json` and, when a leg fails, pushes the owner (a failed check is a failed
+update).
+
+- The dev systemd timer (`scripts/voice-post-update-check-setup.sh`) watches the
+  served revision every five minutes and waits for the backend to be ready.
+  It records a revision before starting the calls, so an interrupted check
+  or rollback cannot repeat them.
+- Each recurring call has one short question and a 45-second test deadline
+  starting at the call button. The check hangs up as soon as it confirms the
+  reply.
+- Manually: `python3 scripts/voice_post_update_check.py run --target dev`
+  (or `--target prod`; `--legs guest`, `--no-push`, `--out DIR`, `--revision SHA`).
+- Production signs up through the AI test users' gift-card pool. The card labels
+  the temporary account for stats exclusion and the runner deletes it afterwards.
+  A failed cleanup is logged and retained in the AI test users' cleanup registry.
+
 Platform-specific checks belong to their relevant skills (for example `ios`).
 Shared policy and exception handling: `.claude/rules/testing.md` and `AGENTS.md`.

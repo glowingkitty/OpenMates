@@ -24,6 +24,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { ProtocolError, isGeneratedImageChild, unionFileKeys } from './operations.js';
 import { liveProjectFileLinks } from './project-items.js';
+import { isLiveRevisionType, requireRevisionCipherEpoch } from './team-key-rotation.js';
 
 const EMBEDS = 'embeds';
 const DIFFS = 'embed_diffs';
@@ -47,6 +48,10 @@ const UUID_V5_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9
 
 /** What the user did; stored as the plaintext `embed_diffs.revision_action`. */
 export const USER_REVISION_ACTIONS = new Set(['edit', 'enhance', 'restore', 'crop']);
+/** Timeline kinds of a version; stored as the plaintext `embed_diffs.version_kind`. */
+export const VERSION_KINDS = new Set(['session', 'assistant', 'restore', 'named', 'commit']);
+const MAX_CONTRIBUTORS = 16;
+const MAX_VERSION_NAME_BYTES = 4096;
 
 /**
  * Stored `app_id/skill_id` pairs a user may edit in either scope. A Project-native
@@ -181,10 +186,37 @@ function validateFiles(raw, action) {
   return { new_files: [{ kind: 'enhance', operation_id: matching(source.operation_id, OPERATION_RE, 'invalid_operation_id') }] };
 }
 
+/* Optional timeline metadata. The name stays ciphertext; contributors carry
+ * only SHA-256 user hashes and assistant names, never plaintext user ids. */
+function validateContributors(raw) {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_CONTRIBUTORS) fail(400, 'invalid_contributors');
+  return raw.map((entry) => {
+    const item = exactFields(entry, ['user_hash', 'mate_name'], []);
+    if (('user_hash' in item) === ('mate_name' in item)) fail(400, 'invalid_contributors');
+    if ('user_hash' in item) return { user_hash: matching(item.user_hash, HEX_64_RE, 'invalid_contributors') };
+    return { mate_name: text(item.mate_name, 'invalid_contributors', 128) };
+  });
+}
+
+function validateVersionMeta(body) {
+  const meta = {};
+  if ('version_kind' in body) {
+    if (!VERSION_KINDS.has(body.version_kind)) fail(400, 'invalid_version_kind');
+    meta.version_kind = body.version_kind;
+  }
+  if ('encrypted_version_name' in body) {
+    if (body.version_kind !== 'named') fail(400, 'invalid_version_name');
+    meta.encrypted_version_name = text(body.encrypted_version_name, 'invalid_version_name', MAX_VERSION_NAME_BYTES);
+  }
+  if ('contributors' in body) meta.contributors = validateContributors(body.contributors);
+  return meta;
+}
+
 export function validateUserRevision(raw) {
   const body = exactFields(raw, [
     'operation_id', 'embed_id', 'scope', 'action', 'expected_revision', 'expected_content_hash',
     'head', 'history_rows', 'restored_from', 'files', 'actor_user_hash',
+    'version_kind', 'encrypted_version_name', 'contributors',
   ], ['operation_id', 'embed_id', 'scope', 'action', 'expected_revision', 'expected_content_hash',
     'head', 'history_rows', 'actor_user_hash']);
   if (!USER_REVISION_ACTIONS.has(body.action)) fail(400, 'invalid_action');
@@ -206,6 +238,7 @@ export function validateUserRevision(raw) {
     restored_from: restoredFrom,
     files: validateFiles(body.files, body.action),
     actor_user_hash: matching(body.actor_user_hash, HEX_64_RE, 'invalid_actor'),
+    ...validateVersionMeta(body),
   };
 }
 
@@ -214,11 +247,13 @@ async function lock(trx, identity) {
 }
 
 async function requireTeamWriter(trx, teamHash, actor, code) {
+  const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
+  if (!team) fail(403, code);
   const membership = await trx(MEMBERSHIPS).where({
     hashed_team_id: teamHash, hashed_user_id: actor, status: 'active',
   }).forShare().first();
-  const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
-  if (!team || !membership || !WRITE_ROLES.includes(membership.role)) fail(403, code);
+  if (!membership || !WRITE_ROLES.includes(membership.role)) fail(403, code);
+  return team;
 }
 
 /* A Project file made by the Project commit path: hosted UUIDv5 id, no catalog projection. */
@@ -255,7 +290,8 @@ async function authorizeChat(trx, body) {
   if (!chat || chat.storage_state === 'deleting' || (chat.hashed_team_id ?? null) !== teamHash) {
     fail(403, 'chat_access_denied');
   }
-  if (teamHash) await requireTeamWriter(trx, teamHash, actor, 'chat_access_denied');
+  let team;
+  if (teamHash) team = await requireTeamWriter(trx, teamHash, actor, 'chat_access_denied');
   else if (chat.hashed_user_id !== actor) fail(403, 'chat_access_denied');
   const linked = await liveProjectFileLinks(trx(PROJECT_ITEMS).where({ target_id_hash: sha256(body.embed_id) })).first();
   if (linked) fail(403, 'project_context_required');
@@ -269,7 +305,7 @@ async function authorizeChat(trx, body) {
   if (UUID_V5_RE.test(body.embed_id) && !generatedChild) fail(403, 'project_context_required');
   if (embed.root_embed_id != null && embed.root_embed_id !== body.embed_id
     && !(generatedChild && embed.root_embed_id === embed.parent_embed_id)) fail(403, 'embed_access_denied');
-  return { embed, teamHash, scopeHash: sha256(chatId), projectNative: false, imageChild: generatedChild };
+  return { embed, teamHash, team, scopeHash: sha256(chatId), projectNative: false, imageChild: generatedChild };
 }
 
 async function authorizeProject(trx, body) {
@@ -280,9 +316,10 @@ async function authorizeProject(trx, body) {
   await lock(trx, `project:${projectHash}`);
   const project = await trx(PROJECTS).where({ project_id: projectId }).forUpdate().first();
   if (!project) fail(403, 'project_access_denied');
+  let team;
   if (teamHash) {
     if (project.hashed_team_id !== teamHash || project.hashed_user_id != null) fail(403, 'project_access_denied');
-    await requireTeamWriter(trx, teamHash, actor, 'project_access_denied');
+    team = await requireTeamWriter(trx, teamHash, actor, 'project_access_denied');
   } else if (project.hashed_user_id !== actor || project.hashed_team_id != null) {
     fail(403, 'project_access_denied');
   }
@@ -301,7 +338,7 @@ async function authorizeProject(trx, body) {
   const projectNative = isProjectNativeFile(embed);
   const imageChild = await isImageChild(trx, embed);
   if (UUID_V5_RE.test(body.embed_id) && !projectNative && !imageChild) fail(403, 'embed_access_denied');
-  return { embed, teamHash, scopeHash: projectHash, projectNative, imageChild };
+  return { embed, teamHash, team, scopeHash: projectHash, projectNative, imageChild };
 }
 
 /**
@@ -340,6 +377,10 @@ export async function lookupEnhanceResult(trx, {
 
 function typeAllowed(embed, scopeKind, projectNative) {
   const pair = `${embed.app_id}/${embed.skill_id}`;
+  // Design assets can share the document stamp; edit only a personal chat root.
+  if (pair === 'design/document') {
+    return scopeKind === 'chat' && embed.hashed_team_id == null && embed.parent_embed_id == null;
+  }
   if (USER_EDITABLE_TYPES.has(pair)) return true;
   return scopeKind === 'project' && (projectNative || PROJECT_EDITABLE_TYPES.has(pair));
 }
@@ -364,6 +405,10 @@ async function storeHistory(trx, body, embed) {
       version_number: row.version_number, encrypted_snapshot: row.encrypted_snapshot,
       encrypted_patch: null, has_snapshot: true, has_patch: false, created_at: row.created_at,
       revision_origin: isNext ? 'user' : null, revision_action: isNext ? body.action : null,
+      // Only present when the client sent them, so rows stay valid before the columns exist.
+      ...(isNext && body.version_kind ? { version_kind: body.version_kind } : {}),
+      ...(isNext && body.encrypted_version_name ? { encrypted_version_name: body.encrypted_version_name } : {}),
+      ...(isNext && body.contributors ? { contributors: JSON.stringify(body.contributors) } : {}),
     });
   }
   if (!byVersion.has(base) && !versions.includes(base)) fail(409, 'base_snapshot_required');
@@ -386,7 +431,7 @@ export async function commitUserEmbedRevision(database, raw) {
   const digest = sha256(stableJson(body));
   const identity = sha256(`${body.embed_id}\0${body.operation_id}`);
   return database.transaction(async (trx) => {
-    const { embed, teamHash, scopeHash, projectNative, imageChild } = body.scope.kind === 'chat'
+    const { embed, teamHash, team, scopeHash, projectNative, imageChild } = body.scope.kind === 'chat'
       ? await authorizeChat(trx, body) : await authorizeProject(trx, body);
     if (embed.encryption_mode !== 'client') fail(403, 'embed_access_denied');
     // An unstamped generated image child is typed by its file index record (isImageChild).
@@ -402,6 +447,7 @@ export async function commitUserEmbedRevision(database, raw) {
       if (receipt.payload_digest !== digest) fail(409, 'operation_payload_mismatch');
       return committedResult(body, receipt, true);
     }
+    if (team?.rotation_pending) fail(409, 'team_key_rotation_pending');
 
     const current = logicalVersion(embed.version_number);
     const currentHash = sha256(embed.encrypted_content ?? '');
@@ -410,6 +456,11 @@ export async function commitUserEmbedRevision(database, raw) {
         current_revision: current, current_content_hash: currentHash };
     }
     const next = current + 1;
+    const nextSnapshot = body.history_rows.find((row) => row.version_number === next);
+    const epochFramed = requireRevisionCipherEpoch(team, embed.encrypted_content, [
+      body.head.encrypted_content, body.head.encrypted_text_preview,
+      nextSnapshot.encrypted_snapshot, body.encrypted_version_name,
+    ], projectNative || isLiveRevisionType(typed));
     if (body.restored_from != null && body.restored_from < current) {
       const source = await trx(DIFFS).where({ embed_id: body.embed_id, version_number: body.restored_from }).first();
       if (!source) fail(409, 'restore_source_missing');
@@ -435,6 +486,11 @@ export async function commitUserEmbedRevision(database, raw) {
 
     await storeHistory(trx, body, embed);
     const headUpdate = { ...body.head, version_number: next };
+    if (epochFramed) {
+      // A field sealed against the prior version cannot follow the new head.
+      headUpdate.encrypted_text_preview ??= null;
+      headUpdate.encrypted_diff = null;
+    }
     if (enhanceJob) headUpdate.s3_file_keys = JSON.stringify(unionFileKeys(embed.s3_file_keys, enhanceJob.keys));
     await trx(EMBEDS).where({ id: embed.id }).update(headUpdate);
     if (enhanceJob && await trx(ENHANCE_JOBS).where(enhanceJob.where).update(enhanceJob.committed) !== 1) {

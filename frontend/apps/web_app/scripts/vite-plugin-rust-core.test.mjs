@@ -38,6 +38,17 @@ test('a packaged core exposes its WASM digest and lazy loader', () => {
 	assert.match(source, /__openmatesRustCoreWasmBytes/);
 });
 
+test('only a packaged web build resolves the fixed first-session provider', () => {
+	const source = '/checkout/frontend/packages/ui/src/services/rustCore/originalFirstSessionSource.ts';
+	const request = './firstSessionPlatform';
+	const packaged = rustCoreAssetsPlugin({ VITE_OPENMATES_RUST_CORE: '1', OPENMATES_RUST_CORE_PKG: directory });
+	assert.match(packaged.resolveId(request, source), /src[\\/]lib[\\/]rustCore[\\/]firstSessionProvider\.ts$/);
+	assert.equal(packaged.resolveId(request, source.replace('originalFirstSessionSource', 'other')), null);
+	assert.equal(packaged.resolveId('./different', source), null);
+	assert.equal(rustCoreAssetsPlugin({ OPENMATES_RUST_CORE_PKG: directory }).resolveId(request, source), null);
+	assert.equal(rustCoreAssetsPlugin({ VITE_OPENMATES_RUST_CORE: '1' }).resolveId(request, source), null);
+});
+
 test('a flag-on production build without the package is refused before bundling', () => {
 	const flagOnly = rustCoreAssetsPlugin({ VITE_OPENMATES_RUST_CORE: '1' });
 	assert.throws(() => flagOnly.config({}, { command: 'build' }), /requires OPENMATES_RUST_CORE_PKG/);

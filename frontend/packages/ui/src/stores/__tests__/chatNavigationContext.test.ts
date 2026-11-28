@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   cached: null as Chat[] | null,
   epoch: 0,
   teamId: null as string | null,
-  getAllChats: vi.fn<() => Promise<Chat[]>>(),
+  getAllChats: vi.fn<(transaction?: IDBTransaction, options?: { limit: number; teamId: string | null; rootsOnly: boolean }) => Promise<Chat[]>>(),
 }));
 
 vi.mock("../teamStore", () => ({
@@ -23,10 +23,13 @@ vi.mock("../../demo_chats", () => ({
   INTRO_CHATS: [], LEGAL_CHATS: [], getAllExampleChats: () => [],
   translateDemoChat: (chat: unknown) => chat,
 }));
-vi.mock("../../demo_chats/convertToChat", () => ({ convertDemoChatToChat: (chat: unknown) => chat }));
+vi.mock("../../demo_chats/convertToChat", () => ({
+  convertDemoChatToChat: (chat: unknown) => chat,
+  isPublicChat: () => false,
+}));
 
 import {
-  chatNavigationStore, navigateNext, resetChatNavigationList, updateNavFromCache,
+  chatNavigationStore, navigateNext, resetChatNavigationList, setChatNavigationList, updateNavFromCache,
 } from "../chatNavigationStore";
 
 function chat(chat_id: string, team_id: string | null, timestamp: number): Chat {
@@ -98,5 +101,41 @@ describe("chat navigation context boundary", () => {
       expect(get(chatNavigationStore)).toEqual({ hasPrev: false, hasNext: true });
     });
     expect(mocks.getAllChats).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.recent-metadata-cap,sync.startup.opened-offline-and-archive
+  it("uses the selected older header without reading outside the recent workspace window", async () => {
+    mocks.teamId = "team-a";
+    const selected = chat("team-a-selected", "team-a", 100);
+    mocks.getAllChats.mockResolvedValue([
+      chat("team-a-recent", "team-a", 300), chat("team-a-earlier", "team-a", 200),
+    ]);
+
+    updateNavFromCache(selected.chat_id, selected);
+    await vi.dynamicImportSettled();
+
+    expect(mocks.getAllChats).toHaveBeenCalledExactlyOnceWith(undefined, {
+      limit: 100,
+      teamId: "team-a",
+      rootsOnly: true,
+    });
+    expect(get(chatNavigationStore)).toEqual({ hasPrev: true, hasNext: false });
+
+    updateNavFromCache(selected.chat_id, selected);
+    await vi.dynamicImportSettled();
+    expect(mocks.getAllChats).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.startup.recent-metadata-cap
+  it("does not start the database read after the sidebar takes ownership", async () => {
+    const selected = chat("personal-selected", null, 200);
+    const alternate = chat("personal-alternate", null, 100);
+
+    updateNavFromCache(selected.chat_id, selected);
+    setChatNavigationList([selected, alternate], selected.chat_id);
+    await vi.dynamicImportSettled();
+
+    expect(mocks.getAllChats).not.toHaveBeenCalled();
+    expect(get(chatNavigationStore)).toEqual({ hasPrev: false, hasNext: true });
   });
 });

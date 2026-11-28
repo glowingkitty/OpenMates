@@ -959,6 +959,12 @@
         "description": {
           "text": "Leest een Figma-ontwerp en geeft structuur, stijlen en een code-overdracht."
         }
+      },
+      "author": {
+        "text": "Ontwerp maken",
+        "description": {
+          "text": "Maak een bewerkbare flyer, post of mock-up."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Taak maken",
-          "description": {
-            "text": "Maak taken met titels, beschrijvingen en verantwoordelijken."
-          }
-        },
         "search": {
           "text": "Taken zoeken",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Voorbeeldchat"
       },
+      "sub_chat": {
+        "text": "Subchat"
+      },
       "shared_chat": {
         "text": "Gedeelde chat"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Meer weergeven"
+      },
+      "account_total": {
+        "text": "{count} chats in je account"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "{label} samenvouwen"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Taak"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid-diagram"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Afbeelding lezen…"
+        },
+        "progress_checking": {
+          "text": "Ontwerp controleren…"
+        },
+        "progress_adjusting": {
+          "text": "Ontwerp aanpassen voor borduren…"
+        },
+        "progress_stitching": {
+          "text": "Steken en voorbeeld maken…"
+        },
+        "progress_saving": {
+          "text": "Machinebestanden opslaan…"
+        },
         "threads": {
           "text": "Garens"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Ontwerp downloaden"
+        },
+        "current_page": {
+          "text": "Huidige pagina"
+        },
+        "all_pages": {
+          "text": "Alle pagina’s"
+        },
+        "image_unavailable": {
+          "text": "Een afbeelding is niet beschikbaar op dit apparaat. Open de pagina, wacht tot de afbeeldingen zijn geladen en probeer het opnieuw."
+        },
+        "failed": {
+          "text": "Het ontwerp kon niet worden gedownload. Probeer het opnieuw."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Gratis testen"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-maildomein niet toegestaan."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Gesprekken gebruiken Mistral-transcriptie, ElevenLabs v4 Turbo-spraak, normale OpenMates AI-routering en facturering op basis van gebruik."
-    },
     "privacy_description": {
       "text": "Mistral transcribeert je microfoonaudio; ElevenLabs v4 Turbo maakt de assistentstem op basis van antwoordtekst en steminstellingen. Het gesprek gebruikt de normale AI-routering en vaardigheden van OpenMates. Aanbieders kunnen aanvraaggegevens bewaren volgens hun eigen beleid."
     },

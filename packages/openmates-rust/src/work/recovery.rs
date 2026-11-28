@@ -77,7 +77,13 @@ fn js_string(value: &Value) -> String {
         Value::String(text) => text.clone(),
         Value::Array(items) => items
             .iter()
-            .map(|item| if item.is_null() { String::new() } else { js_string(item) })
+            .map(|item| {
+                if item.is_null() {
+                    String::new()
+                } else {
+                    js_string(item)
+                }
+            })
             .collect::<Vec<_>>()
             .join(","),
         Value::Object(_) => "[object Object]".into(),
@@ -89,13 +95,22 @@ fn items<'a>(document: &'a Value, field: &str) -> &'a [Value] {
 }
 
 fn read_id<'a>(value: &'a Value, key: &str, kind: &str) -> RecoveryResult<&'a str> {
-    match value.get(key).and_then(Value::as_str).filter(|id| !id.is_empty()) {
+    match value
+        .get(key)
+        .and_then(Value::as_str)
+        .filter(|id| !id.is_empty())
+    {
         Some(id) => Ok(id),
         None => invalid(format!("Recovery {kind} requires {key}.")),
     }
 }
 
-fn add_stable_id(value: &Value, key: &str, ids: &mut HashSet<String>, kind: &str) -> RecoveryResult<()> {
+fn add_stable_id(
+    value: &Value,
+    key: &str,
+    ids: &mut HashSet<String>,
+    kind: &str,
+) -> RecoveryResult<()> {
     let id = read_id(value, key, kind)?;
     if !ids.insert(id.to_owned()) {
         return invalid(format!("Recovery document has duplicate {kind} ID {id}."));
@@ -148,7 +163,9 @@ pub fn validate_document(document: &Value) -> RecoveryResult<()> {
         .get("project")
         .and_then(|project| project.get("project_id"))
         .filter(|id| truthy(id))
-        .ok_or_else(|| RecoveryError::Invalid("Work recovery document requires project.project_id.".into()))?;
+        .ok_or_else(|| {
+            RecoveryError::Invalid("Work recovery document requires project.project_id.".into())
+        })?;
     for field in ARRAYS {
         if !document[*field].is_array() {
             return invalid(format!("Work recovery document requires {field}."));
@@ -264,13 +281,24 @@ pub fn find_conflicts(
 ) -> Vec<RecoveryConflict> {
     let declared = &document["project"]["project_id"];
     if declared.as_str() != Some(project_id) {
-        return vec![RecoveryConflict { kind: "plan", id: js_string(declared), reason: "wrong_project" }];
+        return vec![RecoveryConflict {
+            kind: "plan",
+            id: js_string(declared),
+            reason: "wrong_project",
+        }];
     }
     let mut conflicts = vec![];
     for (kind, key, current) in [("plan", "plan_id", plan_ids), ("task", "task_id", task_ids)] {
         for record in items(document, &format!("{kind}s")) {
-            if let Some(id) = record[key].as_str().filter(|id| current.iter().any(|c| c == id)) {
-                conflicts.push(RecoveryConflict { kind, id: id.into(), reason: "already_exists" });
+            if let Some(id) = record[key]
+                .as_str()
+                .filter(|id| current.iter().any(|c| c == id))
+            {
+                conflicts.push(RecoveryConflict {
+                    kind,
+                    id: id.into(),
+                    reason: "already_exists",
+                });
             }
         }
     }
@@ -332,7 +360,9 @@ fn collect_mismatches(left: &Value, right: &Value, path: &str, mismatches: &mut 
             let keys = a.keys().chain(b.keys().filter(|key| !a.contains_key(*key)));
             for key in keys {
                 match (a.get(key), b.get(key)) {
-                    (Some(l), Some(r)) => collect_mismatches(l, r, &format!("{path}.{key}"), mismatches),
+                    (Some(l), Some(r)) => {
+                        collect_mismatches(l, r, &format!("{path}.{key}"), mismatches)
+                    }
                     _ => mismatches.push(format!("{path}.{key}")),
                 }
             }
@@ -350,7 +380,12 @@ fn empty_null(value: &Value) -> Value {
 }
 
 fn pick(source: &Value, fields: &[&str]) -> Value {
-    Value::Object(fields.iter().map(|field| ((*field).to_owned(), source[*field].clone())).collect())
+    Value::Object(
+        fields
+            .iter()
+            .map(|field| ((*field).to_owned(), source[*field].clone()))
+            .collect(),
+    )
 }
 
 /// The existing CLI's Plan JSON shape for one decrypted Plan.
@@ -358,9 +393,27 @@ pub fn plan_projection(plan: &Value) -> Value {
     let mut value = pick(
         plan,
         &[
-            "plan_id", "short_id", "title", "goal", "scope_in", "scope_out", "user_flows", "assumptions",
-            "open_questions", "constraints", "decisions", "risks", "reference_patterns", "context", "status",
-            "primary_chat_id", "linked_project_ids", "planner_focus_id", "version", "created_at", "updated_at",
+            "plan_id",
+            "short_id",
+            "title",
+            "goal",
+            "scope_in",
+            "scope_out",
+            "user_flows",
+            "assumptions",
+            "open_questions",
+            "constraints",
+            "decisions",
+            "risks",
+            "reference_patterns",
+            "context",
+            "status",
+            "primary_chat_id",
+            "linked_project_ids",
+            "planner_focus_id",
+            "version",
+            "created_at",
+            "updated_at",
             "completed_at",
         ],
     );
@@ -373,10 +426,28 @@ pub fn task_projection(task: &Value) -> Value {
     let mut value = pick(
         task,
         &[
-            "task_id", "short_id", "title", "description", "labels", "tags", "latest_instruction", "status",
-            "assignee_type", "assignee_identity", "assignee_hash", "primary_chat_id", "linked_project_ids",
-            "plan_id", "due_at", "priority", "priority_level", "position", "queue_state", "blocked_reason_code",
-            "ai_execution_state", "version",
+            "task_id",
+            "short_id",
+            "title",
+            "description",
+            "labels",
+            "tags",
+            "latest_instruction",
+            "status",
+            "assignee_type",
+            "assignee_identity",
+            "assignee_hash",
+            "primary_chat_id",
+            "linked_project_ids",
+            "plan_id",
+            "due_at",
+            "priority",
+            "priority_level",
+            "position",
+            "queue_state",
+            "blocked_reason_code",
+            "ai_execution_state",
+            "version",
         ],
     );
     value["slug"] = empty_null(&task["slug"]);
@@ -405,9 +476,14 @@ fn typed_sources(text: &str) -> RecoveryResult<Value> {
         return Ok(json!([]));
     }
     let parsed: Value = serde_json::from_str(text).map_err(|_| {
-        RecoveryError::Invalid("Assumption encrypted_sources was not valid JSON after decryption.".into())
+        RecoveryError::Invalid(
+            "Assumption encrypted_sources was not valid JSON after decryption.".into(),
+        )
     })?;
-    if !parsed.as_array().is_some_and(|sources| sources.iter().all(typed_source)) {
+    if !parsed
+        .as_array()
+        .is_some_and(|sources| sources.iter().all(typed_source))
+    {
         return invalid("Assumption encrypted_sources must contain typed proof records.");
     }
     Ok(parsed)
@@ -443,7 +519,11 @@ pub fn assumption_projection(plan_id: &str, assumption: &Value) -> RecoveryResul
 }
 
 /// Cleartext revision projection from its server row and decrypted snapshot.
-pub fn revision_projection(plan_id: &str, revision: &Value, snapshot: &str) -> RecoveryResult<Value> {
+pub fn revision_projection(
+    plan_id: &str,
+    revision: &Value,
+    snapshot: &str,
+) -> RecoveryResult<Value> {
     let id = js_string(&revision["revision_id"]);
     if snapshot.is_empty() {
         return invalid(format!("Revision {id} could not be decrypted."));
@@ -451,10 +531,14 @@ pub fn revision_projection(plan_id: &str, revision: &Value, snapshot: &str) -> R
     let canonical: Value = serde_json::from_str(snapshot)
         .ok()
         .filter(Value::is_object)
-        .ok_or_else(|| RecoveryError::Invalid(format!("Revision {id} has an invalid plan snapshot.")))?;
+        .ok_or_else(|| {
+            RecoveryError::Invalid(format!("Revision {id} has an invalid plan snapshot."))
+        })?;
     assert_no_ciphertext(&canonical)?;
-    Ok(json!({"plan_id": plan_id, "revision_id": revision["revision_id"], "fingerprint": revision["fingerprint"],
-              "snapshot": canonical, "created_at": revision["created_at"]}))
+    Ok(
+        json!({"plan_id": plan_id, "revision_id": revision["revision_id"], "fingerprint": revision["fingerprint"],
+              "snapshot": canonical, "created_at": revision["created_at"]}),
+    )
 }
 
 /// Assemble a document; dependency, assumption and revision order is caller-defined.
@@ -480,9 +564,11 @@ pub fn record_string<'a>(record: &'a Value, key: &str) -> RecoveryResult<&'a str
 
 fn record_strings(record: &Value, key: &str) -> RecoveryResult<Vec<String>> {
     match record[key].as_array() {
-        Some(values) if values.iter().all(Value::is_string) => {
-            Ok(values.iter().filter_map(Value::as_str).map(str::to_owned).collect())
-        }
+        Some(values) if values.iter().all(Value::is_string) => Ok(values
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect()),
         _ => invalid(format!("Recovery record requires {key} string array.")),
     }
 }
@@ -496,9 +582,10 @@ pub fn plan_create_input(record: &Value, project_id: &str) -> RecoveryResult<Pla
     let flows = record["user_flows"].as_array().ok_or_else(|| {
         RecoveryError::Invalid("Recovery record requires user_flows array.".into())
     })?;
-    let user_flows: Vec<PlanFlow> = serde_json::from_value(Value::Array(flows.clone())).map_err(|_| {
-        RecoveryError::Invalid("Recovery record user_flows are not valid Plan flows.".into())
-    })?;
+    let user_flows: Vec<PlanFlow> =
+        serde_json::from_value(Value::Array(flows.clone())).map_err(|_| {
+            RecoveryError::Invalid("Recovery record user_flows are not valid Plan flows.".into())
+        })?;
     let text = |key: &str| record_string(record, key).map(str::to_owned);
     Ok(PlanCreate {
         plan_id: Some(text("plan_id")?),
@@ -531,9 +618,16 @@ pub fn task_create_input(record: &Value, project_id: &str) -> RecoveryResult<Tas
         _ => None,
     };
     let priority = match &record["priority"] {
-        Value::Number(number) => Some(number.as_u64().and_then(|n| u8::try_from(n).ok()).ok_or_else(|| {
-            RecoveryError::Invalid("Recovery record requires a priority from 0 to 4.".into())
-        })?),
+        Value::Number(number) => Some(
+            number
+                .as_u64()
+                .and_then(|n| u8::try_from(n).ok())
+                .ok_or_else(|| {
+                    RecoveryError::Invalid(
+                        "Recovery record requires a priority from 0 to 4.".into(),
+                    )
+                })?,
+        ),
         _ => None,
     };
     let assign = match record["assignee_hash"].as_str() {
@@ -559,7 +653,10 @@ pub fn task_create_input(record: &Value, project_id: &str) -> RecoveryResult<Tas
 
 /// `<root>/<project-id>.yml`, dropping one trailing slash from `root`.
 pub fn projection_path(root: &str, project_id: &str) -> String {
-    format!("{}/{project_id}.yml", root.strip_suffix('/').unwrap_or(root))
+    format!(
+        "{}/{project_id}.yml",
+        root.strip_suffix('/').unwrap_or(root)
+    )
 }
 
 /// Sorted-key YAML for a validated document.
@@ -583,9 +680,15 @@ pub fn write_document_atomically(path: &std::path::Path, document: &Value) -> Re
     use std::io::Write;
     let source = serialize_document(document)?;
     let failed = |error: std::io::Error| {
-        RecoveryError::Invalid(format!("Recovery projection could not be written: {}: {error}", path.display()))
+        RecoveryError::Invalid(format!(
+            "Recovery projection could not be written: {}: {error}",
+            path.display()
+        ))
     };
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         let mut builder = std::fs::DirBuilder::new();
         builder.recursive(true);
         #[cfg(unix)]

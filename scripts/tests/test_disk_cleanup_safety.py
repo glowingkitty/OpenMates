@@ -144,7 +144,7 @@ def test_docker_cleanup_is_bounded_and_never_prunes_data_containers_or_volumes()
     assert "docker system prune" not in script
 
 
-def test_pressure_cleanup_reclaims_aged_dangling_images_without_tagged_pruning(tmp_path):
+def _run_docker_cleanup(tmp_path, used_percent, free_gib=100):
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     script = scripts / "docker-cleanup.sh"
@@ -155,7 +155,10 @@ def test_pressure_cleanup_reclaims_aged_dangling_images_without_tagged_pruning(t
     stubs = {
         "python3": "import sys\nraise SystemExit(3 if 'configured-check' in sys.argv else 0)\n",
         "docker": f"import sys,json\nwith open({str(calls)!r},'a') as f: f.write(json.dumps(sys.argv[1:])+'\\n')\n",
-        "df": "print('Filesystem 1024-blocks Used Available Capacity Mounted on\\nfixture 100 90 10 90% /')\n",
+        "df": ("import sys\n"
+               f"available = {free_gib} if '-B1G' in sys.argv else {100 - used_percent}\n"
+               "print('Filesystem 1024-blocks Used Available Capacity Mounted on')\n"
+               f"print('fixture 100 {used_percent}', available, '{used_percent}% /')\n"),
     }
     for name, content in stubs.items():
         path = binaries / name
@@ -165,13 +168,34 @@ def test_pressure_cleanup_reclaims_aged_dangling_images_without_tagged_pruning(t
         env={**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"],
              "OPENMATES_DOCKER_CLEANUP_LOCK": str(tmp_path / "cleanup.lock")})
     assert result.returncode == 0, result.stderr
-    commands = [json.loads(line) for line in calls.read_text().splitlines()]
+    return [json.loads(line) for line in calls.read_text().splitlines()]
+
+
+def test_pressure_cleanup_reclaims_aged_dangling_and_unused_images(tmp_path):
+    commands = _run_docker_cleanup(tmp_path, 90)
     image_prunes = [command for command in commands if command[:2] == ["image", "prune"]]
-    assert image_prunes == [["image", "prune", "-f", "--filter", "until=1h"]]
+    # From 85% used, unused images older than a day go too (TASK-5181); container images stay.
+    assert image_prunes == [["image", "prune", "-f", "--filter", "until=1h"],
+                            ["image", "prune", "-a", "-f", "--filter", "until=24h"]]
     # Under pressure the build cache is capped at 80% of the shared 20 GB budget, never wiped (TASK-7646).
     builder = [command for command in commands if command[:2] == ["builder", "prune"]]
     assert builder == [["builder", "prune", "-a", "-f", "--keep-storage", "16000MB"]]
     assert not any(command[0] in {"volume", "container", "network"} for command in commands)
+
+
+def test_below_cleanup_target_all_unused_build_cache_goes(tmp_path):
+    """Under 40 GiB free the image budget no longer shields build cache (TASK-5181)."""
+    commands = _run_docker_cleanup(tmp_path, 96, free_gib=12)
+    builder = [command for command in commands if command[:2] == ["builder", "prune"]]
+    assert builder == [["builder", "prune", "-a", "-f", "--keep-storage", "0MB"]]
+    assert ["image", "prune", "-a", "-f", "--filter", "until=24h"] in commands
+    assert not any(command[0] in {"volume", "container", "network"} for command in commands)
+
+
+def test_cleanup_below_pressure_keeps_tagged_images(tmp_path):
+    commands = _run_docker_cleanup(tmp_path, 60)
+    image_prunes = [command for command in commands if command[:2] == ["image", "prune"]]
+    assert image_prunes == [["image", "prune", "-f", "--filter", "until=168h"]]
 
 
 def test_daily_test_artifacts_are_bounded_to_one_week() -> None:

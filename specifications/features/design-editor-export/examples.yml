@@ -1,0 +1,13 @@
+schema_version: 1
+specification: feature.design-editor-export@1
+exports:
+  - id: current-artboard
+    assertion_ids: [design-editor.export.artboard, design-editor.export.local]
+    given: A two-page private Design is open and its first artboard contains a locally available image.
+    when: The user downloads the first artboard as SVG and PNG.
+    then: The SVG has vector text and a self-contained image, and the PNG has the same composition at the artboard dimensions.
+  - id: pdf-order
+    assertion_ids: [design-editor.export.pdf, design-editor.export.local]
+    given: A two-page Design is open on its second artboard.
+    when: The user downloads a PDF.
+    then: The file opens with both artboards in their original order, beginning with the first artboard.

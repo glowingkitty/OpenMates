@@ -22,6 +22,7 @@ struct Server {
     a_started:Option<oneshot::Receiver<()>>,a_release:Arc<tokio::sync::Notify>,
     monitor_started:Arc<tokio::sync::Notify>,monitor_release:Arc<tokio::sync::Notify>,monitor_sockets:Arc<AtomicU64>,monitor_bad_sample:Arc<AtomicBool>,
     stopped:CancellationToken,task:tokio::task::JoinHandle<()>,
+    wrapper_only: Arc<std::sync::atomic::AtomicBool>,
     selected_http:Arc<AtomicU64>,expanded_started:Arc<tokio::sync::Notify>,expanded_release:Arc<tokio::sync::Notify>,
 }
 impl Server {
@@ -32,6 +33,8 @@ impl Server {
         let monitor_started=Arc::new(tokio::sync::Notify::new());let monitor_release=Arc::new(tokio::sync::Notify::new());let monitor_sockets=Arc::new(AtomicU64::new(0));
         let monitor_bad_sample=Arc::new(AtomicBool::new(false));let bad_sample=monitor_bad_sample.clone();
         let selected_http=Arc::new(AtomicU64::new(0));let selected_requests=selected_http.clone();
+        let wrapper_only = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let use_wrapper = wrapper_only.clone();
         let expanded_started=Arc::new(tokio::sync::Notify::new());let expanded_release=Arc::new(tokio::sync::Notify::new());
         let(expansion_started,expansion_release)=(expanded_started.clone(),expanded_release.clone());
         let phase_started=monitor_started.clone();let phase_release=monitor_release.clone();let sockets=monitor_sockets.clone();
@@ -41,6 +44,7 @@ impl Server {
             let(records,release,starts,stop,rotate)=(records.clone(),release.clone(),starts.clone(),stop.clone(),response_rotate.clone());
             let(phase_started,phase_release,sockets,bad_sample)=(phase_started.clone(),phase_release.clone(),sockets.clone(),bad_sample.clone());
             let(selected_requests,expansion_started,expansion_release)=(selected_requests.clone(),expansion_started.clone(),expansion_release.clone());
+            let use_wrapper = use_wrapper.clone();
             tokio::spawn(async move{
                 let mut stream=stream;let mut raw=Vec::new();
                 loop{let mut bytes=[0;1024];let n=stream.read(&mut bytes).await.unwrap();assert!(n>0);raw.extend_from_slice(&bytes[..n]);
@@ -77,7 +81,29 @@ impl Server {
                     if path=="/v1/tasks/held-a"{
                         if let Some(sender)=starts.lock().unwrap().take(){sender.send(()).unwrap();}
                         tokio::select!{_=release.notified()=>{},_=stop.cancelled()=>return};json!({"status":"pending"})
-                    }else if path.starts_with("/v1/chats/metadata/batch"){selected_requests.fetch_add(1,Ordering::AcqRel);json!({"chats":[metadata()]})}
+                    }else if path.starts_with("/v1/chats/metadata/batch"){
+                        selected_requests.fetch_add(1,Ordering::AcqRel);
+                        let mut row = metadata();
+                        if use_wrapper.load(Ordering::Acquire) {
+                            let wrapped = row["encrypted_chat_key"].take();
+                            row["chat_key_wrappers"] = json!([{
+                                "hashed_chat_id": sha256(B),
+                                "key_type": "master",
+                                "encrypted_chat_key": wrapped,
+                            }]);
+                        }
+                        row["created_at"] = json!("7");
+                        row["updated_at"] = json!("10");
+                        row["last_edited_overall_timestamp"] = json!("10");
+                        row["read_details"] = json!({
+                            "created_at": 7,
+                            "updated_at": 10,
+                            "last_edited_overall_timestamp": 10,
+                            "encrypted_follow_up_request_suggestions": null,
+                            "unread_count": 0,
+                        });
+                        json!({"chats":[row]})
+                    }
                     else if path.starts_with(&format!("/v1/chats/{B}/messages/window")){
                         selected_requests.fetch_add(1,Ordering::AcqRel);
                         let row=records.lock().unwrap().as_ref().expect("independent NEW peer write after A started").clone();
@@ -90,7 +116,7 @@ impl Server {
                 stream.write_all(head.as_bytes()).await.unwrap();stream.write_all(&body).await.unwrap();
             });
         }});
-        Self{base,row,rotate,monitor_started,monitor_release,monitor_sockets,monitor_bad_sample,a_started:Some(a_started),a_release,stopped,task,selected_http,expanded_started,expanded_release}
+        Self{base,row,rotate,monitor_started,monitor_release,monitor_sockets,monitor_bad_sample,a_started:Some(a_started),a_release,stopped,task,wrapper_only,selected_http,expanded_started,expanded_release}
     }
     async fn client(&self)->Client {
         let profile=crate::client::BrowserProfileKey::from_existing_profile(OWNER,Zeroizing::new([7;32]),"synthetic-hash","synthetic-salt",crate::client::BrowserPersistence::MemoryOnly).unwrap();
@@ -111,7 +137,14 @@ fn port(store:Rc<RefCell<Store>>)->impl FnOnce(String)->std::future::Ready<Resul
         let ids=plan["messageIds"].as_array().unwrap();let mut rows=ids.iter().map(|id|s.rows.get(id.as_str().unwrap()).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>();
         let mut before=Value::Null;
         if plan["kind"].as_str().unwrap().starts_with("compare_and_patch"){
-            assert_eq!(*projection(&s.header,B,OWNER,true).unwrap(),plan["expectedMetadata"]);before=json!(rows);
+            if s.header.is_null() {
+                assert_eq!(plan["kind"], "compare_and_patch_cold_incoming_insert");
+                assert!(plan["expectedMetadata"].is_null());
+                s.header = plan["metadataInsert"].clone();
+            } else {
+                assert_eq!(*projection(&s.header,B,OWNER,true).unwrap(),plan["expectedMetadata"]);
+            }
+            before=json!(rows);
             for(i,p)in plan["patches"].as_array().unwrap().iter().enumerate(){
                 if let Some(insert)=p.get("insert"){assert!(rows[i].is_null());rows[i]=insert.clone();}
                 else{for(k,v)in p["set"].as_object().unwrap(){rows[i][k]=v.clone();}for k in p["remove"].as_array().unwrap(){rows[i].as_object_mut().unwrap().remove(k.as_str().unwrap());}}
@@ -145,6 +178,10 @@ async fn new_b_fixed_http_decode_insert_and_full_readback_run_while_same_client_
     let mut publication=tokio::time::timeout(Duration::from_secs(10),finish(&mut driver,&mut c,s.clone())).await.unwrap().unwrap();
     let stamp=publication.authenticated_source_stamp(&c).unwrap();assert_eq!(stamp.len(),64);assert_eq!(publication.authenticated_messages_version(&c).unwrap(),Some(9));
     let mut encoded=publication.take(&c,true).unwrap();let value:Value=serde_json::from_str(&encoded).unwrap();assert_eq!(value["chat"]["messages"][0]["content"],TEXT);
+    assert!(value["hasMoreBefore"].is_null(), "retained coverage stays unknown");
+    assert_eq!(value["coldLivePage"]["hasMoreBefore"], false);
+    assert_eq!(value["coldLivePage"]["startCursor"]["chatId"], B);
+    assert_eq!(value["coldLivePage"]["startCursor"]["messageId"], "physical-new-B");
     assert_eq!(s.borrow().rows["physical-new-B"]["encrypted_content"],fresh["encrypted_content"]);
     assert_eq!(s.borrow().header["messages_v"],7);assert_eq!(s.borrow().header["unknown_local"],json!({"retain":true}));
     assert_eq!(s.borrow().header["encrypted_draft_md"],"protected encrypted local draft");assert_eq!(value["canonicalIncomingDurablyAcknowledged"],false);assert_eq!(value["historyComplete"],false);
@@ -273,6 +310,28 @@ async fn cold_finishes_only_after_selected_take_without_monitor_or_metadata_ack(
     let encoded=publication.take(&c,true).unwrap();assert!(encoded.contains(TEXT));
     publication.finish_cold(&c).unwrap();assert!(c.monitor_cancel.is_none());
     assert_eq!(original.borrow().header["messages_v"],7);
+}
+
+// contract-test: supporting surface=sdks.rust assertions=chats.persistence.client-encrypted,sync.client.shared-rust-policy
+#[tokio::test]
+async fn cold_retains_wrapper_only_personal_metadata_and_transcript() {
+    let server = Server::open().await;
+    server.wrapper_only.store(true, Ordering::Release);
+    *server.row.lock().unwrap() = Some(fresh_row());
+    let mut client = server.client().await;
+    let storage = store();
+    storage.borrow_mut().header = Value::Null;
+    let mut read = client.begin_owned_browser_cold_message_read(
+        CancellationToken::new(), OWNER, B, Default::default(), host(), 20, true,
+    ).unwrap();
+    let mut publication = finish(&mut read, &mut client, storage.clone()).await.unwrap();
+    let view: Value = serde_json::from_str(&publication.take(&client, true).unwrap()).unwrap();
+    publication.finish_cold(&client).unwrap();
+    let committed = storage.borrow();
+    assert_eq!(view["chat"]["messages"][0]["content"], TEXT);
+    assert_eq!(committed.header["encrypted_chat_key"], metadata()["encrypted_chat_key"]);
+    assert_eq!(committed.rows.len(), 1);
+    assert!(committed.rows["physical-new-B"].get("content").is_none());
 }
 
 // contract-test: supporting surface=sdks.rust assertions=auth.session.authoritative-enforcement,sync.client.shared-rust-policy

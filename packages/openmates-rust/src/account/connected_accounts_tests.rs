@@ -106,3 +106,27 @@ fn node_generated_transfer_decrypts() {
     );
     assert_eq!(value["label"], "Work");
 }
+
+#[test]
+fn permission_app_actions_reads_the_envelope_and_the_single_app_object() {
+    let envelope = json!({"apps":{"calendar":{"allowed_actions":["read","write"]},"mail":{"allowed_actions":["read","draft"]}}});
+    assert_eq!(
+        permission_app_actions(&envelope),
+        vec![
+            (
+                "calendar".to_string(),
+                vec!["read".to_string(), "write".to_string()]
+            ),
+            (
+                "mail".to_string(),
+                vec!["read".to_string(), "draft".to_string()]
+            ),
+        ]
+    );
+    let old = json!({"app_id":"google_calendar","allowed_actions":["read"]});
+    assert_eq!(
+        permission_app_actions(&old),
+        vec![("calendar".to_string(), vec!["read".to_string()])]
+    );
+    assert!(permission_app_actions(&json!("x")).is_empty());
+}

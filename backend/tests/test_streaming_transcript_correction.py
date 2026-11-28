@@ -7,6 +7,34 @@ import pytest
 from backend.core.api.app.services import streaming_transcript_correction as streaming
 
 
+# contract-test: supporting surface=gui.web assertions=message-input.audio.correction-gate
+@pytest.mark.asyncio
+@pytest.mark.parametrize("correct_second_batch", [False, True])
+async def test_streaming_preserves_skipped_parts_and_tracks_only_used_models(
+    monkeypatch, correct_second_batch
+):
+    first = "Please close the window.\n\n"
+    second = "Please turn off the lights."
+    monkeypatch.setattr(streaming, "CORRECTION_BATCH_CHARACTERS", len(second))
+    calls = []
+
+    async def correct(raw, _language):
+        calls.append(raw)
+        if raw == second and correct_second_batch:
+            return {"transcript": "Turn off the lights.", "correction_model": "test"}
+        return None
+
+    async def progress(_offset):
+        pass
+
+    worker = streaming.StreamingTranscriptCorrection(correct, progress)
+    assert await worker.finish(first + second, "en") == (
+        {"transcript": first + "Turn off the lights.", "correction_model": "test"}
+        if correct_second_batch else None
+    )
+    assert calls == [first.strip(), second]
+
+
 @pytest.mark.asyncio
 # contract-test: supporting surface=gui.web assertions=message-input.audio.realtime-voxtral3,message-input.audio.editable-transcript
 async def test_completed_paragraph_is_reused_and_only_new_speech_is_corrected(

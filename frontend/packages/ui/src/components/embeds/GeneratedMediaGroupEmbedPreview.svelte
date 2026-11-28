@@ -220,7 +220,7 @@
 <style>
   .generated-media-parent { display: flex; flex-direction: column; gap: var(--spacing-3); height: 100%; min-height: 0; box-sizing: border-box; padding: var(--spacing-3) 0 var(--spacing-6); color: var(--color-font-primary); }
   /* The first lines of the prompt that fit; the full prompt stays in fullscreen. */
-  .prompt { margin: 0; flex: 0 0 auto; font-size: var(--font-size-sm); line-height: 1.3; color: var(--color-font-secondary); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+  .prompt { margin: 0; flex: 0 0 auto; font-size: var(--font-size-sm); line-height: 1.3; color: var(--color-font-secondary); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; word-break: normal; }
   .working { position: relative; flex: 1; min-height: 0; }
   .svg-draft { position: absolute; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-2); background: var(--color-media-letterbox); }
   .svg-draft :global(.svg-embed-image) { width: 100%; height: 100%; }
@@ -233,7 +233,7 @@
   .video-source { position: relative; overflow: hidden; border-radius: var(--radius-3); }
   .request-change { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; color: var(--color-font-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .request-model { flex: 0 0 auto; font-size: var(--font-size-tiny); line-height: 1.3; font-weight: 600; }
-  .request-prompt { margin: 0; flex: 1 1 0; min-height: 0; font-size: var(--font-size-sm); line-height: 1.35; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; }
+  .request-prompt { margin: 0; flex: 1 1 0; min-height: 0; font-size: var(--font-size-sm); line-height: 1.35; overflow: hidden; overflow-wrap: break-word; word-break: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; }
   /* Same moving highlight as the processing status text in BasicInfosBar. */
   .shimmer { background: linear-gradient(90deg, var(--color-grey-70) 0%, var(--color-grey-70) 40%, var(--color-grey-50) 50%, var(--color-grey-70) 60%, var(--color-grey-70) 100%); background-size: 200% 100%; background-clip: text; -webkit-background-clip: text; color: transparent; animation: request-shimmer 1.5s infinite linear; }
   @keyframes request-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }

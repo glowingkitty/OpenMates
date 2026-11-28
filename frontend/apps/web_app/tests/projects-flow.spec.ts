@@ -66,9 +66,9 @@ test.describe('Projects v1 flow', () => {
     if ((page.viewportSize()?.width ?? 1440) < 768) {
       const workspaceSelect = page.getByTestId('workspace-mobile-select');
       await expect(workspaceSelect).toBeVisible({ timeout: 30000 });
-      await expect(workspaceSelect).toHaveValue('/#projects');
-      expect(await workspaceSelect.locator('option').evaluateAll((options: HTMLOptionElement[]) => options.map(option => option.value))).toEqual([
-        '/', '/#apps', '/#projects', '/#tasks', '/#workflows',
+      await expect(workspaceSelect).toHaveAttribute('data-active-workspace', '/#projects');
+      expect(await page.getByTestId('workspace-picker-option').evaluateAll(options => options.map(option => option.getAttribute('href')))).toEqual([
+        '/', '/#apps', '/#projects', '/#workflows', '/#tasks',
       ]);
     } else {
       await expect(page.getByTestId('chats-nav-link')).toBeVisible({ timeout: 30000 });

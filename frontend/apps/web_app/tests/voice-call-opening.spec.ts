@@ -8,6 +8,9 @@
 const { expect, test: auditedTest } = require('./helpers/cookie-audit');
 const { withProofAudio, proofAudioLaunchArgs } = require('./helpers/proof-audio');
 const { loginToTestAccount } = require('./helpers/chat-test-helpers');
+import { installNativeVoiceInput, nativeVoiceInput } from './helpers/voice-call-test-helpers';
+import type { NativeVoiceInputEvidence } from './helpers/voice-call-test-helpers';
+import type { Page } from '@playwright/test';
 
 const test = withProofAudio(auditedTest);
 test.use({ launchOptions: { args: proofAudioLaunchArgs() }, reducedMotion: 'no-preference' });
@@ -20,6 +23,60 @@ interface BarSample {
   opacity: number;
   slot: string;
   faded: string[];
+}
+
+function observeStartupSpeech(page: Page) {
+  const activity = { startupClip: false, replyProse: false };
+  page.on('websocket', socket => {
+    if (new URL(socket.url()).pathname !== '/v1/voice-call') return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload !== 'string') return;
+      const frame = JSON.parse(payload);
+      if (frame.type !== 'assistant_state' || frame.speaking !== true) return;
+      if (typeof frame.clip_audio_url === 'string' && frame.clip_audio_url.endsWith('/chat_start-1.mp3')) {
+        activity.startupClip = true;
+      }
+      if (!frame.clip_audio_url && typeof frame.text === 'string' && frame.text.includes('Ich habe das geprüft')) {
+        activity.replyProse = true;
+      }
+    });
+  });
+  return activity;
+}
+
+function observeSpeechWindow(page: Page) {
+  const activity = {
+    starts: 0,
+    ready: 0,
+    pcmBytes: 0,
+    streamEnds: 0,
+    endedOrWarned: 0,
+    usage: null as { seconds: number; credits: number } | null,
+    billing: null as { listening: boolean; processing: boolean } | null,
+  };
+  page.on('websocket', socket => {
+    if (new URL(socket.url()).pathname !== '/v1/voice-call') return;
+    socket.on('framesent', ({ payload }) => {
+      if (typeof payload !== 'string') return;
+      const frame = JSON.parse(payload);
+      if (frame.type === 'start') activity.starts++;
+      if (frame.type === 'mic_audio') activity.pcmBytes += Buffer.from(frame.data, 'base64').length;
+      if (frame.type === 'audio_stream_end') activity.streamEnds++;
+    });
+    socket.on('framereceived', ({ payload }) => {
+      if (typeof payload !== 'string') return;
+      const frame = JSON.parse(payload);
+      if (frame.type === 'ready') activity.ready++;
+      if (['ended', 'error', 'speech_idle_warning'].includes(frame.type)) activity.endedOrWarned++;
+      if (frame.type === 'usage') {
+        activity.usage = { seconds: frame.stt_duration_seconds, credits: frame.credits_accrued };
+      }
+      if (frame.type === 'billing_activity') {
+        activity.billing = { listening: frame.input_listening, processing: frame.processing };
+      }
+    });
+  });
+  return activity;
 }
 
 test.describe('voice call opening', () => {
@@ -113,5 +170,103 @@ test.describe('voice call opening', () => {
 
     await page.getByTestId('voice-call-hangup').click();
     await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.intentional-interruption,video-call.audio.localized-waiting
+  test('reports the startup announcement and first reply independently for echo detection', async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    await installNativeVoiceInput(page);
+    const activity = observeStartupSpeech(page);
+    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
+    const status = page.getByTestId('voice-call-status-text');
+    await expect(privacy.or(status).first()).toBeVisible({ timeout: 20_000 });
+    if (await privacy.isVisible()) await privacy.getByRole('button', { name: 'Continue', exact: true }).click();
+    await expect(status).toHaveText('Listening · You can speak now', { timeout: 20_000 });
+    await page.getByTestId('voice-call-mute').click();
+
+    const request = 'Bitte prüfe das gründlich';
+    const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+    await editor.click();
+    await page.keyboard.insertText(request);
+    await page.getByTestId('composer-send-button').click();
+    await expect.poll(() => activity, { timeout: 60_000 }).toEqual({ startupClip: true, replyProse: true });
+    await expect(page.getByTestId('message-user')).toHaveCount(1);
+    await expect(page.getByTestId('message-user')).toContainText(request);
+    await expect(page.getByTestId('message-assistant')).toContainText('Ich habe das geprüft. Hier ist das Ergebnis.');
+    await testInfo.attach('new-call-first-reply', { body: await page.screenshot(), contentType: 'image/png' });
+    await page.getByTestId('voice-call-hangup').click();
+    await expect(page.getByTestId('voice-call-bar')).toHaveCount(0);
+  });
+
+  // contract-test: direct surface=gui.web assertions=video-call.audio.automatic-idle,video-call.audio.background-detection,video-call.usage.provider-metering
+  test('keeps one call open with a frozen transcription bill during quiet', async ({ page, context }, testInfo) => {
+    test.setTimeout(150_000);
+    await installNativeVoiceInput(page);
+    const activity = observeSpeechWindow(page);
+    await loginToTestAccount(page, () => {}, async () => {}, { waitForEditor: false });
+    let releaseDetector!: () => void;
+    const detectorHeld = new Promise<void>(resolve => { releaseDetector = resolve; });
+    await context.route('**/*silero_vad_v5*', async route => {
+      if (route.request().resourceType() !== 'script') await detectorHeld;
+      await route.continue();
+    });
+    await page.locator('[data-testid="voice-call-start"]:visible').click();
+    const privacy = page.getByTestId('notification').filter({ hasText: 'Before your first voice call' });
+    const status = page.getByTestId('voice-call-status-text');
+    try {
+      await expect(privacy.or(status).first()).toBeVisible({ timeout: 20_000 });
+      if (await privacy.isVisible()) await privacy.getByRole('button', { name: 'Continue', exact: true }).click();
+      await expect.poll(() => activity.ready).toBe(1);
+      await expect.poll(() => activity.pcmBytes).toBeGreaterThan(0);
+    } finally {
+      releaseDetector();
+    }
+    await expect.poll(async () => (await nativeVoiceInput(page)).detectorReady, { timeout: 30_000 }).toBe(1);
+    await expect(status).toHaveText('Speak to resume call.', { timeout: 15_000 });
+    expect(activity.streamEnds).toBe(1);
+    await expect.poll(() => activity.billing).toEqual({ listening: false, processing: false });
+    const seconds = activity.pcmBytes / 32_000;
+    expect(seconds).toBeGreaterThan(0);
+    await expect.poll(() => activity.usage).toEqual({ seconds, credits: Math.ceil(seconds * 0.25) });
+    const quiet = { ...activity };
+    await page.evaluate(() => {
+      (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.failDetector();
+    });
+    await expect.poll(async () => (await nativeVoiceInput(page)).workersTerminated).toBe(1);
+    const quietStarted = Date.now();
+    await expect.poll(() => Date.now() - quietStarted, { timeout: 41_000, intervals: [1_000] }).toBeGreaterThan(35_000);
+    expect(activity).toEqual(quiet);
+    expect(activity).toMatchObject({ starts: 1, ready: 1, endedOrWarned: 0 });
+    await expect(status).toHaveText('Speak to resume call.');
+    const bar = page.getByTestId('voice-call-bar');
+    const quietScreenshot = testInfo.outputPath('connected-during-quiet.png');
+    await bar.screenshot({ path: quietScreenshot });
+    await testInfo.attach('connected-during-quiet', { path: quietScreenshot, contentType: 'image/png' });
+
+    // The isolated transcription provider emits one request per call.
+    // Use that request after quiet so it proves the resumed window.
+    await expect.poll(async () => (await nativeVoiceInput(page)).speechReady).toBe(true);
+    await page.evaluate(() => {
+      (window as unknown as { __nativeVoiceInput: NativeVoiceInputEvidence }).__nativeVoiceInput.play(false);
+    });
+    await expect.poll(() => activity.pcmBytes).toBeGreaterThan(quiet.pcmBytes);
+    await expect(page.getByTestId('message-user').filter({ hasText: 'How do I make ramen?' }))
+      .toHaveCount(1, { timeout: 30_000 });
+    await expect(page.getByTestId('message-assistant').filter({ hasText: 'For ramen, simmer the broth and cook the noodles.' }))
+      .toHaveCount(1, { timeout: 30_000 });
+    await expect.poll(() => activity.streamEnds).toBe(2);
+    await expect.poll(() => activity.billing).toEqual({ listening: false, processing: false });
+    await expect(status).toHaveText('Speak to resume call.', { timeout: 20_000 });
+    const resumedSeconds = activity.pcmBytes / 32_000;
+    expect(resumedSeconds).toBeGreaterThan(seconds);
+    await expect.poll(() => activity.usage).toEqual({ seconds: resumedSeconds, credits: Math.ceil(resumedSeconds * 0.25) });
+    expect(activity).toMatchObject({ starts: 1, ready: 1, endedOrWarned: 0 });
+    const answerScreenshot = testInfo.outputPath('answered-after-quiet.png');
+    await page.screenshot({ path: answerScreenshot });
+    await testInfo.attach('answered-after-quiet', { path: answerScreenshot, contentType: 'image/png' });
+    await bar.getByTestId('voice-call-hangup').click();
+    await expect(bar).toHaveCount(0);
   });
 });

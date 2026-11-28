@@ -143,6 +143,9 @@ preprocess_request_tool:
       - Select every skill that could materially help, but never invent an ID. Use web-search
         for broad retrieval, videos-search for useful demonstrations, and images-search for
         explicit image requests or visual/physical subjects (not abstract/code/data tasks).
+        Creating or editing a Task is inline authoring. A due date is not a request
+        for the Reminder skill. Offer Reminder only for a requested notification,
+        scheduled follow-up, or automation.
         Select URL read/transcript skills only when asked to understand that URL.
         For image-consuming skills, pass exact image references directly when the
         request already supplies enough information for the operation. Shopping,

@@ -18,7 +18,7 @@ argument-hint: "[tag]"
 
 ### Step 1 — Determine Version
 
-Current phase: **`0.x`, under active development**. Product UI shows short product lines such as `v0.32`; release tags and package/image artifacts use exact prerelease-train versions such as `v0.32.0-alpha.0`, `v0.32.0-alpha.1`, and `v0.32.0-alpha.2`. Check the latest tag:
+Current phase: **`0.x`, under active development**. Product UI shows short product lines such as `v0.33`; release tags and package/image artifacts use exact prerelease-train versions such as `v0.33.0-alpha.0`, `v0.33.0-alpha.1`, and `v0.33.0-alpha.2`. Check the latest tag:
 ```bash
 gh release list --limit 3
 ```
@@ -26,9 +26,9 @@ gh release list --limit 3
 Version bump decision:
 | Change type | Bump | Example |
 |-------------|------|---------|
-| New features | Minor product line | v0.32 → v0.32 |
-| Bug fixes / repeated dev publishes | Prerelease artifact | v0.32.0-alpha.0 → v0.32.0-alpha.1 |
-| Breaking changes | Major | v0.32 → v1.0 |
+| New features | Minor product line | v0.33 → v0.33 |
+| Bug fixes / repeated dev publishes | Prerelease artifact | v0.33.0-alpha.0 → v0.33.0-alpha.1 |
+| Breaking changes | Major | v0.33 → v1.0 |
 
 ### Step 2 — Write Release Notes
 
@@ -74,5 +74,7 @@ EOF
 
 Tell the user:
 - The draft release tag and URL
-- That it should be **published after the PR is merged into `main`**
+- That it should be **published after the PR is merged into `main`**. The
+  owner's merge is his go-ahead for production (owner, 23 Nov): once merged,
+  update production with `/update-prod-server` and verify it; never ask again
 - To publish: `gh release edit <tag> --draft=false`

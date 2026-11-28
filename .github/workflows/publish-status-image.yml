@@ -13,12 +13,14 @@ on:
     paths:
       - 'deployment/status_server/**'
       - 'scripts/tests/test_status_agent_*.py'
+      - 'scripts/tests/test_production_uptime.py'
       - '.github/workflows/publish-status-image.yml'
   push:
     branches: [main, dev]
     paths:
       - 'deployment/status_server/**'
       - 'scripts/tests/test_status_agent_*.py'
+      - 'scripts/tests/test_production_uptime.py'
       - '.github/workflows/publish-status-image.yml'
 
 concurrency:
@@ -48,7 +50,7 @@ jobs:
       - name: Status agent tests
         run: |
           python -m pip install --disable-pip-version-check pytest==8.4.2 pyyaml==6.0.3
-          python -m pytest -q scripts/tests/test_status_agent_alerts.py scripts/tests/test_status_agent_modules.py scripts/tests/test_status_server_setup.py
+          python -m pytest -q scripts/tests/test_status_agent_alerts.py scripts/tests/test_status_agent_modules.py scripts/tests/test_status_server_setup.py scripts/tests/test_production_uptime.py
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -72,7 +74,7 @@ jobs:
           for i in $(seq 1 60); do curl -fs http://127.0.0.1:18081/health >/dev/null && break; sleep 2; done
           curl -fsk https://localhost:18443/ | grep -q "OpenMates Status"
           for i in $(seq 1 60); do curl -fsk https://localhost:18443/data/status.json -o status.json && break; sleep 3; done
-          python3 -c "import json; d=json.load(open('status.json')); assert d['components'] and 'overall' in d; print('status.json ok:', d['overall'])"
+          python3 -c "import json; d=json.load(open('status.json')); assert d['components'] and 'overall' in d and 'short_blips_24h' in d; print('status.json ok:', d['overall'])"
           test "$(docker exec status-smoke id -u)" != 0
           docker logs status-smoke 2>&1 | tail -20
           docker rm -f status-smoke

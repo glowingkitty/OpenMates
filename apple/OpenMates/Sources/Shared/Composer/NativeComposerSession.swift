@@ -16,6 +16,16 @@ final class NativeComposerSession: ObservableObject {
     @Published private(set) var revision: Int
     @Published private(set) var hasBlockingEmbeds: Bool
 
+    @Published private(set) var isDictating = false
+
+    private struct Dictation {
+        var range: NSRange
+        var expectedDocument: String
+        var inserted = false
+    }
+
+    private var dictation: Dictation?
+
     let controller: NativeComposerController
 
     init(canonicalMarkdown: String = "") {
@@ -44,6 +54,64 @@ final class NativeComposerSession: ObservableObject {
     func replaceSelection(with text: String) throws {
         try controller.replaceSelection(with: text)
         publishControllerState()
+    }
+
+    /// The live draft uses the same editable document and undo path as typing.
+    func beginDictation() {
+        let selected = controller.selection
+        dictation = Dictation(range: NSRange(location: selected.location, length: 0),
+            expectedDocument: controller.attributedString.string)
+        isDictating = true
+    }
+
+    @discardableResult
+    func updateDictation(_ words: String) -> Bool {
+        let text = words.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var capture = dictation, !text.isEmpty else { return false }
+        // Manual edits win over delayed partials and corrections.
+        guard capture.expectedDocument == controller.attributedString.string else { return capture.inserted }
+        let source = capture.expectedDocument as NSString
+        let left = source.substring(to: capture.range.location).last
+        let right = source.substring(from: NSMaxRange(capture.range)).first
+        let prefix = left.map { $0.isLetter || $0.isNumber } == true ? " " : ""
+        let suffix = right.map { $0.isLetter || $0.isNumber } == true ? " " : ""
+        let insertion = prefix + text + suffix
+        if source.substring(with: capture.range) == insertion { return capture.inserted }
+        do {
+            try controller.setSelection(capture.range)
+            try replaceSelection(with: insertion)
+            capture.range.length = insertion.utf16.count
+            capture.expectedDocument = controller.attributedString.string
+            capture.inserted = true
+            dictation = capture
+            return true
+        } catch {
+            Self.report(error, operation: "dictation insertion")
+            return capture.inserted
+        }
+    }
+
+    @discardableResult
+    func finishDictation(_ words: String?) -> Bool {
+        if let words { updateDictation(words) }
+        let inserted = dictation?.inserted == true
+        dictation = nil
+        isDictating = false
+        return inserted
+    }
+
+    func cancelDictation() {
+        if let capture = dictation, capture.inserted,
+           capture.expectedDocument == controller.attributedString.string {
+            do {
+                try controller.setSelection(capture.range)
+                try replaceSelection(with: "")
+            } catch {
+                Self.report(error, operation: "dictation cancellation")
+            }
+        }
+        dictation = nil
+        isDictating = false
     }
 
     func insertPendingEmbed(

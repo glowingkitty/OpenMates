@@ -1,4 +1,4 @@
-/** Local-only, fail-open microphone upload gate. Audio never waits for model loading. */
+/** Local microphone gate. Captured speech never waits for model loading. */
 export interface VoiceDetectorCallbacks {
   onResult: (probability: number, samples: number) => void;
   onFailure: () => void;
@@ -12,30 +12,36 @@ export interface VoiceDetector {
 
 interface GateOptions {
   onAudio: (data: string) => void;
-  onAudioEnd: () => void;
+  onAudioEnd: (verifiedSilence: boolean) => void;
   onState: (state: { inputIdle: boolean; userSpeaking: boolean }) => void;
   /** Fatal input/startup overflow only. Detector failures recover continuous upload. */
   onError: () => void;
   createDetector?: (callbacks: VoiceDetectorCallbacks, signal: AbortSignal) => Promise<VoiceDetector>;
 }
 
-interface Chunk { data: string; samples: number }
+interface Chunk { data: string; samples: number; hasSignal: boolean }
 const RATE = 16_000;
 const STARTUP_SAMPLES = RATE * 10;
 const RING_SAMPLES = RATE * 0.4;
-const SILENCE_SAMPLES = RATE * 5;
+// Leave voiced endings time to reach the provider before stopping uploads.
+const QUIET_TAIL_SAMPLES = RATE * 0.64;
+const VERIFIED_QUIET_TAIL_SAMPLES = RATE * 0.32;
 const MAX_PENDING_SAMPLES = RATE * 0.256;
 const RESULT_TIMEOUT_MS = 250;
+// Only digital silence is trusted when the detector is unavailable, allowing one bit of noise.
+const DIGITAL_SILENCE_LIMIT = 1 / 0x8000;
 
-function unpack(data: string): { pcm: Float32Array; samples: number } {
+function unpack(data: string): { pcm: Float32Array; samples: number; hasSignal: boolean } {
   const bytes = atob(data);
   if (bytes.length % 2) throw new Error('Invalid PCM16');
   const pcm = new Float32Array(bytes.length / 2);
+  let hasSignal = false;
   for (let i = 0; i < pcm.length; i++) {
     const value = bytes.charCodeAt(i * 2) | (bytes.charCodeAt(i * 2 + 1) << 8);
     pcm[i] = (value >= 0x8000 ? value - 0x10000 : value) / 0x8000;
+    hasSignal ||= Math.abs(pcm[i]) > DIGITAL_SILENCE_LIMIT;
   }
-  return { pcm, samples: pcm.length };
+  return { pcm, samples: pcm.length, hasSignal };
 }
 
 export class VoiceCallAudioGate {
@@ -52,6 +58,8 @@ export class VoiceCallAudioGate {
   private startupSamples = 0;
   private ring: Chunk[] = [];
   private ringSamples = 0;
+  private fastEndpoint = false;
+  private heardClearSpeech = false;
   private pendingSamples = 0;
   private lastResultAt = 0;
   private silenceSamples = 0;
@@ -69,6 +77,10 @@ export class VoiceCallAudioGate {
     if (this.stopped) return;
     this.started = true;
     this.loadDetector();
+  }
+
+  setVerifiedEndpoint(enabled: boolean): void {
+    this.fastEndpoint = enabled;
   }
 
   setLive(live: boolean): void {
@@ -96,11 +108,12 @@ export class VoiceCallAudioGate {
     let decoded: ReturnType<typeof unpack>;
     try { decoded = unpack(data); }
     catch { this.fatal(); return; }
-    const { samples, pcm } = decoded;
+    const { samples, pcm, hasSignal } = decoded;
+    const chunk = { data, samples, hasSignal };
     if (!samples) return;
     if (!this.live) {
       if (this.startupSamples + samples > STARTUP_SAMPLES) { this.fatal(); return; }
-      this.startup.push({ data, samples });
+      this.startup.push(chunk);
       this.startupSamples += samples;
       return;
     }
@@ -109,7 +122,11 @@ export class VoiceCallAudioGate {
     if (this.detector && (samples > MAX_PENDING_SAMPLES || this.pendingSamples + samples > MAX_PENDING_SAMPLES)) {
       this.detectorFailed();
     }
-    if (this.idle) this.remember({ data, samples });
+    if (this.disabled) {
+      this.pushWithoutDetector(chunk);
+      return;
+    }
+    if (this.idle) this.remember(chunk);
     else this.send(data);
     if (this.detector) {
       if (!this.pendingSamples) this.lastResultAt = Date.now();
@@ -124,7 +141,7 @@ export class VoiceCallAudioGate {
     this.muted = muted;
     this.clearAudio();
     this.resetDetection();
-    if (muted) this.endStream();
+    if (muted) this.endStream(false);
   }
 
   stop(): void {
@@ -146,10 +163,11 @@ export class VoiceCallAudioGate {
     this.options.onAudio(data);
   }
 
-  private endStream(): void {
+  private endStream(verifiedSilence: boolean): void {
     if (!this.streamOpen) return;
     this.streamOpen = false;
-    this.options.onAudioEnd();
+    this.heardClearSpeech = false;
+    this.options.onAudioEnd(verifiedSilence);
   }
 
   private setState(inputIdle: boolean, userSpeaking: boolean): void {
@@ -168,7 +186,7 @@ export class VoiceCallAudioGate {
       this.ringSamples -= trim;
       if (trim === first.samples) this.ring.shift();
       else {
-        this.ring[0] = { data: btoa(atob(first.data).slice(trim * 2)), samples: first.samples - trim };
+        this.ring[0] = { ...first, data: btoa(atob(first.data).slice(trim * 2)), samples: first.samples - trim };
       }
     }
   }
@@ -179,6 +197,22 @@ export class VoiceCallAudioGate {
     this.ring = [];
     this.ringSamples = 0;
     for (const chunk of ring) this.send(chunk.data);
+  }
+
+  private pushWithoutDetector(chunk: Chunk): void {
+    if (chunk.hasSignal) {
+      this.silenceSamples = 0;
+      if (this.idle || this.ring.length) this.resume();
+      this.send(chunk.data);
+      return;
+    }
+    if (this.idle || !this.streamOpen) this.remember(chunk);
+    else this.send(chunk.data);
+    this.silenceSamples += chunk.samples;
+    if (this.silenceSamples >= QUIET_TAIL_SAMPLES) {
+      this.setState(true, false);
+      this.endStream(true);
+    }
   }
 
   private result(probability: number, samples: number): void {
@@ -192,6 +226,7 @@ export class VoiceCallAudioGate {
     // Ambiguous frames never count as verified silence. No minimum utterance duration:
     // a single positive 32 ms frame resumes uploads, including very short "yes"/"stop".
     if (probability >= 0.35) {
+      if (probability >= 0.7) this.heardClearSpeech = true;
       this.silenceSamples = 0;
       this.quietSpeakingSamples = 0;
       this.setState(this.idle, true);
@@ -208,9 +243,10 @@ export class VoiceCallAudioGate {
     this.silenceSamples += samples;
     this.quietSpeakingSamples += samples;
     if (this.quietSpeakingSamples >= RATE * 0.16 && this.speaking) this.setState(this.idle, false);
-    if (!this.idle && this.silenceSamples >= SILENCE_SAMPLES) {
+    const required = this.fastEndpoint && this.heardClearSpeech ? VERIFIED_QUIET_TAIL_SAMPLES : QUIET_TAIL_SAMPLES;
+    if (!this.idle && this.silenceSamples >= required) {
       this.setState(true, false);
-      this.endStream();
+      this.endStream(true);
     }
   }
 
@@ -244,6 +280,7 @@ export class VoiceCallAudioGate {
   }
 
   private resetDetection(): void {
+    this.heardClearSpeech = false;
     this.pendingSamples = 0;
     this.silenceSamples = 0;
     this.quietSpeakingSamples = 0;
@@ -265,8 +302,8 @@ export class VoiceCallAudioGate {
     this.pendingSamples = 0;
     this.silenceSamples = 0;
     this.setState(this.idle, false);
-    this.resume();
-    console.warn('[VoiceCall] Local speech detection unavailable; continuing microphone upload');
+    if (this.ring.some((chunk) => chunk.hasSignal)) this.resume();
+    console.warn('[VoiceCall] Local speech detection unavailable; using digital-silence fallback');
   }
 
   private clearTimers(): void {

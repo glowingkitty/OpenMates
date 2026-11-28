@@ -1,0 +1,121 @@
+schema_version: 1
+id: feature.task-inline-embeds
+version: 1
+status: draft
+title: Tasks as Inline Embeds
+summary: >
+  The assistant creates a Task by writing a task embed inline in its reply and
+  changes it with the same diff editing used by code, sheets and documents.
+  The card shows the task icon, title, due date and status. Searching and
+  listing Tasks stay a normal skill.
+
+related_contracts:
+  - specification: feature.tasks@4
+    relationship: >
+      Reuse its encrypted Task record, client-persisted mutation jobs,
+      assignment, Project links and lifecycle Activity. This feature only
+      changes how the assistant authors Task creation and edits in a chat.
+  - specification: feature.assistant-authored-result-embeds@1
+    relationship: >
+      Reuse the inline authored-content streaming, embed reference and
+      encrypted embed persistence lifecycle.
+
+scope:
+  includes:
+    - An inline openmates_task block in an assistant reply creates one Task and one task embed.
+    - Validation of title, status, due date, assignee in the Team or personal context, and Project link.
+    - Validation problems shown on the card and given back to the assistant in the next turn.
+    - Diff edits of an existing task embed, each a new version in the timeline with one Undo.
+    - Task icon on cards and on inline links to task embeds on web, Apple and CLI.
+  excludes:
+    - Task search and listing, which stay the Tasks search skill.
+    - Queue execution tools for OpenMates-assigned Tasks (block, complete, unblock, move, reorder).
+    - Any change to Task encryption, key wrappers or server-visible metadata.
+
+models:
+  TaskFence:
+    title: {type: string, required: true, constraints: {nonblank: true, max_chars: 200}}
+    description: {type: string, required: false, constraints: {max_chars: 4000}}
+    status: {type: enum, values: [backlog, todo, in_progress, blocked, done], required: false, default: todo, constraints: {done_only_in_edits: true}}
+    due_date: {type: date_or_offset_datetime, required: false}
+    assignee: {type: string, required: false, default: user, constraints: {personal: [user, openmates], team: member_or_openmates}}
+    project: {type: string, required: false, constraints: {known_to_chat_context: true}}
+    plan: {type: string, required: false, constraints: {plan_reference_from_this_user: true}}
+  TaskEmbed:
+    task_source: {type: string, required: true}
+    validation: {type: object, required: true}
+    task_id: {type: uuid_or_null, nullable: true, constraints: {never_displayed: true}}
+
+assertions:
+  - id: task-inline.create.fence-not-tool
+    type: behavior
+    must: >
+      The assistant creates a Task only by writing an inline openmates_task
+      block. The stream consumer validates it, stages the Task create through
+      the existing client-persisted job path and replaces the block with a task
+      embed at the same message position. No app skill or runtime tool creates
+      Tasks, and the old Create task skill is not offered to the model.
+    depends_on: [models.TaskFence, examples.create]
+  - id: task-inline.validation.visible-and-fed-back
+    type: behavior
+    must: >
+      A missing or too long title, an unknown status, an impossible due date,
+      an assignee outside the personal or Team context, or a Project the chat
+      cannot reach creates no Task. The card shows each problem in plain words
+      and the next assistant turn receives the same problems so it can fix the
+      embed with a diff.
+    depends_on: [models.TaskFence, examples.validation]
+  - id: task-inline.edit.diff-versioned
+    type: behavior
+    must: >
+      A diff block targeting a task embed patches its task source, re-validates
+      it and, when valid, stages one Task update and writes one new embed
+      version. An invalid result changes no Task and shows its problems. The
+      card offers one Undo that restores the previous version and its Task
+      fields.
+    depends_on: [models.TaskEmbed, examples.edit]
+  - id: task-inline.presentation.no-raw-ids
+    type: behavior
+    must: >
+      Task cards, inline links, titles and chat system events never show a raw
+      Task id; they use the title or the visible short id. Task creation adds
+      no chat system event. Cards and inline links show the task icon with the
+      title, due date and status.
+    depends_on: [examples.presentation]
+  - id: task-inline.privacy.unchanged-encryption
+    type: security
+    must: >
+      Task title, description and Project links stay client-encrypted exactly
+      as for any Task; the task embed uses the normal encrypted embed
+      lifecycle. No new plaintext endpoint, log field or server-visible field
+      is added.
+    depends_on: [examples.create]
+  - id: task-inline.surfaces.parity
+    type: parity
+    must: >
+      Web, Apple and the CLI render the same task card (icon, title, due date,
+      status, validation problems) and the same task icon on inline links.
+    depends_on: [applies_to, examples.presentation]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party chat stream and embed transport; no new endpoint.
+  cli: {required: true, parity: semantic, implementation: native_rust}
+  sdks:
+    required: false
+    parity: semantic
+    implementations:
+      rust: {required: true}
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+
+examples:
+  file: examples.yml
+  required_groups: [create, validation, edit, presentation]

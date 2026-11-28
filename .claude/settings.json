@@ -51,13 +51,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/apple-no-delete-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/apple-no-delete-guard.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/subagent-budget.sh",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "SendMessage",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_mailbox.py hook-pre",
+            "timeout": 15
           }
         ]
       },
@@ -66,12 +76,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh pre-agent",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/host-load-gate.sh pre-agent",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-model-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/subagent-model-guard.sh",
             "timeout": 5
           }
         ]
@@ -81,12 +91,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/bash-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/bash-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-session-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/subagent-session-guard.sh",
             "timeout": 5
           }
         ]
@@ -96,72 +106,72 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/session-edit-gate.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/session-edit-gate.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/e2e-encryption-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/e2e-encryption-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pre-edit-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/pre-edit-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pii-logger-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/pii-logger-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/css-selector-in-specs.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/css-selector-in-specs.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/svelte5-legacy-syntax.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/svelte5-legacy-syntax.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/native-ios-control-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/native-ios-control-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/provider-registry-sync.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/provider-registry-sync.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/analytics-sdk-forbidden.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/analytics-sdk-forbidden.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/privacy-promise-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/privacy-promise-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cookie-consent-gate.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/cookie-consent-gate.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/external-resources-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/external-resources-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/cli-credential-prompt-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/cli-credential-prompt-guard.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/donation-language-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/donation-language-guard.sh",
             "timeout": 5
           }
         ]
@@ -171,7 +181,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/read-outline-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/read-outline-guard.sh",
             "timeout": 5
           }
         ]
@@ -183,7 +193,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/apple-no-delete-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/apple-no-delete-guard.sh",
             "timeout": 10
           }
         ]
@@ -193,34 +203,34 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/auto-track.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/auto-track.sh",
             "timeout": 5,
             "async": true
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/auto-rebuild-translations.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/auto-rebuild-translations.sh",
             "timeout": 30,
             "async": true
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/skill-embed-registry-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/skill-embed-registry-guard.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/specification-test-impact.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/specification-test-impact.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "bash scripts/lint-design-tokens.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/lint-design-tokens.sh",
             "timeout": 30
           },
           {
             "type": "command",
-            "command": "bash scripts/lint-swift-design-tokens.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/lint-swift-design-tokens.sh",
             "timeout": 30
           }
         ]
@@ -232,7 +242,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/reinject-session.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/reinject-session.sh",
             "timeout": 5
           }
         ]
@@ -242,7 +252,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_mailbox.py hook-prompt",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/peer-chats.sh",
             "timeout": 10
           }
         ]
@@ -252,7 +267,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh session-start",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/host-load-gate.sh session-start",
             "timeout": 5
           }
         ]
@@ -262,7 +277,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/fable-guard.sh",
             "timeout": 5
           }
         ]
@@ -273,18 +288,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/host-load-gate.sh prompt",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/host-load-gate.sh prompt",
             "timeout": 600,
             "statusMessage": "Waiting: the dev server is short on memory. Your prompt runs by itself once it frees up (at most 9 min)."
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/peer-chats.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh scripts/chat_mailbox.py hook-prompt",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/fable-guard.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/peer-chats.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/fable-guard.sh",
             "timeout": 5
           }
         ]
@@ -295,17 +315,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/check-uncommitted.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/check-uncommitted.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/pending-work-stop-gate.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/pending-work-stop-gate.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/wip-snapshot.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/wip-snapshot.sh",
             "timeout": 5
           }
         ]
@@ -316,11 +336,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/subagent-budget.sh",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/run.sh .claude/hooks/subagent-budget.sh",
             "timeout": 5
           }
         ]
       }
     ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
   }
 }

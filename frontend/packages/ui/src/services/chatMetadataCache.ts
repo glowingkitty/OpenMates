@@ -45,6 +45,13 @@ class ChatMetadataCache {
   private chatsAwaitingKeys = new Set<string>();
   private pendingReads = new Map<string, Set<symbol>>();
 
+  /** Read fields already displayed in this workspace without starting decryption. */
+  getFreshMetadata(chatId: string): DecryptedChatMetadata | null {
+    if (pendingInvalidations.has(chatId)) return null;
+    const cached = this.cache.get(chatId);
+    return cached && Date.now() - cached.lastDecrypted < CACHE_MAX_AGE_MS ? cached : null;
+  }
+
   /**
    * Get decrypted metadata for a chat, using cache if available and fresh
    * @param chat The chat object to get metadata for
@@ -61,17 +68,8 @@ class ChatMetadataCache {
       pendingInvalidations.delete(chatId);
     }
 
-    const cachedMetadata = this.cache.get(chatId);
-    const now = Date.now();
-
-    // Check if cached metadata is still fresh
-    if (
-      cachedMetadata &&
-      now - cachedMetadata.lastDecrypted < CACHE_MAX_AGE_MS
-    ) {
-      // console.debug('[ChatMetadataCache] Using cached metadata for chat:', chat.chat_id);
-      return cachedMetadata;
-    }
+    const cachedMetadata = this.getFreshMetadata(chatId);
+    if (cachedMetadata) return cachedMetadata;
 
     const hasEncryptedChatMetadata = Boolean(
       chat.encrypted_title ||

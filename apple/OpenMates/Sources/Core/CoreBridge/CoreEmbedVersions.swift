@@ -33,6 +33,8 @@ import Foundation
 protocol EmbedVersionsCoreClient: AnyObject {
     func versionHistory(embedId: String, scope: EmbedScopeRecord?) async throws -> EmbedVersionHistoryRecord
     func restoreVersion(embedId: String, scope: EmbedScopeRecord, fromVersion: Int64) async throws -> EmbedRevisionOutcomeRecord
+    /// Commit `content` (the TOON head) as the version after `baseVersion`; a moved head is `VersionConflict`.
+    func commitEdit(embedId: String, scope: EmbedScopeRecord, baseVersion: Int64, content: String) async throws -> EmbedRevisionOutcomeRecord
     func startEnhance(embedId: String, scope: EmbedScopeRecord, operationId: String) async throws -> ImageEnhanceJobRecord
     func enhanceStatus(operationId: String) async throws -> ImageEnhanceJobRecord
     /// One wait slice of at most `deadlineMs`; `EnhanceTimeout` when the job is still running.
@@ -118,6 +120,13 @@ final class CoreEmbedVersions: EmbedVersionsCoreClient, EmbedNoticeCoreClient {
     func restoreVersion(embedId: String, scope: EmbedScopeRecord, fromVersion: Int64) async throws -> EmbedRevisionOutcomeRecord {
         try await run("restore") { core, cancellation in
             try await core.restoreEmbedVersion(embedId: embedId, scope: scope, fromVersion: fromVersion, cancellation: cancellation)
+        }
+    }
+
+    func commitEdit(embedId: String, scope: EmbedScopeRecord, baseVersion: Int64, content: String) async throws -> EmbedRevisionOutcomeRecord {
+        try await run("edit") { core, cancellation in
+            try await core.commitEmbedEdit(embedId: embedId, scope: scope, content: content, textPreview: nil,
+                                           operationId: nil, baseVersion: baseVersion, cancellation: cancellation)
         }
     }
 

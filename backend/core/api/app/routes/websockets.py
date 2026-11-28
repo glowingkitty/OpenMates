@@ -12,6 +12,7 @@ from backend.core.api.app.utils.websocket_lifecycle import (
     SessionAuthorityCloseCategory, log_session_authority_close, receive_json_or_disconnect,
 )
 # Import necessary services and utilities
+from backend.core.api.app.services.live_items import LIVE_ITEM_MESSAGE_TYPES
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
 from backend.core.api.app.services.chat_unread_counter import UNREAD_COUNT_UPDATED_EVENT
@@ -31,6 +32,9 @@ from backend.core.api.app.services.personal_privacy_snapshot import (
     privacy_v2_request, read_personal_privacy_snapshot,
 )
 from backend.core.api.app.services.notification_event_service import NotificationEventService
+from backend.shared.python_utils.independent_chat_reply import (
+    PARALLEL_CHAT_TURNS_CAPABILITY, supports_parallel_chat_turns,
+)
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
 from .connection_manager import (
@@ -169,6 +173,10 @@ from backend.core.api.app.routes.handlers.websocket_handlers.notification_read_r
 from .handlers.websocket_handlers.email_notification_settings_handler import (
     handle_email_notification_settings, handle_email_notification_settings_get,
 )
+from backend.core.api.app.services.chat_sync_feed_service import (
+    STARTUP_OPENED_CAPABILITY,
+    socket_uses_opened_startup,
+)
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
@@ -212,8 +220,13 @@ logger = logging.getLogger(__name__)
 _workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
 
 
-async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager,
-                                            inventory_request_id: str | None = None) -> bool:
+async def _send_initial_server_capabilities(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    inventory_request_id: str | None = None,
+    *,
+    supports_opened_startup: bool = False,
+) -> bool:
     """Send the startup frame, releasing registration if startup cannot continue."""
     sent = False
     reason = "Initial capability send failed"
@@ -224,6 +237,8 @@ async def _send_initial_server_capabilities(websocket: WebSocket, manager: Conne
             "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
             "personal_project_routing_directory_v1",
         ]}
+        if supports_opened_startup and socket_uses_opened_startup(websocket, None):
+            payload["capabilities"].append(STARTUP_OPENED_CAPABILITY)
         if inventory_request_id is not None:
             payload["inventory_request_id"] = inventory_request_id
         await websocket.send_json({"type": "server_capabilities", "payload": payload})
@@ -679,7 +694,7 @@ SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "execution_version",
 )
 SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error", "sealed"}
-SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
+SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url", "voice_call_id")
 MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
 
@@ -786,11 +801,6 @@ def _trace_final_stream_delivery(
 # OFFLINE NOTIFICATIONS (PUSH + EMAIL) FOR OFFLINE USERS
 # =============================================================================
 
-# Post-processing normally finishes before the push (10 s of offline checks);
-# wait this much longer for a late summary, then fall back to the title or generic text.
-HEADLINE_WAIT_SECONDS = 8.0
-
-
 async def _check_user_offline_and_send_email(
     app: FastAPI,
     manager: ConnectionManager,
@@ -893,8 +903,6 @@ async def _check_user_offline_and_send_email(
             response_preview=response_preview,
             message_id=message_id,
             chat_title=chat_title,
-            mate_category=category,
-            task_id=task_id,
         )
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
@@ -908,8 +916,6 @@ async def _send_push_notification_if_enabled(
     response_preview: str,
     message_id: Optional[str] = None,
     chat_title: Optional[str] = None,
-    mate_category: Optional[str] = None,
-    task_id: Optional[str] = None,
 ) -> bool:
     """
     Look up user's push subscription from cache and dispatch push Celery task if enabled.
@@ -942,6 +948,7 @@ async def _send_push_notification_if_enabled(
                 "push_notification_enabled",
                 "push_notification_subscription",
                 "push_notification_preferences",
+                "language",
             ],
         )
         if not isinstance(cached_user, dict):
@@ -986,32 +993,12 @@ async def _send_push_notification_if_enabled(
 
     from backend.core.api.app.services.push_notification_service import notification_preview_text
     from backend.core.api.app.services.push_notification_content import compose_push_content
-    from backend.core.api.app.services.notification_email_preferences import (
-        push_chat_title_enabled, push_preview_enabled,
-    )
-    from backend.core.api.app.services.notification_headline_handoff import lookup_vault_key_id, read_headline
-
+    from backend.core.api.app.services.notification_email_preferences import push_preview_enabled
     language = str(cached_user.get("language") or "en")
-    # Title/summary are decided by the user's switches; the summary comes from the
-    # post-processing call, sealed in Redis (never a decrypted stored title).
-    headline = None
-    if not hidden and push_chat_title_enabled(push_prefs) and task_id:
-        try:
-            headline = await read_headline(
-                cache_service=cache_service, encryption_service=app.state.encryption_service,
-                vault_key_id=cached_user.get("vault_key_id") or await lookup_vault_key_id(cache_service, directus_service, user_id),
-                user_id=user_id, chat_id=chat_id, task_id=task_id, wait_seconds=HEADLINE_WAIT_SECONDS,
-            )
-        except Exception as exc:
-            logger.warning(f"{log_prefix} Notification summary unavailable ({type(exc).__name__}); using title or generic text")
-    mate_name = "Mate"
-    if chat_title and not headline:
-        from backend.core.api.app.services.translations import TranslationService
-        translated = TranslationService().get_nested_translation(f"mates.{mate_category or 'general_knowledge'}", language)
-        if isinstance(translated, str) and translated and not translated.startswith("mates."):
-            mate_name = translated
+    # Title = chat title; body = answer excerpt; both sealed to the device
+    # (see push_notification_content).
     content = compose_push_content(
-        preferences=push_prefs, headline=headline, chat_title=chat_title, mate_name=mate_name, hidden=hidden,
+        preferences=push_prefs, chat_title=chat_title, hidden=hidden,
         preview_text=notification_preview_text(response_preview, lang=language) if push_preview_enabled(push_prefs) else "",
     )
     push_url = f"/?chat={chat_id}"
@@ -1038,6 +1025,7 @@ async def _send_push_notification_if_enabled(
                 "workspace": workspace,
                 "chat_title": content.sealed_title,
                 "chat_context": content.context,
+                "language": language,
             },
             queue="push",
         )
@@ -1607,6 +1595,9 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             if field in speech_payload
                         },
                     }
+                    if (event_type == "assistant_speech_acknowledgement" and speech_payload.get("voice_call_id")
+                            and speech_payload.get("work_cue") is True):
+                        client_payload["work_cue"] = True
                     if event_type == "assistant_speech_status" and speech_payload.get("status") == "sealed":
                         from backend.shared.python_utils.assistant_speech_audio import validate_assistant_speech_sealed_segments
                         try:
@@ -1634,7 +1625,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             # A minimized call keeps its audio owner independently
                             # from visible-chat navigation and other signed-in devices.
                             scope = getattr(connection, "scope", {})
-                            if scope.get("voice_call_session_hash") != call_session:
+                            if scope.get("voice_call_session_id") != call_session:
                                 continue
                         elif chat_id != manager.get_active_chat(owner_id, device_hash):
                             continue
@@ -1720,7 +1711,11 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         continue
 
                     snapshot_key = ai_stream_snapshot_cache_key(chat_id_from_payload)
-                    if redis_payload.get("is_final_chunk", False):
+                    if redis_payload.get("independent_reply") is True:
+                        # Leave the foreground's reconnect snapshot alone. The
+                        # separate durable turn recovers through its sealed job.
+                        pass
+                    elif redis_payload.get("is_final_chunk", False):
                         try:
                             if hasattr(cache_service, "delete"):
                                 await cache_service.delete(snapshot_key)
@@ -1782,6 +1777,18 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     logger.debug(
                                         f"AI Stream Listener: Skipping backgrounded/non-completion-capable device {user_id_uuid}/{device_hash}."
                                     )
+                                    return
+                                if (redis_payload.get("independent_reply") is True
+                                        and not supports_parallel_chat_turns(websocket_conn)):
+                                    # Single-stream clients discover this separately encrypted turn
+                                    # without changing their live foreground presentation.
+                                    if should_announce_final_recovery_job:
+                                        await _send_available_recovery_jobs_for_final_stream(
+                                            manager=manager, directus_service=directus_service,
+                                            user_id=user_id_uuid, user_id_hash=redis_payload.get("user_id_hash"),
+                                            device_fingerprint_hash=device_hash, websocket=websocket_conn,
+                                            device_ordinal=device_ordinal,
+                                        )
                                     return
                                 active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
 
@@ -1895,6 +1902,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                             "recovery_job_id": redis_payload.get("recovery_job_id"),
                                             "recovery_turn_id": redis_payload.get("recovery_turn_id"),
                                             "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
+                                            **({"independent_reply": True} if redis_payload.get("independent_reply") is True else {}),
                                             "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
                                             "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
                                             "is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False),
@@ -3489,6 +3497,10 @@ async def websocket_endpoint(
     supports_chat_orchestration_jobs = "chat_orchestration_jobs" in connection_capabilities
     supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
     supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
+    websocket.scope[PARALLEL_CHAT_TURNS_CAPABILITY] = (
+        supports_typed_recovery_outputs and PARALLEL_CHAT_TURNS_CAPABILITY in connection_capabilities
+        and websocket.headers.get("x-openmates-sdk") in (None, "cli")
+    )
     supports_empty_call_cleanup = websocket.query_params.get("empty_call_cleanup_guard") == "1"
 
     supports_storage_archive = declares_archive_capability(raw_capabilities)
@@ -3526,12 +3538,15 @@ async def websocket_endpoint(
 
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
+    # Call authority follows the authenticated session across cookie rotations.
+    logical_session_id = auth_data.get("logical_session_id")
+    websocket.scope["voice_call_session_id"] = logical_session_id
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
         device_fingerprint_hash,
-        logical_session_id=auth_data.get("logical_session_id"),
+        logical_session_id=logical_session_id,
         supports_task_update_jobs=supports_task_update_jobs,
         supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
@@ -3549,10 +3564,22 @@ async def websocket_endpoint(
         ),
     )
 
+    if _user_data.get("vault_key_id"):
+        from backend.apps.ai.assistant_live_changes import flush_pending_assistant_changes
+        await flush_pending_assistant_changes(
+            cache_service, encryption_service, user_id,
+            hashlib.sha256(user_id.encode()).hexdigest(), _user_data["vault_key_id"],
+        )
+
     recovery_inventory_manager = _bound_recovery_inventory_manager(
         manager, user_id, device_fingerprint_hash, inventory_request_id, websocket,
     )
-    if not await _send_initial_server_capabilities(websocket, manager, inventory_request_id):
+    if not await _send_initial_server_capabilities(
+        websocket,
+        manager,
+        inventory_request_id,
+        supports_opened_startup=getattr(websocket.app.state, "chat_sync_feed", None) is not None,
+    ):
         return
 
     # A live socket must close at its absolute session deadline even if idle.
@@ -3571,7 +3598,6 @@ async def websocket_endpoint(
     # terminate an idle socket as well as reject its next message.
     session_watch_task: asyncio.Task | None = None
     session_hash = auth_data.get("session_hash")
-    websocket.scope["voice_call_session_hash"] = session_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
         async def watch_session_authority() -> None:
@@ -4684,6 +4710,9 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
+                    persist_last_opened=not socket_uses_opened_startup(
+                        websocket, payload.get("team_id") if isinstance(payload.get("team_id"), str) else None,
+                    ),
                 )
                 await report_presence(
                     cache_service, user_id, presence_connection_id, presence_client_type,
@@ -4807,6 +4836,7 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     cache_service=cache_service,
+                    directus_service=directus_service,
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "cancel_skill":
@@ -4936,8 +4966,9 @@ async def websocket_endpoint(
                 await handle_call_message_completed(
                     manager=manager, cache_service=cache_service,
                     directus_service=directus_service, user_id=user_id,
-                    user_id_hash=user_id_hash, session_hash=session_hash,
+                    user_id_hash=user_id_hash, session_id=logical_session_id,
                     device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    legacy_session_hash=session_hash,
                 )
 
             elif message_type == "voice_call_chat_prepare":
@@ -5486,6 +5517,10 @@ async def websocket_endpoint(
                     code = "access_revoked" if isinstance(exc, PermissionError) or type(exc).__name__ == "TeamPermissionError" else "sync_deferred"
                     await websocket.send_json({"type": "project_task_sync_error", "payload": {"code": code}})
 
+            elif message_type in LIVE_ITEM_MESSAGE_TYPES:
+                # Sealed packets only; the relay never parses payloads.
+                await websocket.app.state.live_items.handle(websocket, user_id, message_type, payload)
+
             elif message_type == "project_remote_access_register":
                 await handle_project_remote_access_register(
                     websocket=websocket,
@@ -5709,6 +5744,8 @@ async def websocket_endpoint(
             initial_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
+        if hasattr(websocket.app.state, "live_items"):
+            websocket.app.state.live_items.disconnect(websocket)
         if hasattr(websocket.app.state, "chat_sync_feed"):
             websocket.app.state.chat_sync_feed.disconnect(websocket)
         for task in list(phased_sync_tasks):

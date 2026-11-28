@@ -183,9 +183,11 @@ struct ConnectedAccountEncryptedRow: Decodable, Sendable {
     let encryptedAppPermissions: String
     let encryptedAccountDirectoryHint: String?
     let updatedAt: Int?
+    let connectorStatus: String?
 
     enum CodingKeys: String, CodingKey {
         case id
+        case connectorStatus = "connector_status"
         case encryptedProviderType = "encrypted_provider_type"
         case encryptedAccountLabel = "encrypted_account_label"
         case encryptedRefreshTokenBundle = "encrypted_refresh_token_bundle"
@@ -237,10 +239,77 @@ final class PrivacyConnectedAccountsController: ObservableObject {
     @Published private(set) var summaries: [ConnectedAccountSummary] = []
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
+    @Published private(set) var actionInFlight = false
+    @Published var actionMessage: String?
+    @Published var actionError: String?
+
+    let coordinator: ConnectedAccountOAuthCoordinator
+    var canConnect: Bool { PrivacySettingsUITestFixture.enabled || coordinator.canConnect }
+
+    init(coordinator: ConnectedAccountOAuthCoordinator = PrivacyConnectedAccountsController.liveCoordinator()) {
+        self.coordinator = coordinator
+    }
+
+    /// The row plan comes from the Rust core's `connectedAccountOauthRowPlan`; Swift runs only its crypto steps.
+    private static func liveCoordinator() -> ConnectedAccountOAuthCoordinator {
+        return ConnectedAccountOAuthCoordinator(
+            transport: ConnectedAccountLiveTransport(),
+            authenticator: ConnectedAccountWebAuthenticator(),
+            planner: ConnectedAccountRowPlanner.live()
+        )
+    }
+
+    func connect(_ request: ConnectedAccountOAuthRequest) async {
+        guard !actionInFlight else { return }
+        actionInFlight = true
+        actionError = nil
+        actionMessage = nil
+        defer { actionInFlight = false }
+        do {
+            if PrivacySettingsUITestFixture.enabled {
+                summaries.append(ConnectedAccountSummary(
+                    id: "fixture-account-\(summaries.count)", providerId: "google_calendar", appId: request.appId,
+                    label: AppStrings.connectedAccountsProviderGoogle, capabilities: request.capabilities, runtimeModes: [:]
+                ))
+                return
+            }
+            try await coordinator.connect(request)
+            await reloadAfterChange()
+        } catch {
+            NativeDiagnostics.error("Connected account connect failed: \(type(of: error))", category: "privacy")
+            actionError = request.connectedAccountId == nil ? AppStrings.connectedAccountsAddError : AppStrings.connectedAccountsReconnectError
+        }
+    }
+
+    func disconnect(_ account: ConnectedAccountSummary) async {
+        guard !actionInFlight else { return }
+        actionInFlight = true
+        actionError = nil
+        actionMessage = nil
+        defer { actionInFlight = false }
+        do {
+            if PrivacySettingsUITestFixture.enabled {
+                summaries.removeAll { $0.id == account.id }
+            } else {
+                try await coordinator.disconnect(accountId: account.id)
+                await reloadAfterChange()
+            }
+            actionMessage = AppStrings.connectedAccountsDisconnected
+        } catch {
+            NativeDiagnostics.error("Connected account disconnect failed: \(type(of: error))", category: "privacy")
+            actionError = AppStrings.connectedAccountsDisconnectError
+        }
+    }
+
+    private func reloadAfterChange() async {
+        isLoading = false
+        await load()
+    }
 
     func load() async {
         guard !isLoading else { return }
         if PrivacySettingsUITestFixture.enabled {
+            guard summaries.isEmpty else { return }
             summaries = [ConnectedAccountSummary(
                 id: "fixture-account",
                 providerId: "google_calendar",
@@ -265,7 +334,7 @@ final class PrivacyConnectedAccountsController: ObservableObject {
             )
             var decryptedSummaries: [ConnectedAccountSummary] = []
             decryptedSummaries.reserveCapacity(response.rows.count)
-            for row in response.rows {
+            for row in response.rows where row.connectorStatus != "revoked" {
                 decryptedSummaries.append(try await Self.summarize(row, masterKey: masterKey))
             }
             summaries = decryptedSummaries
@@ -337,3 +406,4 @@ enum PrivacySettingsUITestFixture {
         ProcessInfo.processInfo.arguments.contains("--ui-test-privacy-settings-fixture")
     }
 }
+

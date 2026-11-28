@@ -4,15 +4,16 @@
   import type { Readable } from 'svelte/store';
   import type { VoiceCallStatus } from '../../services/voiceCall';
 
-  let { callState, showCall, showClose, closingChat = false, onToggleCall, onClose }: {
+  let { callState, showCall, showClose, callInAnotherChat = false, closingChat = false, onToggleCall, onClose }: {
     callState: Readable<{ status: VoiceCallStatus }>;
     showCall: boolean;
     showClose: boolean;
+    callInAnotherChat?: boolean;
     closingChat?: boolean;
     onToggleCall: () => void;
     onClose: () => void;
   } = $props();
-  const active = $derived($callState.status === 'connecting' || $callState.status === 'live');
+  const active = $derived(!callInAnotherChat && ($callState.status === 'connecting' || $callState.status === 'live'));
 </script>
 
 <!-- Physical ordering matches the handset/Close pair in every pane and locale. -->
@@ -20,7 +21,7 @@
   {#if showCall}
     <div class="new-chat-button-wrapper">
       <button class="header-action" type="button" data-testid="voice-call-start"
-        data-call-state={$callState.status} aria-pressed={active}
+        data-call-state={callInAnotherChat ? 'idle' : $callState.status} aria-pressed={active}
         aria-label={$text(active ? 'voicecall.hangup' : 'voicecall.start')}
         onclick={onToggleCall} use:tooltip>
         <span class="clickable-icon icon_call top-button" data-testid="voice-call-handset"

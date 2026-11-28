@@ -15,6 +15,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import yaml
+
 
 ROOT = Path(__file__).resolve().parents[2]
 RUN_TESTS_PATH = ROOT / "scripts/run_tests.py"
@@ -44,12 +46,18 @@ def test_backend_live_mock_preflight_passes_when_all_containers_are_mocked(monke
 
 
 def test_dev_compose_forces_live_mock_feature_flag_for_e2e() -> None:
-    dev_compose = DEV_COMPOSE_PATH.read_text()
-    selfhost_compose = SELFHOST_COMPOSE_PATH.read_text()
+    dev_compose = yaml.safe_load(DEV_COMPOSE_PATH.read_text())
+    selfhost_compose = yaml.safe_load(SELFHOST_COMPOSE_PATH.read_text())
 
-    assert 'MOCK_EXTERNAL_APIS: "true"' in dev_compose
-    assert "${MOCK_EXTERNAL_APIS" not in dev_compose
-    assert 'MOCK_EXTERNAL_APIS: "${MOCK_EXTERNAL_APIS:-false}"' in selfhost_compose
+    def mock_values(compose):
+        return {
+            service["environment"]["MOCK_EXTERNAL_APIS"]
+            for service in compose["services"].values()
+            if "MOCK_EXTERNAL_APIS" in service.get("environment", {})
+        }
+
+    assert mock_values(dev_compose) == {"true"}
+    assert mock_values(selfhost_compose) == {"${MOCK_EXTERNAL_APIS:-false}"}
 
 
 def test_selfhost_api_image_requires_shared_runtime_config() -> None:

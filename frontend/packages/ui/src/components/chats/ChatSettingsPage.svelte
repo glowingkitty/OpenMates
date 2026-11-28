@@ -403,26 +403,39 @@
     return status.replaceAll('_', ' ');
   }
 
-  function downloadTextFile(content: string, filename: string, type: string): void {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
+  function downloadFileUrl(url: string, filename: string): void {
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
+    // The synthetic click must not dismiss the mobile Settings overlay.
+    link.addEventListener('click', (event) => event.stopPropagation(), { once: true });
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    link.remove();
   }
 
-  function downloadFileReference(file: ChatFileRow): void {
+  function downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    downloadFileUrl(url, filename);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  function downloadTextFile(content: string, filename: string, type: string): void {
+    downloadBlob(new Blob([content], { type }), filename);
+  }
+
+  async function downloadFileReference(file: ChatFileRow): Promise<void> {
+    if (file.readBlob) {
+      try {
+        downloadBlob(await file.readBlob(), file.title);
+      } catch (error) {
+        console.error('[ChatSettingsPage] Failed to download chat file:', error);
+        notificationStore.error('Could not download file.');
+      }
+      return;
+    }
     if (file.url) {
-      const link = document.createElement('a');
-      link.href = file.url;
-      link.download = file.title || `${file.embedId}.download`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadFileUrl(file.url, file.title || `${file.embedId}.download`);
       return;
     }
     downloadTextFile(JSON.stringify(file, null, 2), `${file.title || file.embedId}.json`, 'application/json');
@@ -617,7 +630,7 @@
                 title={file.title}
                 subtitleBottom={file.metadata}
                 data-testid="chat-settings-file-row"
-                onClick={() => downloadFileReference(file)}
+                onClick={() => void downloadFileReference(file)}
               />
             {/each}
           </div>

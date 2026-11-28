@@ -4,9 +4,9 @@
 //
 // This module contains:
 // - Message saving (single and batch)
-// - Message retrieval (by ID, by chat, all messages)
+// - Message retrieval (by ID and by chat)
 // - Message deletion
-// - Duplicate detection and cleanup
+// - Content duplicate detection
 // - Message status priority handling
 
 import type { SavedReadCursor } from "../rustCore/savedReadProtocol";
@@ -17,6 +17,7 @@ import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from
 import { cacheDecisions } from "./cacheDecisions";
 import { MESSAGE_WINDOW_PAGE_CACHE_GENERATION } from "./cacheTypes";
 import { deleteConfirmedMessageAfterDecision } from "./messageEviction";
+import { chatTransaction } from "./openedHistoryStorage";
 
 /**
  * Save/duplicate/eviction, window, cache-budget and quota decisions run in the
@@ -756,57 +757,6 @@ export async function getLastMessageForChat(
   });
 }
 
-/**
- * Get all messages from the database
- * Used for retrying pending messages when connection is restored
- * Can be called during init() (via cleanupDuplicateMessages) or after init()
- * @param dbInstance The ChatDatabase instance
- * @param duringInit If true, uses direct transaction instead of getTransaction (to avoid init deadlock)
- * @returns Promise resolving to array of all messages
- */
-export async function getAllMessages(
-  dbInstance: ChatDatabaseInstance,
-  duringInit: boolean = false,
-): Promise<Message[]> {
-  // Only call init() if not already during init (to avoid deadlock)
-  if (!duringInit) {
-    await dbInstance.init();
-  }
-
-  if (!dbInstance.db) {
-    throw new Error("Database not initialized");
-  }
-
-  // Use appropriate transaction method based on context
-  const transaction = duringInit
-    ? dbInstance.db.transaction(MESSAGES_STORE_NAME, "readonly")
-    : await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
-
-  return new Promise((resolve, reject) => {
-    const store = transaction.objectStore(MESSAGES_STORE_NAME);
-    const request = store.getAll();
-
-    request.onsuccess = async () => {
-      const encryptedMessages = request.result || [];
-      // Decrypt all messages before returning (zero-knowledge architecture)
-      // CRITICAL FIX: await all decryption operations since decryptMessageFields is now async
-      const decryptedMessages = await Promise.all(
-        encryptedMessages.map((msg) =>
-          dbInstance.decryptMessageFields(msg, msg.chat_id),
-        ),
-      );
-      resolve(decryptedMessages);
-    };
-    request.onerror = () => {
-      console.error(
-        "[ChatDatabase] Error getting all messages:",
-        request.error,
-      );
-      reject(request.error);
-    };
-  });
-}
-
 export type PendingMessageRetryKind = "pending_turn" | "waiting_for_internet" | "sending";
 export type PendingMessageRetryCursor = [number | string, number, string];
 const MAX_PENDING_RETRY_PAGE_BYTES = 4 * 1024 * 1024;
@@ -1480,11 +1430,6 @@ export async function batchSaveMessages(
         );
         messagesToSkip.add(message.message_id);
       }
-    } else {
-      // Check for content duplicates only if message doesn't exist by ID
-      // Note: Content duplicate checking is expensive, so we skip it in batch operations
-      // Duplicate cleanup will handle content duplicates later
-      // For now, we'll save the message and let duplicate cleanup handle it
     }
   }
 
@@ -1638,10 +1583,7 @@ export async function updateMessageStatus(
     // Open a single readwrite transaction that covers the full get→patch→put cycle.
     // All operations are queued synchronously inside the transaction callbacks, so
     // the transaction stays alive until oncomplete fires.
-    const tx = (dbInstance.db as IDBDatabase).transaction(
-      MESSAGES_STORE_NAME,
-      "readwrite",
-    );
+    const tx = chatTransaction(dbInstance.db!, MESSAGES_STORE_NAME, "readwrite");
     const store = tx.objectStore(MESSAGES_STORE_NAME);
     let updatedChatId: string | null = null;
 
@@ -1778,10 +1720,7 @@ export async function updateMessageRawFields(
   }
 
   return new Promise((resolve, reject) => {
-    const tx = (dbInstance.db as IDBDatabase).transaction(
-      MESSAGES_STORE_NAME,
-      "readwrite",
-    );
+    const tx = chatTransaction(dbInstance.db!, MESSAGES_STORE_NAME, "readwrite");
     const store = tx.objectStore(MESSAGES_STORE_NAME);
     let updatedChatId: string | null = null;
     let previousChatId: string | null = null;
@@ -1873,7 +1812,7 @@ export async function applyQueuedMessageRevision(
   await dbInstance.init();
   if (!dbInstance.db) throw new Error("Database not initialized");
   return new Promise((resolve, reject) => {
-    const tx = dbInstance.db!.transaction(MESSAGES_STORE_NAME, "readwrite");
+    const tx = chatTransaction(dbInstance.db!, MESSAGES_STORE_NAME, "readwrite");
     const store = tx.objectStore(MESSAGES_STORE_NAME);
     let applied = false;
     const request = store.get(messageId);
@@ -1927,7 +1866,7 @@ export async function deleteMessage(
 
     const currentTransaction =
       transaction ||
-      dbInstance.db.transaction(MESSAGES_STORE_NAME, "readwrite");
+      chatTransaction(dbInstance.db, MESSAGES_STORE_NAME, "readwrite");
     const store = currentTransaction.objectStore(MESSAGES_STORE_NAME);
     let deletedChatId: string | null = null;
     let deleteQueued = false;
@@ -1956,35 +1895,4 @@ export async function deleteMessage(
     currentTransaction.addEventListener("error", () => reject(currentTransaction.error), { once: true });
     currentTransaction.addEventListener("abort", () => reject(currentTransaction.error), { once: true });
   });
-}
-
-// ============================================================================
-// DUPLICATE CLEANUP
-// ============================================================================
-
-/**
- * Clean up duplicate messages by keeping the one with highest priority status
- * This method should be called during initialization to clean up existing duplicates
- */
-export async function cleanupDuplicateMessages(
-  dbInstance: ChatDatabaseInstance,
-): Promise<void> {
-  // NOTE: Do NOT call dbInstance.init() here! This method is called FROM init()
-  // and calling it again would create a deadlock waiting for itself to finish.
-  console.debug("[ChatDatabase] Starting duplicate message cleanup...");
-
-  try {
-    // Pass duringInit=true since this is called from init()
-    const allMessages = await getAllMessages(dbInstance, true);
-    // Which copies go is decided by the Rust persist unit; the deletes stay here.
-    const deleteIds = await (await rustMessageRowPolicy()).rustPlanDuplicateCleanup(allMessages);
-    for (const messageId of deleteIds) await deleteMessage(dbInstance, messageId);
-    const duplicatesRemoved = deleteIds.length;
-
-    console.debug(
-      `[ChatDatabase] Duplicate cleanup completed. Removed ${duplicatesRemoved} duplicate messages.`,
-    );
-  } catch (error) {
-    console.error("[ChatDatabase] Error during duplicate cleanup:", error);
-  }
 }

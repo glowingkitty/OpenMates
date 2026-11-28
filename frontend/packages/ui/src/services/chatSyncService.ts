@@ -1,3 +1,4 @@
+import { withoutDesignReference } from "./designSourceForTurn";
 import { clearApplicationPreviewSessions, handleApplicationPreviewStatusUpdate } from "./applicationPreviewService";
 import { OutboundMessageSends } from "./outboundMessageSends";
 // frontend/packages/ui/src/services/chatSyncService.ts
@@ -6,6 +7,7 @@ import { chatDB } from "./db";
 import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, markPersonalChatReplyEnded, markPersonalChatReplyRunning, reservePersonalChatTurn } from "./personalChatTurnBarrier";
 import { getApiEndpoint } from '../config/api';
 import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
+import { offerOpenedChatStartup, suspendOpenedChatStartup } from "./rustCore/startupOpenedChats";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { getCachedChatVersionMap } from "./db/chatKeyManagement";
 import { isWebSocketConnectionChanged, webSocketService } from "./websocketService";
@@ -189,12 +191,19 @@ interface PendingProjectFileCommit {
   timeout: ReturnType<typeof setTimeout>;
 }
 
+export interface IndependentReplyView {
+  chatId: string;
+  taskId: string;
+  userMessageId: string;
+}
+
 export class ChatSynchronizationService extends EventTarget {
   private readonly serverCapabilityGate = new ServerCapabilityGate();
   private lastWorkflowWarmup: { scope: string; at: number } | null = null;
   private lastChatMetadataPrefetch: { scope: string; at: number } | null = null;
   private lastQueuedSnapshotChat: string | null = null;
-  private queuedSnapshotSocketEpoch = 0;
+  private socketEpoch = 0;
+  private completedPersonalPhasedSocket: { workspace: string; epoch: number } | null = null;
   private pendingQueuedSnapshotSends = new Map<string, PendingQueuedSnapshotSend>();
   private readonly outboundMessageSends = new OutboundMessageSends();
   private isSyncing = false;
@@ -210,6 +219,9 @@ export class ChatSynchronizationService extends EventTarget {
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
     new ActiveAITaskMap();
+  // View state only. Encrypted send, claim and result recovery keep their own identities.
+  private readonly independentReplyViews = new Map<string, IndependentReplyView>();
+  private readonly closedIndependentReplyTasks = new Set<string>();
   public activeSubChatIds: Set<string> = new Set();
   private activityRevision = 0;
   private activityAncestry = new Map<string, { parent_id?: string | null }>();
@@ -266,7 +278,7 @@ export class ChatSynchronizationService extends EventTarget {
         || !this.webSocketConnected || !webSocketService.isConnected()) return null;
     const team = get(activeTeamContext);
     return { chatId, workspace, teamId: team.teamId,
-      teamEpoch: team.epoch, socketEpoch: this.queuedSnapshotSocketEpoch };
+      teamEpoch: team.epoch, socketEpoch: this.socketEpoch };
   }
 
   private sameQueuedSnapshotScope(a: QueuedSnapshotSendScope, b: QueuedSnapshotSendScope | null): boolean {
@@ -405,18 +417,32 @@ export class ChatSynchronizationService extends EventTarget {
     }
   }
 
-  public async hydrateSidebarChats(ids: string[]): Promise<void> {
-    if (!ids.length || !get(authStore).isAuthenticated) return;
+  public async hydrateSidebarChats(
+    ids: string[],
+    options?: { allowMissing?: boolean; isCurrent?: () => boolean },
+  ): Promise<ReadonlySet<string>> {
+    const saved = new Set<string>();
+    if (!ids.length || !get(authStore).isAuthenticated) return saved;
     const identity = getWorkspaceCacheIdentity(), teamId = get(activeTeamId);
+    const isCurrent = () => identity === getWorkspaceCacheIdentity() && (options?.isCurrent?.() ?? true);
     for (let start = 0; start < ids.length; start += 100) {
+      if (!isCurrent()) return saved;
+      const requestedIds = ids.slice(start, start + 100);
       const response = await fetch(getApiEndpoint(`/v1/chats/metadata/batch${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_ids: ids.slice(start, start + 100) }),
+        body: JSON.stringify({ chat_ids: requestedIds }),
       });
+      if (!isCurrent()) return saved;
+      if (options?.allowMissing && requestedIds.length === 1 && response.status === 404) return saved;
       if (!response.ok) throw new Error('Sidebar chat metadata unavailable');
       const data = await response.json() as { chats: Array<Omit<Partial<Chat>, 'created_at' | 'updated_at'> & { id: string; created_at?: number | string; updated_at?: number | string }> };
       for (const record of data.chats) {
-        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (!isCurrent()) return saved;
+        if (!requestedIds.includes(record.id) ||
+          (record.team_id !== undefined && (record.team_id ?? null) !== teamId)) continue;
+        // This is server header classification only. Do not copy the remote
+        // counter into a local row with no retained transcript.
+        if (Number(record.messages_v ?? 0) > 0) saved.add(record.id);
         if (await chatDB.getChat(record.id)) continue;
         const seconds = (value: number | string | undefined): number | undefined => {
           if (value == null || value === '') return undefined;
@@ -428,15 +454,17 @@ export class ChatSynchronizationService extends EventTarget {
         const chat: Chat = { ...record, chat_id: record.id, team_id: teamId,
           encrypted_title: record.encrypted_title ?? null, messages_v: 0, title_v: record.title_v ?? 0,
           unread_count: 0, created_at: seconds(record.created_at) ?? timestamp, updated_at: timestamp, last_edited_overall_timestamp: timestamp };
-        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (!isCurrent()) return saved;
         await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
-          if (identity !== getWorkspaceCacheIdentity()) throw new Error('Sidebar workspace changed');
+          if (!isCurrent()) throw new Error('Sidebar workspace changed');
         } });
+        if (!isCurrent()) return saved;
         const classified = await chatDB.getChat(chat.chat_id);
-        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (!isCurrent()) return saved;
         if (classified) this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: classified.chat_id, chat: classified } }));
       }
     }
+    return saved;
   }
 
   public async refreshChatActivity(): Promise<void> {
@@ -697,7 +725,10 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
+      this.completedPersonalPhasedSocket = null;
       this.activeAITasks.clear();
+      this.independentReplyViews.clear();
+      this.closedIndependentReplyTasks.clear();
       this.activeSubChatIds.clear();
       this.activityRequestedIds.clear();
       subChatActivityIds.set(new Set());
@@ -711,22 +742,13 @@ export class ChatSynchronizationService extends EventTarget {
       this.stopPendingMessageRetry();
     });
 
-    // Clean up orphaned streaming messages when the browser comes back online,
-    // even if the WebSocket stayed "connected" during a brief network drop.
-    // The WS ping interval (25s) means short outages don't trigger a reconnect,
-    // so the websocketStatus subscriber never fires and orphans aren't cleaned.
-    // Guard for SSR: window is not available during SvelteKit's build-time rendering.
+    // Activity can change during brief outages that never close the WebSocket.
     if (typeof window !== "undefined") {
-      window.addEventListener("online", () => {
-        void this.refreshChatActivity();
-        console.info("[ChatSyncService] Browser online event — cleaning up orphaned streaming messages");
-        this._cleanupOrphanedStreamingMessages().catch((error) => {
-          console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
-        });
-      });
+      window.addEventListener("online", () => { void this.refreshChatActivity(); });
       window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
       window.addEventListener('userLoggingOut', () => {
         this.serverCapabilityGate.reset();
+        this.completedPersonalPhasedSocket = null;
         this.resetCacheStatusCountEvidence();
         chatSyncActivity.clear();
       });
@@ -752,7 +774,8 @@ export class ChatSynchronizationService extends EventTarget {
       const wasWebSocketConnected = this.webSocketConnected;
       this.webSocketConnected = storeState.status === "connected";
       if (wasWebSocketConnected !== this.webSocketConnected) {
-        this.queuedSnapshotSocketEpoch++;
+        if (wasWebSocketConnected) suspendOpenedChatStartup(this.socketEpoch);
+        this.socketEpoch++;
         this.pendingQueuedSnapshotSends.clear();
         this.outboundMessageSends.clear();
       }
@@ -798,18 +821,14 @@ export class ChatSynchronizationService extends EventTarget {
           }
           this.activeAITasks.clear();
         }
+        for (const view of this.independentReplyViews.values()) {
+          this.dispatchEvent(new CustomEvent("aiStreamInterrupted", {
+            detail: { ...view, independentReply: true },
+          }));
+        }
+        this.independentReplyViews.clear();
+        this.closedIndependentReplyTasks.clear();
         void this.refreshChatActivity();
-
-        // CRITICAL: Also clean up streaming/processing messages in ALL chats,
-        // not just the ones tracked in activeAITasks (which only tracks recent tasks).
-        // This handles edge cases where activeAITasks was cleared by a previous
-        // disconnect but messages remain stuck.
-        this._cleanupOrphanedStreamingMessages().catch((error) => {
-          console.error(
-            "[ChatSyncService] Error cleaning up orphaned streaming messages:",
-            error,
-          );
-        });
 
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
@@ -1470,6 +1489,24 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { message: string },
       ),
     );
+    webSocketService.on("chat_startup_opened_ready", (payload) => {
+      const ready = payload as {
+        team_id?: string | null;
+        context_epoch?: number;
+        offline_chat_ids?: string[];
+        messages_versions?: unknown;
+      };
+      const ids = ready.offline_chat_ids;
+      if (!this.webSocketConnected || !get(authStore).isAuthenticated ||
+          typeof ready.context_epoch !== "number" || !Array.isArray(ids) ||
+          !this.isPayloadForActiveContext(ready)) return;
+      const scope = { teamId: ready.team_id ?? null, contextEpoch: ready.context_epoch };
+      void offerOpenedChatStartup(ids, scope, this.socketEpoch, ready.messages_versions).catch((error: unknown) => {
+        if (!(error instanceof Error && error.message === "cancelled")) {
+          console.warn("[ChatSyncService] Recent offline history is incomplete.");
+        }
+      });
+    });
     webSocketService.on("phase_1_last_chat_ready", (payload) => {
       const typedPayload = payload as Phase1LastChatPayload;
       if (!this.isPayloadForActiveContext(typedPayload)) return;
@@ -1525,6 +1562,12 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("phased_sync_complete", (payload) => {
       const typedPayload = payload as PhasedSyncCompletePayload;
       if (!this.isPayloadForActiveContext(typedPayload)) return;
+      const workspace = getWorkspaceCacheIdentity();
+      if (this.webSocketConnected && workspace && !typedPayload.team_id &&
+          typeof typedPayload.context_epoch === "number" && typedPayload.phase === "all" &&
+          this.serverCapabilityGate.supportsPersonalOpenedChatStartup()) {
+        this.completedPersonalPhasedSocket = { workspace, epoch: this.socketEpoch };
+      }
       void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload).then(() => {
         const chatId = activeChatStore.get();
         if (chatId) this.requestQueuedMessages(chatId);
@@ -2944,6 +2987,38 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   // --- AI Info Getters ---
+  public observeIndependentReply(view: IndependentReplyView): boolean {
+    if (!view.taskId || !view.chatId || !view.userMessageId
+      || this.closedIndependentReplyTasks.has(view.taskId) || this.independentReplyViews.has(view.taskId)) {
+      return false;
+    }
+    this.independentReplyViews.set(view.taskId, view);
+    return true;
+  }
+
+  public getIndependentReplyViews(chatId: string): IndependentReplyView[] {
+    return Array.from(this.independentReplyViews.values()).filter((view) => view.chatId === chatId);
+  }
+
+  public finishIndependentReply(
+    taskId: string, fallback?: IndependentReplyView, expectedChatId?: string,
+  ): IndependentReplyView | undefined {
+    if (this.closedIndependentReplyTasks.has(taskId)) return;
+    const current = this.independentReplyViews.get(taskId);
+    const view = current ?? fallback;
+    if (!view?.chatId || !view.userMessageId || view.taskId !== taskId
+      || (expectedChatId && view.chatId !== expectedChatId)
+      || (current && fallback
+        && (current.chatId !== fallback.chatId || current.userMessageId !== fallback.userMessageId))) return;
+    this.independentReplyViews.delete(taskId);
+    this.closedIndependentReplyTasks.add(taskId);
+    if (this.closedIndependentReplyTasks.size > 64) {
+      const oldestTaskId = this.closedIndependentReplyTasks.values().next().value;
+      if (oldestTaskId) this.closedIndependentReplyTasks.delete(oldestTaskId);
+    }
+    return view;
+  }
+
   public getActiveAITaskIdForChat(chatId: string): string | null {
     return this.activeAITasks.get(chatId)?.taskId || null;
   }
@@ -3092,12 +3167,13 @@ export class ChatSynchronizationService extends EventTarget {
       && get(authStore).isAuthenticated
       && this.serverCapabilityGate.supportsImmediateChatAdmission();
     const admissionProtocolSupported = supportsAdmissionNow();
+    const admissionText = await withoutDesignReference(message.content ?? "");
     const fastPersonalTextCandidate = admissionProtocolSupported
       && !get(activeTeamId) && !connectedAccountContext
       && !projectFocusIntent && !encryptedSuggestionToDelete
       && typeof message.content === 'string'
-      && !message.content.includes('```')
-      && !message.content.includes('embed_id')
+      && !admissionText.includes('```')
+      && !admissionText.includes('embed_id')
       && !message.content.includes('| ');
     const cachedEmpty = recentEmptyConnectedAccounts
       && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS
@@ -3228,8 +3304,8 @@ export class ChatSynchronizationService extends EventTarget {
   public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
     await senders.sendCompletedAIResponseImpl(this, aiMessage);
   }
-  public async sendSetActiveChat(chatId: string | null): Promise<void> {
-    await senders.sendSetActiveChatImpl(this, chatId);
+  public async sendSetActiveChat(chatId: string | null, openedIn?: TeamContextSnapshot): Promise<void> {
+    await senders.sendSetActiveChatImpl(this, chatId, openedIn);
   }
   public async sendCancelAiTask(
     taskId: string,
@@ -3418,17 +3494,6 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   /**
-   * Request metadata-only chat records for positions 101–1000 from the server.
-   * Called automatically after Phase 3 when total_chat_count > 100.
-   * These are stored in IndexedDB for sidebar display and search.
-   */
-  public async sendSyncMetadataChats(
-    existingChatIds: string[] = [],
-  ): Promise<void> {
-    await senders.sendSyncMetadataChatsImpl(this, existingChatIds);
-  }
-
-  /**
    * Sync a locally-created inspiration chat to the server and other devices.
    * Called after handleStartChatFromInspiration creates the chat in IndexedDB.
    */
@@ -3491,9 +3556,10 @@ export class ChatSynchronizationService extends EventTarget {
 
     const context = get(activeTeamContext);
     const workspaceIdentity = getWorkspaceCacheIdentity();
+    const socketEpoch = this.socketEpoch;
     const isCurrentAttempt = (): boolean => {
       const current = get(activeTeamContext);
-      return this.phasedSyncStartGeneration === startGeneration &&
+      return this.phasedSyncStartGeneration === startGeneration && socketEpoch === this.socketEpoch &&
         workspaceIdentity === getWorkspaceCacheIdentity() &&
         current.epoch === context.epoch && current.teamId === context.teamId &&
         !get(forcedLogoutInProgress) && !get(isLoggingOut);
@@ -3550,8 +3616,9 @@ export class ChatSynchronizationService extends EventTarget {
           `[ChatSyncService] 2/4: Found ${client_chat_ids.length} chats from cached version map (skipped IDB read).`,
         );
       } else {
-        // Fallback: full IDB read (first load or after logout/re-login)
-        const allChats = await chatDB.getAllChats();
+        // Include all cached IDs for explicit server tombstone reconciliation.
+        // Versions and authorization scope are unencrypted header fields.
+        const allChats = await chatDB.getAllChats(undefined, { teamId, decrypt: false });
         console.warn(
           `[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB (fallback read).`,
         );
@@ -3572,16 +3639,6 @@ export class ChatSynchronizationService extends EventTarget {
       const clientSuggestions = await chatDB.getAllNewChatSuggestions();
       const client_suggestions_count = clientSuggestions.length;
 
-      // Collect embed IDs the client already has in IndexedDB.
-      // Sent to the server so it can skip re-pushing embeds we already have,
-      // preventing the "all embeds on every reconnect" flood for active users.
-      const { embedStore } = await import("./embedStore");
-      const client_embed_ids = await embedStore.getAllEmbedIds();
-
-      console.warn(
-        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids.length} embed(s) already on device`,
-      );
-
       // Rust core builds also ask the server about idle local drafts outside
       // the inferred-deletion window (the eligibility rule lives in the core).
       const stale_draft_probe = RUST_SYNC_BUILD
@@ -3593,12 +3650,28 @@ export class ChatSynchronizationService extends EventTarget {
           )
         : undefined;
 
+      // Negotiated Personal startup skips the embed-bearing phase. Keep the
+      // legacy dedup inventory unless both connections proved this exact path.
+      const previousPersonalSync = this.completedPersonalPhasedSocket;
+      const openedConnection = teamId === null &&
+        previousPersonalSync !== null && previousPersonalSync.workspace === workspaceIdentity &&
+        previousPersonalSync.epoch < socketEpoch &&
+        this.serverCapabilityGate.supportsPersonalOpenedChatStartup()
+        ? webSocketService.getConnectionForSend()
+        : null;
+      const client_embed_ids = openedConnection
+        ? undefined
+        : await (await import("./embedStore")).embedStore.getAllEmbedIds();
+      console.warn(
+        `[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions, ${client_embed_ids?.length ?? 0} embed IDs`,
+      );
+
       const payload: PhasedSyncRequestPayload = {
         phase: "all",
         client_chat_versions,
         client_chat_ids,
         client_suggestions_count,
-        client_embed_ids,
+        ...(client_embed_ids ? { client_embed_ids } : {}),
         context_epoch: context.epoch,
         ...(teamId ? { team_id: teamId } : {}),
         ...(stale_draft_probe ? { stale_draft_probe } : {}),
@@ -3611,7 +3684,11 @@ export class ChatSynchronizationService extends EventTarget {
       // Give the actual request its own bounded completion window.
       this.startPhasedSyncTimeout();
       activityAttempt = chatSyncActivity.begin(context);
-      await webSocketService.sendMessage("phased_sync_request", payload);
+      if (openedConnection) {
+        await webSocketService.sendMessage("phased_sync_request", payload, { expectedConnection: openedConnection });
+      } else {
+        await webSocketService.sendMessage("phased_sync_request", payload);
+      }
       console.warn(
         "[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.",
       );
@@ -3743,34 +3820,6 @@ export class ChatSynchronizationService extends EventTarget {
 
   // NOTE: Phased sync handlers (handlePhase2RecentChats, handlePhase3FullSync, etc.)
   // and storage helpers (storeRecentChats, storeAllChats, etc.) are in chatSyncServiceHandlersPhasedSync.ts
-
-  /**
-   * Detect messages stuck in 'streaming' or 'processing' status across ALL chats.
-   * This handles the case where the WebSocket disconnected during an AI stream.
-   * Do not finalize them locally: reconnect pending delivery or phased sync must
-   * replace the partial row with the server-completed version.
-   */
-  private async _cleanupOrphanedStreamingMessages(): Promise<void> {
-    try {
-      const allMessages = await chatDB.getAllMessages();
-      const orphaned = allMessages.filter(
-        (msg) =>
-          msg.status === "streaming" ||
-          (msg.status === "processing" && msg.role === "assistant"),
-      );
-
-      if (orphaned.length === 0) return;
-
-      console.warn(
-        `[ChatSyncService] Found ${orphaned.length} orphaned streaming/processing message(s) - waiting for pending delivery or phased sync`,
-      );
-    } catch (error) {
-      console.error(
-        "[ChatSyncService] Error in _cleanupOrphanedStreamingMessages:",
-        error,
-      );
-    }
-  }
 
   /**
    * Retry sending messages that are pending (status: 'waiting_for_internet' or 'sending')

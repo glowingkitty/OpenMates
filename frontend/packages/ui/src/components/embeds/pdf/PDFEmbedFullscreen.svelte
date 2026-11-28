@@ -361,6 +361,7 @@
 </script>
 
 <UnifiedEmbedFullscreen
+  currentEmbedId={embedId}
   appId="pdf"
   skillId="view"
   skillIconName="pdf"

@@ -959,6 +959,12 @@
         "description": {
           "text": "Đọc thiết kế Figma và lấy cấu trúc, kiểu dáng và bàn giao mã."
         }
+      },
+      "author": {
+        "text": "Tạo thiết kế",
+        "description": {
+          "text": "Tạo tờ rơi, bài đăng hoặc bản mẫu có thể chỉnh sửa."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Tạo nhiệm vụ",
-          "description": {
-            "text": "Tạo nhiệm vụ với tiêu đề, mô tả và người phụ trách."
-          }
-        },
         "search": {
           "text": "Tìm nhiệm vụ",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Trò chuyện mẫu"
       },
+      "sub_chat": {
+        "text": "Cuộc trò chuyện con"
+      },
       "shared_chat": {
         "text": "Trò chuyện được chia sẻ"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Hiển thị thêm"
+      },
+      "account_total": {
+        "text": "{count} cuộc trò chuyện trong tài khoản"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "Thu gọn {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Nhiệm vụ"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Sơ đồ Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Đang đọc hình…"
+        },
+        "progress_checking": {
+          "text": "Đang kiểm tra thiết kế…"
+        },
+        "progress_adjusting": {
+          "text": "Đang điều chỉnh thiết kế để thêu…"
+        },
+        "progress_stitching": {
+          "text": "Đang tạo mũi thêu và bản xem trước…"
+        },
+        "progress_saving": {
+          "text": "Đang lưu tệp máy thêu…"
+        },
         "threads": {
           "text": "Chỉ"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Tải thiết kế xuống"
+        },
+        "current_page": {
+          "text": "Trang hiện tại"
+        },
+        "all_pages": {
+          "text": "Tất cả các trang"
+        },
+        "image_unavailable": {
+          "text": "Một hình ảnh không có trên thiết bị này. Hãy mở trang, đợi hình ảnh tải xong rồi thử lại."
+        },
+        "failed": {
+          "text": "Không tải được thiết kế xuống. Hãy thử lại."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Dùng thử miễn phí"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Tên miền e-mail không được phép."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Cuộc gọi dùng phiên âm Mistral, giọng ElevenLabs v4 Turbo, định tuyến AI thông thường của OpenMates và tính phí theo mức sử dụng."
-    },
     "privacy_description": {
       "text": "Mistral chuyển âm thanh micrô của bạn thành văn bản; ElevenLabs v4 Turbo tạo giọng trợ lý từ văn bản trả lời và cài đặt giọng nói. Cuộc trò chuyện dùng cơ chế định tuyến AI và kỹ năng thông thường của OpenMates. Nhà cung cấp có thể lưu dữ liệu yêu cầu theo chính sách của họ."
     },

@@ -4,12 +4,14 @@
 // normal login, sync and IndexedDB storage stay TypeScript-owned.
 import { artifact } from 'virtual:openmates-rust-core-package';
 import { BrowserCoreWorkerHost } from '@openmates/ui/src/services/rustCore/workerHost';
+import { openNativeRustChatIOFactory } from '@openmates/ui/src/services/rustCore/browserAdapters';
+import { assertOriginalFirstSessionAllowsLocalRead, takeOriginalFirstSessionWorker } from './firstSessionProvider';
 import { createSessionBroker, type CoreLease, type SessionBroker } from '@openmates/ui/src/services/rustCore/host/sessionBroker';
 import { validProductionBootstrap } from './productionBootstrap';
 import type { ProductionBootstrap } from './productionBootstrap';
 import { registerPrincipalBinder } from '@openmates/ui/src/services/rustCore/host/serverSessionRegistry';
 import { startSharedRustCore } from './shared/sharedWorkerStart';
-import type { LocalSavedChatSession, ProductionSavedChatSession } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
+import type { LocalSavedChatSession, ProductionSavedChatSession, SavedChatAdmissionStage } from '@openmates/ui/src/services/rustCore/secondDeviceSavedChatSession';
 import type { SavedChatSelection } from '@openmates/ui/src/services/rustCore/selectedSavedChat';
 
 const READY_TIMEOUT_MS = 30_000;
@@ -48,6 +50,7 @@ function leaseEndpoint(lease: CoreLease): Worker {
 /** Lease a core unit on the shared Worker, post its bootstrap and wait for its ready frame. */
 export async function createRustCoreWorker(input: {
 	apiUrl: string; sessionId: string; expectedPrincipal: string; signal: AbortSignal;
+	firstSession?: true;
 }): Promise<{ host: BrowserCoreWorkerHost; close(): void }> {
 	if (typeof window === 'undefined' || !window.isSecureContext || input.signal.aborted) throw new Error('unavailable');
 	const bootstrap: ProductionBootstrap = { version: 1, operation: 'bootstrap_existing_key', artifact: artifact ?? '',
@@ -65,34 +68,43 @@ export async function createRustCoreWorker(input: {
 		if (host) host.close(); else lease.close();
 	};
 	// Crash or principal switch: the Host fails its pending requests like a dead Worker.
-	const stopLost = lease.onLost(() => { if (host) host.close('unavailable'); });
+	const stopLost = lease.onLost(() => {
+		if (input.firstSession) host?.loseFirstSessionTransport();
+		else host?.close('unavailable');
+	});
 	input.signal.addEventListener('abort', close, { once: true });
 	try {
-		await new Promise<void>((resolve, reject) => {
-			const finish = (error?: Error) => {
+		const ready = await new Promise<MessageEvent<unknown>>((resolve, reject) => {
+			const finish = (result: Error | MessageEvent<unknown>) => {
 				clearTimeout(timer);
 				port.removeEventListener('message', receive);
 				port.removeEventListener('messageerror', fail);
+				input.signal.removeEventListener('abort', abort);
 				stopFail();
-				if (error) reject(error); else resolve();
+				if (result instanceof Error) reject(result); else resolve(result);
 			};
 			const fail = () => finish(new Error('unavailable'));
+			const abort = () => finish(new Error('cancelled'));
 			const stopFail = lease.onLost(fail);
 			const receive = (event: MessageEvent<unknown>) => {
 				const data = event.data as { version?: unknown; ready?: unknown; code?: unknown } | null;
-				if (data && data.version === 1 && data.ready === true) finish();
+				if (data && data.version === 1 && data.ready === true) finish(event);
 				else if (data && data.version === 1 && data.ready === false && typeof data.code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(data.code)) finish(new Error(`worker_${data.code}`));
 				else fail();
 			};
 			const timer = setTimeout(fail, READY_TIMEOUT_MS);
 			port.addEventListener('message', receive);
 			port.addEventListener('messageerror', fail);
+			input.signal.addEventListener('abort', abort, { once: true });
+			if (input.signal.aborted) return abort();
 			port.start();
 			port.postMessage(bootstrap);
 		});
 		if (closed) throw new Error('cancelled');
 		performance.mark('openmates:rust:worker-ready');
-		host = new BrowserCoreWorkerHost(leaseEndpoint(lease), undefined, input.expectedPrincipal);
+		const endpoint = leaseEndpoint(lease);
+		const issuer = input.firstSession ? openNativeRustChatIOFactory(endpoint, indexedDB, ready) : undefined;
+		host = new BrowserCoreWorkerHost(endpoint, undefined, input.expectedPrincipal, issuer, undefined, input.firstSession === true);
 		return { host, close };
 	} catch (error) {
 		close();
@@ -168,18 +180,24 @@ export async function createRustLocalSession(input: {
 	performance.mark('openmates:rust:admission-modules-ready');
 	const platform = await createBrowserSavedChatPlatform(input.signal, 'local_first');
 	performance.mark('openmates:rust:local-platform-ready');
-	const early = earlyRustCoreWorker({ apiUrl: getApiUrl(), expectedPrincipal: platform.expectedPrincipal });
+	const assertAllowed = () => assertOriginalFirstSessionAllowsLocalRead(platform.expectedPrincipal, platform.sessionId);
+	let early: ReturnType<typeof earlyRustCoreWorker> | undefined;
 	try {
+		assertAllowed();
+		const worker = earlyRustCoreWorker({ apiUrl: getApiUrl(), expectedPrincipal: platform.expectedPrincipal });
+		early = worker;
 		const session = await admitLocalSavedChatSession({
 			expectedPrincipal: platform.expectedPrincipal, signal: input.signal, sources: platform.sources,
-			currentSelection: () => platform.selection(input.currentSelection()), lifecycle: browserProfileLifecycle,
-			page: window, createChannel: (name) => new BroadcastChannel(name),
-			createWorker: (signal) => early.take(signal)
+			currentSelection: () => { assertAllowed(); return platform.selection(input.currentSelection()); },
+			lifecycle: browserProfileLifecycle,
+			page: window, createChannel: (name: string) => new BroadcastChannel(name),
+			createWorker: (signal) => worker.take(signal)
 		});
+		try { assertAllowed(); } catch (error) { session.close(); throw error; }
 		session.signal.addEventListener('abort', () => platform.close(), { once: true });
 		return session;
 	} catch (error) {
-		early.discard();
+		early?.discard();
 		platform.close();
 		throw error;
 	}
@@ -194,24 +212,37 @@ export async function createRustSecondDeviceSession(input: {
 	signal: AbortSignal;
 	currentSelection: SelectionInput;
 	local?: LocalSavedChatSession | null;
+	observeSelectedAdmission?: true;
+	reusePageAdmission?: true;
 }): Promise<ProductionSavedChatSession> {
 	const [{ createBrowserSavedChatPlatform }, { getApiUrl }, { browserProfileLifecycle }, { admitSecondDeviceSavedChatSession }] = await loadAdmissionModules();
+	// Fixed labels describe only the selected-session spine; cohort warms do not emit them.
+	const observeAdmission = input.observeSelectedAdmission
+		? (stage: SavedChatAdmissionStage) => performance.mark('openmates:rust:admission-' + stage)
+		: undefined;
 	let platform: Awaited<ReturnType<typeof createBrowserSavedChatPlatform>>;
 	try {
-		platform = await createBrowserSavedChatPlatform(input.signal);
+		platform = await createBrowserSavedChatPlatform(input.signal, 'server_checked', observeAdmission);
 	} catch (error) {
 		input.local?.close();
 		throw error;
 	}
 	performance.mark('openmates:rust:platform-ready');
+	observeAdmission?.('platform-ready');
 	try {
 		const admission = {
 			expectedPrincipal: platform.expectedPrincipal, signal: input.signal, sources: platform.sources,
+			observeAdmission,
 			currentSelection: () => platform.selection(input.currentSelection()), lifecycle: browserProfileLifecycle,
 			page: window, createChannel: (name: string) => new BroadcastChannel(name)
 		};
+		const original = input.reusePageAdmission ? await takeOriginalFirstSessionWorker({
+			signal: input.signal, expectedPrincipal: platform.expectedPrincipal, sessionId: platform.sessionId,
+		}) : null;
 		const local = input.local && !input.local.signal.aborted ? input.local : null;
-		const session = local ? await local.upgrade(admission) : await admitSecondDeviceSavedChatSession({ ...admission,
+		const session = original
+			? await admitSecondDeviceSavedChatSession({ ...admission, createWorker: async () => original }, original)
+			: local ? await local.upgrade(admission) : await admitSecondDeviceSavedChatSession({ ...admission,
 			// A fresh per-page session id makes Rust a separate connection (second device):
 			// the server keys WebSockets by device+session, so reusing the TS tab's id
 			// would replace the TS socket and strand its pending sends.
@@ -222,6 +253,7 @@ export async function createRustSecondDeviceSession(input: {
 		return session;
 	} catch (error) {
 		platform.close();
+		if (error instanceof Error && error.message === 'session_expired') input.local?.close();
 		throw error;
 	}
 }

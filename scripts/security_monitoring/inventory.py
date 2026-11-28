@@ -344,34 +344,71 @@ def _swift_name(url: str) -> str:
     return re.sub(r"\.git$", "", re.sub(r"^https?://", "", url.strip().rstrip("/")))
 
 
+APPLE_PROJECT = "apple/OpenMates.xcodeproj"
+SWIFT_LOCK = f"{APPLE_PROJECT}/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+ONNX_MANIFEST = "apple/Vendor/onnxruntime-spm/Package.swift"
+ONNX_REPO = "github.com/microsoft/onnxruntime"
+EXECUTORCH_CATALOG = "apple/LocalModelBridge/catalog.json"
+EXECUTORCH_REPO = "github.com/pytorch/executorch"
+
+
 def _read_swift(builder: _Builder) -> None:
-    project = builder.root / "apple/OpenMates.xcodeproj/project.pbxproj"
-    resolved_path = builder.root / "apple/OpenMates.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+    project = builder.root / APPLE_PROJECT / "project.pbxproj"
+    resolved_path = builder.root / SWIFT_LOCK
     pins: dict[str, str] = {}
     if resolved_path.is_file():
         resolved = json.loads(resolved_path.read_text(encoding="utf-8"))
-        for pin in resolved.get("pins") or resolved.get("object", {}).get("pins", []):
+        entries = resolved.get("pins", resolved.get("object", {}).get("pins"))
+        if not isinstance(entries, list):
+            raise SourceUnreadable("Package.resolved without pins")
+        for pin in entries:
             location = pin.get("location") or pin.get("repositoryURL")
             state = pin.get("state") or {}
-            if location and (state.get("version") or state.get("revision")):
-                pins[_swift_name(location)] = str(state.get("version") or state.get("revision"))
+            version = state.get("version") or state.get("revision")
+            if not location or not version:
+                raise SourceUnreadable("Swift lockfile pin without package or version")
+            pins[_swift_name(location).lower()] = str(version)
+        for name, version in pins.items():
+            builder.add("package", "SwiftURL", name, version, ("apple_client",), "client_only", SWIFT_LOCK)
     text = project.read_text(encoding="utf-8")
     blocks = _PBX_BLOCK_RE.findall(text)
     if "XCRemoteSwiftPackageReference" in text and not blocks:
         raise SourceUnreadable("Swift package references could not be parsed")
     for block in blocks:
-        url = re.search(r"repositoryURL = \"([^\"]+)\"", block)
+        url = re.search(r'repositoryURL = "([^"]+)"', block)
         if not url:
             raise SourceUnreadable("Swift package reference without repositoryURL")
-        name = _swift_name(url.group(1))
-        exact = re.search(r"kind = exactVersion;\s*version = \"?([^\";]+)\"?;", block)
-        revision = re.search(r"revision = \"?([0-9a-f]{7,40})\"?;", block)
-        # Without a committed Package.resolved the declared floor (minimumVersion) is the best known version;
-        # OSV then answers for that floor and the match is reported as a range lower bound.
-        floor = re.search(r"(?:minimumVersion|version) = \"?([0-9][^\";\s]*)\"?;", block)
-        version = pins.get(name) or (exact.group(1) if exact else revision.group(1) if revision
-                                     else floor.group(1) if floor else None)
-        builder.add("package", "SwiftURL", name, version, ("apple_client",), "client_only", "apple/OpenMates.xcodeproj")
+        name = _swift_name(url.group(1)).lower()
+        if name in pins:
+            continue
+        exact = re.search(r'kind = exactVersion;\s*version = "?([^";]+)"?;', block)
+        revision = re.search(r'revision = "?([0-9a-f]{40})"?;', block)
+        floor = re.search(r'minimumVersion = "?([0-9][^";\s]*)"?;', block)
+        requirement = exact or revision or floor
+        source = f"{APPLE_PROJECT} (version floor)" if requirement is floor and floor else APPLE_PROJECT
+        builder.add("package", "SwiftURL", name, requirement.group(1) if requirement else None,
+                    ("apple_client",), "client_only", source)
+    if "Vendor/onnxruntime-spm" in text:
+        manifest = (builder.root / ONNX_MANIFEST).read_text(encoding="utf-8")
+        archive = re.search(
+            r'\.binaryTarget\(\s*name:\s*"onnxruntime"\s*,\s*path:\s*"onnxruntime-c-(\d+\.\d+\.\d+)\.zip"\s*\)', manifest,
+        )
+        if not archive:
+            raise SourceUnreadable("ONNX Runtime binary version could not be parsed")
+        builder.add("package", "GitHub", ONNX_REPO, archive.group(1), ("apple_client",), "client_only", ONNX_MANIFEST)
+    if "LocalModelBridge/prepare.py" in text:
+        catalog = json.loads((builder.root / EXECUTORCH_CATALOG).read_text(encoding="utf-8"))
+        version = catalog["version"]
+        if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+            raise SourceUnreadable("ExecuTorch binary version could not be parsed")
+        builder.add("package", "GitHub", EXECUTORCH_REPO, version, ("apple_client",), "client_only", EXECUTORCH_CATALOG)
+
+
+def apple_package_inventory(root: Path) -> Inventory:
+    """Read Apple's declared and resolved packages without querying host inventory."""
+    builder = _Builder(root)
+    builder.guard(APPLE_PROJECT, _read_swift, builder)
+    return Inventory("", _merge(builder.assets), tuple(builder.incomplete))
 
 
 # -- images, CI, providers, vendors ---------------------------------------------
@@ -636,7 +673,7 @@ def build_inventory(project_root: Path, host_reports: Mapping[str, HostReport | 
     builder.guard("packages/openmates-python/pyproject.toml", _read_pyproject, builder)
     for relative, (environments, exposure) in CARGO_LOCKS.items():
         builder.guard(relative, _read_cargo, builder, relative, environments, exposure)
-    builder.guard("apple/OpenMates.xcodeproj", _read_swift, builder)
+    builder.guard(APPLE_PROJECT, _read_swift, builder)
     extra_locks = [item for item in dotenv_value(root, EXTRA_CARGO_LOCKS_KEY).split(os.pathsep) if item.strip()]
     for index, item in enumerate(extra_locks, start=1):
         label = f"extra-cargo-lock:{index}"

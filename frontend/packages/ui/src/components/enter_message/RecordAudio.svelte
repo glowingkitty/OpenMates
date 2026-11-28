@@ -70,7 +70,7 @@
         /** Direct Send keeps processing visible through composer submission. */
         retainUntilSend?: boolean;
         compact?: boolean;
-        correctionContext?: 'workflow';
+        correctionContext?: 'dictation' | 'workflow';
         recordingGeneration?: number;
         /** Only composers that handle sendrequested offer direct submission. */
         allowSend?: boolean;
@@ -162,6 +162,7 @@
     let lastWaveformSampleAt = 0;
     let recordOverlayElement: HTMLDivElement | null = null;
     let liveTranscript = $state('');
+    let hasEditorTranscript = false;
     let liveTranscriptViewportElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptFlowElement = $state<HTMLSpanElement | null>(null);
     let liveTranscriptLineCount = $state(1);
@@ -322,7 +323,7 @@
                     anonymous,
                     onTranscript: setLiveTranscript,
                     onStatus: (value) => { realtimeStatus = value; },
-                    correctionContext,
+                    correctionContext: correctionContext ?? (transcriptInEditor ? 'dictation' : undefined),
                     purpose,
                     onLimitReached: () => {
                         if (isCancelled || stopIntent) return;
@@ -336,6 +337,10 @@
                     // audiorecorded handoff; escalating to cancel here would discard
                     // live text that is already in the editor.
                     if (stopIntent === 'finish') return;
+                    if (hasEditorTranscript) {
+                        stopInternal(false);
+                        return;
+                    }
                     dispatch('transcriptionerror', error);
                     stopInternal(true);
                 });
@@ -392,7 +397,10 @@
     function setLiveTranscript(value: string) {
         if (transcriptInEditor) {
             // The host editor shows the full transcript; keep the overlay compact.
-            if (!isCancelled) dispatch('livetranscript', { transcript: value });
+            if (!isCancelled) {
+                hasEditorTranscript ||= value.trim().length > 0;
+                dispatch('livetranscript', { transcript: value });
+            }
             return;
         }
         liveTranscript = value;
@@ -495,7 +503,8 @@
         isRecording = false;
         readyForRelease = false;
 
-        if (intent === 'finish' && recordedChunks.length > 0) {
+        const canHandoffRealtime = !!realtimeHandle && !realtimeFinishFailed;
+        if (intent === 'finish' && (recordedChunks.length > 0 || (hasEditorTranscript && canHandoffRealtime))) {
             const finalMimeType = mediaRecorder?.mimeType || recordedChunks[0]?.type || 'audio/webm';
             const blob = new Blob(recordedChunks, { type: finalMimeType });
             const finalDuration = recordingTime;
@@ -506,7 +515,7 @@
                 mimeType:  blob.type,
                 waveformSamples: waveform?.samples.length ?? 0,
             });
-            realtimeHandedOff = !!realtimeHandle && !realtimeFinishFailed;
+            realtimeHandedOff = canHandoffRealtime;
             dispatch('audiorecorded', {
                 blob,
                 duration: finalDuration,
@@ -885,12 +894,16 @@
 <style>
     /* Full overlay that covers the entire .message-field */
     .record-overlay {
+        --record-overlay-radius: 24px;
+        --record-overlay-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --record-timer-background: #ff4444;
+        --record-muted-text: color-mix(in srgb, var(--color-font-button) 72%, transparent);
         position: absolute;
         inset: 0;
         container-type: inline-size;
         min-height: 220px;
-        border-radius: 24px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: var(--record-overlay-radius);
+        background: var(--record-overlay-gradient);
         z-index: var(--z-index-sticky);
         display: flex;
         flex-direction: column;
@@ -1084,7 +1097,7 @@
     }
 
     .record-shortcuts {
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--record-muted-text);
         font-size: var(--font-size-xs);
         font-weight: 500;
     }
@@ -1114,7 +1127,7 @@
     }
 
     .live-transcript-placeholder {
-        color: rgba(255, 255, 255, 0.72);
+        color: var(--record-muted-text);
         letter-spacing: 0.18em;
     }
 
@@ -1130,7 +1143,7 @@
 
     .timer-pill {
         align-self: center;
-        background-color: #ff4444;
+        background-color: var(--record-timer-background);
         color: white;
         padding: 6px 14px;
         border-radius: var(--radius-8);

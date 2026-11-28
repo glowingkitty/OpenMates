@@ -297,7 +297,7 @@ final class WorkflowsParityUITests: XCTestCase {
                        "Close must contract the node back to both compact dimensions.")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions
+    // contract-test: supporting surface=gui.apple assertions=daily-inspiration.start-row-cards,daily-inspiration.start-row-actions,daily-inspiration.start-row-suggestions,daily-inspiration.start-suggestions-layout
     func testWorkflowStartScreenHasNoBannerActionsTileLastAndSingleLineSuggestions() throws {
         let app = launchWorkflowFixture("home")
         assertVisible("workflows-start-screen", in: app, message: "Workflow start screen must render.")
@@ -314,6 +314,9 @@ final class WorkflowsParityUITests: XCTestCase {
         let suggestions = app.descendants(matching: .any)["workflows-start-suggestions"]
         XCTAssertTrue(suggestions.exists)
         XCTAssertGreaterThan(suggestions.frame.minY, actions.frame.maxY, "Suggestions sit below the row")
+        let composer = app.descendants(matching: .any)["workflow-input-composer"]
+        XCTAssertLessThanOrEqual(suggestions.frame.maxY, composer.frame.minY)
+        XCTAssertEqual(suggestions.frame.midX, composer.frame.midX, accuracy: 2)
         for button in suggestions.buttons.allElementsBoundByIndex {
             XCTAssertLessThan(button.frame.height, 60, "Each suggestion stays on a single line")
         }

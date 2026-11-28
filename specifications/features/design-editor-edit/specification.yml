@@ -1,0 +1,31 @@
+schema_version: 1
+id: feature.design-editor-edit
+version: 1
+status: draft
+title: Built-in Design editing
+summary: Edit the typed pages and layers of a saved Design and keep their client-side encrypted versions.
+inherits:
+  - feature.design-editor@1
+scope:
+  includes:
+    - Editing the copy, geometry, stacking order and membership of layers and pages.
+    - Undo and redo while editing, and viewing the saved version history.
+    - Client-side encrypted saves through the existing user-revision path.
+  excludes:
+    - Assistant authoring, simultaneous multi-user editing and export.
+assertions:
+  - id: design-editor.edit.typed-layers
+    type: behavior
+    must: An authorized editor can change design text, move and resize a layer, change its stacking order, add or remove layers and pages, and undo and redo changes. The provisional cap of 250 layers per page still applies.
+  - id: design-editor.edit.revision
+    type: security
+    must: A valid edit is saved as the next client-side encrypted version of the same design. The save refuses stale revisions and read-only viewers cannot write. Earlier versions remain viewable.
+applies_to:
+  gui:
+    required: true
+    implementations:
+      web: {required: true, role: Design editor, save and version history.}
+      apple: {required: false, role: Follows the web editor.}
+examples:
+  file: examples.yml
+  required_groups: [edit]

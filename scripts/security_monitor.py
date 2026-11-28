@@ -29,7 +29,7 @@ from typing import Sequence
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from security_monitoring import dispatch, health  # noqa: E402 - path set above
+from security_monitoring import apple_updates, dispatch, health  # noqa: E402 - path set above
 from security_monitoring.config import Settings, load_settings  # noqa: E402 - path set above
 from security_monitoring.state import Store, utc  # noqa: E402 - path set above
 
@@ -107,6 +107,8 @@ def cmd_hourly(settings: Settings) -> int:
                 print(json.dumps({"outcome": "skipped", "reason": "previous hourly run still active"}))
                 return 0
             report = dispatch.run_hourly(settings)
+            alerts = dispatch.run_github_alerts(settings)
+            report.planned.extend(alerts.get("errors", []))
     print(json.dumps({"run_id": report.run_id, "outcome": report.outcome, "dry_run": settings.dry_run,
                       "no_agents": settings.no_agents, **report.summary(), "planned": report.planned}, indent=1, sort_keys=True))
     return 0 if report.outcome in {"complete", "incomplete"} else 1
@@ -130,7 +132,9 @@ def cmd_inventory(settings: Settings) -> int:
 def cmd_digest(settings: Settings) -> int:
     store = Store.open(settings.state_db, dry_run=settings.dry_run)
     try:
-        result = health.run_digest(settings, store, dispatch.build_notifier(settings, store))
+        dispatch.run_github_alerts(settings, store=store)
+        result = health.run_digest(settings, store, dispatch.build_notifier(settings, store),
+                                   apple_packages=apple_updates.report_lines(settings.project_root))
     finally:
         store.close()
     print(json.dumps(result, indent=1, sort_keys=True))

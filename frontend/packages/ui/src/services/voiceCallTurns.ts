@@ -219,47 +219,58 @@ export async function sendVoiceCallTurn(turn: VoiceCallTurn): Promise<boolean> {
     const chat = await chatDB.getChat(turn.chatId);
     if (!current()) return refuse('scope_changed');
     if (!chat || chat.team_id || chat.chat_visibility === 'direct') return refuse('personal_chat_unavailable');
-    // Match the ordinary composer's encrypted optimistic row before admission.
-    // Delivery metadata belongs only to this request, never the durable row.
-    const { voice_call_id: _call, voice_turn_id: _turn, voice_mode: _voice,
-      auto_speak: _speak, preserve_draft: _draft, voice_heard_boundary: _heard, ...durableMessage } = message;
-    enter('message_saving');
-    await chatDB.saveMessage(durableMessage);
-    if (!current()) return refuse('scope_changed');
-    enter('chat_refreshing');
-    const currentChat = await chatDB.getChat(turn.chatId);
-    if (!current()) return refuse('scope_changed');
-    if (!currentChat) return refuse('personal_chat_unavailable');
-    const optimisticChat = { ...currentChat, messages_v: (currentChat.messages_v ?? 0) + 1,
-      updated_at: message.created_at, last_edited_overall_timestamp: message.created_at };
-    enter('chat_updating');
-    await chatDB.updateChat(optimisticChat);
-    if (!current()) return refuse('scope_changed');
-    chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
-      detail: { chat_id: turn.chatId, chat: optimisticChat, newMessage: durableMessage },
-    }));
-    turn.onVisible?.();
-    // The chat the user is now talking in is the chat they left off in (3X228).
-    // loadChat records last_opened only when it finishes, and it returns early
-    // while call turns are in flight. Recording it at the first turn, not at
-    // bind, keeps an empty call chat (removed after hangup) out of the resume card.
-    const { userProfile } = await import('../stores/userProfile');
-    if (get(userProfile).last_opened !== turn.chatId) {
-      void chatSyncService.sendSetActiveChat(turn.chatId).catch((error: unknown) => {
-        console.error('[voiceCallTurns] Could not record the call chat as last opened:', turn.chatId, error);
-      });
-    }
+    const persistOptimisticTurn = async (): Promise<boolean> => {
+      // Match the ordinary composer's encrypted optimistic row before admission.
+      // Delivery metadata belongs only to this request, never the durable row.
+      const { voice_call_id: _call, voice_turn_id: _turn, voice_mode: _voice,
+        auto_speak: _speak, preserve_draft: _draft, voice_heard_boundary: _heard, ...durableMessage } = message;
+      enter('message_saving');
+      await chatDB.saveMessage(durableMessage);
+      if (!current()) return refuse('scope_changed');
+      enter('chat_refreshing');
+      const currentChat = await chatDB.getChat(turn.chatId);
+      if (!current()) return refuse('scope_changed');
+      if (!currentChat) return refuse('personal_chat_unavailable');
+      const optimisticChat = { ...currentChat, messages_v: (currentChat.messages_v ?? 0) + 1,
+        updated_at: message.created_at, last_edited_overall_timestamp: message.created_at };
+      enter('chat_updating');
+      await chatDB.updateChat(optimisticChat);
+      if (!current()) return refuse('scope_changed');
+      chatSyncService.dispatchEvent(new CustomEvent('chatUpdated', {
+        detail: { chat_id: turn.chatId, chat: optimisticChat, newMessage: durableMessage },
+      }));
+      turn.onVisible?.();
+      // The chat the user is now talking in is the chat they left off in (3X228).
+      // loadChat records last_opened only when it finishes, and it returns early
+      // while call turns are in flight. Recording it at the first turn, not at
+      // bind, keeps an empty call chat (removed after hangup) out of the resume card.
+      const { userProfile } = await import('../stores/userProfile');
+      if (get(userProfile).last_opened !== turn.chatId) {
+        void chatSyncService.sendSetActiveChat(turn.chatId).catch((error: unknown) => {
+          console.error('[voiceCallTurns] Could not record the call chat as last opened:', turn.chatId, error);
+        });
+      }
+      return true;
+    };
     if (VOICE_TURN_RUST_ENABLED) {
-      // The core builds the encrypted admission; the page carries its frames.
       const { deliverVoiceTurnThroughCore } = await import('./rustCore/voice/voiceTurnDelivery');
+      if (!current()) return refuse('scope_changed');
+      // Snapshot preparation is text-independent. It may overlap local writes,
+      // but the core's commit and the main socket send must wait for those writes.
+      let persistencePending = true;
+      const persistence = persistOptimisticTurn().finally(() => { persistencePending = false; });
       earlyHandedOff = true;
-      await deliverVoiceTurnThroughCore({
+      const accepted = await deliverVoiceTurnThroughCore({
         callId: turn.callId, chatId: turn.chatId, turnId: turn.turnId, content: message.content ?? '', createdAt: message.created_at,
-        heardBoundary: turn.heardBoundary, enter, isCurrent: current,
-      }, turn.early);
+        heardBoundary: turn.heardBoundary,
+        enter: (next) => persistencePending ? reportVoiceCallTurnDelivery(turn, next) : enter(next),
+        isCurrent: current,
+      }, turn.early, persistence);
+      if (!accepted) return false;
       enter('accepted');
       return true;
     }
+    if (!await persistOptimisticTurn()) return false;
     enter('canonical_sending');
     await chatSyncService.sendNewMessage(message);
     enter('receipt_reading');

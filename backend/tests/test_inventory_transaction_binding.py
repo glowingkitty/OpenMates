@@ -58,6 +58,20 @@ async def test_welcome_echo_selects_only_requested_correlated_protocol(correlate
         assert "inventory_request_id" not in payload
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize(("client_opted", "feed_ready"), [(False, False), (False, True), (True, False), (True, True)])
+# contract-test: supporting surface=rest_api assertions=sync.startup.bounded-phases
+async def test_welcome_confirms_personal_opened_startup_only_when_negotiated(client_opted: bool, feed_ready: bool):
+    manager, socket = await connected(opted=False)
+    if client_opted:
+        socket.query_params["client_capabilities"] = "chat_startup_opened_v1"
+    assert await websockets._send_initial_server_capabilities(
+        socket, manager, supports_opened_startup=feed_ready,
+    )
+    capabilities = socket.messages[0]["payload"]["capabilities"]
+    assert ("chat_startup_opened_v1" in capabilities) == (client_opted and feed_ready)
+
+
 @pytest.mark.parametrize("scenario", ["missing-query", "legacy-capability", "foreign-payload", "malformed-query"])
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.completion.recovery-takeover
 def test_phase_payload_cannot_inject_or_select_correlation(scenario):

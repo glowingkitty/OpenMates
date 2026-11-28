@@ -979,6 +979,12 @@
         "description": {
           "text": "Liest ein Figma-Design und liefert Struktur, Stile und eine Code-Übergabe."
         }
+      },
+      "author": {
+        "text": "Design erstellen",
+        "description": {
+          "text": "Erstelle einen bearbeitbaren Flyer, Beitrag oder Entwurf."
+        }
       }
     },
     "electronics": {
@@ -1290,6 +1296,18 @@
           "3": {
             "text": "Zeige mir ungelesene E-Mails von heute"
           }
+        }
+      },
+      "read_thread": {
+        "text": "E-Mail-Verlauf lesen",
+        "description": {
+          "text": "Lies eine Unterhaltung aus deinem verbundenen Gmail-Konto."
+        }
+      },
+      "create_draft": {
+        "text": "E-Mail-Entwurf erstellen",
+        "description": {
+          "text": "Speichere einen E-Mail-Entwurf in deinem verbundenen Gmail-Konto. Es wird nichts gesendet."
         }
       }
     },
@@ -1715,12 +1733,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Aufgabe erstellen",
-          "description": {
-            "text": "Erstelle Aufgaben mit Titeln, Beschreibungen und Zuständigen."
-          }
-        },
         "search": {
           "text": "Aufgaben suchen",
           "description": {
@@ -2431,6 +2443,12 @@
       "text": "Design",
       "description": {
         "text": "Finde Icons und visuelle Assets fürs Produktdesign."
+      }
+    },
+    "sheets": {
+      "text": "Tabellen",
+      "description": {
+        "text": "Erstelle und formatiere Tabellen."
       }
     },
     "docs": {
@@ -3803,6 +3821,9 @@
       "example_chat": {
         "text": "Beispiel-Chat"
       },
+      "sub_chat": {
+        "text": "Sub-Chat"
+      },
       "shared_chat": {
         "text": "Geteilter Chat"
       },
@@ -4938,6 +4959,9 @@
     "loadMore": {
       "button": {
         "text": "Mehr anzeigen"
+      },
+      "account_total": {
+        "text": "{count} Chats in deinem Konto"
       }
     },
     "latest_news": {
@@ -7736,6 +7760,63 @@
     },
     "header_saving": {
       "text": "Wird gespeichert…"
+    },
+    "task_due": {
+      "text": "Fällig {date}"
+    },
+    "task_not_created": {
+      "text": "Diese Aufgabe konnte nicht erstellt werden"
+    },
+    "task_restore_failed": {
+      "text": "Die Aufgabe konnte nicht wiederhergestellt werden. Bitte versuche es erneut."
+    },
+    "live_status_saved": {
+      "text": "Gespeichert"
+    },
+    "live_status_saving": {
+      "text": "Wird gespeichert…"
+    },
+    "live_status_offline": {
+      "text": "Warte auf Verbindung"
+    },
+    "live_status_read_only": {
+      "text": "Nur Ansicht"
+    },
+    "live_status_access_revoked": {
+      "text": "Zugriff entfernt"
+    },
+    "live_peers_label": {
+      "text": "Gerade anwesend"
+    },
+    "live_editing_here": {
+      "text": "{name} bearbeitet hier"
+    },
+    "live_suggestion_accept": {
+      "text": "Vorschlag annehmen"
+    },
+    "live_suggestion_dismiss": {
+      "text": "Vorschlag verwerfen"
+    },
+    "live_sheet_label": {
+      "text": "Gemeinsame Tabelle"
+    },
+    "live_sheet_insert_row": {
+      "text": "Zeile darunter einfügen"
+    },
+    "live_sheet_delete_row": {
+      "text": "Zeile löschen"
+    },
+    "live_sheet_insert_col": {
+      "text": "Spalte rechts einfügen"
+    },
+    "live_sheet_delete_col": {
+      "text": "Spalte löschen"
+    },
+    "live_private_copy_ready": {
+      "text": "Dein Zugriff wurde entfernt. Du kannst eine private Kopie deiner ungesendeten Änderungen herunterladen."
+    },
+    "live_private_copy_download": {
+      "text": "Private Kopie herunterladen"
     }
   },
   "embeds": {
@@ -8991,6 +9072,11 @@
         "text": "{label} einklappen"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Aufgabe"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid-Diagramm"
@@ -9979,6 +10065,160 @@
         "text": "Teilweise geprüft – nicht bestätigt: {fields}"
       }
     },
+    "sheets": {
+      "sheet": {
+        "download_csv": {
+          "text": "CSV herunterladen"
+        },
+        "downloaded": {
+          "text": "Tabelle heruntergeladen"
+        },
+        "download_failed": {
+          "text": "Die Tabelle konnte nicht heruntergeladen werden"
+        },
+        "formatting_failed": {
+          "text": "Die Tabellenformatierung konnte nicht angewendet werden."
+        },
+        "invalid_formatting": {
+          "text": "Diese Tabelle enthält eine ungültige Formatierung. Bitte den Assistenten, sie erneut zu erstellen."
+        },
+        "formatting_toolbar": {
+          "text": "Tabellenformatierung"
+        },
+        "selection": {
+          "text": "Ausgewählte Zellen"
+        },
+        "strikethrough": {
+          "text": "Durchgestrichen"
+        },
+        "wrap": {
+          "text": "Text umbrechen"
+        },
+        "cell_format": {
+          "text": "Zellenformat"
+        },
+        "font_family": {
+          "text": "Schriftart"
+        },
+        "font_size": {
+          "text": "Schriftgröße"
+        },
+        "text_color": {
+          "text": "Textfarbe"
+        },
+        "fill_color": {
+          "text": "Füllfarbe"
+        },
+        "horizontal_align": {
+          "text": "Horizontale Ausrichtung"
+        },
+        "vertical_align": {
+          "text": "Vertikale Ausrichtung"
+        },
+        "default": {
+          "text": "Standard"
+        },
+        "left": {
+          "text": "Links"
+        },
+        "center": {
+          "text": "Zentriert"
+        },
+        "right": {
+          "text": "Rechts"
+        },
+        "top": {
+          "text": "Oben"
+        },
+        "middle": {
+          "text": "Mittig"
+        },
+        "bottom": {
+          "text": "Unten"
+        },
+        "number_format": {
+          "text": "Zahlenformat"
+        },
+        "number": {
+          "text": "Zahl"
+        },
+        "percent": {
+          "text": "Prozent"
+        },
+        "currency": {
+          "text": "Währung"
+        },
+        "date": {
+          "text": "Datum"
+        },
+        "decimals": {
+          "text": "Dezimalstellen"
+        },
+        "currency_code": {
+          "text": "Währungscode"
+        },
+        "date_pattern": {
+          "text": "Datumsformat"
+        },
+        "border_side": {
+          "text": "Rahmenseite"
+        },
+        "border_style": {
+          "text": "Rahmenstil"
+        },
+        "thin": {
+          "text": "Dünn"
+        },
+        "medium": {
+          "text": "Mittel"
+        },
+        "thick": {
+          "text": "Dick"
+        },
+        "dashed": {
+          "text": "Gestrichelt"
+        },
+        "dotted": {
+          "text": "Gepunktet"
+        },
+        "double": {
+          "text": "Doppelt"
+        },
+        "border_color": {
+          "text": "Rahmenfarbe"
+        },
+        "reset_colors": {
+          "text": "Farben zurücksetzen"
+        },
+        "layout": {
+          "text": "Tabellenlayout"
+        },
+        "column_width": {
+          "text": "Spaltenbreite (px)"
+        },
+        "row_height": {
+          "text": "Zeilenhöhe (px)"
+        },
+        "frozen_rows": {
+          "text": "Fixierte Zeilen"
+        },
+        "frozen_columns": {
+          "text": "Fixierte Spalten"
+        },
+        "merge": {
+          "text": "Zellen verbinden"
+        },
+        "select_merge_end": {
+          "text": "Wähle die letzte Zelle zum Verbinden aus."
+        },
+        "undo_formatting": {
+          "text": "Formatierung rückgängig machen"
+        },
+        "unmerge": {
+          "text": "Zellverbindung aufheben"
+        }
+      }
+    },
     "authoring": {
       "draft": {
         "text": "Entwurf"
@@ -10309,6 +10549,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Grafik wird gelesen…"
+        },
+        "progress_checking": {
+          "text": "Design wird geprüft…"
+        },
+        "progress_adjusting": {
+          "text": "Design wird für Stickerei angepasst…"
+        },
+        "progress_stitching": {
+          "text": "Stiche und Vorschau werden erstellt…"
+        },
+        "progress_saving": {
+          "text": "Maschinendateien werden gespeichert…"
+        },
         "threads": {
           "text": "Garne"
         },
@@ -10841,6 +11096,25 @@
     },
     "slides_remote_close": {
       "text": "Fernbedienung schließen"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Design herunterladen"
+        },
+        "current_page": {
+          "text": "Aktuelle Seite"
+        },
+        "all_pages": {
+          "text": "Alle Seiten"
+        },
+        "image_unavailable": {
+          "text": "Ein Bild ist auf diesem Gerät nicht verfügbar. Öffne die Seite und warte, bis die Bilder geladen sind. Versuche es dann erneut."
+        },
+        "failed": {
+          "text": "Das Design konnte nicht heruntergeladen werden. Versuche es erneut."
+        }
+      }
     }
   },
   "embeds_input": {
@@ -14819,7 +15093,7 @@
               "text": "TypeSafe Jev (USA)"
             },
             "description": {
-              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder, wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte Referenzbilder sowie eine begrenzte Auswahl öffentlicher Produktfotos. Die Bilder werden auf höchstens 336 Pixel in der längsten Abmessung verkleinert und ohne Metadaten in JPEG umgewandelt; sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
+              "text": "OpenMates sendet begrenzte Entscheidungsanfragen überwiegend direkt an TypeSafe Jev auf in den USA betriebenen Diensten. Jev erhält begrenzte Ausschnitte des jüngsten Chatverlaufs und Metadaten zu möglichen Optionen, um interne Entscheidungen zu Routing, Modellstufe, Skills, Fokusmodi, Sprache und Sicherheit zu treffen. Außerdem prüft Jev externe Texte auf Prompt-Injection. Beim Diktieren im Texteingabefeld prüft TypeSafe kurze Transkriptabschnitte auf Korrekturbedarf. TypeSafe erhält den Rohtext, der personenbezogene Daten enthalten kann, und die erkannte Sprache, sofern verfügbar. Die Audiodaten und OpenMates-Nutzerkennungen werden dabei nicht übermittelt. Diese Prüfung läuft direkt über TypeSafe. Für die optionale Relevanzsortierung öffentlicher Suchergebnisse erhält es die angegebenen Relevanzkriterien, Suchparameter und minimierte Daten möglicher Treffer. Für den optionalen visuellen Produktvergleich erhält TypeSafe nur dann Bilder, wenn Referenzbilder angegeben werden: bis zu drei autorisierte, von Nutzern hochgeladene oder vom Assistenten erzeugte Referenzbilder sowie eine begrenzte Auswahl öffentlicher Produktfotos. Die Bilder werden auf höchstens 336 Pixel in der längsten Abmessung verkleinert und ohne Metadaten in JPEG umgewandelt; sichtbare Bildinhalte können weiterhin personenbezogene Daten enthalten. Diese internen Entscheidungsanfragen enthalten keine OpenMates-Nutzerkennungen. Jev gibt typisierte Entscheidungen statt erzeugter Chattexte zurück. Wenn du ai.decide aufrufst, erhält TypeSafe den von dir übergebenen Zustand, die Anweisungen, Kriterien und gegebenenfalls direkt mitgesendete PNG-/JPEG-Bildinhalte; übergib nur die für die Entscheidung nötigen Angaben. Rohe API-Eingaben und Bildbytes werden nicht durch die Platzhalterersetzung getippter Nachrichten geschützt. OpenMates legt für diese direkten Entscheidungen keinen gespeicherten Chat, kein Embed und keinen gespeicherten Upload an. Die vorübergehende Verarbeitung durch OpenMates garantiert jedoch keine speicherfreie Verarbeitung bei TypeSafe. OpenRouter wird nur für reine Textanfragen als Ausweichanbieter verwendet, wenn direkte Zugangsdaten fehlen oder Authentifizierungs-, Transport- oder vorübergehende Dienstfehler auftreten; es erhält dieselben minimierten Entscheidungseingaben und leitet sie an TypeSafe Jev weiter. Bildanfragen verwenden ausschließlich die direkte TypeSafe-Verbindung und werden niemals ersatzweise über OpenRouter geleitet."
             },
             "data_handling": {
               "text": "TypeSafe erklärt, eingereichte Inhalte nicht zum Training oder zur Feinabstimmung von Modellen zu verwenden. Die [Verarbeitungsbedingungen]({data_processing_url}) richten die Aufbewahrung nach dem Verarbeitungszweck und geltendem Recht aus, ohne eine feste maximale Aufbewahrungsfrist zu nennen. [Zero Data Retention]({legal_url}) wird Unternehmenskunden gesondert angeboten; OpenMates garantiert auf dem regulären TypeSafe-Weg keine Verarbeitung ohne anschließende Aufbewahrung. Ein Ausschluss des Modelltrainings bedeutet nicht, dass die Daten sofort gelöscht werden."
@@ -17539,7 +17813,7 @@
         "text": "{count} warten auf Bestätigung"
       },
       "assumptions_open": {
-        "text": "{count} offene Annahmen"
+        "text": "Offene Annahmen: {count}"
       },
       "assumptions_clear": {
         "text": "Alle Annahmen bestätigt"
@@ -17584,8 +17858,11 @@
       "works_on": {
         "text": "Arbeitet an: {title}"
       },
-      "back": {
-        "text": "Zurück zum Haupt-Chat"
+      "created_as": {
+        "text": "Als Sub-Chat von {name} erstellt"
+      },
+      "parent_fallback": {
+        "text": "dem Haupt-Chat"
       }
     },
     "plan": {
@@ -19670,6 +19947,40 @@
         }
       },
       "connected_accounts": {
+        "app_page": {
+          "title": {
+            "text": "Verbundene Konten"
+          },
+          "none": {
+            "text": "Kein Konto verbunden"
+          },
+          "add_link": {
+            "text": "Konto unter Verbundene Konten hinzufügen"
+          },
+          "manage_link": {
+            "text": "Verbundene Konten verwalten"
+          },
+          "status_connected": {
+            "text": "Verbunden"
+          },
+          "status_reconnect": {
+            "text": "Erneute Verbindung nötig"
+          },
+          "email_not_saved": {
+            "text": "E-Mail nicht gespeichert"
+          }
+        },
+        "oauth": {
+          "connected_success": {
+            "text": "Konto verbunden."
+          },
+          "error_provider": {
+            "text": "Die Anmeldung wurde abgebrochen oder vom Anbieter abgelehnt. Es wurde nichts verbunden."
+          },
+          "error_finalize": {
+            "text": "Die Anmeldung wurde abgeschlossen, aber das Konto konnte nicht gespeichert werden. Bitte versuche es erneut."
+          }
+        },
         "title": {
           "text": "Verbundene Konten"
         },
@@ -19735,6 +20046,157 @@
         },
         "finalize_error": {
           "text": "Verbindung mit Google Calendar konnte nicht abgeschlossen werden."
+        },
+        "card": {
+          "status_connected": {
+            "text": "Verbunden"
+          },
+          "status_not_connected": {
+            "text": "Nicht verbunden"
+          },
+          "account_label": {
+            "text": "Konto"
+          },
+          "connected_as": {
+            "text": "Verbunden als {email}"
+          },
+          "google_account": {
+            "text": "Google-Konto"
+          },
+          "legacy_hint": {
+            "text": "Verbinde erneut, um zu sehen, welches Konto verbunden ist."
+          },
+          "permissions_label": {
+            "text": "Berechtigungen"
+          },
+          "manage_permissions": {
+            "text": "Berechtigungen verwalten"
+          },
+          "reconnect": {
+            "text": "Erneut verbinden"
+          },
+          "disconnect": {
+            "text": "Trennen"
+          },
+          "disconnect_confirm": {
+            "text": "{provider} trennen? OpenMates hat dann keinen Zugriff mehr auf dieses Konto."
+          },
+          "disconnect_confirm_button": {
+            "text": "Ja, trennen"
+          },
+          "cancel": {
+            "text": "Abbrechen"
+          },
+          "connect": {
+            "text": "Verbinden"
+          },
+          "disconnected_success": {
+            "text": "Konto getrennt."
+          },
+          "disconnect_error": {
+            "text": "Das Konto konnte nicht getrennt werden. Bitte versuche es erneut."
+          },
+          "provider_gmail": {
+            "text": "Gmail"
+          },
+          "mail_title": {
+            "text": "Gmail-Verbindung"
+          },
+          "mail_description": {
+            "text": "Verbinde dein Gmail-Konto, damit deine Mates deine E-Mails durchsuchen und lesen und Entwürfe vorbereiten können."
+          },
+          "mail_capability_read": {
+            "text": "Lesen"
+          },
+          "mail_capability_read_description": {
+            "text": "E-Mails durchsuchen und Unterhaltungen lesen."
+          },
+          "capability_draft": {
+            "text": "Entwurf"
+          },
+          "mail_capability_draft_description": {
+            "text": "Entwürfe erstellen. Entwürfe bleiben in Gmail, bis du sie selbst sendest."
+          },
+          "mail_send_unavailable": {
+            "text": "Das Senden von E-Mails ist nicht verfügbar: Deine Mates können E-Mails lesen und Entwürfe erstellen, aber nie senden."
+          }
+        },
+        "central": {
+          "add_account": {
+            "text": "Konto hinzufügen"
+          },
+          "add_account_choose": {
+            "text": "Anbieter wählen"
+          },
+          "provider_google": {
+            "text": "Google"
+          },
+          "provider_figma": {
+            "text": "Figma"
+          },
+          "google_access_hint": {
+            "text": "Wähle, wofür dieses Google-Konto genutzt werden darf."
+          },
+          "access_calendar": {
+            "text": "Kalender: Termine lesen und verwalten"
+          },
+          "access_gmail": {
+            "text": "Gmail: E-Mails lesen und Entwürfe erstellen"
+          },
+          "continue_to_provider": {
+            "text": "Weiter mit {provider}"
+          },
+          "add_error": {
+            "text": "Die Anmeldung konnte nicht gestartet werden. Bitte versuche es erneut."
+          },
+          "last_used": {
+            "text": "Zuletzt genutzt {time}"
+          },
+          "never_used": {
+            "text": "Noch nie genutzt"
+          },
+          "needs_reconnect": {
+            "text": "Erneute Verbindung nötig"
+          },
+          "email_not_saved": {
+            "text": "E-Mail nicht gespeichert · verbunden am {date}"
+          },
+          "empty": {
+            "text": "Noch keine Konten verbunden. Nutze „Konto hinzufügen“, um eines zu verbinden."
+          },
+          "back_to_list": {
+            "text": "Zurück zu allen Konten"
+          },
+          "permissions_for_app": {
+            "text": "Berechtigungen für {app}"
+          },
+          "cap_read_mail": {
+            "text": "E-Mails lesen"
+          },
+          "cap_draft": {
+            "text": "Entwürfe erstellen"
+          },
+          "last_used_label": {
+            "text": "Zuletzt genutzt"
+          },
+          "connected_on_label": {
+            "text": "Verbunden am"
+          },
+          "permission_save_error": {
+            "text": "Die Berechtigung konnte nicht gespeichert werden."
+          },
+          "disconnected": {
+            "text": "Konto getrennt."
+          },
+          "reconnect_error": {
+            "text": "Die erneute Verbindung konnte nicht gestartet werden. Bitte versuche es erneut."
+          },
+          "add_gmail_access": {
+            "text": "Gmail-Zugriff hinzufügen"
+          },
+          "add_calendar_access": {
+            "text": "Kalenderzugriff hinzufügen"
+          }
         }
       },
       "focus_modes": {
@@ -20971,16 +21433,16 @@
           "text": "Neue Nachrichten"
         },
         "push_include_chat_title": {
-          "text": "Zusammenfassung und Chat-Titel anzeigen"
+          "text": "Chat-Titel anzeigen"
         },
         "push_include_chat_title_desc": {
-          "text": "Zeigt in App-Benachrichtigungen eine einzeilige Zusammenfassung der Antwort, zum Beispiel \"✅ Gartenbeete geplant\", und den Chat-Titel. Beides wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können es nicht lesen. Ausschalten, damit Benachrichtigungen allgemein bleiben."
+          "text": "Verwendet den Chat-Titel als Titel von App-Benachrichtigungen. Er wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können ihn nicht lesen. Ausschalten, um stattdessen \"OpenMates\" anzuzeigen. Standardmäßig an."
         },
         "push_include_preview": {
-          "text": "Anfang der Antwort anzeigen"
+          "text": "Antworttext anzeigen"
         },
         "push_include_preview_desc": {
-          "text": "Fügt App-Benachrichtigungen die ersten Zeilen der Antwort hinzu. Sie werden für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Standardmäßig aus."
+          "text": "Zeigt in App-Benachrichtigungen so viel von der Antwort, wie hineinpasst. Sie wird für dein Gerät verschlüsselt und nur dort angezeigt; Apple und Google können sie nicht lesen. Ausschalten, um nur \"Neue Nachricht erhalten\" anzuzeigen. Standardmäßig an."
         },
         "missed_warning": {
           "text": "E-Mail- und Push-Benachrichtigungen sind beide ausgeschaltet. Du könntest wichtige Antworten und Updates verpassen. Schalte eine der beiden ein, um informiert zu bleiben."
@@ -26024,7 +26486,7 @@
       "text": "Kostenlos testen"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-Mail-Domain nicht erlaubt."
@@ -26838,6 +27300,57 @@
       "subtitle_no_project": {
         "text": "{category} · Spezifikation"
       },
+      "outcome": {
+        "text": "Ergebnis"
+      },
+      "scope": {
+        "text": "Umfang & Grenzen"
+      },
+      "included": {
+        "text": "Enthalten"
+      },
+      "excluded": {
+        "text": "Außerhalb des Umfangs"
+      },
+      "other_requirements": {
+        "text": "Weitere Anforderungen"
+      },
+      "requirements": {
+        "text": "Anforderungen"
+      },
+      "user_flows": {
+        "text": "Nutzerabläufe"
+      },
+      "edge_cases": {
+        "text": "Sonderfälle"
+      },
+      "models": {
+        "text": "Relevante Modelle"
+      },
+      "applies_to": {
+        "text": "Gilt für:"
+      },
+      "example_and_id": {
+        "text": "Beispiel & Anforderungs-ID"
+      },
+      "proof_passed": {
+        "text": "Belegt durch Check"
+      },
+      "proof_stale": {
+        "text": "Beleg muss erneuert werden"
+      },
+      "proof_open": {
+        "text": "Noch zu belegen in"
+      },
+      "proof_none_title": {
+        "text": "einem verknüpften Check"
+      },
+      "proof_none_explanation": {
+        "text": "Noch kein Check hat diese Anforderung belegt."
+      },
+      "flow_steps": {
+        "text": "Schritte"
+      },
       "assumptions": {
         "text": "Offene Annahmen"
       },
@@ -27619,7 +28132,7 @@
       "text": "Nutzungsabhängige Preise"
     },
     "pricing_explanation": {
-      "text": "Die Mikrofon-Transkription wird pro angefangener Minute gestreamten Audios abgerechnet, zuzüglich der normalen KI-Chat- und Sprachausgabe-Nutzung. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert die Mikrofon-Eingabekosten; Antworten, Skills und Sprachausgabe können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr."
+      "text": "Die Mikrofon-Transkription kostet 0,25 Credits pro Sekunde übertragenem Audio. KI-Chat, Skills und erzeugte Sprachausgabe werden separat abgerechnet. Für die reine Verbindung gibt es keine Pauschalgebühr."
     },
     "return_to_chat": {
       "text": "Zum Chat zurück"
@@ -27701,9 +28214,6 @@
     },
     "close_chat": {
       "text": "Chat schließen"
-    },
-    "start_hint": {
-      "text": "Sprachanrufe nutzen Mistral zur Transkription, ElevenLabs v4 Turbo für die Stimme, die normale KI-Auswahl von OpenMates und eine nutzungsabhängige Abrechnung."
     },
     "retry": {
       "text": "Erneut versuchen"

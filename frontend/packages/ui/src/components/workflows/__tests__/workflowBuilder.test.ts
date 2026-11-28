@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
   insertNode,
@@ -255,7 +255,7 @@ test("browse templates provide independent, ready V2 graphs", () => {
     const second = workflowTemplateGraph(template.id)!;
     assert.equal(first.version, 2);
     assert.equal(first.nodes[0].type, "schedule_trigger");
-    assert.equal(first.nodes.at(-1)!.type, "send_chat_message");
+    assert.equal(first.nodes[first.nodes.length - 1].type, "send_chat_message");
     assert.ok(first.nodes.some(node => node.type === "app_skill_action"));
     assert.equal(workflowGraphReady(first, { requireSchedule: true }), true);
     first.nodes[1].title = "Changed only here";

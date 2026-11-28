@@ -48,27 +48,27 @@ test_for_free:
   verified_by_human: []
 version_title:
   context: Product version title shown in the app header
-  en: v0.32
-  de: v0.32
-  zh: v0.32
-  es: v0.32
-  fr: v0.32
-  pt: v0.32
-  ru: v0.32
-  ja: v0.32
-  ko: v0.32
-  it: v0.32
-  tr: v0.32
-  vi: v0.32
-  id: v0.32
-  pl: v0.32
-  nl: v0.32
-  ar: v0.32
-  hi: v0.32
-  th: v0.32
-  cs: v0.32
-  sv: "v0.32"
-  he: v0.32
+  en: v0.33
+  de: v0.33
+  zh: v0.33
+  es: v0.33
+  fr: v0.33
+  pt: v0.33
+  ru: v0.33
+  ja: v0.33
+  ko: v0.33
+  it: v0.33
+  tr: v0.33
+  vi: v0.33
+  id: v0.33
+  pl: v0.33
+  nl: v0.33
+  ar: v0.33
+  hi: v0.33
+  th: v0.33
+  cs: v0.33
+  sv: "v0.33"
+  he: v0.33
   verified_by_human: []
 domain_not_allowed:
   context: Error message shown when the domain is not allowed to sign up

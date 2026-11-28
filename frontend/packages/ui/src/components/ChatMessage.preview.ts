@@ -19,6 +19,9 @@ import musicSource from '../i18n/sources/example_chats/community_garden_welcome_
 import audioSource from '../i18n/sources/example_chats/community_garden_volunteer_chime.yml?raw';
 import imageSource from '../i18n/sources/example_chats/community_garden_sunflower_illustration.yml?raw';
 import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+import { authStore } from '../stores/authStore';
+import { userProfile } from '../stores/userProfile';
+import { webSocketService } from '../services/websocketService';
 
 // Preview-only navigation observation for focused click tests.
 if (typeof document !== 'undefined') {
@@ -50,6 +53,16 @@ embedStore.registerStaticEmbed({
 	}),
 });
 const widthResults = '```embeds_results_view\ntitle: Upcoming events\nembeds: ' + widthEventId + '\n```';
+
+// An answer with a large event card between two paragraphs (selection toolbar spec).
+const eventCardRef = 'local-founders-gathering-k8D';
+embedStore.registerEmbedRef(eventCardRef, widthEventId, 'events', 'event', 'event');
+const eventCardChatId = 'preview-event-card-chat';
+const eventCardMarkdown = [
+	'The next edition takes place at the startup hub in Berlin.', '',
+	`[!](embed:${eventCardRef})`, '',
+	'A few other events follow later in the year.',
+].join('\n');
 
 const responseSource = [
   'I will compare two sources.',
@@ -156,6 +169,18 @@ const defaultProps = {
 };
 
 export default defaultProps;
+
+// The selection toolbar is for signed-in users. Only the event card variant
+// gets a synthetic local account; without a real session the WebSocket would
+// otherwise force a session check that clears it.
+export const ready = (async () => {
+	if (typeof window === 'undefined' || new URLSearchParams(window.location.search).get('variant') !== 'eventCardAnswer') return;
+	const connectWebSocket = webSocketService.connect;
+	webSocketService.connect = () => Promise.resolve();
+	window.addEventListener('pagehide', () => { webSocketService.connect = connectWebSocket; }, { once: true });
+	authStore.set({ isAuthenticated: true, isInitialized: true });
+	userProfile.update((profile) => ({ ...profile, user_id: 'preview-user' }));
+})();
 
 // Real retained generation fixtures, including an echoed parent link from older
 // saved/live responses. The result child must stay inline after deduplication.
@@ -267,6 +292,10 @@ export const variants = {
     ...defaultProps, role: 'assistant' as const, category: 'openmates_official',
     content: 'A reply from OpenMates.',
   },
+  unroutedCallResponse: {
+    ...defaultProps, role: 'assistant' as const, content: '', status: 'processing' as const,
+    deferVoiceCallIdentity: true, isTransientResponse: true,
+  },
   importedChatGPT: {
     ...defaultProps, role: 'assistant' as const, category: 'chatgpt',
     content: 'A preserved imported reply.',
@@ -292,6 +321,13 @@ export const variants = {
 	},
 	shortResults: {
 		...defaultProps, role: 'assistant' as const, content: 'Here you go.\n\n' + widthResults,
+	},
+	eventCardAnswer: {
+		...defaultProps, role: 'assistant' as const, status: 'synced' as const,
+		messageId: 'preview-event-card-message',
+		content: createAssistantRenderPlan(eventCardMarkdown, { phase: 'final', chatId: eventCardChatId }).document,
+		original_message: { message_id: 'preview-event-card-message', chat_id: eventCardChatId, created_at: 1,
+			role: 'assistant' as const, content: eventCardMarkdown },
 	},
 	workflowResults: {
 		...defaultProps, role: 'assistant' as const,

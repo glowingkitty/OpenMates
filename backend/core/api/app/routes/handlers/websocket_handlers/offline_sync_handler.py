@@ -29,6 +29,28 @@ def _cached_version_component(server_versions: Any, component: str) -> int:
         return 0
 
 
+async def _draft_replay_already_settled(
+    cache_service: CacheService, user_id: str, chat_id: str, change_type: str, new_value: Any,
+) -> bool:
+    """Whether a draft replay behind the server's per-user draft_v changes nothing.
+
+    - delete_draft: a newer server draft state (later edit, delete or send by this
+      user) supersedes an older delete; the row carries no draft text to keep.
+    - draft: the server already holds this exact ciphertext, so the change was
+      applied and only its receipt was lost (connection dropped before the ack).
+
+    A draft whose ciphertext differs is a genuine conflict and stays queued,
+    recoverable on the client. Ciphertext is compared as opaque bytes; nothing is
+    decrypted. A cache miss is answered conservatively as "not settled".
+    """
+    if change_type == "delete_draft":
+        return True
+    if change_type != "draft" or not isinstance(new_value, str) or not new_value:
+        return False
+    cached = await cache_service.get_user_draft_from_cache(user_id, chat_id)
+    return cached is not None and cached[0] == new_value
+
+
 async def _delete_directus_user_draft_if_present(
     directus_service: DirectusService,
     user_id: str,
@@ -219,6 +241,20 @@ async def handle_sync_offline_changes(
                     error_count += 1
                     continue
 
+                if server_current_version > version_before_edit and await _draft_replay_already_settled(
+                    cache_service, user_id, chat_id, change_type, new_value,
+                ):
+                    # Acknowledged, not a conflict: the client retires the row. A
+                    # row reported as a conflict stays queued and warned
+                    # "Offline sync: N changes had conflicts" on every reconnect.
+                    logger.info(
+                        f"Offline {change_type} for chat {chat_id} is already settled on the server "
+                        f"(draft_v {server_current_version} > {version_before_edit}); acknowledging without a write."
+                    )
+                    processed_count += 1
+                    if isinstance(change.get("change_id"), str):
+                        successful_change_ids.append(change["change_id"])
+                    continue
                 if server_current_version > version_before_edit:
                     logger.info(f"Offline change conflict for chat {chat_id}, type '{change_type}'. Server version ({server_current_version}) > Client version before edit ({version_before_edit}). Discarding client change.")
                     conflict_count += 1

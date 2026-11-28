@@ -1,0 +1,13 @@
+schema_version: 1
+specification: feature.design-editor-assistant@1
+authoring:
+  - id: flyer
+    assertion_ids: [design-editor.assistant.route, design-editor.assistant.review]
+    given: A user asks for an editable flyer for Open Studio Weekend with the line Saturday at 11:00.
+    when: The Design skill receives the brief and required copy.
+    then: The reviewed Design opens with editable text and shapes. An unreadable or incomplete draft is corrected once or refused.
+  - id: revision
+    assertion_ids: [design-editor.assistant.apply]
+    given: An owner opens version 2 of a saved Design and asks to move the headline left.
+    when: The Design skill returns the targeted edit and the owner applies it.
+    then: The client checks version 2 before saving the edited scene as the next client-side encrypted version. A newer version is preserved.

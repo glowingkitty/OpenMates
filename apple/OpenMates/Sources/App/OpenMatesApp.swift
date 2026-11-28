@@ -176,6 +176,7 @@ final class AppQuickActionCenter {
 struct SharedSocketWindowOwnership {
     private(set) var windowIDs: [UUID] = []
     private(set) var reconnectWorkCount = 0
+    var hasReconnected: Bool { reconnectWorkCount > 1 }
     private(set) var visibleWindowIDs = Set<UUID>()
     private(set) var keyWindowIDs = Set<UUID>()
 
@@ -249,8 +250,11 @@ final class AppSessionCoordinator: ObservableObject {
         windowOwnership.ownsSharedSync(id)
     }
 
-    func claimSharedReconnectWork(_ id: UUID) -> Bool {
-        windowOwnership.claimReconnectWork(id)
+    /// Returns whether this owner's connection is a reconnect. A non-owner
+    /// receives nil and leaves shared transport recovery to the owner window.
+    func claimSharedReconnectWork(_ id: UUID) -> Bool? {
+        guard windowOwnership.claimReconnectWork(id) else { return nil }
+        return windowOwnership.hasReconnected
     }
 
     private init() {
@@ -316,13 +320,109 @@ final class AppSessionCoordinator: ObservableObject {
         if let offlineBridgeStorage {
             return offlineBridgeStorage
         }
-        let bridge = OfflineSyncBridge(chatStore: chatStore, wsManager: webSocketManager)
+        let hasCoreHistory = CoreSession.shared != nil
+        webSocketManager.usesCoreStartupHistory = hasCoreHistory
+        let bridge = OfflineSyncBridge(chatStore: chatStore, wsManager: webSocketManager, usesCoreStartupHistory: hasCoreHistory)
         offlineBridgeStorage = bridge
         return bridge
     }
 }
 
+/// Language refresh can suspend on the network independently of session restore.
+@MainActor
+enum NativeAppStartup {
+    static func run(restoreSession: @MainActor @Sendable () async -> Void,
+                    refreshTranslations: @escaping @MainActor @Sendable () async -> Void) async {
+        async let refresh: Void = refreshTranslations()
+        await restoreSession()
+        await refresh
+    }
+}
+
 #if DEBUG
+/// Fixed monotonic stages for the opt-in startup measurement.
+@MainActor
+enum NativeStartupBenchmark {
+    enum Stage: String, CaseIterable, Hashable {
+        case appInitFinished = "app-init-finished"
+        case rootTaskStarted = "root-task-started"
+        case coreStartInvoked = "core-start-invoked"
+        case cachedChatListReceived = "cached-chat-list-received"
+        case cachedProfileReady = "cached-profile-ready"
+        case cachedScopeActivated = "cached-scope-activated"
+        case freshProfileReady = "fresh-profile-ready"
+        case freshScopeActivated = "fresh-scope-activated"
+        case mainShellInit = "main-shell-init"
+    }
+
+    static let isEnabled = ProcessInfo.processInfo.arguments.contains("--ui-test-startup-chat-readiness")
+    static let appEntryUptimeMS = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+    static var scopeSetupDurationMS = -1
+    static var scopePendingCountDurationMS = -1
+    private static var stageUptimeMS: [Stage: Int] = [:]
+
+    static func mark(_ stage: Stage) {
+        guard isEnabled, stageUptimeMS[stage] == nil else { return }
+        stageUptimeMS[stage] = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+    }
+
+    /// The kernel's start time of this process on the uptime clock, so launch
+    /// timings include dyld and static initialisation like a user's tap on the icon.
+    static let processStartUptimeMS: Int = {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&name, 4, &info, &size, nil, 0) == 0 else { return 0 }
+        let start = info.kp_proc.p_un.__p_starttime
+        let startSeconds = Double(start.tv_sec) + Double(start.tv_usec) / 1_000_000
+        let age = Date().timeIntervalSince1970 - startSeconds
+        return Int((ProcessInfo.processInfo.systemUptime - age) * 1_000)
+    }()
+
+    /// First committed frames, recorded one main-queue turn after SwiftUI shows the view.
+    private static var firstRowFrameUptimeMS = 0
+    private static var firstMessageFrameUptimeMS = 0
+    private static var tappedChatID: String?
+    private static var tapUptimeMS = 0
+    private static var tapReadableUptimeMS = 0
+
+    static func rowAppeared() {
+        guard isEnabled, firstRowFrameUptimeMS == 0 else { return }
+        DispatchQueue.main.async { if firstRowFrameUptimeMS == 0 { firstRowFrameUptimeMS = nowMS } }
+    }
+
+    static func messageAppeared(chatID: String) {
+        guard isEnabled else { return }
+        let needsFirst = firstMessageFrameUptimeMS == 0
+        let needsTap = tapReadableUptimeMS == 0 && tappedChatID == chatID
+        guard needsFirst || needsTap else { return }
+        DispatchQueue.main.async {
+            if firstMessageFrameUptimeMS == 0 { firstMessageFrameUptimeMS = nowMS }
+            if tapReadableUptimeMS == 0, tappedChatID == chatID { tapReadableUptimeMS = nowMS }
+        }
+    }
+
+    /// A deliberate sidebar selection; the next message frame of that chat ends it.
+    static func chatTapped(_ chatID: String) {
+        guard isEnabled else { return }
+        tappedChatID = chatID
+        tapUptimeMS = nowMS
+        tapReadableUptimeMS = 0
+    }
+
+    private static var nowMS: Int { Int(ProcessInfo.processInfo.systemUptime * 1_000) }
+
+    static var stageFields: String {
+        (Stage.allCases.map { "\($0.rawValue)-uptime-ms=\(stageUptimeMS[$0] ?? 0)" } + [
+            "process-start-uptime-ms=\(processStartUptimeMS)",
+            "first-row-frame-uptime-ms=\(firstRowFrameUptimeMS)",
+            "first-message-frame-uptime-ms=\(firstMessageFrameUptimeMS)",
+            "tap-uptime-ms=\(tapUptimeMS)",
+            "tap-readable-uptime-ms=\(tapReadableUptimeMS)",
+        ]).joined(separator: ";")
+    }
+}
+
 /// Unit-test host startup is not a product session. UI tests launch the product
 /// in a separate app process and retain its normal explicit fixture/auth flows.
 enum NativeUnitTestHostPolicy {
@@ -357,6 +457,13 @@ struct OpenMatesApp: App {
     #endif
 
     init() {
+        #if DEBUG
+        if NativeStartupBenchmark.isEnabled {
+            _ = NativeStartupBenchmark.appEntryUptimeMS
+            _ = NativeStartupBenchmark.processStartUptimeMS
+        }
+        defer { NativeStartupBenchmark.mark(.appInitFinished) }
+        #endif
         FontRegistration.registerFonts()
         #if DEBUG
         // Isolated component fixtures must not start account telemetry.
@@ -428,6 +535,9 @@ struct OpenMatesApp: App {
                     guard DevPreviewLaunchConfiguration.current == nil,
                           !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
+                    #if DEBUG
+                    NativeStartupBenchmark.mark(.rootTaskStarted)
+                    #endif
                     NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
                     NativePerformanceMonitor.shared.startSampling()
                     #if DEBUG
@@ -435,9 +545,9 @@ struct OpenMatesApp: App {
                         KeychainHelper.debugSelfTest()
                     }
                     #endif
-                    await locManager.restoreSavedLanguage()
-                    // Starts the core's session restore and follows its events.
-                    await authManager.checkSession()
+                    await NativeAppStartup.run(
+                        restoreSession: { [authManager] in await authManager.checkSession() },
+                        refreshTranslations: { [locManager] in await locManager.restoreSavedLanguage() })
                 }
                 .onChange(of: authManager.state) { _, newState in
                     #if DEBUG

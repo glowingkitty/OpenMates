@@ -9,7 +9,7 @@ const ROOT = path.resolve(__dirname, '../../../../..');
 const QUERY = 'deterministic historical image';
 export type Seed = { chatId: string; embedId: string; childId: string; ownerId: string; cachedChildIds: string[] };
 
-export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' | 'read' = 'image', cachedChildCount = 0, includeSearchReference = false, readResult: Record<string, unknown> | null = null): Seed {
+export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | 'event' | 'read' | 'design' = 'image', cachedChildCount = 0, includeSearchReference = false, fixtureData: Record<string, unknown> | null = null): Seed {
 	const modulePath = path.join(path.dirname(CLI_DIST), 'cli-internal-client.js');
 	const source = String.raw`
 		const {pathToFileURL}=require('node:url');
@@ -29,13 +29,24 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 			const embedId=randomUUID(),childId=randomUUID(),chatKey=randomBytes(32),embedKey=randomBytes(32);
 			const cachedChildIds=Array.from({length:${cachedChildCount}},()=>randomUUID());
 			const childIds=[...cachedChildIds,childId];
-			const eventFixture=${kind === 'event'},readFixture=${kind === 'read'};
-			const actualReadResult=${JSON.stringify(readResult)};
+			const eventFixture=${kind === 'event'},readFixture=${kind === 'read'},designFixture=${kind === 'design'};
+			const fixture=${JSON.stringify(fixtureData)};
+			const actualReadResult=readFixture?fixture:null;
+			const designScene=designFixture?fixture.scene:null;
+			if(designFixture){
+				for(const page of designScene.pages){
+					for(const layer of page.layers)if(layer.kind==='image')layer.assetId=childId;
+				}
+			}
 			if(readFixture&&typeof actualReadResult?.markdown!=='string')throw Error('Actual extracted markdown is required');
-			const appId=eventFixture?'events':readFixture?'web':'images',skillId=readFixture?'read':'search';
+			const appId=designFixture?'design':eventFixture?'events':readFixture?'web':'images',skillId=designFixture?'document':readFixture?'read':'search';
 			const now=Math.floor(Date.now()/1000);
 			const newline=String.fromCharCode(10);
-			const answer=readFixture?'Saved public page '+chatId+newline+newline+String.fromCharCode(96).repeat(3)+'json'+newline+JSON.stringify({type:'app_skill_use',embed_id:embedId,app_id:'web',skill_id:'read',status:'finished'})+newline+String.fromCharCode(96).repeat(3):'Historical result recovery '+chatId+newline+newline+(eventFixture
+			const answer=designFixture
+				?'Open the studio design.'+newline+newline+String.fromCharCode(96).repeat(3)+'json'+newline
+					+JSON.stringify({type:'design-document',embed_id:embedId,title:designScene.title})
+					+newline+String.fromCharCode(96).repeat(3)
+				:readFixture?'Saved public page '+chatId+newline+newline+String.fromCharCode(96).repeat(3)+'json'+newline+JSON.stringify({type:'app_skill_use',embed_id:embedId,app_id:'web',skill_id:'read',status:'finished'})+newline+String.fromCharCode(96).repeat(3):'Historical result recovery '+chatId+newline+newline+(eventFixture
 				?'[Freelance Barcamp Berlin](embed:freelance-barcamp-berlin-M9b)'
 				:'[!](embed:historical-image-result)')
 				+(eventFixture?'':newline+newline+'[!](embed:unrelated-ref-must-not-fetch)')
@@ -52,10 +63,10 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 				const metadataReceipt=ws.waitForMessage('encrypted_metadata_stored',p=>p.chat_id===chatId,30000);
 				await ws.sendAsync('encrypted_chat_metadata',{
 					chat_id:chatId,message_id:userId,team_id:null,created_at:now-1,
-					encrypted_content:await encrypt(readFixture?'Read the controlled public article':'Find the historical image fixture',chatKey),
+					encrypted_content:await encrypt(designFixture?'Open the studio design':readFixture?'Read the controlled public article':'Find the historical image fixture',chatKey),
 					encrypted_sender_name:await encrypt('You',chatKey),
 					encrypted_category:await encrypt('general_knowledge',chatKey),
-					encrypted_title:await encrypt((readFixture?'Saved public page ':'Historical image recovery ')+chatId.slice(0,6),chatKey),
+					encrypted_title:await encrypt((designFixture?'Studio design ':readFixture?'Saved public page ':'Historical image recovery ')+chatId.slice(0,6),chatKey),
 					encrypted_icon:await encrypt('image',chatKey),
 					encrypted_chat_category:await encrypt('general_knowledge',chatKey),
 					encrypted_chat_key:await encrypt(chatKey,client.getMasterKeyBytes()),
@@ -91,7 +102,9 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 					:{type:'image_result',app_id:'images',skill_id:'search',embed_ref:'historical-image-result',title:'Historical image fixture',
                     image_url:'/favicon.png',thumbnail_url:'/favicon.png',
                     source_page_url:'https://app.dev.openmates.org',source:'openmates.org',description:'Deterministic encrypted historical image'};
-				const rows=[[embedId,parent,'app_skill_use'],...(readFixture?[]:childIds.map(id=>[id,id===childId?child:
+				const rows=designFixture
+					?[[embedId,designScene,'design-document'],[childId,{dataBase64:fixture.raster},'design-raster']]
+					:[[embedId,parent,'app_skill_use'],...(readFixture?[]:childIds.map(id=>[id,id===childId?child:
 					{...child,embed_ref:'cached-event-'+id,title:'Cached event '+id},eventFixture?'event_result':'image_result']))];
 				for(const [id,content,type] of rows){
 					const receipt=await send('store_embed','store_embed_confirmed',{
@@ -117,7 +130,10 @@ export function seedViaPairedCli(apiUrl: string, home: string, kind: 'image' | '
 				if(keyReceipt.created_count!==keys.length||keyReceipt.failed_count!==0)throw Error('Embed key wrappers were not exactly confirmed');
 				await client.ensureSynced(true,[chatId],{personal:true});
 				const saved=await client.getEmbed(embedId,{preferCache:true,chatId});
-				if(readFixture){if(saved.content.results?.[0]?.markdown!==actualReadResult.markdown)throw Error('Saved full markdown changed')}
+				if(designFixture){
+					if(saved.type!=='design-document'||saved.content.schemaVersion!==1||saved.content.title!==designScene.title)
+						throw Error('Saved Design scene did not decrypt');
+				}else if(readFixture){if(saved.content.results?.[0]?.markdown!==actualReadResult.markdown)throw Error('Saved full markdown changed')}
 				else if(saved.content.embed_ids!==childIds.join('|')||saved.content.results)throw Error('Parent must contain child IDs without inline results');
 				process.stdout.write(JSON.stringify({chatId,embedId,childId,ownerId:owner.id,cachedChildIds}));
 			}finally{ws.close()}

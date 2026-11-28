@@ -75,6 +75,10 @@ test.describe('start-screen row', () => {
     ]);
     expect(chatBackground).toContain('gradient');
     expect(inspirationBackground).toContain('gradient');
+    for (const card of [firstCard, inspiration]) {
+      const radius = await card.evaluate((node) => getComputedStyle(node).borderTopLeftRadius);
+      await expect(card.getByTestId('start-card-glows')).toHaveCSS('clip-path', `inset(0px round ${radius})`);
+    }
     await attach(page, testInfo, 'desktop-1280');
 
     await inspiration.hover();

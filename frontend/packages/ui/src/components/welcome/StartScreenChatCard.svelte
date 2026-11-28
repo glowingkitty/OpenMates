@@ -1,5 +1,6 @@
 <!--
   StartScreenChatCard.svelte — the one large card of the start-screen row.
+  figma-visual-proof: not-required. Idle-motion fix reviewed against the existing web card.
 
   Used for every entry of the Chats row (own chats, reminder-priority chats, drafts,
   example chats and daily inspirations). There is no small "pill" variant: the
@@ -162,14 +163,14 @@
   {/if}
 
   {#if !preview || category}
-    <div class="resume-large-orbs" aria-hidden="true">
+    <div class="resume-large-orbs" aria-hidden="true" data-testid="start-card-glows">
       <div class="resume-orb resume-orb-1"></div>
       <div class="resume-orb resume-orb-2"></div>
       <div class="resume-orb resume-orb-3"></div>
     </div>
     {#if IconComponent && !bubbles}
-      <div class="resume-large-deco resume-large-deco-left"><IconComponent size={80} color="white" /></div>
-      <div class="resume-large-deco resume-large-deco-right"><IconComponent size={80} color="white" /></div>
+      <div class="resume-large-deco resume-large-deco-left" data-testid="start-card-decoration"><IconComponent size={80} color="white" /></div>
+      <div class="resume-large-deco resume-large-deco-right" data-testid="start-card-decoration"><IconComponent size={80} color="white" /></div>
     {/if}
     {#if bubbles}
       <div class="resume-card-image-bubbles" aria-hidden="true">
@@ -206,6 +207,7 @@
 
 <style>
   .resume-chat-large-card {
+    --start-card-radius: 30px;
     position: relative;
     flex-shrink: 0;
     width: 300px;
@@ -214,7 +216,7 @@
     height: 200px;
     min-height: 200px;
     max-height: 200px;
-    border-radius: 30px;
+    border-radius: var(--start-card-radius);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -441,14 +443,14 @@
     100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0); }
   }
 
-  /* Living gradient orbs; --orb-color-a/b come from getResumeCardGradientStyle(). */
+  /* Static gradient orbs; --orb-color-a/b come from getResumeCardGradientStyle(). */
   .resume-large-orbs {
     position: absolute;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    overflow: hidden;
-    border-radius: 30px;
+    /* Clip the composited blur to the same curve as the card. */
+    clip-path: inset(0 round var(--start-card-radius));
   }
 
   .resume-orb {
@@ -458,13 +460,12 @@
     background: radial-gradient(ellipse at center, var(--orb-color-b) 0%, var(--orb-color-b) 40%, transparent 85%);
     filter: blur(22px);
     opacity: 0.35;
-    will-change: transform, border-radius;
   }
 
   .resume-orb-1 {
     top: -60px;
     left: -70px;
-    animation: orbMorph1 11s ease-in-out infinite, resumeOrbDrift1 19s ease-in-out infinite;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
   }
 
   .resume-orb-2 {
@@ -472,7 +473,7 @@
     right: -80px;
     width: 260px;
     height: 220px;
-    animation: orbMorph2 13s ease-in-out infinite, resumeOrbDrift2 23s ease-in-out infinite;
+    border-radius: 40% 60% 60% 40% / 40% 40% 60% 60%;
   }
 
   .resume-orb-3 {
@@ -481,7 +482,7 @@
     width: 200px;
     height: 180px;
     opacity: 0.38;
-    animation: orbMorph3 17s ease-in-out infinite, resumeOrbDrift3 29s ease-in-out infinite;
+    border-radius: 55% 45% 38% 62% / 48% 58% 62% 45%;
   }
 
   .resume-large-deco {
@@ -493,10 +494,10 @@
     justify-content: center;
     z-index: var(--z-index-raised);
     pointer-events: none;
-    --float-rx: 7px;
-    --float-ry: 8px;
     --deco-target-opacity: 0.3;
-    animation: decoEnter 0.6s ease-out 0.1s both, decoFloat 16s linear 0.7s infinite;
+    opacity: var(--deco-target-opacity);
+    transform: rotate(var(--deco-rotate));
+    animation: decoEnter 0.6s ease-out 0.1s backwards;
   }
 
   .resume-large-deco-left {
@@ -509,7 +510,6 @@
     right: -10px;
     bottom: -8px;
     --deco-rotate: 15deg;
-    animation-delay: 0.1s, -8s;
   }
 
   .resume-large-deco :global(svg) {
@@ -542,7 +542,7 @@
       inset -12px -16px 26px rgba(0, 0, 0, 0.28),
       inset 0 0 0 5px rgba(255, 255, 255, 0.08),
       0 14px 28px rgba(0, 0, 0, 0.24);
-    animation: startCardBubbleFloat 18s linear infinite;
+    transform: rotate(var(--resume-image-bubble-rotate));
   }
 
   .resume-card-image-bubble img {
@@ -566,20 +566,9 @@
     right: -18px;
     bottom: -18px;
     --resume-image-bubble-rotate: 14deg;
-    animation-delay: -9s;
-  }
-
-  @keyframes startCardBubbleFloat {
-    0%, 100% { transform: translate3d(0, -7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg)); }
-    25% { transform: translate3d(6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) + 2deg)); }
-    50% { transform: translate3d(0, 7px, 0) rotate(var(--resume-image-bubble-rotate, 0deg)); }
-    75% { transform: translate3d(-6px, 0, 0) rotate(calc(var(--resume-image-bubble-rotate, 0deg) - 2deg)); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .resume-orb,
-    .resume-card-image-bubble,
-    .active-dot { animation: none !important; }
-    .resume-large-deco { animation: decoEnter 0.6s ease-out 0.1s both !important; }
+    .active-dot { animation: none; }
   }
 </style>

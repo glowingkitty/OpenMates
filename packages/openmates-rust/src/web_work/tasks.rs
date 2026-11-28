@@ -109,6 +109,7 @@ const TASK: &[(&str, Src)] = &[
     ("assigneeIdentity", Or("assignee_identity", Null)),
     ("primaryChatId", Or("primary_chat_id", Null)),
     ("planId", Or("plan_id", Null)),
+    ("linkedSubChatId", Or("linked_sub_chat_id", Null)),
     ("dueAt", Or("due_at", Null)),
     ("priority", Or("priority", Zero)),
     ("position", Or("position", Zero)),

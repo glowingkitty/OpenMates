@@ -93,12 +93,33 @@ CACHE_KEEP_MB=$((BUDGET_MB - IMAGES_MB))
 if [ "$CACHE_KEEP_MB" -lt 0 ]; then
     CACHE_KEEP_MB=0
 fi
+# Below the cleanup target (resource_budget.CLEANUP_TARGET_FREE, 40 GiB) the shared
+# image budget no longer protects build cache: a chat once had to prune 8 GB of it by
+# hand to get CI moving (TASK-5181). Cache of a running build is in use and stays.
+CLEANUP_TARGET_GIB="${OPENMATES_DISK_CLEANUP_TARGET_GIB:-40}"
+DISK_FREE_GIB=$(df -P -B1G / | awk 'NR == 2 {print $4}')
+DISK_FREE_GIB="${DISK_FREE_GIB:-0}"
+EMERGENCY=false
+if [ "$DISK_FREE_GIB" -lt "${CLEANUP_TARGET_GIB%.*}" ]; then
+    EMERGENCY=true
+    CACHE_KEEP_MB=0
+fi
 run_docker "Capping unused BuildKit cache at ${CACHE_KEEP_MB}MB (budget ${BUDGET_MB}MB minus ${IMAGES_MB}MB of images):" \
     builder prune -a -f --keep-storage "${CACHE_KEEP_MB}MB" || true
 
 # Unused tags may pin rollback images. Retain every tagged image and only prune
 # aged dangling images; Docker also protects container-referenced images.
 run_docker "Pruning dangling images older than ${IMAGE_AGE_FILTER#until=}:" image prune -f --filter "$IMAGE_AGE_FILTER" || true
+
+# Tagged images no container uses (old builds, rollback tags) used to be kept
+# forever, so images grew past their budget while the disk filled (TASK-5181).
+# Over the image budget or from UNUSED_IMAGE_DISK_PERCENT used, remove unused
+# images older than a day; images of running or stopped containers stay.
+UNUSED_IMAGE_DISK_PERCENT="${OPENMATES_DOCKER_UNUSED_IMAGE_PERCENT:-85}"
+if [ "$IMAGES_MB" -gt "$BUDGET_MB" ] || [ "$DISK_USE_PCT" -ge "$UNUSED_IMAGE_DISK_PERCENT" ] || [ "$EMERGENCY" = true ]; then
+    run_docker "Pruning unused images older than 24h (images ${IMAGES_MB}MB, budget ${BUDGET_MB}MB, disk ${DISK_USE_PCT}%):" \
+        image prune -a -f --filter "until=24h" || true
+fi
 
 DISK_USE_AFTER=$(df -P / | awk 'NR == 2 {gsub(/%/, "", $5); print $5}')
 DISK_FREE_AFTER=$(df -hP / | awk 'NR == 2 {print $4}')

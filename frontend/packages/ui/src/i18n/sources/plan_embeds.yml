@@ -110,8 +110,8 @@ summary.waiting:
   verified_by_human: []
 summary.assumptions_open:
   context: "Plan assumptions that are not confirmed yet"
-  en: "{count} open assumptions"
-  de: "{count} offene Annahmen"
+  en: "Open assumptions: {count}"
+  de: "Offene Annahmen: {count}"
   verified_by_human: []
 summary.assumptions_clear:
   context: "All Plan assumptions are confirmed"
@@ -163,10 +163,15 @@ sub_chat.works_on:
   en: "Works on: {title}"
   de: "Arbeitet an: {title}"
   verified_by_human: []
-sub_chat.back:
-  context: "Sub-chat header: returns to the chat that started this sub-chat"
-  en: "Back to main chat"
-  de: "Zurück zum Haupt-Chat"
+sub_chat.created_as:
+  context: "System event at the top of a sub-chat; the placeholder is the main chat's name, shown as a link to the main chat"
+  en: "Created as a sub-chat of {name}"
+  de: "Als Sub-Chat von {name} erstellt"
+  verified_by_human: []
+sub_chat.parent_fallback:
+  context: "Link text in the sub-chat origin event while the main chat's title is not available"
+  en: "the main chat"
+  de: "dem Haupt-Chat"
   verified_by_human: []
 task.open:
   context: "Action opening a Task"

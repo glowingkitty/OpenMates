@@ -101,7 +101,8 @@ class FakeManager:
 def rig(monkeypatch):
     async def authorized(cache, **identity):
         assert identity == {"user_id": OWNER, "session_id": SESSION, "chat_id": CHAT,
-                            "call_id": CALL, "message_id": MESSAGE, "role": "assistant"}
+                            "call_id": CALL, "message_id": MESSAGE, "role": "assistant",
+                            "legacy_session_hash": None}
         return SimpleNamespace(state="active", grace_expires_at=None)
 
     monkeypatch.setattr(handler, "require_active_call", authorized)
@@ -126,7 +127,7 @@ async def test_trace_injected_transport_envelope_stores_only_ciphertext(rig):
     traceparent = "00-" + "a" * 32 + "-" + "b" * 16 + "-01"
     await handler.handle_call_message_completed(
         manager=manager, cache_service=cache, directus_service=directus,
-        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
         device_fingerprint_hash="device", payload=payload(_traceparent=traceparent),
     )
     assert manager.sent[-1]["type"] == "call_message_confirmed"
@@ -143,7 +144,7 @@ async def test_create_correction_and_stale_replay_keep_one_encrypted_message(rig
     async def receive(body):
         await handler.handle_call_message_completed(
             manager=manager, cache_service=cache, directus_service=directus,
-            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
             device_fingerprint_hash="device", payload=body,
         )
 
@@ -196,7 +197,7 @@ async def test_wrong_owner_or_unissued_call_does_not_write(rig, monkeypatch):
     with pytest.raises(handler.CallMessageError, match="call_chat_not_owned"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id_hash=OWNER_HASH, session_id=SESSION,
             message=handler._validated_message(payload()),
         )
     assert directus.writes == []
@@ -207,7 +208,7 @@ async def test_wrong_owner_or_unissued_call_does_not_write(rig, monkeypatch):
     with pytest.raises(handler.CallMessageError, match="call_message_not_authorized"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id_hash=OWNER_HASH, session_id=SESSION,
             message=handler._validated_message(payload()),
         )
     assert directus.writes == []
@@ -222,12 +223,12 @@ async def test_retry_repairs_row_after_chat_revision_failure(rig):
     with pytest.raises(RuntimeError, match="transient"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION, message=message)
+            user_id_hash=OWNER_HASH, session_id=SESSION, message=message)
     assert directus.message["queue_revision"] == 0
     assert directus.metadata["messages_v"] == 0
     outcome, revision = await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=message)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=message)
     assert (outcome, revision) == ("replayed", 1)
     assert directus.message["queue_revision"] == 1
     assert directus.metadata["messages_v"] == 1
@@ -241,11 +242,11 @@ async def test_same_revision_different_ciphertext_is_rejected(rig):
     original = handler._validated_message(payload())
     await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=original)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=original)
     with pytest.raises(handler.CallMessageError) as conflict:
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id_hash=OWNER_HASH, session_id=SESSION,
             message=handler._validated_message(payload(CIPHER_B)))
     assert conflict.value.code == "call_message_revision_conflict"
     assert conflict.value.current_revision == 1
@@ -259,18 +260,18 @@ async def test_retry_repairs_correction_visibility_after_chat_revision_failure(r
     base = handler._validated_message(payload())
     await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=base)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=base)
     directus.fail_advance_once = True
     corrected = handler._validated_message(payload(CIPHER_B, 2))
     with pytest.raises(RuntimeError, match="transient"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION, message=corrected)
+            user_id_hash=OWNER_HASH, session_id=SESSION, message=corrected)
     assert directus.message["queue_pending_revision"] == 2
     assert directus.metadata["messages_v"] == 1
     outcome, revision = await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=corrected)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=corrected)
     assert (outcome, revision) == ("replayed", 2)
     assert directus.message["queue_pending_revision"] is None
     assert directus.metadata["messages_v"] == 2
@@ -283,19 +284,19 @@ async def test_identical_cas_loser_never_acks_unpublished_correction(rig):
     base = handler._validated_message(payload())
     await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=base)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=base)
     directus.lose_update_to_pending_once = True
     directus.fail_advance_once = True
     corrected = handler._validated_message(payload(CIPHER_B, 2))
     with pytest.raises(RuntimeError, match="transient"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION, message=corrected)
+            user_id_hash=OWNER_HASH, session_id=SESSION, message=corrected)
     assert directus.message["queue_pending_revision"] == 2
     assert directus.metadata["messages_v"] == 1
     outcome, revision = await handler.persist_encrypted_call_message(
         directus_service=directus, cache_service=cache, user_id=OWNER,
-        user_id_hash=OWNER_HASH, session_hash=SESSION, message=corrected)
+        user_id_hash=OWNER_HASH, session_id=SESSION, message=corrected)
     assert (outcome, revision) == ("replayed", 2)
     assert directus.message["queue_pending_revision"] is None
     assert directus.metadata["messages_v"] == 2
@@ -315,7 +316,7 @@ async def test_empty_title_chat_rejects_existing_message_key_mismatch(rig, monke
     with pytest.raises(handler.CallMessageError, match="chat_key_mismatch"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id_hash=OWNER_HASH, session_id=SESSION,
             message=handler._validated_message(payload(new)))
     assert directus.writes == []
 
@@ -336,7 +337,7 @@ async def test_untitled_legacy_history_finds_late_modern_key_header(rig, monkeyp
     with pytest.raises(handler.CallMessageError, match="chat_key_mismatch"):
         await handler.persist_encrypted_call_message(
             directus_service=directus, cache_service=cache, user_id=OWNER,
-            user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id_hash=OWNER_HASH, session_id=SESSION,
             message=handler._validated_message(payload(wrong)))
     assert directus.writes == []
 
@@ -351,7 +352,7 @@ async def test_call_receipt_waits_for_committed_chat_version_and_repair(rig, cor
     async def receive(body):
         await handler.handle_call_message_completed(
             manager=manager, cache_service=cache, directus_service=directus,
-            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
             device_fingerprint_hash="device", payload=body,
         )
 
@@ -387,7 +388,7 @@ async def test_receipt_never_fabricates_chat_version(rig, monkeypatch, unavailab
     directus, cache, manager = rig
     await handler.handle_call_message_completed(
         manager=manager, cache_service=cache, directus_service=directus,
-        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
         device_fingerprint_hash="device", payload=payload(),
     )
     manager.sent.clear()
@@ -408,7 +409,7 @@ async def test_receipt_never_fabricates_chat_version(rig, monkeypatch, unavailab
     monkeypatch.setattr(directus, "get_chat_metadata", unavailable_receipt_authority)
     await handler.handle_call_message_completed(
         manager=manager, cache_service=cache, directus_service=directus,
-        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
         device_fingerprint_hash="device", payload=payload(),
     )
     assert manager.sent[-1]["type"] == "call_message_rejected"
@@ -427,7 +428,7 @@ async def test_committed_version_survives_metadata_outage_and_retry_without_dupl
     async def receive(body):
         await handler.handle_call_message_completed(
             manager=manager, cache_service=cache, directus_service=directus,
-            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
             device_fingerprint_hash="device", payload=body,
         )
 
@@ -487,7 +488,7 @@ async def test_stale_partial_repair_broadcasts_only_stored_winning_ciphertext(ri
     async def receive(body):
         await handler.handle_call_message_completed(
             manager=manager, cache_service=cache, directus_service=directus,
-            user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+            user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
             device_fingerprint_hash="device", payload=body,
         )
 
@@ -521,7 +522,7 @@ async def test_attribution_ciphertext_persists_replays_and_broadcasts_exactly(ri
     async def receive(**changes):
         await handler.handle_call_message_completed(manager=manager, cache_service=cache,
             directus_service=directus, user_id=OWNER, user_id_hash=OWNER_HASH,
-            session_hash=SESSION, device_fingerprint_hash="device", payload=payload(**{**fields, **changes}))
+            session_id=SESSION, device_fingerprint_hash="device", payload=payload(**{**fields, **changes}))
     await receive()
     assert manager.sent[-1]["payload"]["outcome"] == "created"
     for field, value in fields.items():
@@ -546,7 +547,7 @@ async def test_finalizing_call_allows_issued_ciphertext_retry_without_paid_dispa
     monkeypatch.setattr(handler, "require_active_call", grace_authority)
     await handler.handle_call_message_completed(
         manager=manager, cache_service=cache, directus_service=directus,
-        user_id=OWNER, user_id_hash=OWNER_HASH, session_hash=SESSION,
+        user_id=OWNER, user_id_hash=OWNER_HASH, session_id=SESSION,
         device_fingerprint_hash="device", payload=payload(),
     )
     assert directus.message["encrypted_content"] == CIPHER_A

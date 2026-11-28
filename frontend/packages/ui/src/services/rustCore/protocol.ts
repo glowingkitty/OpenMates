@@ -26,6 +26,16 @@ export const MAX_PASSWORD_BYTES = 16 * 1024;
 export const MAX_PASSWORD_RPC_BYTES = MAX_PASSWORD_BYTES + 2048;
 
 export type BrowserPersistence = "memory_only" | "persisted";
+/** Exact local transport retirement, never a server authorization result. */
+export class RetiredSelectedHistoryHost extends Error {
+  constructor() { super("selected_history_host_retired"); }
+}
+
+/** Original cold reader and browser storage both acknowledged the requested stop. */
+export class DrainedSelectedColdReadCancellation extends Error {
+  constructor() { super("cancelled"); }
+}
+
 export type CoreFailure = "invalid_request" | "unavailable" | "cancelled" | "deadline" | "session_expired" | "reauthentication_required" | "chat_unavailable" | "credential_conflict" | "authentication_failed" | "two_factor_required" | SocketFrameFailure;
 
 export const MAX_CHAT_MESSAGES = 20;
@@ -403,7 +413,7 @@ export function parseBrowserLocalReadPlan(encoded: string): LocalReadPlan {
 /** Optional page shaping for `before`/`after`/`around`; Rust owns the bounds (wasm: 1..=20 rows). */
 export interface SavedPageShape { limit?: number; respectCompressionBoundary?: boolean }
 export const MAX_SAVED_PAGE_LIMIT = 20;
-export type LocalCursorSelector = { direction: "latest" }
+export type LocalCursorSelector = ({ direction: "latest" } & SavedPageShape)
   | ({ direction: "before" | "after"; cursor: SavedReadCursor } & SavedPageShape)
   | ({ direction: "around"; anchorMessageId: string } & SavedPageShape);
 function validPageShape(value: Record<string, unknown>): boolean {
@@ -415,7 +425,7 @@ function pageKeys(value: unknown, base: readonly string[]): readonly string[] {
   return [...base, ...["limit", "respectCompressionBoundary"].filter(key => Object.hasOwn(value, key))];
 }
 export function validLocalCursorSelector(value: unknown, chatId: string): value is LocalCursorSelector {
-  if (localCursorData(value, ["direction"]) && value.direction === "latest") return true;
+  if (localCursorData(value, pageKeys(value, ["direction"])) && value.direction === "latest") return validPageShape(value);
   const around = localCursorData(value, pageKeys(value, ["direction", "anchorMessageId"])) && value.direction === "around";
   if (around) return validReadMessageId(value.anchorMessageId) && validPageShape(value);
   if (!localCursorData(value, pageKeys(value, ["direction", "cursor"])) || !["before", "after"].includes(String(value.direction)) || !validPageShape(value)) return false;

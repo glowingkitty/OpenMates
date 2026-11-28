@@ -81,7 +81,14 @@ Alertmanager is opt-in via `--with-alerts`. Production backend-only operation sh
 
 ### Core Services
 
-Defined in [docker-compose.yml](../../backend/core/docker-compose.yml):
+[docker-compose.selfhost.yml](../../../backend/core/docker-compose.selfhost.yml) defines
+the core services and is copied into both CLI packages. Source installs use the
+generated [docker-compose.yml](../../../backend/core/docker-compose.yml), which
+applies [source-build overrides](../../../backend/core/core-compose.dev-overrides.yml).
+After editing the canonical file or source-build overrides, run
+`python3 scripts/sync_core_compose.py` and include the regenerated files in the
+same change. CI checks the generated manifests and verifies that every routed
+Celery queue has a worker.
 
 | Container | Image / Build | Purpose |
 |-----------|--------------|---------|

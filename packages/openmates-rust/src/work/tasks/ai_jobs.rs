@@ -1,13 +1,16 @@
 //! Reuse the typed Task codecs for a server-staged, owner-authorized AI update.
 //! This only prepares ciphertext; the caller owns the fenced WS transaction.
 use super::*;
+use crate::work::task_crypto::{
+    decode_with_key, encrypt_create_fields, encrypt_patch_fields, task_key_wrapper,
+};
 impl Tasks<'_> {
     pub(crate) async fn encrypt_update_job(
         &mut self,
         claim: &Value,
         active_chat: &str,
         active_key: &[u8; 32],
-    ) -> Result<(Value, Key, Key)> {
+    ) -> Result<(Value, Key, Option<Key>)> {
         let id = string(claim, "task_id")?;
         uuid(id)?;
         let expected = claim["expected_task_version"]
@@ -38,7 +41,13 @@ impl Tasks<'_> {
             Some(Value::String(id)) => Some(Some(uuid(id)?.to_owned())),
             _ => return Err(Error::Protocol),
         };
-        let (master, wrapping) = self.keys().await?;
+        let opaque = matches!(&self.backend, Backend::Cookie(client) if client.browser_session_status().is_some());
+        let (master, wrapping) = if opaque && self.filters.team_id.is_none() {
+            (None, None)
+        } else {
+            let (master, wrapping) = self.keys().await?;
+            (Some(master), Some(wrapping))
+        };
         if self.filters.team_id.is_some() && target.is_some() {
             return Err(Error::Invalid(
                 "Team Task context moves cannot prove all required wrappers on this server.",
@@ -55,6 +64,11 @@ impl Tasks<'_> {
                 return Err(Error::Conflict);
             }
             let chat = target.clone().unwrap_or_else(|| Some(active_chat.into()));
+            let projects = match safe.get("linked_project_ids") {
+                None => Vec::new(),
+                Some(value) => serde_json::from_value::<Vec<String>>(value.clone())?,
+            };
+            let plan = optional_string(&claim["safe_metadata"], "plan_id")?;
             let input = TaskCreate {
                 task_id: Some(id.into()),
                 title: text("title")?.unwrap_or_else(|| "Untitled task".into()),
@@ -62,13 +76,14 @@ impl Tasks<'_> {
                 status,
                 assign,
                 primary_chat_id: chat.clone(),
+                linked_project_ids: projects,
+                plan_id: plan,
                 ..Default::default()
             };
-            let mut payload = encrypt_create(&input, &master, &wrapping, None)?;
-            let key = key_bytes(&crypto::decrypt_bytes(
-                string(&payload, "encrypted_task_key")?,
-                &wrapping,
-            )?)?;
+            let key = crypto::random_key();
+            let wrapped = self.backend.wrap_with_master(key.as_ref()).await?;
+            let mut payload =
+                encrypt_create_fields(&input, &key, wrapped, wrapping.as_deref(), None)?;
             let mut wrappers = vec![
                 json!({"key_type":"master","encrypted_task_key":payload["encrypted_task_key"],"created_at":now()}),
             ];
@@ -76,10 +91,54 @@ impl Tasks<'_> {
                 let key_chat = self.job_chat_key(&chat, active_chat, active_key).await?;
                 wrappers.push(json!({"key_type":"chat","hashed_chat_id":hash(&chat),"encrypted_task_key":crypto::server_fields::encrypt_bytes(key.as_ref(),&key_chat, &[])?,"created_at":now()}));
             }
+            if !input.linked_project_ids.is_empty() || input.plan_id.is_some() {
+                let Backend::Cookie(client) = &mut self.backend else {
+                    return Err(Error::Forbidden);
+                };
+                let mut seen = std::collections::BTreeSet::new();
+                for id in &input.linked_project_ids {
+                    uuid(id)?;
+                    if !seen.insert(id) {
+                        return Err(Error::Protocol);
+                    }
+                    let project = client.projects().resolve(id).await?;
+                    wrappers.push(json!({
+                        "key_type": "project",
+                        "hashed_project_id": hash(id),
+                        "encrypted_task_key": crypto::server_fields::encrypt_bytes(key.as_ref(), &project.key, &[])?,
+                        "created_at": now(),
+                    }));
+                }
+                if let Some(id) = &input.plan_id {
+                    uuid(id)?;
+                    let response = self
+                        .backend
+                        .request(Method::GET, &format!("/v1/user-plans/{id}"), None, None)
+                        .await?;
+                    let plan = &response["plan"];
+                    if plan["plan_id"] != id.as_str() {
+                        return Err(Error::Forbidden);
+                    }
+                    let plan_key = self
+                        .backend
+                        .unwrap_with_master(crate::work::plans::personal_plan_key_wrapper(plan)?)
+                        .await?;
+                    wrappers.push(json!({
+                        "key_type": "plan",
+                        "hashed_plan_id": hash(id),
+                        "encrypted_task_key": crypto::server_fields::encrypt_bytes(key.as_ref(), &plan_key, &[])?,
+                        "created_at": now(),
+                    }));
+                }
+            }
             payload["key_wrappers"] = json!(wrappers);
             (payload, key)
         } else {
-            let task = self.resolve(id).await?;
+            let task = if opaque {
+                self.read_personal_job_task(id, false).await?
+            } else {
+                self.resolve(id).await?
+            };
             readonly(&task)?;
             if claim["source_task_chat_id"]
                 .as_str()
@@ -98,14 +157,24 @@ impl Tasks<'_> {
                 primary_chat_id: target.clone(),
                 ..Default::default()
             };
-            let mut payload = encrypt_patch(&task, &patch, &master, &wrapping)?;
+            let mut payload =
+                encrypt_patch_fields(&task, &patch, master.as_deref(), wrapping.as_deref())?;
             if let Some(reason) = text("blocked_reason")? {
-                payload["encrypted_blocked_reason"] =
-                    json!(crypto::server_fields::encrypt_text(&reason, &task.key, &[])?);
+                payload["encrypted_blocked_reason"] = json!(crypto::server_fields::encrypt_text(
+                    &reason,
+                    &task.key,
+                    &[]
+                )?);
             }
             if let Some(target) = target {
                 let wrappers = self
-                    .job_wrappers(&task, target.as_deref(), active_chat, active_key, &wrapping)
+                    .job_wrappers(
+                        &task,
+                        target.as_deref(),
+                        active_chat,
+                        active_key,
+                        wrapping.as_deref(),
+                    )
                     .await?;
                 payload["key_wrappers"] = json!(wrappers);
             }
@@ -155,6 +224,58 @@ impl Tasks<'_> {
         }
         Ok((payload, task_key, wrapping))
     }
+    /// Read and authenticate the canonical Personal Task with an opaque master.
+    async fn read_personal_job_task(
+        &mut self,
+        id: &str,
+        include_wrappers: bool,
+    ) -> Result<Resolved> {
+        if self.filters.team_id.is_some() {
+            return Err(Error::Forbidden);
+        }
+        let Backend::Cookie(client) = &mut self.backend else {
+            return Err(Error::Forbidden);
+        };
+        let mut row = client.request_committed_task(id, false).await?["task"].clone();
+        if row["source"] == "workflow_run"
+            || row["task_id"] != id
+            || row["hashed_user_id"]
+                != hash(
+                    client
+                        .browser_session_status()
+                        .ok_or(Error::Authentication)?
+                        .principal(),
+                )
+        {
+            return Err(Error::Forbidden);
+        }
+        if include_wrappers || !row["encrypted_task_key"].is_string() {
+            row["key_wrappers"] =
+                client.request_committed_task(id, true).await?["key_wrappers"].clone();
+        }
+        let key = client
+            .work_unwrap_with_master(task_key_wrapper(&row, None)?)
+            .await?;
+        decode_with_key(row, key)
+    }
+
+    /// Prove the saved ciphertext and key wrapper using the browser's master binding.
+    pub(crate) async fn verify_personal_job_write(
+        &mut self,
+        id: &str,
+        key: &[u8; 32],
+        expected: &Value,
+        version: u64,
+    ) -> Result<()> {
+        let task = self.read_personal_job_task(id, true).await?;
+        crate::work::verify_task_job_fields(&task, key, expected, version)
+    }
+
+    /// Return the authenticated Personal Task state needed to recover a receipt.
+    pub(crate) async fn read_personal_job_result(&mut self, id: &str) -> Result<Value> {
+        Ok(self.read_personal_job_task(id, false).await?.public)
+    }
+
     async fn job_chat_key(&mut self, id: &str, active: &str, key: &[u8; 32]) -> Result<Key> {
         uuid(id)?;
         if id == active {
@@ -176,7 +297,7 @@ impl Tasks<'_> {
         target: Option<&str>,
         active: &str,
         active_key: &[u8; 32],
-        wrapping: &[u8; 32],
+        wrapping: Option<&[u8; 32]>,
     ) -> Result<Vec<Value>> {
         let id = string(&task.raw, "task_id")?;
         let p = self.scoped(&format!("/v1/user-tasks/{id}/key-wrappers"), &[]);
@@ -190,20 +311,22 @@ impl Tasks<'_> {
                 .filter(|r| {
                     r["key_type"] == "team"
                         && r["hashed_team_id"] == hash(team)
-                        && r["team_key_epoch"] == 1
+                        && crate::work::team_epoch_ok(r)
                 })
                 .collect::<Vec<_>>();
             if candidates.len() != 1 {
                 return Err(Error::Forbidden);
             }
-            let verified =
-                crypto::decrypt_bytes(string(candidates[0], "encrypted_task_key")?, wrapping)?;
+            let verified = crypto::decrypt_bytes(
+                string(candidates[0], "encrypted_task_key")?,
+                wrapping.ok_or(Error::Crypto)?,
+            )?;
             if verified.as_slice() != task.key.as_ref() {
                 return Err(Error::Crypto);
             }
-            wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":1,"encrypted_task_key":string(candidates[0],"encrypted_task_key")?,"created_at":now()}));
+            wrappers.push(json!({"key_type":"team","hashed_team_id":hash(team),"team_key_epoch":candidates[0]["team_key_epoch"].as_u64().unwrap_or(1),"encrypted_task_key":string(candidates[0],"encrypted_task_key")?,"created_at":now()}));
         } else {
-            wrappers.push(json!({"key_type":"master","encrypted_task_key":crypto::server_fields::encrypt_bytes(task.key.as_ref(),wrapping, &[])?,"created_at":now()}));
+            wrappers.push(json!({"key_type":"master","encrypted_task_key":self.backend.wrap_with_master(task.key.as_ref()).await?,"created_at":now()}));
         }
         if let Some(chat) = target {
             let chat_key = self.job_chat_key(chat, active, active_key).await?;
@@ -371,29 +494,56 @@ mod tests {
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod field_interop_tests {
     use super::*;
-    use crate::work::tasks::tests::{client, mock};
     use crate::work::task_crypto::field_interop_support::{assert_web, case};
+    use crate::work::tasks::tests::{client, mock};
     #[tokio::test]
     async fn actual_job_create_and_move_wrappers_read_in_web_legacy_decoders() {
         const TASK: &str = "11111111-1111-4111-8111-111111111111";
         const CHAT: &str = "22222222-2222-4222-8222-222222222222";
         let mut fresh_client = client("http://127.0.0.1:1");
         let create = json!({"task_id":TASK,"operation":"create","expected_task_version":0,"private_patch":{"title":"Job title"},"safe_metadata":{"primary_chat_id":CHAT}});
-        let (created, key, _) = fresh_client.tasks().encrypt_update_job(&create, CHAT, &[8;32]).await.unwrap();
+        let (created, key, _) = fresh_client
+            .tasks()
+            .encrypt_update_job(&create, CHAT, &[8; 32])
+            .await
+            .unwrap();
         let row = json!({"task_id":TASK,"version":3,"encrypted_task_key":crypto::encrypt_bytes(&key[..],&[7;32]).unwrap(),"encrypted_title":crypto::encrypt_combined("Old title",&key).unwrap(),"encrypted_description":crypto::encrypt_combined("",&key).unwrap(),"encrypted_linked_project_ids":crypto::encrypt_combined("[]",&key).unwrap(),"primary_chat_id":CHAT,"priority":0,"status":"todo"});
-        let wrappers = json!([{"key_type":"master","encrypted_task_key":row["encrypted_task_key"]}]);
-        let (api, server) = mock(vec![json!({"task":row}),json!({"key_wrappers":wrappers})]).await;
+        let wrappers =
+            json!([{"key_type":"master","encrypted_task_key":row["encrypted_task_key"]}]);
+        let (api, server) = mock(vec![json!({"task":row}), json!({"key_wrappers":wrappers})]).await;
         let claim = json!({"task_id":TASK,"operation":"move","expected_task_version":3,"private_patch":{"blocked_reason":"Private blocker"},"safe_metadata":{"primary_chat_id":CHAT}});
-        let (moved, moved_key, _) = client(&api).tasks().encrypt_update_job(&claim,CHAT,&[8;32]).await.unwrap();
-        assert_eq!(*key,*moved_key);
-        let mut cases = vec![case("job.blocked_reason","object-text",moved["encrypted_blocked_reason"].as_str().unwrap(),&key,b"Private blocker","")];
-        for (label, payload) in [("create",created),("move",moved)] {
+        let (moved, moved_key, _) = client(&api)
+            .tasks()
+            .encrypt_update_job(&claim, CHAT, &[8; 32])
+            .await
+            .unwrap();
+        assert_eq!(*key, *moved_key);
+        let mut cases = vec![case(
+            "job.blocked_reason",
+            "object-text",
+            moved["encrypted_blocked_reason"].as_str().unwrap(),
+            &key,
+            b"Private blocker",
+            "",
+        )];
+        for (label, payload) in [("create", created), ("move", moved)] {
             for wrapper in payload["key_wrappers"].as_array().unwrap() {
-                let (kind, wrapping) = if wrapper["key_type"] == "master" { ("master-binary", [7;32]) } else { ("object-binary", [8;32]) };
-                cases.push(case(label,kind,wrapper["encrypted_task_key"].as_str().unwrap(),&wrapping,&key[..],""));
+                let (kind, wrapping) = if wrapper["key_type"] == "master" {
+                    ("master-binary", [7; 32])
+                } else {
+                    ("object-binary", [8; 32])
+                };
+                cases.push(case(
+                    label,
+                    kind,
+                    wrapper["encrypted_task_key"].as_str().unwrap(),
+                    &wrapping,
+                    &key[..],
+                    "",
+                ));
             }
         }
         assert_web(cases);
-        assert!(server.await.unwrap().iter().all(|r|r.starts_with("GET ")));
+        assert!(server.await.unwrap().iter().all(|r| r.starts_with("GET ")));
     }
 }

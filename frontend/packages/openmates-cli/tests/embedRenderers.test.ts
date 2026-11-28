@@ -343,3 +343,28 @@ describe('terminal fullscreen collection',()=>{
     assert.match((await formatEmbedFullscreenLines(code,client as never)).join('\n'),/export const answer = 42/);
   });
 });
+
+describe("task embed cards", () => {
+  // contract-test: supporting surface=cli assertions=task-inline.presentation.no-raw-ids,task-inline.surfaces.parity
+  it("shows title, due date, status and validation errors but never the task id", () => {
+    const lines = formatEmbedPreviewLines({
+      embedId: "embed-12345678",
+      type: "task",
+      status: "finished",
+      content: {
+        type: "task",
+        task_id: "6f1c2d3e-0000-4000-8000-aaaaaaaaaaaa",
+        title: "Buy milk",
+        status: "todo",
+        due_date: "2026-12-01",
+        validation: { status: "invalid", errors: ["due_at is not a date"] },
+      },
+    } as DecryptedEmbed);
+    const text = lines.join("\n");
+    assert.match(text, /task · Buy milk/);
+    assert.match(text, /Due: 2026-12-01/);
+    assert.match(text, /Status: todo/);
+    assert.match(text, /due_at is not a date/);
+    assert.doesNotMatch(text, /6f1c2d3e/);
+  });
+});

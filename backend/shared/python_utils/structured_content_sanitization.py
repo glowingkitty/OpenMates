@@ -11,7 +11,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from backend.apps.ai.processing.content_sanitization import (
     JEV_SAFE_THRESHOLD,
@@ -203,6 +203,8 @@ async def classify_text_units(
     task_id: str,
     secrets_manager: Optional[SecretsManager],
     cache_service: Optional[Any] = None,
+    *,
+    require_complete_scan: bool = False,
 ) -> dict[str, TextDecision]:
     """Scan every unit in bounded batches and return only a complete result."""
     _validate_units(units)
@@ -213,7 +215,10 @@ async def classify_text_units(
         raise StructuredScanError(SAFETY_ERROR_TOO_LARGE) from exc
 
     async def scan(batch: DecisionRequest) -> dict[str, TextDecision]:
-        return await _classify_text_batch(batch.state["units"], task_id, secrets_manager, cache_service)
+        return await _classify_text_batch(
+            batch.state["units"], task_id, secrets_manager, cache_service,
+            require_complete_scan=require_complete_scan,
+        )
 
     results = await run_bounded_batches(batches, scan)
     decisions = {key: value for result in results for key, value in result.items()}
@@ -225,7 +230,7 @@ async def classify_text_units(
 
 async def _classify_text_batch(
     units: list[dict[str, Any]], task_id: str, secrets_manager: Optional[SecretsManager],
-    cache_service: Optional[Any],
+    cache_service: Optional[Any], *, require_complete_scan: bool,
 ) -> dict[str, TextDecision]:
     """One Jev gate and at most one exact-span fallback per complete batch."""
     from backend.shared.python_utils.strict_output_safety import active_strict_scanner
@@ -236,8 +241,8 @@ async def _classify_text_batch(
         if set(response.answers)!={'prompt_injection'} or not isinstance(answer,NoulAnswer) or answer.noul>JEV_SAFE_THRESHOLD:
             raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE)
         return {unit['id']:TextDecision('safe') for unit in units}
-    safe, decision_calls = await _jev_safe_batch(units, secrets_manager)
-    if safe:
+    gate, decision_calls = await _jev_batch_gate(units, secrets_manager)
+    if gate == "safe":
         logger.info(
             "Structured output safety batch completed: units=%d injection=0 uncertain=0 model_calls=1",
             len(units),
@@ -274,6 +279,8 @@ async def _classify_text_batch(
     if getattr(result, "error_message", None):
         raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE)
     decisions = _validate_decisions(getattr(result, "arguments", None), units)
+    if require_complete_scan and gate == "review" and all(d.verdict == "safe" for d in decisions.values()):
+        raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE)
     logger.info(
         "Structured output safety batch completed: units=%d injection=%d uncertain=%d model_calls=%d",
         len(units), sum(d.verdict == "injection" for d in decisions.values()),
@@ -283,9 +290,9 @@ async def _classify_text_batch(
     return decisions
 
 
-async def _jev_safe_batch(
+async def _jev_batch_gate(
     units: list[dict[str, Any]], secrets_manager: Optional[SecretsManager],
-) -> tuple[bool, int]:
+) -> tuple[Literal["safe", "review", "unavailable"], int]:
     """A failed/flagged gate never bypasses the existing exact-span classifier.
 
     One aggregate question avoids generating a verdict object for every benign
@@ -295,7 +302,7 @@ async def _jev_safe_batch(
     """
     model_id = _load_prompt_injection_decision_model()
     if not model_id:
-        return False, 0
+        return "unavailable", 0
     started = time.monotonic()
     outcome = "unavailable"
     try:
@@ -311,21 +318,26 @@ async def _jev_safe_batch(
             timeout=JEV_SCAN_TIMEOUT_SECONDS,
         )
         answer = response.answers.get("prompt_injection")
-        safe = (
+        valid = (
             set(response.answers) == {"prompt_injection"}
             and isinstance(answer, NoulAnswer)
-            and 0.0 <= answer.noul <= JEV_SAFE_THRESHOLD
+            and 0.0 <= answer.noul <= 1.0
         )
-        outcome = "safe" if safe else "review"
-        return safe, 1
+        if not valid:
+            return "unavailable", 1
+        if answer.noul <= JEV_SAFE_THRESHOLD:
+            outcome = "safe"
+            return "safe", 1
+        outcome = "review"
+        return "review", 1
     except TimeoutError:
         outcome = "timeout"
-        return False, 1
+        return "unavailable", 1
     except DecisionRequestTooLarge:
         outcome = "context_overflow"
-        return False, 1
+        return "unavailable", 1
     except Exception:
-        return False, 1
+        return "unavailable", 1
     finally:
         logger.info(
             "Jev output safety gate completed: decision=%s duration_ms=%d",

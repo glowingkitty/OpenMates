@@ -181,11 +181,11 @@ async def test_regular_chat_never_reads_other_chat_summaries_without_live_projec
 async def test_live_project_focus_reads_only_that_projects_chat_summaries():
     class Client:
         async def read(self, **kwargs):
-            assert kwargs["current_project_id"] == "socialhub"
-            return [_summary("same", "socialhub"), _summary("other", "garden"), _summary("unscoped", None)]
+            assert kwargs["current_project_id"] == "harbor"
+            return [_summary("same", "harbor"), _summary("other", "garden"), _summary("unscoped", None)]
 
     request = SimpleNamespace(user_id="owner", chat_id="current", current_project={"project_id": "garden"},
-                              active_project_focus={"project_id": "socialhub"})
+                              active_project_focus={"project_id": "harbor"})
     result = await related_work.fetch_related_chat_summaries(request, "task", object(), object(), client=Client())
     assert [item.source.chat_id for item in result] == ["same"]
 

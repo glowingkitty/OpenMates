@@ -34,13 +34,18 @@ CLOUD_BOOT_SMOKE = ROOT / "scripts/api_tests/test_cloud_overlay_boot.py"
 PROMETHEUS_CONFIG = ROOT / "backend/core/monitoring/prometheus/prometheus.yml"
 
 
+def _worker_command(worker: dict) -> str:
+    command = worker["command"]
+    return command if isinstance(command, str) else " ".join(command)
+
+
 def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
     for compose_path in COMPOSE_FILES:
         compose = yaml.safe_load(compose_path.read_text(encoding="utf-8"))
         task_worker = compose["services"]["task-worker"]
         environment = task_worker["environment"]
         volumes = task_worker["volumes"]
-        command = task_worker["command"]
+        command = _worker_command(task_worker)
 
         assert environment["SERVER_ENVIRONMENT"] == "${SERVER_ENVIRONMENT}", compose_path
         assert environment["CELERY_QUEUES"] == EMAIL_QUEUE, compose_path
@@ -53,7 +58,7 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
 
         core_worker = compose["services"]["core-worker"]
         assert core_worker["environment"]["CELERY_QUEUES"] == CORE_TASK_QUEUES, compose_path
-        assert f"--queues={CORE_TASK_QUEUES} " in core_worker["command"], compose_path
+        assert f"--queues={CORE_TASK_QUEUES} " in _worker_command(core_worker), compose_path
         assert USER_INIT_QUEUE not in core_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
         assert REMINDER_QUEUE not in core_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
         assert "email" not in core_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
@@ -63,7 +68,7 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         user_tasks_worker = compose["services"].get("user-tasks-worker")
         assert user_tasks_worker is not None, compose_path
         assert user_tasks_worker["environment"]["CELERY_QUEUES"] == USER_TASK_QUEUE, compose_path
-        assert f"--queues={USER_TASK_QUEUE} " in user_tasks_worker["command"], compose_path
+        assert f"--queues={USER_TASK_QUEUE} " in _worker_command(user_tasks_worker), compose_path
         assert user_tasks_worker["environment"]["CELERY_METRICS_PORT"] == "9112", compose_path
         if compose_path == COMPOSE_FILES[0]:
             assert user_tasks_worker["extends"] == {"service": "task-worker"}, compose_path
@@ -71,7 +76,7 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         reminder_worker = compose["services"].get("reminder-worker")
         assert reminder_worker is not None, compose_path
         assert reminder_worker["environment"]["CELERY_QUEUES"] == REMINDER_QUEUE, compose_path
-        assert f"--queues={REMINDER_QUEUE} " in reminder_worker["command"], compose_path
+        assert f"--queues={REMINDER_QUEUE} " in _worker_command(reminder_worker), compose_path
         assert reminder_worker["environment"]["CELERY_METRICS_PORT"] == "9111", compose_path
         if compose_path == COMPOSE_FILES[0]:
             assert reminder_worker["extends"] == {"service": "task-worker"}, compose_path
@@ -79,7 +84,7 @@ def test_task_worker_keeps_billing_safe_environment_and_mounts() -> None:
         user_init_worker = compose["services"].get("user-init-worker")
         assert user_init_worker is not None, compose_path
         assert user_init_worker["environment"]["CELERY_QUEUES"] == USER_INIT_QUEUE, compose_path
-        assert f"--queues={USER_INIT_QUEUE} " in user_init_worker["command"], compose_path
+        assert f"--queues={USER_INIT_QUEUE} " in _worker_command(user_init_worker), compose_path
         assert "persistence" not in user_init_worker["environment"]["CELERY_QUEUES"].split(","), compose_path
 
 

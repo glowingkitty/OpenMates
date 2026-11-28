@@ -9,7 +9,7 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity
+// Assertions: chats.surface.semantic-parity, chats.rendering.image-gestures
 
 import SwiftUI
 
@@ -25,7 +25,11 @@ struct WebsiteEmbedRenderer: View {
     private var title: String { firstString(keys: ["title", "site_name"]) ?? hostFrom(url) }
     private var url: String { data?["url"]?.value as? String ?? "" }
     private var description: String? { stripHTML(firstString(keys: ["description", "meta_description", "summary"])) }
-    private var imageURL: String? { firstString(keys: ["thumbnail_original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"]) }
+    private var imageURL: String? {
+        EmbedFieldReader.string(data ?? [:], keys: [
+            "thumbnail_original", "thumbnail.original", "image", "image_url", "thumbnail_url", "meta_image", "og_image"
+        ])
+    }
     private var previewImageURL: URL? {
         guard !previewImageFailed else { return nil }
         return EmbedFieldReader.proxiedImageURL(imageURL, maxWidth: 520).flatMap(URL.init(string:))
@@ -110,7 +114,10 @@ struct WebsiteEmbedRenderer: View {
                     )
                     .frame(maxWidth: 511)
                     .frame(minHeight: metrics.imageMinHeight, maxHeight: metrics.imageMaxHeight)
+                    .imageZoom()
                     .clipShape(RoundedRectangle(cornerRadius: metrics.imageRadius))
+                    .accessibilityLabel(title)
+                    .accessibilityIdentifier("website-fullscreen-image")
                     .padding(.bottom, .spacing12)
                 }
 

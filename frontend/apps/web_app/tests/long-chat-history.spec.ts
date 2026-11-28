@@ -49,7 +49,8 @@ async function seedLongChatFixture(page: any): Promise<void> {
 				});
 
 			const db = await openDb();
-			const requiredStores = ['chats', 'messages', 'chat_compression_checkpoints'];
+			const messagesName = db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages';
+			const requiredStores = ['chats', messagesName, 'chat_compression_checkpoints'];
 			for (const storeName of requiredStores) {
 				if (!db.objectStoreNames.contains(storeName)) {
 					db.close();
@@ -60,7 +61,7 @@ async function seedLongChatFixture(page: any): Promise<void> {
 			await new Promise<void>((resolve, reject) => {
 				const transaction = db.transaction(requiredStores, 'readwrite');
 				const chatsStore = transaction.objectStore('chats');
-				const messagesStore = transaction.objectStore('messages');
+				const messagesStore = transaction.objectStore(messagesName);
 				const checkpointsStore = transaction.objectStore('chat_compression_checkpoints');
 
 				transaction.onerror = () => reject(transaction.error ?? new Error('Failed to seed long chat fixture'));

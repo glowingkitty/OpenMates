@@ -162,3 +162,21 @@ fn display_name_hint_lives_in_the_index_and_survives_a_restore() {
     cleared.restore_ciphertext_snapshot(&client().ciphertext_snapshot()).unwrap();
     assert_eq!(cleared.display_name_hint(), None);
 }
+
+// contract-test: supporting surface=sdks.rust assertions=sync.startup.recent-metadata-cap
+#[test]
+fn retained_account_count_is_available_in_the_authenticated_index() {
+    let mut original = client();
+    original.chat_total_count = Some(1284);
+    let sections = split(original.ciphertext_snapshot()).unwrap();
+    assert_eq!(sections.index.get(CHAT_TOTAL_FIELD), Some(&json!(1284)));
+    assert!(!sections.shared.contains_key(CHAT_TOTAL_FIELD));
+    let loader: crate::client::CachedContentLoader = std::sync::Arc::new(|_| panic!("count must not load chat content"));
+    let mut restored = client();
+    restored.restore_authenticated_ciphertext_index(&Value::Object(sections.index), loader).unwrap();
+    assert_eq!(restored.chat_total_count(), Some(1284));
+    restored.restore_authenticated_ciphertext_snapshot(&json!({"chats":{},"wrappers":[]})).unwrap();
+    assert_eq!(restored.chat_total_count(), None);
+    restored.restore_ciphertext_snapshot(&original.ciphertext_snapshot()).unwrap();
+    assert_eq!(restored.chat_total_count(), None);
+}

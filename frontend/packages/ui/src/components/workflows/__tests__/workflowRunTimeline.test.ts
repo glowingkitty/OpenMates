@@ -1,7 +1,6 @@
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { WorkflowNodeRun, WorkflowRun } from '../../../stores/workflowWorkspaceStore';
-// @ts-expect-error Node's strip-types test runner requires the source extension.
 import {
   isCurrentWorkflowRun,
   orderWorkflowRunsForTimeline,
@@ -9,7 +8,7 @@ import {
   workflowRunDeliveryState,
   workflowNodePresentationStatus,
   workflowSendDeliveryStatus,
-} from '../workflowRunTimeline.ts';
+} from '../workflowRunTimeline';
 
 function run(
   id: string,

@@ -31,6 +31,10 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
+notification_log = importlib.import_module("scripts.notification_log")
+
+RESERVED_NAME = importlib.import_module("scripts.public_link_guard").RESERVED_NAME
+
 _feature_availability = importlib.import_module(
     "backend.core.api.app.services.feature_availability_service"
 )
@@ -474,7 +478,11 @@ def collect_commits(
             continue
         sha, short_sha, authored_at, subject, body = parts
         paths_raw = git_output(["diff-tree", "--no-commit-id", "--name-only", "-r", sha], check=False)
-        changed_paths = sorted(path for path in paths_raw.splitlines() if path.strip())
+        # Historical changes can mention a retired path even after it is removed from dev.
+        changed_paths = sorted(
+            path for path in paths_raw.splitlines()
+            if path.strip() and RESERVED_NAME not in path.casefold()
+        )
         commits.append(
             CommitChange(
                 sha=sha,
@@ -1886,6 +1894,7 @@ def post_weekly_discord_summary(artifact: dict[str, Any], *, dry_run: bool = Fal
     try:
         with request.urlopen(req, timeout=30) as response:
             response.read()
+        notification_log.record_request(req, "release_intelligence")
         print("[release-intelligence] weekly Discord summary sent", file=sys.stderr)
         return True
     except error.HTTPError as exc:

@@ -9,7 +9,7 @@
 // Specification: specifications/features/apple-controls/specification.yml
 // Assertions: apple-controls.availability, apple-controls.quick-actions, apple-controls.workflow, apple-controls.project, apple-controls.private-cache
 // Specification: specifications/features/chat-navigation/specification.yml
-// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize, chat-navigation.open.local-first-coherent
 // Specification: specifications/features/auth/specification.yml
 // Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 // Specification: specifications/features/notifications/specification.yml
@@ -29,7 +29,7 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity, chats.direction.reviewed-correction, chats.send.immediate-admission
 // Specification: specifications/architecture/sync/specification.yml
-// Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated
+// Assertions: sync.surface.semantic-parity, sync.startup.bounded-phases, sync.access.first-party-authenticated, sync.startup.recent-metadata-cap
 // Specification: specifications/features/rules/specification.yml — rules.transparency.applied-set
 // Specification: specifications/features/focus-modes/specification.yml — focus-modes.project-authoring-click, focus-modes.project-authoring-persistence
 // Specification: specifications/features/apple-notifications/specification.yml
@@ -295,6 +295,9 @@ struct WorkflowCompletionPersonalHandoff {
 }
 
 struct MainAppView: View {
+    /// One shared 25 s heartbeat. Created in `body`, the timer was rebuilt and
+    /// resubscribed on every shell invalidation (device lag report, build 100).
+    private static let lifecycleHeartbeat = Timer.publish(every: 25, on: .main, in: .common).autoconnect()
     let launchCommand: AppWindowLaunchCommand?
 
     private static let encryptedUserStorageRetryLimit = 3
@@ -410,10 +413,6 @@ struct MainAppView: View {
     @State private var syncedNewChatSuggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var accountInterestTagIds: [InterestTagId] = []
     @State private var totalChatCount = 0
-    @State private var isLoadingMore = false
-    @State private var nextServerChatOffset = 0
-    @State private var serverChatPagesExhausted = false
-    @State private var chatPageGeneration = UUID()
     @State private var showRenameAlert = false
     @State private var renameChatId: String?
     @State private var renameChatTitle = ""
@@ -437,6 +436,8 @@ struct MainAppView: View {
     @State private var didApplyLaunchCommand = false
     @State private var shellSwipeTarget: ShellSwipeTarget?
     @State private var shellDragOffset: CGFloat = 0
+    @State private var startupAutomaticallySelectedChatID: String?
+    @State private var startupNavigationSuperseded = false
     @State private var visibleUserChatLimit = Self.initialUserChatLimit
     @State private var lastActiveSidebarSelection: ChatSidebarDisplayPolicy.RetainedSelection?
     @State private var syncProcessingTask: Task<Void, Never>?
@@ -461,6 +462,9 @@ struct MainAppView: View {
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
+        #if DEBUG
+        NativeStartupBenchmark.mark(.mainShellInit)
+        #endif
     }
 
     #if DEBUG
@@ -807,7 +811,8 @@ struct MainAppView: View {
                 NativeReadOnlyResponsivenessProbe(accountID: authManager.currentUser?.id,
                     serverKind: ServerProfile.current().diagnosticsKind,
                     selectedChatID: selectedChatId, searchVisible: showSearch,
-                    sidebarVisible: isChatsPanelOpen)
+                    sidebarVisible: isChatsPanelOpen,
+                    populatedSidebarRows: startupBenchmarkPopulatedSidebarRows)
             }
         }
         #endif
@@ -1197,7 +1202,10 @@ struct MainAppView: View {
                   event.userInfo?["scope"] as? UUID == OfflineStore.shared.scopeGeneration,
                   event.userInfo?["server"] as? ServerProfile == ServerProfile.current() else { return }
             let readable = Set(teamContext.teams.filter(\.canRead).map(\.id))
-            let cached = ChatSearchContextPolicy.eligible(OfflineStore.shared.loadChats(), readableTeamIDs: readable)
+            let teamID = event.userInfo?["teamID"] as? String
+            if let teamID, !readable.contains(teamID) { return }
+            let cached = ChatSearchContextPolicy.eligible(
+                OfflineStore.shared.loadRecentChats(teamID: teamID), readableTeamIDs: readable)
             let missing = ChatSearchMetadata.missingCachedChats(cached, loaded: chatStore.chats)
             if !missing.isEmpty { chatStore.performWithoutPersistence { chatStore.upsertChats(missing) } }
             scheduleGlobalSpotlight(reason: "allContextMetadata")
@@ -1306,6 +1314,11 @@ struct MainAppView: View {
             Task { await flushQueuedNotificationReplies() }
         }
         .onChange(of: selectedChatId, selectedChatDidChange)
+        .onReceive(CoreChatWindow.shared.startupSelections, perform: applyStartupChatSelection)
+        .onReceive(CoreChatWindow.shared.unavailableStartupChats) { id in
+            guard selectedChatId == id, startupAutomaticallySelectedChatID == id else { return }
+            selectedChatId = nil
+        }
         .onChange(of: showNewChat, showNewChatDidChange)
         .onChange(of: showSettings, showSettingsDidChange)
         .onReceive(OfflineAIModelPackPresentation.shared.settingsRequests) { _ in
@@ -1313,7 +1326,7 @@ struct MainAppView: View {
         }
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
-        .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Self.lifecycleHeartbeat) { _ in
             guard isAuthenticated, didBootstrapAuthenticatedSession,
                   wsManager.connectionState == .connected else { return }
             #if os(macOS)
@@ -1791,6 +1804,28 @@ struct MainAppView: View {
         ))
     }
 
+    private func applyStartupChatSelection(_ selection: CoreStartupChatSelection) {
+        #if DEBUG
+        guard !isChatNavigationUITestEnabled,
+              !ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat") else { return }
+        #endif
+        guard !startupNavigationSuperseded, didBootstrapAuthenticatedSession, isAuthenticated,
+              appSession.ownsSharedSync(windowRuntimeID), selectedWorkspace == .chat,
+              selectedChatId == nil || selectedChatId == startupAutomaticallySelectedChatID,
+              teamContext.hasRestoredInitialSelection, coreChatList.coreTeamID == teamContext.teamID,
+              deepLinkHandler.pendingChatId == nil, deepLinkHandler.pendingActiveChatsWidgetLink == nil,
+              pushManager.pendingChatId == nil, !showAuthSheet else { return }
+        startupAutomaticallySelectedChatID = selection.chatID
+        selectedChatId = selection.chatID
+        showNewChat = false
+    }
+
+    private func interruptStartupChatSelection() {
+        startupNavigationSuperseded = true
+        startupAutomaticallySelectedChatID = nil
+        coreChatList.interruptStartupNavigation()
+    }
+
     private func selectedChatDidChange(_ oldValue: String?, _ chatId: String?) {
         if let chatId, RetiredIntroChatPolicy.excludes(chatId) {
             selectedChatId = nil; showNewChat = true; pendingHistoryPresentationChatID = nil
@@ -1804,14 +1839,18 @@ struct MainAppView: View {
         #endif
         ChatHistoryPresentationInterruption.invalidate(pendingChatID: &pendingHistoryPresentationChatID,
             generation: &historyPresentationGeneration, selectedChatID: chatId)
-        if oldValue != chatId {
+        let automaticStartup = (chatId ?? oldValue) != nil &&
+            (chatId ?? oldValue) == startupAutomaticallySelectedChatID
+        if automaticStartup, chatId == nil { startupAutomaticallySelectedChatID = nil }
+        if oldValue != chatId, !automaticStartup {
+            interruptStartupChatSelection()
             syncBridge?.foregroundDidNavigate()
             foregroundWorkspaceDidNavigate()
         }
         if let chatId {
             lastActiveSidebarSelection = .init(chatID: chatId, scope: sidebarAccountScope)
         }
-        if let chatId, let accountId = authManager.currentUser?.id,
+        if !automaticStartup, let chatId, let accountId = authManager.currentUser?.id,
            let chat = chatStore.chat(for: chatId), WelcomeScreenState.isContinuationEligible(chat, draftPreview: DraftService.shared.displayDraftPreviews[chat.id]) {
             authManager.updateLastOpened(chatId, accountId: accountId)
         }
@@ -1902,6 +1941,8 @@ struct MainAppView: View {
         let generation = authenticatedRuntimeGeneration
         let scope = OfflineStore.shared.scopeGeneration
         didBootstrapAuthenticatedSession = false
+        startupNavigationSuperseded = false
+        startupAutomaticallySelectedChatID = nil
         syncProcessingTask?.cancel()
         syncProcessingTask = nil
         backgroundSyncFlushTask?.cancel()
@@ -1915,10 +1956,6 @@ struct MainAppView: View {
         historyPresentationGeneration = UUID()
         pendingBackgroundSyncContent = PendingSyncedContent()
         pendingTypingMetadata.removeAll()
-        nextServerChatOffset = 0
-        serverChatPagesExhausted = false
-        chatPageGeneration = UUID()
-        isLoadingMore = false
         accountInterestTagIds = []
         syncBridge = nil
         guard isAuthenticated else { return }
@@ -2298,12 +2335,18 @@ struct MainAppView: View {
     }
 
     private func websocketConnectionStateDidChange(_ oldValue: WebSocketManager.ConnectionState, _ newValue: WebSocketManager.ConnectionState) {
-        guard newValue == .connected else { return }
+        guard newValue == .connected else {
+            if oldValue == .connected, appSession.ownsSharedSync(windowRuntimeID) {
+                coreChatList.pauseReconnectRefresh()
+            }
+            return
+        }
         maintainOfflineWorkspaces(force: true)
         // Each visible app window owns its pending URL/tap; reconnect work
         // coordination must not suppress that window's destination retry.
         openPendingWorkflowCompletion()
-        if appSession.claimSharedReconnectWork(windowRuntimeID) {
+        if let isReconnect = appSession.claimSharedReconnectWork(windowRuntimeID) {
+            if isReconnect, authManager.hasNetworkAuthority { coreChatList.resumeAfterReconnect() }
             pendingPushChatDidChange(nil, pushManager.pendingChatId)
             Task {
                 await syncBridge?.replayPendingActions()
@@ -2328,6 +2371,7 @@ struct MainAppView: View {
     }
 
     private func openNewChatScreen() {
+        interruptStartupChatSelection()
         newChatPrefillText = nil
         resumeNewChatScreen()
         freshNewChatRequest += 1
@@ -2356,6 +2400,7 @@ struct MainAppView: View {
     }
 
     private func closeChatToWorkspaceLanding() {
+        interruptStartupChatSelection()
         #if os(macOS)
         // A close previously inherited both shell route animations. AppKit
         // flushed and remeasured the outgoing selectable transcript inside the
@@ -2440,6 +2485,7 @@ struct MainAppView: View {
     }
 
     private func selectWorkspace(_ workspace: WorkspaceDestination, loadContent: Bool = true) {
+        interruptStartupChatSelection()
         widgetRunningChatsOnly = false
         cancelPendingWidgetNavigation()
         foregroundWorkspaceDidNavigate()
@@ -2886,6 +2932,8 @@ struct MainAppView: View {
         traceNativeStartupSync("phase=startupReset markerWasComplete=\(appSession.isInitialSyncComplete)")
         authenticatedRuntimeGeneration = UUID()
         didBootstrapAuthenticatedSession = false
+        startupNavigationSuperseded = false
+        startupAutomaticallySelectedChatID = nil
         appSession.isInitialSyncComplete = false
         syncProcessingTask?.cancel()
         syncProcessingTask = nil
@@ -2902,10 +2950,6 @@ struct MainAppView: View {
         pendingTypingMetadata.removeAll()
         appSession.resetTransientRuntime()
         totalChatCount = 0
-        nextServerChatOffset = 0
-        serverChatPagesExhausted = false
-        chatPageGeneration = UUID()
-        isLoadingMore = false
         accountInterestTagIds = []
         selectedChatId = nil
         showNewChat = false
@@ -2992,6 +3036,13 @@ struct MainAppView: View {
             seedWelcomeRecentOverflowUITestStateIfNeeded()
             seedShellPerformanceUITestStateIfNeeded()
             resumeNewChatScreen()
+            #if DEBUG
+            // The explicit test route opens the genuine form independently
+            // of anonymous status or history requests.
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-open-login") {
+                applyLaunchCommandIfNeeded()
+            }
+            #endif
             await anonymousFreeUsage.refreshStatus()
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
             // Fetch default daily inspirations (public endpoint, no auth required)
@@ -3052,7 +3103,7 @@ struct MainAppView: View {
               let identifier = pendingSpotlightIdentifier else { return }
         pendingSpotlightIdentifier = nil
         guard let chatID = SpotlightIndexer.shared.chatID(for: identifier),
-              let chat = chatStore.chat(for: chatID) ?? OfflineStore.shared.loadChats().first(where: { $0.id == chatID }),
+              let chat = chatStore.chat(for: chatID) ?? coreChatList.chat(for: chatID) ?? OfflineStore.shared.loadChat(id: chatID),
               isVisibleUserChat(chat), chat.teamId == nil || teamContext.teams.contains(where: { $0.id == chat.teamId && $0.canRead }) else { return }
         if chatStore.chat(for: chatID) == nil { chatStore.performWithoutPersistence { chatStore.upsertChats([chat]) } }
         handleSearchSelection(.init(chatId: chatID, messageId: nil, query: "", teamID: chat.teamId))
@@ -3792,6 +3843,7 @@ struct MainAppView: View {
                 recordRequest: newChatRecordRequest,
                 cameraCaptureRequest: newChatCameraCaptureRequest,
                 isSettingsOpen: currentViewportWidth > 1100 && showSettings,
+                onReportIssue: { openReportIssue(prefill: .init(title: "", category: "bug")) },
                 onCreateChatWithMessage: { message, piiMappings, composerEmbeds, speechScope, draftID in
                     let now = ChatSendPipeline.isoString(from: Date())
                     if incognitoManager.isEnabled {
@@ -3987,18 +4039,22 @@ struct MainAppView: View {
             let isPublic = publicChatGroup(for: chatId) != nil
             let headerActions = MainAppChatHeaderActionPolicy.actions(isPublic: isPublic)
             let historyReady = pendingHistoryPresentationChatID != chatId
+            let coreRow = isPublic ? nil : coreChatList.chat(for: chatId)
+            let initialChat = isPublic ? nil : chatStore.chat(for: chatId) ?? coreRow
+            let startsCoreHistoryDuringPresentation = CoreChatWindow.shared.isAttached && coreRow != nil
             let neighbors = chatNavigationActions(for: chatId)
             let initialWindow: [Message] = isPublic || !historyReady ? [] : ChatHistoryWindowPolicy.initialMessages(
-                chatStore.messages(for: chatId), anchor: chatStore.chat(for: chatId)?.lastVisibleMessageId)
+                chatStore.messages(for: chatId), anchor: initialChat?.lastVisibleMessageId)
             ChatView(
                 chatId: chatId,
                 projectReviewOwnerID: isPublic ? nil : windowRuntimeID,
                 bannerState: chatStore.chat(for: chatId).map { WelcomeScreenState.isDraftOnly($0, draftPreview: DraftService.shared.displayDraftPreviews[$0.id]) } == true
                     ? nil : isPublic ? demoBannerState(for: chatId) : nil,
                 bannerCreatedAt: nil,
-                initialChat: isPublic ? nil : chatStore.chat(for: chatId),
+                initialChat: initialChat,
                 initialMessages: initialWindow,
                 historyPresentationReady: historyReady,
+                startsCoreHistoryDuringPresentation: startsCoreHistoryDuringPresentation,
                 initialEmbeds: isPublic || !historyReady ? [] : chatStore.initialEmbedsForVisibleWindow(for: chatId, messages: initialWindow),
                 wsManager: wsManager,
                 chatStore: chatStore,
@@ -4109,9 +4165,10 @@ struct MainAppView: View {
         visibleSidebarChatIds
     }
 
-    /// Hold the first history hydration until the actual slide transaction is
-    /// removed. Metadata remains available for the header during presentation.
+    /// Track the slide separately from the shared core's selected-chat read.
+    /// The legacy Swift history inputs are prepared after the slide settles.
     private func presentChatRoute(_ chatID: String) {
+        interruptStartupChatSelection()
         guard !RetiredIntroChatPolicy.excludes(chatID) else {
             selectedChatId = nil; showNewChat = true; pendingHistoryPresentationChatID = nil
             return
@@ -4248,6 +4305,7 @@ struct MainAppView: View {
         let publicSections: [ChatSidebarSection]
         let emptyMessage: String?
         let loadMore: ChatSidebarLoadMore?
+        let accountChatCount: Int?
     }
 
     private var chatSidebarPresentation: ChatSidebarPresentation {
@@ -4273,11 +4331,32 @@ struct MainAppView: View {
         // "Show more" counts the account total the core reported, like the web
         // "Load more (N)"; a search or project filter counts the filtered rows only.
         let accountTotal = appliesChatDisplayLimit ? coreChatList.totalCount ?? 0 : 0
-        let loadMore: ChatSidebarLoadMore? = !widgetRunningChatsOnly && snapshot.shouldShowMore ? ChatSidebarLoadMore(
-            totalCount: max(snapshot.filteredCount, accountTotal), loadedCount: visibleUserChatLimit, isLoading: false) : nil
+        let availableCount = max(snapshot.filteredCount, accountTotal)
+        let loadMore: ChatSidebarLoadMore? = !widgetRunningChatsOnly && appliesChatDisplayLimit &&
+            availableCount > snapshot.visibleChats.count ? ChatSidebarLoadMore(
+                totalCount: availableCount, loadedCount: snapshot.visibleChats.count,
+                isLoading: coreChatList.isLoadingMoreMetadata) : nil
         return ChatSidebarPresentation(userSections: userSections, publicSections: publicSections,
-            emptyMessage: emptyMessage, loadMore: loadMore)
+            emptyMessage: emptyMessage, loadMore: loadMore,
+            accountChatCount: !widgetRunningChatsOnly && teamContext.teamID == nil && accountTotal > 100 ? accountTotal : nil)
     }
+
+    #if DEBUG
+    private var startupBenchmarkPopulatedSidebarRows: Int {
+        guard ProcessInfo.processInfo.arguments.contains("--ui-test-startup-chat-readiness"),
+              isAuthenticated, searchText.isEmpty, chatProjectLocation == nil else { return 0 }
+        let rows = ChatSidebarDisplayPolicy.visibleChats(sortedUserChats: filteredSidebarUserChats,
+            limit: visibleUserChatLimit, selectedChatID: selectedChatId,
+            lastActiveChatID: lastActiveSidebarSelection?.chatID(in: sidebarAccountScope))
+        return Set(rows.compactMap { chat -> UUID? in
+            guard let id = UUID(uuidString: chat.id),
+                  let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !title.isEmpty, title.localizedCaseInsensitiveCompare("Untitled Chat") != .orderedSame,
+                  title.localizedCaseInsensitiveCompare("New Chat") != .orderedSame else { return nil }
+            return id
+        }).count
+    }
+    #endif
 
     private var chatHistorySidebarPanel: some View {
         let presentation = chatSidebarPresentation
@@ -4297,6 +4376,7 @@ struct MainAppView: View {
             selectedChatID: selectedChatId, draftPreviews: widgetRunningChatsOnly ? [:] : draftPreviews, previewsAreFormatted: true,
             rowPresentations: widgetRunningChatsOnly ? [:] : coreChatList.presentations,
             showSearch: showSearch, emptyMessage: presentation.emptyMessage, loadMore: presentation.loadMore,
+            accountChatCount: presentation.accountChatCount,
             actions: chatSidebarActions, refresh: refreshChatSidebar) {
                 chatSidebarSearchContent(draftPreviews: draftPreviews)
             }
@@ -4420,6 +4500,9 @@ struct MainAppView: View {
                     apiBaseURL: ServerProfile.current().apiBaseURL, teamID: teamContext.teamID), teamID: teamContext.teamID)
             return
         }
+        #if DEBUG
+        NativeStartupBenchmark.chatTapped(chat.id)
+        #endif
         chatInputFocusRequest = 0
         presentChatRoute(chat.id)
         searchSelection = nil
@@ -5114,6 +5197,7 @@ struct MainAppView: View {
             pushManager.refreshRegistration()
         }
         appSession.configureDraftsIfNeeded()
+        if let selection = CoreChatWindow.shared.startupSelection { applyStartupChatSelection(selection) }
 
         if isWindowDraftUITestEnabled {
             appSession.isInitialSyncComplete = true
@@ -5336,51 +5420,8 @@ struct MainAppView: View {
         }
     }
 
-    private func loadMoreChatMetadata() async {
-        guard !isLoadingMore, !serverChatPagesExhausted, isAuthenticated else { return }
-        isLoadingMore = true
-        let generation = chatPageGeneration
-        let expectedScope = OfflineStore.shared.scopeGeneration
-        defer {
-            if generation == chatPageGeneration { isLoadingMore = false }
-        }
-        do {
-            // Startup is a delta (and can include older drafts), not a page.
-            // Walk overlapping metadata pages until an unseen chat is found.
-            var foundNewChat = false
-            repeat {
-                let offset = nextServerChatOffset
-                let response = try await wsManager.sendAndWait(
-                    WSOutboundMessage(type: "load_more_chats", payload: ["offset": offset, "limit": 50, "context_epoch": 0]),
-                    responseType: "load_more_chats_response",
-                    matching: { ($0["offset"] as? Int) == offset }
-                )
-                guard !Task.isCancelled, generation == chatPageGeneration, isAuthenticated else { return }
-                let page = try await NativeSyncPayloadDecoder.shared.decodeFields(ChatMetadataPage.self, response: response).value
-                guard !Task.isCancelled, generation == chatPageGeneration, isAuthenticated,
-                      expectedScope == OfflineStore.shared.scopeGeneration else { return }
-                guard page.error == nil else {
-                    ToastManager.shared.show(LocalizationManager.shared.text("login.cant_connect_to_server"), type: .error)
-                    return
-                }
-                let items = page.chats ?? []
-                let existingIds = Set(chatStore.chats.map(\.id))
-                foundNewChat = items.compactMap(\.chatDetails).contains { !existingIds.contains($0.id) }
-                nextServerChatOffset = page.offset + items.count
-                serverChatPagesExhausted = page.hasMore == false || items.isEmpty
-                totalChatCount = page.totalCount ?? totalChatCount
-                await upsertSyncedChats(items.compactMap(\.chatDetails), metadataDecryption: .visibleOnly,
-                                        serverSortOffset: page.offset)
-                if page.hasMore != true || items.isEmpty { break }
-            } while !foundNewChat && generation == chatPageGeneration
-        } catch {
-            print("[MainApp] Failed to load more chats: \(error)")
-        }
-    }
-
-    /// Search includes older scoped cached titles, independently of the sidebar's
-    /// display cap. Reuse the existing metadata cursor only when disk is incomplete;
-    /// neither this path nor search hydration requests message content.
+    /// Sidebar and composer search use the bounded recent metadata window.
+    /// Opening an older chat directly still uses its authorized selected read.
     private func prepareSearchMetadata(forComposer: Bool = false, forWelcomeGrid: Bool = false) async {
         guard isAuthenticated else { return }
         let scope = OfflineStore.shared.scopeGeneration
@@ -5394,7 +5435,7 @@ struct MainAppView: View {
         }
         guard isCurrent() else { return }
         let readableTeams = Set(teamContext.teams.filter(\.canRead).map(\.id))
-        let cached = OfflineStore.shared.loadChats().filter {
+        let cached = OfflineStore.shared.loadStartupChats(lastOpenedChatId: nil, limit: 100).filter {
             isVisibleUserChat($0) && ($0.teamId == nil || $0.teamId.map(readableTeams.contains) == true)
         }
         let missing = ChatSearchMetadata.missingCachedChats(cached, loaded: chatStore.chats)
@@ -5403,31 +5444,28 @@ struct MainAppView: View {
                 chatStore.upsertChats(missing)
             }
         }
-        while isCurrent() {
-            let encrypted = chatStore.chats.filter {
-                isVisibleUserChat($0) && WelcomeScreenState.needsMetadataDecryption($0)
-            }
-            for start in stride(from: 0, to: encrypted.count, by: 25) {
-                guard isCurrent() else { return }
-                await decryptAndUpsertChatMetadata(Array(encrypted[start..<min(start + 25, encrypted.count)]), reason: "searchMetadata")
-            }
-            guard isCurrent(), !serverChatPagesExhausted,
-                  totalChatCount > chatStore.chats.filter({ publicChatGroup(for: $0.id) == nil }).count else { return }
-            // A sidebar request already in flight owns the same cursor. Wait for
-            // it without starting another request with an ambiguous response ID.
-            if isLoadingMore {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                continue
-            }
-            let previousOffset = nextServerChatOffset
-            await loadMoreChatMetadata()
-            guard isCurrent(), nextServerChatOffset != previousOffset else { return }
+        let recent = cached.filter { WelcomeScreenState.needsMetadataDecryption($0) }
+        for start in stride(from: 0, to: recent.count, by: 25) {
+            guard isCurrent() else { return }
+            await decryptAndUpsertChatMetadata(Array(recent[start..<min(start + 25, recent.count)]), reason: "searchMetadata")
         }
     }
 
-    /// Shows more of the core's listed rows; the rows are already decrypted.
+    /// Reveal the next local rows, fetching one metadata page only after this action.
     private func showMoreUserChats() {
-        visibleUserChatLimit = ChatSidebarDisplayPolicy.nextLimit(after: visibleUserChatLimit)
+        let next = ChatSidebarDisplayPolicy.nextLimit(after: visibleUserChatLimit)
+        if filteredSidebarUserChats.count >= next || coreChatList.remainingChatCount == 0 {
+            visibleUserChatLimit = next
+            return
+        }
+        let scope = sidebarAccountScope
+        let workspace = teamContext.snapshot
+        let generation = OfflineStore.shared.scopeGeneration
+        Task {
+            guard await coreChatList.loadMoreMetadata(), scope == sidebarAccountScope,
+                  teamContext.isCurrent(workspace), OfflineStore.shared.scopeGeneration == generation else { return }
+            visibleUserChatLimit = next
+        }
     }
 
     private func pinChat(_ chat: Chat) {
@@ -5521,12 +5559,13 @@ struct MainAppView: View {
         #endif
         guard isAuthenticated, authManager.hasNetworkAuthority,
               let identity = authManager.sessionRecoveryContext else { return }
-        wsManager.configureSessionRecovery {
+        wsManager.configureSessionRecovery { authenticationRejected in
             guard let current = authManager.sessionRecoveryContext,
                   current.accountID == identity.accountID, current.profile == identity.profile,
                   current.sessionID == identity.sessionID else { return .rejected }
-            // The core admits the session again, which rotates the ws_token.
-            await authManager.ensureAdmitted(forceReadmit: true)
+            // Transport loss alone does not invalidate the admitted session.
+            // A forced readmit recreates the core client and cancels its in-flight REST work.
+            await authManager.ensureAdmitted(forceReadmit: authenticationRejected)
             guard let recovered = authManager.sessionRecoveryContext,
                   recovered.accountID == identity.accountID, recovered.profile == identity.profile,
                   recovered.sessionID == identity.sessionID else { return .rejected }
@@ -6963,13 +7002,6 @@ struct MainAppView: View {
                       appSession.ownsSharedSync(windowRuntimeID) else { return }
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 totalChatCount = payload.totalChatCount ?? totalChatCount
-                if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" {
-                    // Delta payload length is not a position in the server list.
-                    nextServerChatOffset = 0
-                    serverChatPagesExhausted = false
-                    chatPageGeneration = UUID()
-                    isLoadingMore = false
-                }
                 let deletedIds = Set(payload.deletedChatIds ?? [])
                 for chatId in deletedIds { applySyncedChatDeletion(chatId) }
                 await upsertSyncedChats(
@@ -7217,8 +7249,13 @@ struct MainAppView: View {
     private func scheduleGlobalSpotlight(reason: String) {
         guard isAuthenticated else { SpotlightIndexer.shared.removeAllItems(); return }
         SpotlightIndexer.shared.scheduleIndexCatalog(reason: reason, catalogProvider: {
-            let cached = ChatSearchMetadata.missingCachedChats(OfflineStore.shared.loadChats(), loaded: chatStore.chats)
-            return (chatStore.sortedChats + cached).filter { isVisibleUserChat($0) }
+            let scopes: [String?] = [nil] + teamContext.teams.filter(\.canRead).map { Optional($0.id) }
+            return scopes.flatMap { teamID in
+                OfflineStore.shared.loadRecentChats(teamID: teamID).compactMap { retained in
+                    let chat = chatStore.chat(for: retained.id) ?? retained
+                    return chat.teamId == teamID && isVisibleUserChat(chat) ? chat : nil
+                }
+            }
         }, metadataProvider: { chat in
             await decryptChatMetadataEnsuringKey(chat)
         })
@@ -7829,7 +7866,8 @@ struct OpenMatesWebHeader: View {
         NativeHeaderControlsLayoutPolicy.presentation(headerWidth: viewportWidth,
             leadingRequiredWidth: isChatsPanelOpen ? 0 : 44,
             logoWidth: intrinsicLogoWidth, trailingRequiredWidth: requiredTrailingWidth,
-            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0, logoRequired: callPillVisible)
+            giftWidth: isAuthenticated ? intrinsicGiftWidth : 0,
+            logoRequired: callPillVisible || headerConnectionState == .reconnecting || headerConnectionState == .offline)
     }
     private var centerWidth: CGFloat {
         if isAuthenticated, showWorkspaceSwitcher { return controlsLayout.centerWidth }
@@ -8472,10 +8510,10 @@ enum WelcomeScreenState {
             .filter { isContinuationEligible($0, draftPreview: draftPreview($0.id)) && $0.id != resumeChatId && $0.id != activeChatId }
             .sorted { lhs, rhs in
                 if (lhs.isPinned == true) != (rhs.isPinned == true) { return lhs.isPinned == true }
-                // Web sorts on encrypted_draft_md presence, not draft_v.
-                let lhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(lhs, preview: draftPreview(lhs.id))
-                let rhsHasDraft = ChatSidebarDisplayPolicy.hasDraftContent(rhs, preview: draftPreview(rhs.id))
-                if lhsHasDraft != rhsHasDraft { return lhsHasDraft }
+                // A draft-only chat gets its own rank. A follow-up draft keeps the chat's activity rank.
+                let lhsDraftOnly = isDraftOnly(lhs, draftPreview: draftPreview(lhs.id))
+                let rhsDraftOnly = isDraftOnly(rhs, draftPreview: draftPreview(rhs.id))
+                if lhsDraftOnly != rhsDraftOnly { return lhsDraftOnly }
                 let lhsTime = lhs.sidebarActivityDate ?? .distantPast
                 let rhsTime = rhs.sidebarActivityDate ?? .distantPast
                 if lhsTime != rhsTime { return lhsTime > rhsTime }
@@ -8660,6 +8698,7 @@ struct NewChatWelcomeView: View {
     let recordRequest: Int
     let cameraCaptureRequest: Int
     let isSettingsOpen: Bool
+    var onReportIssue: (() -> Void)?
     let onCreateChatWithMessage: (String, [PIIMapping], [ComposerPendingEmbed], AssistantSpeechScope?, String) async throws -> String
     let onChatCreated: (String) -> Void
     let onDraftPersisted: (String, Bool) -> Bool
@@ -8756,6 +8795,7 @@ struct NewChatWelcomeView: View {
     @State private var activeRecordingRealtimeSession: AudioRecordingRealtimeSession?
     @State private var recordingLiveTranscript = ""
     @State private var recordingRealtimeConnecting = false
+    @State private var dictationFinishTask: Task<Void, Never>?
     #if DEBUG
     @State private var welcomeSendStage = "idle"
     #endif
@@ -9055,6 +9095,13 @@ struct NewChatWelcomeView: View {
 
     var body: some View {
         welcomeInteractionObservers
+            .overlay(alignment: .topLeading) {
+                if !isWelcomeWorkspaceSuppressed, !browsingChatGrid, let onReportIssue {
+                    WorkspaceReportIssueButton(accessibilityIdentifier: "report-issue-button", action: onReportIssue)
+                        .padding(.horizontal, .spacing6)
+                        .padding(.top, .spacing4)
+                }
+            }
             .overlay {
                 if let record = composerSearchPreview {
                     EmbedFullscreenContainer(embeds: [record], initialEmbedId: record.id,
@@ -9187,7 +9234,7 @@ struct NewChatWelcomeView: View {
                     piiMatches: activePIIMatches,
                     piiVerifying: isVerifyingWelcomePIISend,
                     anonymousAttachmentPending: anonymousAttachmentPending,
-                    isSubmitting: isCreatingChat || isRecordingUploadPending,
+                    isSubmitting: isCreatingChat || isRecordingUploadPending || composerSession.isDictating,
                     pendingComposerEmbeds: pendingComposerEmbeds,
                     recordHintText: recordHintText,
                     recordAttemptActive: recordAttemptActive,
@@ -9400,9 +9447,12 @@ struct NewChatWelcomeView: View {
         .onChange(of: composerSession.revision) { _, _ in
             if suppressNextDraftSave {
                 suppressNextDraftSave = false
-            } else {
+            } else if !composerSession.isDictating {
                 scheduleNewChatDraftSave()
             }
+        }
+        .onChange(of: composerSession.isDictating) { _, active in
+            if !active { scheduleNewChatDraftSave() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
             guard notification.userInfo?["reloadComposer"] as? Bool != false,
@@ -9818,7 +9868,7 @@ struct NewChatWelcomeView: View {
     }
 
     private func startWelcomeRecordingIfNeeded() {
-        guard !recordAttemptActive, composerOverlay != .recording else { return }
+        guard !recordAttemptActive, !composerSession.isDictating, composerOverlay != .recording else { return }
         beginRecordAttempt()
     }
 
@@ -9838,23 +9888,32 @@ struct NewChatWelcomeView: View {
         recordingLiveTranscript = ""
         recordingRealtimeConnecting = false
         composerRecorder.setPCMHandler(nil)
-        guard isAuthenticated, authManager.state == .authenticated else {
-            activeRecordingRealtimeSession = nil
+        if ComposerDictationCapture.isFixture {
+            composerSession.beginDictation()
+            composerSession.updateDictation(ComposerDictationCapture.fixturePartial)
             return
         }
+        #if DEBUG
+        if isUITestWelcomeSimulatedRecording || isUITestWelcomeGuestLocalRecording { return }
+        #endif
+        let transcribing = LocalModelStore.shared.recordingTranscriptionPreference != .off
+        if transcribing { composerSession.beginDictation() }
+        guard transcribing || (isAuthenticated && authManager.state == .authenticated) else { return }
         let session = AudioRecordingRealtimeSession()
         activeRecordingRealtimeSession = session
-        let allocation = welcomeAudioPreallocation(recordingChatID: modelDraftID)
+        let allocation = isAuthenticated ? welcomeAudioPreallocation(recordingChatID: modelDraftID) : nil
         let ownerID = authManager.currentUser?.id
         let markerGeneration = OfflineStore.shared.scopeGeneration
         let markerProfile = ServerProfile.current()
         let markerTeamEpoch = composerSearchTeam.contextEpoch
-        session.begin(authManager: authManager, chatID: modelDraftID, beforeRemoteStart: {
+        session.begin(authManager: authManager, chatID: isAuthenticated ? modelDraftID : nil, beforeRemoteStart: {
+            guard allocation != nil else { return }
             try await BillingUsageDraftAudioRegistry.shared.markCaptured(allocation, accountID: ownerID,
                 cacheGeneration: markerGeneration, serverProfile: markerProfile, teamEpoch: markerTeamEpoch)
         }) { transcript, isConnecting in
             guard activeRecordingRealtimeSession === session else { return }
-            recordingLiveTranscript = transcript
+            if composerSession.isDictating { composerSession.updateDictation(transcript) }
+            else { recordingLiveTranscript = transcript }
             recordingRealtimeConnecting = isConnecting
         }
         composerRecorder.setPCMHandler { [weak session] samples, sampleRate in
@@ -9883,6 +9942,9 @@ struct NewChatWelcomeView: View {
     }
 
     private func cancelWelcomeRealtimeRecording() {
+        dictationFinishTask?.cancel()
+        dictationFinishTask = nil
+        composerSession.cancelDictation()
         composerRecorder.setPCMHandler(nil)
         guard let session = activeRecordingRealtimeSession else { return }
         activeRecordingRealtimeSession = nil
@@ -10189,6 +10251,42 @@ struct NewChatWelcomeView: View {
         }
     }
 
+    private func completeWelcomeCapture(url: URL, send: Bool = false) {
+        composerOverlay = nil
+        recordAttemptActive = false
+        recordGestureCancelled = false
+        recordStartedFromKeyboard = false
+        collapseComposerAfterRecordingCancel = false
+        recordDragOffsetX = 0
+        if composerSession.isDictating {
+            composerRecorder.setPCMHandler(nil)
+            let realtime = activeRecordingRealtimeSession
+            activeRecordingRealtimeSession = nil
+            let scope = AudioRecordingUploadScope.capture()
+            let draft = modelDraftID
+            let teamEpoch = composerSearchTeam.contextEpoch
+            dictationFinishTask = ComposerDictationCapture.finish(url: url, realtime: realtime,
+                editor: composerSession, isCurrent: {
+                    scope.isCurrent && draft == modelDraftID && teamEpoch == composerSearchTeam.contextEpoch
+                }) { inserted, readyToSend in
+                dictationFinishTask = nil
+                if readyToSend && send { createChatWith(message: messageText) }
+                else { restoreWelcomeEditorAfterRecording(inserted: inserted) }
+            }
+            return
+        }
+        let duration = max(composerRecorder.duration, 1)
+        let inserted: Bool
+        if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
+            cancelWelcomeRealtimeRecording()
+            inserted = addPendingComposerEmbed(filename: url.lastPathComponent, kind: .audio,
+                duration: duration, appendAtEnd: true)
+        } else {
+            inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
+        }
+        restoreWelcomeEditorAfterRecording(inserted: inserted)
+    }
+
     private func finishRecordAttempt() {
         recordStartTask?.cancel()
         recordStartTask = nil
@@ -10199,26 +10297,12 @@ struct NewChatWelcomeView: View {
         }
 
         if composerOverlay == .recording {
-            let duration = max(composerRecorder.duration, 1)
-            let inserted: Bool
-            if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
-                _ = composerRecorder.stopRecording()
-                cancelWelcomeRealtimeRecording()
-                inserted = addPendingComposerEmbed(filename: "recording-ui-test.m4a", kind: .audio, duration: duration, appendAtEnd: true)
-            } else if let url = composerRecorder.stopRecording() {
-                inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
+            if let url = composerRecorder.stopRecording() {
+                completeWelcomeCapture(url: url)
             } else {
-                cancelWelcomeRealtimeRecording()
+                cancelWelcomeRecording()
                 showRecordHint(duration: 0)
-                inserted = false
             }
-            composerOverlay = nil
-            recordAttemptActive = false
-            recordGestureCancelled = false
-            recordStartedFromKeyboard = false
-            collapseComposerAfterRecordingCancel = false
-            recordDragOffsetX = 0
-            restoreWelcomeEditorAfterRecording(inserted: inserted)
             return
         }
 
@@ -10506,27 +10590,8 @@ struct NewChatWelcomeView: View {
                     liveTranscript: recordingLiveTranscript,
                     isRealtimeConnecting: recordingRealtimeConnecting,
                     compact: true,
-                    onStop: { url in
-                        let duration = max(composerRecorder.duration, 1)
-                        let inserted: Bool
-                        if isUITestWelcomeSimulatedRecording && !isUITestWelcomeGuestLocalRecording {
-                            cancelWelcomeRealtimeRecording()
-                            inserted = addPendingComposerEmbed(
-                                filename: url.lastPathComponent,
-                                kind: .audio,
-                                duration: duration,
-                                appendAtEnd: true
-                            )
-                        } else {
-                            inserted = enqueueWelcomeRecordingUpload(url: url, duration: duration)
-                        }
-                        self.composerOverlay = nil
-                        self.recordAttemptActive = false
-                        self.recordStartedFromKeyboard = false
-                        self.collapseComposerAfterRecordingCancel = false
-                        self.recordDragOffsetX = 0
-                        restoreWelcomeEditorAfterRecording(inserted: inserted)
-                    },
+                    onStop: { completeWelcomeCapture(url: $0) },
+                    onSend: composerSession.isDictating ? { completeWelcomeCapture(url: $0, send: true) } : nil,
                     onCancel: { cancelWelcomeRecording() },
                     onFailure: {
                         cancelWelcomeRecording()
@@ -10584,7 +10649,44 @@ struct NewChatWelcomeView: View {
             containerSize: containerSize, onOpenChat: openWelcomeContinuationCard, onShowChatActions: onShowChatActions,
             embedRecords: welcomeContinueEmbedRecords, inspirations: rowInspirations,
             onOpenInspiration: { createChatWith(message: $0.text) }, actions: rowActions)
+        #if DEBUG
+            .overlay { continuationDiagnosticsProbe }
+        #endif
     }
+
+    #if DEBUG
+    /// UI-test-only counts explaining which start-row candidates were dropped
+    /// (device report: "Continue" showed 2 cards). Counts only, never titles or ids.
+    @ViewBuilder private var continuationDiagnosticsProbe: some View {
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-read-only-performance") {
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("welcome-continuation-diagnostics")
+                .accessibilityValue(continuationDiagnostics)
+        }
+    }
+
+    private var continuationDiagnostics: String {
+        let scoped = chats.filter { $0.teamId == composerSearchTeam.teamID }
+        let preview: (String) -> String? = { welcomeDraftService.displayDraftPreviews[$0] }
+        let eligible = scoped.filter { WelcomeScreenState.isContinuationEligible($0, draftPreview: preview($0.id)) }
+        let cut = WelcomeScreenState.recentChats(from: scoped, excluding: resumeChat?.id, activeChatId: activeChatID,
+                                                 draftPreview: preview)
+        let notReady = cut.filter { !WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: preview($0.id)) }
+        func count(_ rows: [Chat], _ test: (Chat) -> Bool) -> Int { rows.filter(test).count }
+        return [
+            "chats=\(chats.count)", "scoped=\(scoped.count)", "eligible=\(eligible.count)", "cut=\(cut.count)",
+            "notReady=\(notReady.count)", "resume=\(resumeChat == nil ? 0 : 1)", "cards=\(shownChatCards.count)",
+            "nrNoMessagesV=\(count(notReady) { ($0.messagesV ?? 0) == 0 })",
+            "nrNoLastVisible=\(count(notReady) { $0.lastVisibleMessageId == nil })",
+            "nrUntitled=\(count(notReady) { ($0.title ?? "").trimmingCharacters(in: .whitespaces).isEmpty || $0.title?.lowercased() == "untitled chat" })",
+            "nrEncryptedTitle=\(count(notReady) { $0.encryptedTitle?.isEmpty == false })",
+            "nrDraft=\(count(notReady) { $0.hasNonEmptyDraft == true })",
+            "eligibleNoMessagesV=\(count(eligible) { ($0.messagesV ?? 0) == 0 })",
+            "eligibleUntitled=\(count(eligible) { ($0.title ?? "").isEmpty || $0.title?.lowercased() == "untitled chat" })",
+        ].joined(separator: " ")
+    }
+    #endif
 
     private var startScreenSuggestionTexts: [String] {
         StartScreenSuggestions.visibleTexts(from: rankedSuggestions(suggestions).map(\.text))
@@ -10594,7 +10696,7 @@ struct NewChatWelcomeView: View {
     @ViewBuilder private var startScreenSuggestionRows: some View {
         let texts = startScreenSuggestionTexts
         if !texts.isEmpty {
-            FollowUpSuggestions(suggestions: texts, singleLine: true,
+            FollowUpSuggestions(suggestions: texts, singleLine: true, alignStart: true,
                 maxVisible: StartScreenSuggestions.maxVisible,
                 containerIdentifier: "start-screen-suggestions",
                 rowIdentifierPrefix: "start-screen-suggestion-") { text in
@@ -11532,42 +11634,37 @@ private struct GuestLandingStoryCard: View {
     let height: CGFloat
     let onSignup: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     private var isCompact: Bool { height <= 300 }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let time = timeline.date.timeIntervalSinceReferenceDate
-            ZStack(alignment: .topLeading) {
-                AnimatedCategoryBackground(category: "openmates_official", iconName: story.icon, time: time)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+        ZStack(alignment: .topLeading) {
+            CategoryCardBackground(category: "openmates_official", iconName: story.icon)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: isCompact ? .spacing3 : .spacing5) {
-                    landingMetric
-                    featureHeader
+            VStack(alignment: .leading, spacing: isCompact ? .spacing3 : .spacing5) {
+                landingMetric
+                featureHeader
 
-                    Group {
-                        switch story.kind {
-                        case .intro:
-                            introContent
-                        case .actionable:
-                            actionableContent
-                        case .privacy, .mates, .platform:
-                            productStoryContent
-                        case .signup:
-                            signupContent
-                        }
+                Group {
+                    switch story.kind {
+                    case .intro:
+                        introContent
+                    case .actionable:
+                        actionableContent
+                    case .privacy, .mates, .platform:
+                        productStoryContent
+                    case .signup:
+                        signupContent
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 }
-                .padding(.horizontal, isCompact ? 38 : 44)
-                .padding(.top, isCompact ? 14 : 18)
-                .padding(.bottom, isCompact ? 18 : 22)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .zIndex(2)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
+            .padding(.horizontal, isCompact ? 38 : 44)
+            .padding(.top, isCompact ? 14 : 18)
+            .padding(.bottom, isCompact ? 18 : 22)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .zIndex(2)
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
@@ -12182,7 +12279,7 @@ struct WelcomeDraftCard: View {
         VStack(alignment: .leading, spacing: .spacing1) {
             Text(AppStrings.draftBadge).font(.omP).foregroundStyle(Color.grey60)
             Text(card.draftPreview ?? "").font(.omP).fontWeight(.medium)
-                .foregroundStyle(Color.fontPrimary).lineLimit(1)
+                .foregroundStyle(Color.fontPrimary).lineLimit(3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, .spacing8).padding(.vertical, .spacing5)
@@ -12296,18 +12393,14 @@ struct WelcomeResumeCard: View {
 }
 
 
-/// Only decorative pixels depend on animation time. Semantic content and
-/// gesture/accessibility state remain in the stable parent card.
+/// The card keeps the category artwork in a fixed pose while idle.
 private struct WelcomeResumeCardBackground: View {
     let category: String
     let iconName: String
 
     var body: some View {
-        WelcomeDecorativeClock { time in
-            AnimatedCategoryBackground(category: category, iconName: iconName,
-                time: time)
-        }
-        .accessibilityHidden(true)
+        CategoryCardBackground(category: category, iconName: iconName)
+            .accessibilityHidden(true)
     }
 }
 
@@ -12442,26 +12535,25 @@ private struct WelcomeCardInteractionSurface: UIViewRepresentable {
 }
 #endif
 
-private struct AnimatedCategoryBackground: View {
+private struct CategoryCardBackground: View {
     let category: String
     let iconName: String
-    let time: Double
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
                 CategoryMapping.gradient(for: category)
 
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 280, height: 240), opacity: 0.35, time: time, morph: 11, drift: 19)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 280, height: 240), opacity: 0.35)
                     .position(x: -20, y: 20)
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 260, height: 220), opacity: 0.35, time: time + 8, morph: 13, drift: 23)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 260, height: 220), opacity: 0.35)
                     .position(x: geo.size.width + 20, y: geo.size.height + 10)
-                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 200, height: 180), opacity: 0.38, time: time + 15, morph: 17, drift: 29)
+                resumeOrb(color: CategoryMapping.orbColor(for: category), size: CGSize(width: 200, height: 180), opacity: 0.38)
                     .position(x: geo.size.width * 0.48, y: 50)
 
-                decoIcon(size: 80, rotation: -15, time: time)
+                decoIcon(size: 80, rotation: -15)
                     .position(x: 30, y: geo.size.height - 12)
-                decoIcon(size: 80, rotation: 15, time: time + 8)
+                decoIcon(size: 80, rotation: 15)
                     .position(x: geo.size.width - 30, y: geo.size.height - 12)
             }
         }
@@ -12470,13 +12562,8 @@ private struct AnimatedCategoryBackground: View {
         .accessibilityHidden(true)
     }
 
-    private func resumeOrb(color: Color, size: CGSize, opacity: Double, time: Double, morph: Double, drift: Double) -> some View {
-        let morphX = 1.0 + 0.15 * sin(time * .pi * 2 / morph)
-        let morphY = 1.0 + 0.15 * cos(time * .pi * 2 / morph + 0.7)
-        let driftX = 18 * sin(time * .pi * 2 / drift)
-        let driftY = 15 * cos(time * .pi * 2 / drift + 1.2)
-
-        return Ellipse()
+    private func resumeOrb(color: Color, size: CGSize, opacity: Double) -> some View {
+        Ellipse()
             .fill(
                 RadialGradient(
                     colors: [color, color, color.opacity(0)],
@@ -12486,20 +12573,14 @@ private struct AnimatedCategoryBackground: View {
                 )
             )
             .frame(width: size.width, height: size.height)
-            .scaleEffect(x: morphX, y: morphY)
-            .offset(x: driftX, y: driftY)
             .blur(radius: 22)
             .opacity(opacity)
     }
 
-    private func decoIcon(size: CGFloat, rotation: Double, time: Double) -> some View {
+    private func decoIcon(size: CGFloat, rotation: Double) -> some View {
         WelcomeCardIcon(name: iconName, size: size)
             .opacity(0.3)
             .rotationEffect(.degrees(rotation))
-            .offset(
-                x: 7 * cos(time * .pi * 2 / 16),
-                y: 8 * sin(time * .pi * 2 / 16)
-            )
     }
 }
 
@@ -12659,7 +12740,7 @@ private struct WelcomeComposer: View {
 
     private var overlayHeight: CGFloat {
         isRecordingOverlayActive
-            ? ComposerRecordingOverlay.compactPanelHeight
+            ? ComposerRecordingOverlay.compactPanelHeight + (session.isDictating ? MessageComposerMetric.focusedEmptyHeight : 0)
             : min(400, maximumViewportFieldHeight)
     }
 
@@ -12713,6 +12794,7 @@ private struct WelcomeComposer: View {
                     (isAuthenticated || canSendAnonymously) ? onSend() : onOpenAuth()
                 },
                 inlineFieldContent: nil,
+                overlayAtBottom: isRecordingOverlayActive && session.isDictating,
                 idleFieldContent: !isOpen && !isDraftPreview ? idleFieldControls : nil,
                 showsDraftPreview: isDraftPreview,
                 draftPreviewMicrophone: AnyView(recordGestureButton),
@@ -12846,8 +12928,26 @@ private struct NativeReadOnlyResponsivenessProbe: View {
     let selectedChatID: String?
     let searchVisible: Bool
     let sidebarVisible: Bool
+    let populatedSidebarRows: Int
+    @State private var shellMountUptimeMS: Int?
+    @State private var firstRowReadyUptimeMS: Int?
+    @State private var tenRowsReadyUptimeMS: Int?
 
     var body: some View {
+        snapshotView
+            .onAppear {
+                if shellMountUptimeMS == nil {
+                    shellMountUptimeMS = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+                }
+            }
+            .onChange(of: populatedSidebarRows, initial: true) { _, count in
+                let now = Int(ProcessInfo.processInfo.systemUptime * 1_000)
+                if count > 0, firstRowReadyUptimeMS == nil { firstRowReadyUptimeMS = now }
+                if count >= 10, tenRowsReadyUptimeMS == nil { tenRowsReadyUptimeMS = now }
+            }
+    }
+
+    @ViewBuilder private var snapshotView: some View {
         #if os(iOS)
         NativeReadOnlyMetricSnapshot(snapshot: { metrics })
             .frame(width: 1, height: 1)
@@ -12870,7 +12970,7 @@ private struct NativeReadOnlyResponsivenessProbe: View {
         let route = selectedChatID.map {
             SHA256.hash(data: Data($0.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
         } ?? "none"
-        return "account-hash=\(identity);server-kind=\(serverKind);route-hash=\(route);search-visible=\(searchVisible);sidebar-visible=\(sidebarVisible);samples=\(frames["sample_count"] ?? 0);average-fps=\(frames["average_fps"] ?? 0);worst-frame-ms=\(frames["worst_frame_ms"] ?? 0);jank-count=\(frames["jank_count"] ?? 0)"
+        return "account-hash=\(identity);server-kind=\(serverKind);route-hash=\(route);search-visible=\(searchVisible);sidebar-visible=\(sidebarVisible);sidebar-populated-rows=\(populatedSidebarRows);app-entry-uptime-ms=\(NativeStartupBenchmark.appEntryUptimeMS);shell-mount-uptime-ms=\(shellMountUptimeMS ?? 0);sidebar-first-row-uptime-ms=\(firstRowReadyUptimeMS ?? 0);sidebar-ten-rows-uptime-ms=\(tenRowsReadyUptimeMS ?? 0);\(NativeStartupBenchmark.stageFields);scope-setup-ms=\(NativeStartupBenchmark.scopeSetupDurationMS);scope-pending-count-ms=\(NativeStartupBenchmark.scopePendingCountDurationMS);samples=\(frames["sample_count"] ?? 0);average-fps=\(frames["average_fps"] ?? 0);worst-frame-ms=\(frames["worst_frame_ms"] ?? 0);jank-count=\(frames["jank_count"] ?? 0)"
     }
 }
 

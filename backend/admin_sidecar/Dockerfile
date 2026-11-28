@@ -59,8 +59,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy only the sidecar app code — nothing from the main service
 COPY backend/admin_sidecar/main.py .
 
+RUN groupadd --gid 10005 sidecar \
+    && useradd --uid 10005 --gid sidecar --no-create-home --shell /usr/sbin/nologin sidecar
+
+# Git and Docker need a writable home even when Compose maps a checkout owner.
+ENV HOME=/tmp
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+
+USER sidecar
 
 EXPOSE 8001
 

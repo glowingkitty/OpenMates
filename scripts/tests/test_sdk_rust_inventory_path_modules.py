@@ -40,6 +40,13 @@ def test_public_path_module_is_inventoried_under_its_module_path(tmp_path):
     assert "client.view.render" not in names
 
 
+def test_rust_inventory_masks_escaped_newline_in_string_literal(tmp_path):
+    write_crate(tmp_path)
+    source = tmp_path / "packages/openmates-rust/src/accounts_tokens.rs"
+    source.write_text('const EXAMPLE: &str = "' + "\\" + '\n[(}";\npub fn merge() {}\n')
+    assert "accounts.tokens.merge" in discover(tmp_path)
+
+
 def test_deploy_guard_only_triggers_on_app_metadata_or_generators():
     assert sessions._should_check_generated_sdk_app_skills(["backend/apps/pdf/app.yml"])
     assert sessions._should_check_generated_sdk_app_skills(["scripts/generate_rust_sdk_apps.py"])

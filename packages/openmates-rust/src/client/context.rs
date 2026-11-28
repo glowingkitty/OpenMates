@@ -278,7 +278,17 @@ impl Client {
             required(wrapper, "encrypted_embed_key")?,
             key,
         )?)?;
-        let plain = zeroize::Zeroizing::new(crypto::decrypt_combined(required(&data["embed"], "encrypted_content")?, &embed_key)?);
+        let row = &data["embed"];
+        let ciphertext = required(row, "encrypted_content")?;
+        let plain = match super::embed_user_revision::team_cipher::ciphertext_epoch(ciphertext)? {
+            Some(epoch) => {
+                let team = self.team()?.ok_or(Error::Forbidden)?.to_owned();
+                let version = row["version_number"].as_i64().ok_or(Error::Protocol)?;
+                self.team_revision_cipher(&team, embed, Some(epoch)).await?
+                    .ok_or(Error::Crypto)?.open(version, "content", ciphertext)?
+            }
+            None => zeroize::Zeroizing::new(crypto::decrypt_combined(ciphertext, &embed_key)?),
+        };
         let mut value = ContextValue(super::toon::decode(&plain)?);
         scope.check(self)?;
         Ok(std::mem::take(&mut value.0))

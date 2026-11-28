@@ -959,6 +959,12 @@
         "description": {
           "text": "קורא עיצוב Figma ומחזיר מבנה, סגנונות והעברה לקוד."
         }
+      },
+      "author": {
+        "text": "יצירת עיצוב",
+        "description": {
+          "text": "יצירת עלון, פוסט או מוקאפ שניתנים לעריכה."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "יצירת משימה",
-          "description": {
-            "text": "צרו משימות עם כותרות, תיאורים ואחראים."
-          }
-        },
         "search": {
           "text": "חיפוש משימות",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "צ'אט לדוגמה"
       },
+      "sub_chat": {
+        "text": "תת-צ'אט"
+      },
       "shared_chat": {
         "text": "צ'אט משותף"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "הצג עוד"
+      },
+      "account_total": {
+        "text": "{count} שיחות בחשבון שלך"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "כווץ את {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "משימה"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "תרשים Mermaid"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "קורא את הגרפיקה…"
+        },
+        "progress_checking": {
+          "text": "בודק את העיצוב…"
+        },
+        "progress_adjusting": {
+          "text": "מתאים את העיצוב לרקמה…"
+        },
+        "progress_stitching": {
+          "text": "יוצר תפרים ותצוגה מקדימה…"
+        },
+        "progress_saving": {
+          "text": "שומר את קובצי המכונה…"
+        },
         "threads": {
           "text": "חוטים"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "הורדת העיצוב"
+        },
+        "current_page": {
+          "text": "העמוד הנוכחי"
+        },
+        "all_pages": {
+          "text": "כל העמודים"
+        },
+        "image_unavailable": {
+          "text": "אחת התמונות אינה זמינה במכשיר הזה. יש לפתוח את העמוד, להמתין לטעינת התמונות ולנסות שוב."
+        },
+        "failed": {
+          "text": "לא ניתן היה להוריד את העיצוב. נסו שוב."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "נסו בחינם"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "דומיין האימייל אינו מורשה."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "שיחות משתמשות בתמלול Mistral, בקול ElevenLabs v4 Turbo, בניתוב ה-AI הרגיל של OpenMates ובחיוב לפי שימוש."
-    },
     "privacy_description": {
       "text": "Mistral מתמללת את שמע המיקרופון; ElevenLabs v4 Turbo יוצרת את קול העוזר מטקסט התשובה ומהגדרות הקול. השיחה משתמשת בניתוב ה-AI ובמיומנויות הרגילים של OpenMates. ספקים עשויים לשמור נתוני בקשות בהתאם למדיניות שלהם."
     },

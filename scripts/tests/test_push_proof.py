@@ -140,7 +140,13 @@ def test_screenshot_and_video_go_out_as_discord_files_on_top_of_the_short_text(r
     assert sent[0]["files"][0][1] == shot.read_bytes()
     assert sent[0]["payload"]["content"] == message and message.count("\n") == 0
     entry = json.loads((root / aq.PUSH_LOG).read_text().splitlines()[-1])
-    assert entry["proof"] == {"files": ["settings.png", "flow.webm"], "links": []}
+    assert entry["proof"]["files"] == ["settings.png", "flow.webm"] and entry["proof"]["links"] == []
+    # Kept copies for the owner's connector (owner, 23 Nov): owner-only, under logs/agent-questions/proof/.
+    stored = [root / rel for rel in entry["proof"]["stored"]]
+    assert [p.name for p in stored] == ["settings.png", "flow.webm"]
+    assert stored[0].read_bytes() == shot.read_bytes()
+    assert all(str(p.relative_to(root)).startswith("logs/agent-questions/proof/") for p in stored)
+    assert stored[1].stat().st_mode & 0o077 == 0
 
 
 def test_large_screenshot_is_compressed_below_the_limit(tmp_path):
@@ -263,3 +269,55 @@ def test_post_files_sends_one_multipart_message_and_confirms_every_attachment():
         files=[("a.png", b"A"), ("b.webm", b"B")],
         opener=lambda *_a, **_k: FakeResponse({"id": "9", "attachments": [{"id": "1"}]}))
     assert missing is None
+
+
+# --- video rule (owner, 23 Nov 2026): a Playwright run needs its video on the push -------------------
+
+def host_event(root: Path, **event) -> None:
+    path = root / push_proof.HOST_EVENTS
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as handle:
+        handle.write(json.dumps(event) + "\n")
+
+
+def test_playwright_ci_and_heavy_slot_runs_need_a_video(root):
+    sessions(root, aa11=("chat-1", []), bb22=("chat-2", []), cc33=("chat-3", []))
+    ci_jobs(root, ("aa11", "e2e", "success"), ("cc33", "apple-ui", "success"))
+    host_event(root, event="heavy_remote_run", kind="playwright", session="chat-2", command="npx playwright test x")
+    host_event(root, event="heavy_slot_run", session="chat-3", command="cargo test", **{"class": "heavy"})
+    assert push_proof.video_reasons(root, "chat-1") == ["ran 1 Playwright CI job(s) (e2e)"]
+    assert push_proof.video_reasons(root, "chat-2") == ["ran Playwright 1 time(s) through heavy_slot"]
+    assert push_proof.video_reasons(root, "chat-3") == []  # Apple UI and cargo runs are no Playwright runs
+
+
+def test_screenshot_alone_is_refused_after_a_playwright_run_even_without_deploy(root, tmp_path):
+    sessions(root, aa11=("chat-1", []))
+    ci_jobs(root, ("aa11", "component", "failure"))
+    shot = png(tmp_path / "shot.png")
+    with pytest.raises(aq.QuestionError, match="needs the run's video"):
+        aq.send(done(attach=[str(shot)]), root, "chat-1", 1.0, post=lambda **_: pytest.fail("posted"),
+                post_files=lambda **_: pytest.fail("posted"))
+    video = tmp_path / "video-with-audio.webm"
+    video.write_bytes(b"\x1aE\xdf\xa3" + b"0" * 500)
+    sent = []
+    aq.send(done(attach=[str(shot), str(video)]), root, "chat-1", 1.0, post=lambda **_: pytest.fail("text-only"),
+            post_files=lambda **kw: sent.append(kw) or {"message_id": "1", "attachment_ids": ["a", "b"]})
+    assert [name for name, _ in sent[0]["files"]] == ["shot.png", "video-with-audio.webm"]
+
+
+def test_a_signed_video_link_counts_and_no_proof_is_said_loudly(root):
+    sessions(root, aa11=("chat-1", []))
+    ci_jobs(root, ("aa11", "e2e", "success"))
+    text = aq.send(done(link=[OWN_LINK], dry_run=True), root, "chat-1", 1.0, post=lambda **_: pytest.fail("posted"))
+    assert "No video" not in text
+    text = aq.send(done(no_proof="the run crashed before the browser started", dry_run=True), root, "chat-1", 1.0,
+                   post=lambda **_: pytest.fail("posted"))
+    assert "⚠️ No video of the Playwright run: the run crashed" in text
+
+
+def test_old_proof_copies_are_pruned(root, tmp_path):
+    old = root / push_proof.PROOF_STORE / "20000101" / "1-chat"
+    old.mkdir(parents=True)
+    (old / "a.png").write_bytes(b"x")
+    stored = push_proof.store_copies(root, [str(png(tmp_path / "b.png"))], "chat-1", 1795400000.0)
+    assert stored and not old.exists()

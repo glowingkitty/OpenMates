@@ -27,6 +27,7 @@ from backend.apps.ai.utils.authored_result_fences import (
 )
 from backend.core.api.app.services.authored_existing_cards import (
     authored_card_kind,
+    lookup_ref,
     resolve_existing_card,
 )
 from backend.core.api.app.services.authored_skill_result_reuse import SkillResultMatcher
@@ -91,9 +92,10 @@ async def _authorized_reference(
     user_vault_key_id: str, log_prefix: str,
 ) -> tuple[str, dict[str, Any]] | None:
     """Only resolve identities handed off by the authorized inference context."""
-    index = getattr(service, "authoring_reference_index", {})
-    embed_id = index.get(reference) if isinstance(index, dict) else None
-    if not isinstance(embed_id, str):
+    # Same tolerant exact-key lookup as existing cards: a source or image ref
+    # copied in its `embed:<ref>` link form still names an authorized entry.
+    embed_id = lookup_ref(getattr(service, "authoring_reference_index", None), reference)
+    if embed_id is None:
         return None
     record = await service._get_cached_embed(embed_id, user_vault_key_id, log_prefix)
     if not isinstance(record, dict) or record.get("hashed_user_id") != user_id_hash:

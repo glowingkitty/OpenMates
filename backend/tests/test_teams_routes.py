@@ -166,19 +166,6 @@ class FakeTeamService:
         assert member_user_id == "bob"
         return {"role": "member"}
 
-    async def deactivate_member(self, membership: dict, *, removed_at: int):
-        assert membership == {"role": "member"}
-        assert removed_at == 200
-        self.events.append("deactivate_member")
-
-    async def revoke_member_key_wrappers(
-        self, team_id: str, member_user_id: str, *, revoked_at: int
-    ):
-        assert team_id == "team-1"
-        assert member_user_id == "bob"
-        assert revoked_at == 200
-        self.events.append("revoke_member_wrappers")
-
     async def set_member_role(self, team_id: str, user_id: str, member_user_id: str, role: str, updated_at=None):
         assert team_id == "team-1"
         assert user_id == "alice"
@@ -367,6 +354,10 @@ def build_client(
     if team_billing_service:
         app.state.team_billing_service = team_billing_service
     app.state.cache_service = FakeCacheService()
+    # main.py startup is the only creator of the real relay; routes stay strict.
+    app.state.live_items = SimpleNamespace(
+        revoke_team_member=_noop_async, change_team_member_role=_noop_async
+    )
     app.state.domain_security_service = SimpleNamespace(config_loaded=True, is_domain_restricted=lambda value: (value == "blocked.example", None))
     app.state.payment_service = FakePaymentService()
     app.state.encryption_service = SimpleNamespace(
@@ -384,6 +375,10 @@ def build_client(
         app.dependency_overrides[teams.get_payment_service] = lambda: app.state.payment_service
     client_index = next(_TEST_CLIENT_COUNTER)
     return TestClient(app, client=(f"teams-test-{client_index}", 50000 + client_index))
+
+
+async def _noop_async(*_args, **_kwargs) -> None:
+    return None
 
 
 def name_approval_token(client: TestClient, name: str = "Acme") -> str:
@@ -460,9 +455,8 @@ def test_teams_routes_expose_invite_and_member_contract(monkeypatch) -> None:
     offlined = client.app.state.directus_service.offlined_source_members
     assert offlined and offlined[0][:2] == ("team-1", "bob")
     assert service.events == [
-        "deactivate_member",
+        "remove_member",
         "offline_member_sources",
-        "revoke_member_wrappers",
     ]
     assert remove_response.json() == {"success": True}
 
@@ -497,7 +491,7 @@ def test_team_lifecycle_works_without_cloud_payment_service(monkeypatch, action:
         assert "delete_team" in service.events
     elif action == "remove":
         response = client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
-        assert "deactivate_member" in service.events
+        assert "remove_member" in service.events
     else:
         response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer"})
         assert response.json()["membership"]["role"] == "viewer"
@@ -533,7 +527,7 @@ def test_member_removal_stays_fail_closed_if_cache_revocation_fails() -> None:
     with pytest.raises(RuntimeError, match="cache unavailable"):
         client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
 
-    assert service.events == ["deactivate_member"]
+    assert service.events == ["remove_member"]
 
 
 # contract-test: direct surface=rest_api assertions=teams.membership.role-gated
@@ -929,7 +923,7 @@ def test_recurring_team_billing_stops_before_team_or_payer_offboarding(action: s
         assert service.events[-1] == "delete_team"
     elif action == "remove":
         response = client.post("/v1/teams/team-1/members/bob/remove", json={"removed_at": 200})
-        assert "deactivate_member" in service.events
+        assert "remove_member" in service.events
     else:
         response = client.patch("/v1/teams/team-1/members/bob", json={"role": "viewer"})
     assert response.status_code == 200

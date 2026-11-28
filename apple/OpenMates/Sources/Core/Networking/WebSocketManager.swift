@@ -47,6 +47,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var pingTimer: Timer?
     private var socketTimings = WebSocketTimingWindow()
     private var connectionObservation: WebSocketConnectionObservation?
+    private var networkPathSatisfied: Bool?
+    private var retryRequiresAdmission = false
+    private var reconnectForeground = true
     private var observationGeneration = 0
     private let decoder = WebSocketInboundDecoder()
     private var connectTask: Task<Void, Never>?
@@ -93,9 +96,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         case unavailable
         case rejected
     }
-    private var sessionRecovery: (() async -> SessionRecoveryResult)?
+    private var sessionRecovery: ((Bool) async -> SessionRecoveryResult)?
 
-    func configureSessionRecovery(_ recovery: @escaping () async -> SessionRecoveryResult) {
+    func configureSessionRecovery(_ recovery: @escaping (Bool) async -> SessionRecoveryResult) {
         sessionRecovery = recovery
     }
 
@@ -227,7 +230,9 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         self.activeSyncState = syncState
         activeConnectionKey = nextKey
         shouldReconnect = true
+        CoreLiveItems.shared.attach(socket: self)
         connectionState = .connecting
+        retryRequiresAdmission = false
         socketTimings = WebSocketTimingWindow()
         startConnectionObservationIfNeeded()
         recordSocketEvent("socket_connecting")
@@ -466,9 +471,13 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         await MessageCompressionCheckpointRuntime.retryPending(socket: self, captured: captured, transport: transport)
     }
 
+    var usesCoreStartupHistory = false
+
     var advertisedClientCapabilities: [String] {
-        (metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
+        let startupCapabilities = usesCoreStartupHistory ? ["chat_startup_opened_v1"] : []
+        return (metadataRecoveryCoordinator == nil ? [] : ["chat_metadata_recovery"])
             + canonicalStorageConfiguration.capabilities(for: canonicalStorageProfile ?? ServerProfile.current())
+            + startupCapabilities
     }
 
     func configureMetadataRecovery(chatStore: ChatStore) {
@@ -832,6 +841,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Message routing
 
     private func routeMessage(_ msg: WSInboundParsed, raw: Data) {
+        if CoreLiveItems.routes(msg.type) {
+            CoreLiveItems.shared.receive(type: msg.type, raw: raw)
+            return
+        }
         AssistantSpeechAppRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         ProjectWorkspaceReviewRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         if msg.type == "error" {
@@ -1342,18 +1355,31 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     private func startConnectionObservationIfNeeded() {
         guard connectionObservation == nil else { return }
+        #if DEBUG
+        if debugConnectionAttempt != nil { return }
+        #endif
         observationGeneration += 1
         let generation = observationGeneration
         #if os(iOS)
-        recordSocketEvent("socket_app_lifecycle", flags: ["foreground": UIApplication.shared.applicationState == .active])
+        reconnectForeground = UIApplication.shared.applicationState != .background
+        recordSocketEvent("socket_app_lifecycle", flags: ["foreground": reconnectForeground])
         #elseif os(macOS)
         recordSocketEvent("socket_app_lifecycle", flags: ["foreground": NSApp.isActive])
         #endif
         connectionObservation = WebSocketConnectionObservation { [weak self] name, flags, counts, callbackUptime in
             Task { @MainActor [weak self] in
-                guard let self, generation == self.observationGeneration, self.shouldReconnect else { return }
+                guard let self, generation == self.observationGeneration else { return }
                 self.socketTimings.recordCallback(at: callbackUptime, deliveredAt: ProcessInfo.processInfo.systemUptime)
                 self.recordSocketEvent(name, extraCounts: counts, flags: flags)
+                if name == "socket_network_path", let status = counts["path_status"] {
+                    self.networkPathDidChange(available: status != 2)
+                }
+                #if os(iOS)
+                if name == "socket_app_lifecycle", let foreground = flags["foreground"] {
+                    self.reconnectForeground = foreground
+                    if foreground { self.resumeInterruptedRetry() }
+                }
+                #endif
             }
         }
     }
@@ -1361,9 +1387,34 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private func stopConnectionObservation() {
         observationGeneration += 1
         connectionObservation = nil
+        networkPathSatisfied = nil
+        reconnectForeground = true
     }
 
     // MARK: - Reconnect
+
+    func networkPathDidChange(available: Bool) {
+        let previous = networkPathSatisfied
+        networkPathSatisfied = available
+        if !available, connectionState == .connected || connectionState == .connecting {
+            handleDisconnect()
+        } else if available, previous == false {
+            resumeInterruptedRetry()
+        }
+    }
+
+    private func resumeInterruptedRetry() {
+        guard reconnectForeground, networkPathSatisfied != false, reconnectTask == nil,
+              activeConnectionKey != nil else { return }
+        if case .reconnecting = connectionState {
+            scheduleRetry(delay: 0)
+        } else if connectionState == .disconnected, reconnectAttempts > maxReconnectAttempts {
+            admitFreshRetryBudget()
+            shouldReconnect = true
+            connectionState = .reconnecting(attempt: 1)
+            scheduleRetry(delay: 0)
+        }
+    }
 
     private func handleDisconnect(authenticationRejected: Bool = false) {
         let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
@@ -1383,7 +1434,6 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         phasedSyncActivityAttempt += 1
         streamEventDispatcher.reset()
         embedStreamCoordinator?.transportDisconnected()
-        let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask?.cancel(with: .goingAway, reason: nil)
@@ -1396,24 +1446,30 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             return
         }
 
-        reconnectAttempts += 1
-        let currentAttempt = reconnectAttempts
-
-        guard currentAttempt <= maxReconnectAttempts else {
-            shouldReconnect = false
-            stopConnectionObservation()
-            connectionState = .disconnected
-            NativeDiagnostics.event("socket_retries_exhausted", category: "network", level: .warning,
-                                    counts: ["attempts": currentAttempt - 1])
+        retryRequiresAdmission = retryRequiresAdmission || authenticationRejected
+        if networkPathSatisfied == false || !reconnectForeground {
+            connectionState = .reconnecting(attempt: reconnectAttempts + 1)
             return
         }
-
-        connectionState = .reconnecting(attempt: currentAttempt)
 
         var delay = authenticationRejected ? 0 : reconnectDelay
         #if DEBUG
         delay = debugReconnectDelay ?? delay
         #endif
+        scheduleRetry(delay: delay)
+    }
+
+    private func scheduleRetry(delay: TimeInterval) {
+        guard reconnectAttempts < maxReconnectAttempts else {
+            reconnectAttempts += 1
+            shouldReconnect = false
+            connectionState = .disconnected
+            NativeDiagnostics.event("socket_retries_exhausted", category: "network", level: .warning,
+                                    counts: ["attempts": reconnectAttempts - 1])
+            return
+        }
+        connectionState = .reconnecting(attempt: reconnectAttempts + 1)
+        let reconnectGeneration = connectionGeneration
         reconnectTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(delay)) } catch { return }
             guard let self,
@@ -1422,11 +1478,20 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                       currentGeneration: connectionGeneration,
                       isCancelled: Task.isCancelled
                   ), shouldReconnect else { return }
+            guard networkPathSatisfied != false, reconnectForeground else {
+                reconnectTask = nil
+                return
+            }
+            reconnectAttempts += 1
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionRecovery {
-                let recovered = await sessionRecovery()
+                let recovered = await sessionRecovery(retryRequiresAdmission)
                 guard Self.shouldContinueConnectionAttempt(expectedGeneration: reconnectGeneration,
                     currentGeneration: connectionGeneration, isCancelled: Task.isCancelled), shouldReconnect else { return }
+                guard networkPathSatisfied != false, reconnectForeground else {
+                    reconnectTask = nil
+                    return
+                }
                 switch recovered {
                 case .authenticated(let sessionID, let token):
                     connect(sessionId: sessionID, token: token, syncState: activeSyncState)

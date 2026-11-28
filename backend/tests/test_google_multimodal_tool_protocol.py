@@ -229,3 +229,28 @@ def test_invalid_tool_image_raises_without_logging_private_payload(url, caplog):
         with pytest.raises(ValueError):
             google_client._prepare_messages_and_system_prompt(messages, "gemini-3.8-flash")
     assert url not in caplog.text
+
+
+def test_mid_history_system_note_never_becomes_a_trailing_model_turn():
+    """A system note after a tool result is sent on the user side.
+
+    Gemini refuses requests whose last content is a model turn; a focus
+    deactivation once appended such a note and failed the whole reply.
+    """
+    messages = [
+        {"role": "system", "content": "System prompt"},
+        {"role": "user", "content": "Create the Tasks"},
+        {"role": "assistant", "content": "", "tool_calls": [{
+            "id": "call-1", "type": "function",
+            "function": {"name": "deactivate_focus_mode", "arguments": "{}"},
+        }]},
+        {"role": "tool", "tool_call_id": "call-1", "name": "deactivate_focus_mode",
+         "content": json.dumps({"status": "deactivated"})},
+        {"role": "system", "content": json.dumps({"type": "focus_mode_deactivated"})},
+    ]
+    system_prompt, history = google_client._prepare_messages_and_system_prompt(
+        messages, model_id="gemini-3.8-flash",
+    )
+    assert system_prompt == "System prompt"
+    assert [content.role for content in history] == ["user", "model", "user", "user"]
+    assert history[-1].role != "model"

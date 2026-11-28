@@ -34,6 +34,7 @@ OUTPUT_SAFETY_ERROR_CODES = frozenset({
     "OUTPUT_SAFETY_INVALID",
     "OUTPUT_SAFETY_UNAVAILABLE",
     "OUTPUT_SAFETY_TIMEOUT",
+    "OUTPUT_SAFETY_TOO_LARGE",
 })
 
 SECURITY_FIELD = "security"
@@ -156,6 +157,14 @@ def strip_request_security_controls(request_body: Any) -> Any:
     return stripped
 
 
+def _requires_complete_scan(context: AppSkillOutputSafetyContext) -> bool:
+    if context.app_id not in {"mail", "calendar"}:
+        return False
+    from backend.shared.python_utils.connected_account_registry import skill_call_uses_connected_account
+
+    return skill_call_uses_connected_account(context.app_id, context.skill_id, dict(context.request_body))
+
+
 def prompt_injection_protection_disabled_for_surface(
     request_body: Mapping[str, Any] | None,
     surface: str,
@@ -202,6 +211,7 @@ async def sanitize_app_skill_output(
     """Apply mandatory ASCII cleanup and default-on semantic output scanning."""
     log_prefix = context.log_prefix or f"[AppSkillOutputSafety {context.app_id}/{context.skill_id}] "
     started_at = time.monotonic()
+    require_complete_scan = _requires_complete_scan(context)
 
     # Keep the cleaned baseline outside the semantic deadline/failure handler.
     # A scanner error must never restore invisible characters from raw input.
@@ -215,10 +225,14 @@ async def sanitize_app_skill_output(
         )
 
     async def _sanitize() -> Any:
-        if not context.external_data:
+        if not context.external_data and not require_complete_scan:
             return ascii_sanitized
         from backend.shared.python_utils.strict_output_safety import active_strict_scanner
-        if active_strict_scanner.get() is None and prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
+        if (
+            not require_complete_scan
+            and active_strict_scanner.get() is None
+            and prompt_injection_protection_disabled_for_surface(context.request_body, context.surface)
+        ):
             logger.warning("%sPrompt-injection semantic scanning disabled by direct programmatic caller", log_prefix)
             return ascii_sanitized
         return await sanitize_long_text_fields_in_payload(
@@ -232,6 +246,7 @@ async def sanitize_app_skill_output(
             app_id=context.app_id,
             skill_id=context.skill_id,
             timeout_seconds=_semantic_scan_timeout(context),
+            require_complete_scan=require_complete_scan,
         )
     try:
         sanitized = await asyncio.wait_for(_sanitize(), timeout=_semantic_scan_timeout(context))
@@ -245,6 +260,8 @@ async def sanitize_app_skill_output(
         from backend.shared.python_utils.strict_output_safety import active_strict_scanner, StrictSafetyUnavailable
         if active_strict_scanner.get() is not None:
             raise StrictSafetyUnavailable('Output safety processing did not complete.') from None
+        if require_complete_scan:
+            raise RuntimeError("OUTPUT_SAFETY_TIMEOUT") from None
         logger.warning("%sSemantic scan status=unscanned reason=OUTPUT_SAFETY_TIMEOUT; returning ASCII-cleaned content", log_prefix)
         return ascii_sanitized
     except Exception as exc:
@@ -252,12 +269,50 @@ async def sanitize_app_skill_output(
         if active_strict_scanner.get() is not None:
             raise StrictSafetyUnavailable('Output safety processing did not complete.') from None
         error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
+        if require_complete_scan:
+            raise RuntimeError(error_code) from None
         logger.error(
             "%sSemantic scan status=unscanned reason=%s; returning ASCII-cleaned content",
             log_prefix,
             error_code,
         )
         return ascii_sanitized
+
+
+async def sanitize_connected_account_history_embed(
+    content: dict[str, Any],
+    *,
+    cache_service: Any,
+) -> dict[str, Any]:
+    """Screen saved Google skill results before expanding them into model history."""
+    app_id, skill_id = content.get("app_id"), content.get("skill_id")
+    if not isinstance(app_id, str) or not isinstance(skill_id, str):
+        return content
+    provider = content.get("provider")
+    if app_id == "mail" and skill_id == "search" and isinstance(provider, str):
+        if provider.casefold() in {"protonmail", "proton mail"}:
+            return content
+
+    # Historical Gmail search children need not include the provider label.
+    context = AppSkillOutputSafetyContext(
+        app_id, skill_id, APP_SKILL_SURFACE_ASSISTANT, {"provider": "google"}, external_data=True,
+    )
+    if not _requires_complete_scan(context):
+        return content
+
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    try:
+        return await sanitize_app_skill_output(
+            content, AppSkillOutputSafetyContext(
+                app_id, skill_id, APP_SKILL_SURFACE_ASSISTANT, context.request_body,
+                external_data=True, secrets_manager=SecretsManager(), cache_service=cache_service,
+            ),
+        )
+    except RuntimeError as exc:
+        if str(exc) not in OUTPUT_SAFETY_ERROR_CODES:
+            raise
+        return {"app_id": app_id, "skill_id": skill_id, "error": str(exc)}
 
 
 def _semantic_scan_timeout(context: AppSkillOutputSafetyContext) -> float:

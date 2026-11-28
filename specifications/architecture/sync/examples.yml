@@ -1,5 +1,5 @@
 schema_version: 1
-specification: architecture.sync@2
+specification: architecture.sync@3
 
 startup_readiness:
   - id: bounded-large-account-ready
@@ -71,12 +71,36 @@ startup_payloads:
     assertion_ids: [sync.startup.bounded-phases]
     given: A device has a cached overview and a valid feed cursor from its last session; while it was offline two chats received new messages on another device.
     when: The workspace opens and the client pulls the feed with its cursor.
-    then: The page lists the two chats with kinds metadata and messages, their new versions and encrypted metadata; no transcript messages, embeds or Phase 1b content are sent, and the transcripts load only when the user opens those chats.
+    then: The page lists the two chats with kinds metadata and messages, their new versions and encrypted metadata; the feed itself sends no transcript messages or embeds. The current cross-device last open refreshes first, the offline set refreshes after it, and other transcripts are fetched on selection.
   - id: cold-start-cursor-read-before-snapshot
     assertion_ids: [sync.startup.bounded-phases]
     given: A new device has no cursor; while its cold start reads the 20-chat Phase 1a window, another device renames a chat in that window.
     when: phased_sync_complete arrives with sync_cursor and the client then pulls the feed.
     then: The cursor was read before the snapshot, so the rename is replayed by the first feed pull even if the snapshot already contained it; applying it twice changes nothing.
+
+recent_metadata_cap:
+  - id: large-account-keeps-total-without-expanding-startup
+    assertion_ids: [sync.startup.recent-metadata-cap]
+    given: The account has 1284 chats and the device starts with an empty recent index.
+    when: Startup publishes the recent 100 and the server reports the full account total.
+    then: The workspace shows the total of 1284. Startup does not fetch or cache metadata for the other 1184, including on reconnect.
+  - id: old-cached-key-needed-for-one-update
+    assertion_ids: [sync.startup.recent-metadata-cap]
+    given: A previously used browser holds encrypted chat headers from before the recent-window limit.
+    when: The account signs in and an incoming update references one older chat.
+    then: Startup unwraps only recent keys. The older update resolves its exact key in the current workspace, preserves conflict checks and stops if the user signs out or switches scope.
+
+opened_and_edited:
+  - id: last-opened-on-a-different-device
+    assertion_ids: [sync.startup.opened-offline-and-archive]
+    given: A phone last opened Kitchen renovation. Another conversation was edited later. The laptop has an older cached copy of Kitchen renovation and access to 2,000 chats.
+    when: The laptop starts, shows the cached rows and reconnects.
+    then: Kitchen renovation shows its cached tail and receives the newest messages first. The next ten distinct opened conversations become available offline. The sidebar lists the 100 most recently edited chats and the total of 2,000. A user selection takes priority. If a message changes while the laptop is offline, its replacement connection refreshes that chat before continuing with the other saved histories.
+  - id: browse-with-bounded-offline-storage
+    assertion_ids: [sync.startup.opened-offline-and-archive]
+    given: A Mac has 100 locally retained saved conversations and an unsent draft.
+    when: The user requests more sidebar entries, opens an older conversation and relaunches.
+    then: One request returns at most 20 more headers. Only the selected conversation loads. The oldest eligible local download can be evicted while the recent offline set and unsent draft survive. The evicted conversation remains accessible from the server.
 
 deletion_authority:
   - id: partial-window-retains-local-chats
@@ -243,3 +267,28 @@ overview_ready:
     given: A fresh device signs in to an account with 2,000 chats whose last opened chat is older than the 20 most recent chats.
     when: The cold start runs.
     then: The overview appears from Phase 1a metadata and the startup due-soon set, including the last opened chat, before any transcript content arrives.
+
+
+terminal_offline_receipt:
+  - id: reopen-personal-vault-without-a-network
+    assertion_ids: [sync.startup.terminal-personal-offline-receipt]
+    given: Yesterday a user signed into their Personal terminal on this device and opened Kitchen renovation. The session is still valid.
+    when: They quit the terminal, disconnect from the network and unlock the same encrypted vault.
+    then: They can read the saved Kitchen renovation messages. Sending a message or switching to a Team requires online authorization.
+  - id: remote-revocation-after-offline-relaunch
+    assertion_ids: [sync.startup.terminal-personal-offline-receipt]
+    given: A user revokes the terminal session from another device while the terminal is offline.
+    when: The terminal reconnects or its offline deadline arrives, whichever happens first.
+    then: Its cached Personal chats become inaccessible until an authorized login. Copying the vault to another device, switching account or rotating the key also prevents the old receipt from opening those chats.
+
+browser_durable_history:
+  - id: complete-recent-chats-survive-document-reload
+    assertion_ids: [sync.startup.browser-durable-history]
+    given: The browser finished saving the eleven recently opened conversations and their encrypted proofs. Another device then added a message to Kitchen renovation.
+    when: The browser reopens the same account and receives the current revisions.
+    then: It shows its admitted recent chats immediately, refreshes Kitchen renovation and can reuse the ten unchanged verified histories.
+  - id: a-removed-page-retires-its-proof
+    assertion_ids: [sync.startup.browser-durable-history]
+    given: Local storage pressure removes part of a completed conversation.
+    when: The browser next opens that conversation and reconnects.
+    then: It can show any available messages, identifies the incomplete history and fetches the missing history before marking the conversation fully available offline.

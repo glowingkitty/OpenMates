@@ -35,6 +35,9 @@ private final class FakeEmbedVersionsClient: EmbedVersionsCoreClient {
     func restoreVersion(embedId: String, scope: EmbedScopeRecord, fromVersion: Int64) async throws -> EmbedRevisionOutcomeRecord {
         try next(&restores, "restore:\(fromVersion)")
     }
+    func commitEdit(embedId: String, scope: EmbedScopeRecord, baseVersion: Int64, content: String) async throws -> EmbedRevisionOutcomeRecord {
+        throw EmbedEditError.Internal(reason: "unscripted_edit")
+    }
     func startEnhance(embedId: String, scope: EmbedScopeRecord, operationId: String) async throws -> ImageEnhanceJobRecord {
         operationIds.append(operationId)
         return try next(&starts, "start")

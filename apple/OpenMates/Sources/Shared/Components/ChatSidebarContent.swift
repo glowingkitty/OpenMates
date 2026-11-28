@@ -1,5 +1,5 @@
 // Specification: specifications/features/chat-navigation/specification.yml
-// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize
+// Assertions: chat-navigation.projects.nested-readable, chat-navigation.activity.global-running, chat-navigation.projects.organize, chat-navigation.sidebar.close-at-menu-position
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.draft-only.presentation, drafts.established-chat.presentation-unchanged
 // Specification: specifications/architecture/client-core/specification.yml
@@ -72,6 +72,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
     let showSearch: Bool
     let emptyMessage: String?
     let loadMore: ChatSidebarLoadMore?
+    let accountChatCount: Int?
     let actions: ChatSidebarActions
     let refresh: () async -> Void
     @ViewBuilder let searchContent: () -> SearchContent
@@ -81,6 +82,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
          processingChatIDs: Set<String> = [], userSections: [ChatSidebarSection],
          publicSections: [ChatSidebarSection], selectedChatID: String?, draftPreviews: [String: String],
          previewsAreFormatted: Bool = false, rowPresentations: [String: ChatSidebarRowPresentation] = [:], showSearch: Bool, emptyMessage: String?, loadMore: ChatSidebarLoadMore?,
+         accountChatCount: Int? = nil,
          actions: ChatSidebarActions, refresh: @escaping () async -> Void,
          @ViewBuilder searchContent: @escaping () -> SearchContent) {
         self.projectNavigation = projectNavigation
@@ -105,6 +107,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
         self.showSearch = showSearch
         self.emptyMessage = emptyMessage
         self.loadMore = loadMore
+        self.accountChatCount = accountChatCount
         self.actions = actions
         self.refresh = refresh
         self.searchContent = searchContent
@@ -115,7 +118,7 @@ struct ChatSidebarContent<SearchContent: View>: View {
             if showSearch {
                 searchContent()
             } else {
-                WorkspaceSidebarHeader(onSearch: actions.search, onClose: actions.close)
+                WorkspaceSidebarHeader(onSearch: actions.search, onClose: actions.close, closeLeading: true)
                 ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
@@ -131,6 +134,13 @@ struct ChatSidebarContent<SearchContent: View>: View {
                             ShowMoreChatsButton(totalCount: loadMore.totalCount, loadedCount: loadMore.loadedCount,
                                 isLoading: loadMore.isLoading, onLoadMore: actions.loadMore)
                                 .padding(.horizontal, 15)
+                        }
+                        if let accountChatCount {
+                            Text(LocalizationManager.shared.text("chats.loadMore.account_total",
+                                replacements: ["count": accountChatCount.formatted()]))
+                                .font(.omSmall).foregroundStyle(Color.fontTertiary)
+                                .padding(.horizontal, 15).padding(.vertical, .spacing2)
+                                .accessibilityIdentifier("chat-account-total")
                         }
                         sections(publicSections)
                     }
@@ -491,23 +501,49 @@ struct WorkspaceSidebarHeader: View {
     var searchIdentifier = "search-button"
     var closeIdentifier = "chat-sidebar-close"
     var topBarIdentifier = "chat-sidebar-topbar"
+    var closeLeading = false
+
     var body: some View {
         HStack(spacing: 12) {
-            Button(action: onSearch) {
-                Icon("search", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
-            }.buttonStyle(.plain).accessibilityIdentifier(searchIdentifier)
-                .help(Text(AppStrings.search)).accessibilityLabel(AppStrings.search)
-            Spacer()
-            Button(action: onClose) {
-                Icon("close", size: 25).foregroundStyle(LinearGradient.primary).frame(width: 25, height: 25)
-            }.buttonStyle(.plain).accessibilityIdentifier(closeIdentifier)
-                .help(Text(AppStrings.close)).accessibilityLabel(AppStrings.close)
+            if closeLeading {
+                closeButton
+                Spacer()
+                searchButton
+            } else {
+                searchButton
+                Spacer()
+                closeButton
+            }
         }
-        .frame(height: 32).padding(.horizontal, 20).padding(.vertical, 16)
+        .frame(height: closeLeading ? 44 : 32)
+        .padding(.horizontal, .spacing10)
+        .padding(.vertical, closeLeading ? .spacing5 : .spacing8)
         .background(Color.grey20)
         .padding(.bottom, 1)
         .overlay(alignment: .bottom) { Rectangle().fill(Color.grey30).frame(height: 1) }
         .accessibilityElement(children: .contain).accessibilityIdentifier(topBarIdentifier)
+    }
+
+    private var searchButton: some View {
+        headerButton(icon: "search", label: AppStrings.search, identifier: searchIdentifier, action: onSearch)
+    }
+
+    private var closeButton: some View {
+        headerButton(icon: "close", label: AppStrings.close, identifier: closeIdentifier, action: onClose)
+    }
+
+    private func headerButton(icon: String, label: String, identifier: String, action: @escaping () -> Void) -> some View {
+        let targetSize: CGFloat = closeLeading ? 44 : 25
+        return Button(action: action) {
+            Icon(icon, size: 25)
+                .foregroundStyle(LinearGradient.primary)
+                .frame(width: targetSize, height: targetSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
+        .help(Text(label))
+        .accessibilityLabel(label)
     }
 }
 

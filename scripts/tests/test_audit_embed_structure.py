@@ -33,6 +33,7 @@ def write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+# contract-test: tooling
 def test_multiple_primary_header_ctas_are_reported(tmp_path: Path) -> None:
     module = load_module()
     fullscreen = tmp_path / "embeds" / "diagrams" / "MermaidDiagramEmbedFullscreen.svelte"
@@ -53,6 +54,7 @@ def test_multiple_primary_header_ctas_are_reported(tmp_path: Path) -> None:
     assert "2 possible primary" in issues[0]
 
 
+# contract-test: tooling
 def test_secondary_header_action_is_allowed(tmp_path: Path) -> None:
     module = load_module()
     fullscreen = tmp_path / "embeds" / "code" / "CodeEmbedFullscreen.svelte"
@@ -69,6 +71,7 @@ def test_secondary_header_action_is_allowed(tmp_path: Path) -> None:
     assert module.audit_fullscreen_primary_ctas(tmp_path / "embeds") == []
 
 
+# contract-test: tooling
 def test_secondary_header_action_with_dynamic_attrs_is_allowed(tmp_path: Path) -> None:
     module = load_module()
     fullscreen = tmp_path / "embeds" / "electronics" / "PcbSchematicEmbedFullscreen.svelte"
@@ -94,6 +97,7 @@ def test_secondary_header_action_with_dynamic_attrs_is_allowed(tmp_path: Path) -
     assert module.audit_fullscreen_primary_ctas(tmp_path / "embeds") == []
 
 
+# contract-test: tooling
 def test_mutually_exclusive_primary_states_with_same_test_id_are_allowed(tmp_path: Path) -> None:
     module = load_module()
     fullscreen = tmp_path / "embeds" / "travel" / "TravelConnectionEmbedFullscreen.svelte"
@@ -113,6 +117,27 @@ def test_mutually_exclusive_primary_states_with_same_test_id_are_allowed(tmp_pat
     assert module.audit_fullscreen_primary_ctas(tmp_path / "embeds") == []
 
 
+# contract-test: tooling
+def test_primary_cta_count_follows_branches_and_ignores_test_ids() -> None:
+    module = load_module()
+    apply = '<EmbedHeaderCtaButton testId="apply" />'
+    source = '<EmbedHeaderCtaButton testId="source" />'
+
+    assert module.count_possible_primary_header_ctas(
+        f"{{#if canApply}}{apply}{{:else if hasSource}}{source}{{/if}}"
+    ) == 1
+    assert module.count_possible_primary_header_ctas(
+        f"{{#if canApply}}{apply}{apply}{{:else}}{source}{{/if}}"
+    ) == 2
+    assert module.count_possible_primary_header_ctas(
+        f"{{#if canApply}}{{#if ready}}{apply}{{:else}}{source}{{/if}}{{/if}}{source}"
+    ) == 2
+    assert module.count_possible_primary_header_ctas(
+        f"{{#each sources as result}}{source}{{/each}}"
+    ) == 2
+
+
+# contract-test: tooling
 def test_preview_base_detection_requires_unified_embed_preview(tmp_path: Path) -> None:
     module = load_module()
     preview = tmp_path / "embeds" / "fitness" / "FitnessResultEmbedPreview.svelte"
@@ -125,6 +150,7 @@ def test_preview_base_detection_requires_unified_embed_preview(tmp_path: Path) -
     assert module.preview_uses_unified_base(preview) is False
 
 
+# contract-test: tooling
 def test_fullscreen_base_detection_allows_approved_templates(tmp_path: Path) -> None:
     module = load_module()
     fullscreen = tmp_path / "embeds" / "fitness" / "FitnessSearchEmbedFullscreen.svelte"
@@ -135,3 +161,53 @@ def test_fullscreen_base_detection_allows_approved_templates(tmp_path: Path) -> 
     write(fullscreen, "<div class=\"custom-fullscreen\">Result</div>\n")
 
     assert module.fullscreen_uses_approved_base(fullscreen) is False
+
+
+# contract-test: tooling
+def test_result_fullscreen_adapter_must_render_the_unified_shell(tmp_path: Path) -> None:
+    module = load_module()
+    fullscreen = tmp_path / "embeds" / "business" / "CompanyEmbedFullscreen.svelte"
+    adapter = fullscreen.parents[1] / "ResultEmbedFullscreen.svelte"
+    write(
+        fullscreen,
+        "<script>import ResultEmbedFullscreen from '../ResultEmbedFullscreen.svelte';</script>"
+        "<ResultEmbedFullscreen />",
+    )
+    write(adapter, "<UnifiedEmbedFullscreen />")
+
+    assert module.fullscreen_uses_approved_base(fullscreen) is True
+
+    write(adapter, "<!-- <UnifiedEmbedFullscreen /> --><div>Result</div>")
+    assert module.fullscreen_uses_approved_base(fullscreen) is False
+
+
+# contract-test: tooling
+def test_inline_parent_wiring_is_checked_without_an_overlay() -> None:
+    module = load_module()
+    for (parent_key, relative_path), (component, props, _) in module.INLINE_PARENT_CONTRACTS.items():
+        source_path = module.EMBEDS_ROOT / relative_path
+        source = module.svelte_source(source_path)
+        assert module.missing_inline_parent_wiring(parent_key, relative_path, source) == []
+
+        # A matching name elsewhere in the component cannot stand in for a prop.
+        prop = props[0]
+        broken = source.replace(prop, "unwired={", 1) + f"<p>{prop}</p>"
+        missing = module.missing_inline_parent_wiring(parent_key, relative_path, broken)
+        assert missing and component in missing[-1]
+        assert module.missing_inline_parent_wiring(parent_key, "OtherFullscreen.svelte", source) is None
+
+
+# contract-test: tooling
+def test_registered_fullscreen_requires_the_shared_shell(tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    fullscreen = tmp_path / "files" / "FileEmbedFullscreen.svelte"
+    monkeypatch.setattr(module, "EMBEDS_ROOT", tmp_path)
+    registry = module.RegistryMaps({}, {}, {}, {"file": "files/FileEmbedFullscreen.svelte"})
+    write(fullscreen, "<main><header>Local fullscreen</header></main>")
+    assert "does not render the shared shell" in module.audit_registered_fullscreen_shells(registry)[0]
+
+    write(fullscreen, "<UnifiedEmbedFullscreen><EmbedHeader /></UnifiedEmbedFullscreen>")
+    assert "duplicates the shared fullscreen identity" in module.audit_registered_fullscreen_shells(registry)[0]
+
+    write(fullscreen, "<UnifiedEmbedFullscreen />")
+    assert module.audit_registered_fullscreen_shells(registry) == []

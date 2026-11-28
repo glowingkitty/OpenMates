@@ -35,6 +35,7 @@ from typing import Any, Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts import discord_summary  # noqa: E402 (repo path bootstrap)
+from scripts import notification_log  # noqa: E402 (repo path bootstrap)
 
 HOSTS = ("openmates.org", "www.openmates.org", "app.openmates.org", "api.openmates.org")
 MIN_DAYS_LEFT = 21
@@ -130,6 +131,7 @@ def post_discord(webhook_url: str, content: str, opener: Callable[..., Any] = ur
     try:
         with opener(request, timeout=TIMEOUT) as response:
             response.read()
+        notification_log.record_request(request, "prod_tls_health")
         return True
     except (urllib.error.URLError, OSError) as exc:
         print(f"[tls-health] Discord post failed: {type(exc).__name__}", file=sys.stderr)

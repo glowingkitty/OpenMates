@@ -105,13 +105,6 @@ struct NativeHeaderMenuActionPill: View {
     }
 }
 
-private struct OMSettingsScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat { 0 }
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
 
 struct OMSettingsScrollOffsetHandler: @unchecked Sendable {
     var callback: (@MainActor @Sendable (CGFloat) -> Void)?
@@ -212,6 +205,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var inlineFieldContent: AnyView? = nil
     var idleFieldContent: AnyView? = nil
     var overlayContent: AnyView? = nil
+    var overlayAtBottom = false
     var onSubmit: () -> Void
     @ViewBuilder var actionButtons: () -> ActionButtons
 
@@ -390,7 +384,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
                 ZStack(alignment: .topTrailing) {
                     overlayContent
                 }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: overlayAtBottom ? .bottomTrailing : .topTrailing)
                     .zIndex(3)
             }
 
@@ -873,9 +868,10 @@ struct OMSheet<Content: View>: View {
 
                             Spacer()
 
-                            OMIconButton(icon: "x", label: "Close") {
+                            OMIconButton(icon: "close", label: AppStrings.close) {
                                 dismiss()
                             }
+                            .accessibilityIdentifier("om-sheet-close")
                         }
                         .padding(.horizontal, .spacing8)
                         .padding(.bottom, .spacing4)
@@ -1005,44 +1001,29 @@ struct OMSettingsPage<Content: View>: View {
                     pageHeader
                 }
 
-                GeometryReader { scrollFrame in
-                    ScrollView {
-                        pageStack {
-                            GeometryReader { contentFrame in
-                                Color.clear.preference(
-                                    key: OMSettingsScrollOffsetPreferenceKey.self,
-                                    value: max(
-                                        0,
-                                        scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
-                                    )
-                                )
-                            }
-                            .frame(height: 0)
-
-                            if showsHeader && scrollsHeader {
-                                pageHeader.padding(.horizontal, -contentHorizontalPadding)
-                            }
-
-                            content
-
-                            if showsFooter {
-                                OMSettingsFooter()
-                            }
+                ScrollView {
+                    pageStack {
+                        if showsHeader && scrollsHeader {
+                            pageHeader.padding(.horizontal, -contentHorizontalPadding)
                         }
-                        .padding(.horizontal, contentHorizontalPadding)
-                        .padding(.bottom, .spacing16)
-                    }
-                    .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
-                    .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
-                        if let callback = scrollOffsetHandler.callback {
-                            Task { @MainActor in
-                                callback(offset)
-                            }
+
+                        content
+
+                        if showsFooter {
+                            OMSettingsFooter()
                         }
                     }
-                    .scrollContentBackground(.hidden)
-                    .background(Color.grey20)
+                    .padding(.horizontal, contentHorizontalPadding)
+                    .padding(.bottom, .spacing16)
                 }
+                .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                    min(80, max(0, geometry.contentOffset.y + geometry.contentInsets.top))
+                } action: { _, offset in
+                    scrollOffsetHandler.callback?(offset)
+                }
+                .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
+                .scrollContentBackground(.hidden)
+                .background(Color.grey20)
             }
             .background(Color.grey20)
         }

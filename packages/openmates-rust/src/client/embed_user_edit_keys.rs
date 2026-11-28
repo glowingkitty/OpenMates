@@ -6,7 +6,7 @@
 //! (`VersionReadScope`, `version_embed_key`, `chat_key_with_capability`).
 //! Neither path ever asks a browser session for native key material.
 use crate::client::embed_version::VersionReadScope;
-use crate::client::transport::{send, wait};
+use crate::client::transport::{send, wait_embed_read};
 use crate::client::{Client, Item, sha256, text};
 use crate::crypto::Key;
 use crate::error::{Error, Result};
@@ -138,7 +138,7 @@ impl Client {
                 ))
                 .await?;
             scope
-                .run_io(wait(&mut ws, "send_embed_data", "embed_id", embed_id))
+                .run_io(wait_embed_read(&mut ws, embed_id))
                 .await
         }
         .await;

@@ -98,11 +98,24 @@ enum RealAccountUITestSupport {
                 alert.buttons["OK"]
             ]
             if let button = allowButtons.first(where: { $0.exists }) {
-                button.tap()
+                NativeUITestElementResolution.activate(button)
                 return true
             }
             return false
         }
+    }
+
+    /// Settle the system notification sheet before passively waiting on app content.
+    /// Passive XCTest queries do not invoke UI interruption monitors.
+    static func resolveStartupNotificationPrompt(timeout: TimeInterval = 5) {
+        #if os(iOS)
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        let notification = springboard.alerts.containing(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@",
+            "OpenMates", "Would Like to Send You Notifications")).firstMatch
+        let allow = notification.buttons["Allow"]
+        if allow.waitForExistence(timeout: timeout) { allow.tap() }
+        #endif
     }
 
     // The retained settings subtree can exist while translated beyond the
@@ -124,7 +137,8 @@ enum RealAccountUITestSupport {
     static func logIn(
         app: XCUIApplication,
         credentials: RealAccountTestCredentials,
-        submitPasswordUsingKeyboard: Bool = false
+        submitPasswordUsingKeyboard: Bool = false,
+        authenticated: XCUIElement? = nil
     ) {
         let loginSignupButton = app.buttons["header-login-signup-btn"]
         let loginTab = app.buttons["auth-login-tab"]
@@ -136,10 +150,10 @@ enum RealAccountUITestSupport {
         }
         if !loginTab.exists {
             XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
-            loginSignupButton.tap()
+            NativeUITestElementResolution.activate(loginSignupButton)
         }
         XCTAssertTrue(loginTab.waitForExistence(timeout: 10))
-        loginTab.tap()
+        NativeUITestElementResolution.activate(loginTab)
 
         let emailInput = app.textFields["email-input"]
         let emailVisible = emailInput.waitForExistence(timeout: 10)
@@ -151,22 +165,38 @@ enum RealAccountUITestSupport {
             }
         }
         XCTAssertTrue(emailVisible)
-        guard focusForTextEntry(emailInput, in: app, identifier: "email-input") else { return }
-        // Submit through the field's onSubmit path. The keyboard can cover the
-        // button until scrolling settles on compact screens.
+        guard focusAuthField(emailInput, in: app, identifier: "email-input") else { return }
+        #if os(macOS)
+        app.typeText(credentials.email)
+        let continueButton = app.buttons["continue-button"]
+        let emailAccepted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            continueButton.exists && continueButton.isEnabled
+        }, object: nil)
+        guard XCTWaiter.wait(for: [emailAccepted], timeout: 3) == .completed else {
+            XCTFail("Email entry must reach the real form before submitting")
+            return
+        }
+        guard revealAuthControl(continueButton, in: app) else { return }
+        NativeUITestElementResolution.activate(continueButton)
+        #else
+        // The keyboard can cover the button on compact screens.
         app.typeText(credentials.email + "\n")
+        #endif
 
-        let passwordInput = waitForPasswordInput(app: app)
-        guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+        guard let passwordInput = waitForPasswordInput(app: app),
+              focusAuthField(passwordInput, in: app, identifier: "password-input") else { return }
+        #if os(iOS)
         if submitPasswordUsingKeyboard {
             // Opt-in for phone readiness: AX snapshots can omit the already
             // focused SecureField. Type exactly once, then invoke its real
             // production onSubmit path; never retry/append based on missing AX.
             app.typeText(credentials.password + "\n")
-            submitPasswordAndOtpIfNeeded(app: app, credentials: credentials, passwordAlreadySubmitted: true)
-            XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
+            submitPasswordAndOtpIfNeeded(app: app, credentials: credentials, passwordAlreadySubmitted: true,
+                                         authenticated: authenticated)
+            if authenticated == nil { XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25)) }
             return
         }
+        #endif
         app.typeText(credentials.password)
         let loginButton = app.buttons["login-button"]
         let passwordAccepted = NSPredicate { _, _ in
@@ -178,7 +208,7 @@ enum RealAccountUITestSupport {
             // partially delivered value, and never expose the value in a failure.
             let value = passwordInput.value as? String ?? ""
             if value.isEmpty || value == passwordInput.placeholderValue {
-                guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+                guard focusAuthField(passwordInput, in: app, identifier: "password-input") else { return }
                 app.typeText(credentials.password)
             }
         }
@@ -186,11 +216,55 @@ enum RealAccountUITestSupport {
         XCTAssertTrue(entered, "Password entry must reach the real form before submitting")
         guard entered else { return }
 
-        submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
+        submitPasswordAndOtpIfNeeded(app: app, credentials: credentials, authenticated: authenticated)
 
-        XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
+        if authenticated == nil { XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25)) }
     }
 
+    static func focusAuthField(_ field: XCUIElement, in app: XCUIApplication,
+                               identifier: String) -> Bool {
+        #if os(macOS)
+        // Scroll the real form before clicking. An AppKit field editor may
+        // report focus under a different accessibility element.
+        guard revealAuthControl(field, in: app) else { return false }
+        field.click()
+        return true
+        #else
+        return focusForTextEntry(field, in: app, identifier: identifier)
+        #endif
+    }
+
+    #if os(macOS)
+    /// Auth on the hosted Mac can start with the footer below the viewport.
+    /// The same ScrollView contains every password and OTP step.
+    static func revealAuthControl(_ control: XCUIElement, in app: XCUIApplication) -> Bool {
+        let scroll = app.scrollViews["auth-flow-scroll"].firstMatch
+        if control.exists, control.isHittable { return true }
+        guard scroll.exists else {
+            XCTFail("The authentication scroll view must contain the control")
+            return false
+        }
+        for _ in 0..<6 {
+            let viewport = scroll.frame.intersection(app.windows.firstMatch.frame)
+            guard !viewport.isEmpty, control.exists else { break }
+            let frame = control.frame
+            let amount = max(120, viewport.height * 0.5)
+            let delta = !frame.isEmpty && frame.midY < viewport.midY ? amount : -amount
+            scroll.scroll(byDeltaX: 0, deltaY: delta)
+            if control.isHittable { return true }
+        }
+        XCTFail("The authentication control must scroll into view before activation")
+        return false
+    }
+    #endif
+
+    private static func waitForAuthentication(in app: XCUIApplication, timeout: TimeInterval,
+                                              authenticated: XCUIElement?) -> Bool {
+        if let authenticated { return authenticated.waitForExistence(timeout: timeout) }
+        return waitForMessageEditor(in: app, timeout: timeout) != nil
+    }
+
+    #if os(iOS)
     struct SendMateTimingProof {
         let attempt: String
         let eventReceivedMilliseconds: Double
@@ -434,6 +508,8 @@ enum RealAccountUITestSupport {
         )
     }
 
+    #endif
+
     static func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
         let editor = accessibilityElement(in: app, identifier: "message-editor")
         let deadline = Date().addingTimeInterval(timeout)
@@ -468,30 +544,39 @@ enum RealAccountUITestSupport {
     private static func submitPasswordAndOtpIfNeeded(
         app: XCUIApplication,
         credentials: RealAccountTestCredentials,
-        passwordAlreadySubmitted: Bool = false
+        passwordAlreadySubmitted: Bool = false,
+        authenticated: XCUIElement? = nil
     ) {
         let loginButton = app.buttons["login-button"]
         if !passwordAlreadySubmitted {
             XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
             XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
             guard loginButton.isEnabled else { return }
+            #if os(macOS)
+            guard revealAuthControl(loginButton, in: app) else { return }
+            NativeUITestElementResolution.activate(loginButton)
+            #else
             // The landscape keyboard can cover the button. Use the production
             // SecureField onSubmit path while its confirmed input remains focused.
             if loginButton.isHittable && app.frame.contains(loginButton.frame) {
-                loginButton.tap()
+                NativeUITestElementResolution.activate(loginButton)
             } else {
                 app.typeText("\n")
             }
+            #endif
         }
 
         let tfaInput = app.textFields["tfa-code-input"]
         let authenticationDeadline = Date().addingTimeInterval(15)
+        let passwordError = app.staticTexts["password-login-error"]
         repeat {
-            if waitForMessageEditor(in: app, timeout: 0.2) != nil {
+            if tfaInput.exists { break }
+            if waitForAuthentication(in: app, timeout: 0.2, authenticated: authenticated) { return }
+            if passwordError.exists {
+                // An invalid password may reveal OTP during the same transition.
+                if tfaInput.exists { break }
+                XCTFail("Password submission failed (\(authFormFailureClass(passwordError)))")
                 return
-            }
-            if tfaInput.exists {
-                break
             }
         } while Date() < authenticationDeadline
         if !tfaInput.exists {
@@ -501,14 +586,15 @@ enum RealAccountUITestSupport {
         let offsets = [0, -1, 1, 0, -1]
         for (index, offset) in offsets.enumerated() {
             waitPastTotpBoundaryIfNeeded()
-            guard focusForTextEntry(tfaInput, in: app, identifier: "tfa-code-input") else { return }
+            guard focusAuthField(tfaInput, in: app, identifier: "tfa-code-input") else { return }
             clearOtpCode(in: tfaInput, app: app)
             app.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
-            loginButton.tap()
+            #if os(macOS)
+            guard revealAuthControl(loginButton, in: app) else { return }
+            #endif
+            NativeUITestElementResolution.activate(loginButton)
 
-            if waitForMessageEditor(in: app, timeout: 12) != nil {
-                return
-            }
+            if waitForAuthentication(in: app, timeout: 12, authenticated: authenticated) { return }
 
             if index < offsets.count - 1 {
                 sleep(UInt32(index < 2 ? 3 : 5))
@@ -518,6 +604,7 @@ enum RealAccountUITestSupport {
         XCTFail("Login did not complete after OTP retries")
     }
 
+    #if os(iOS)
     static func openNewChatIfNeeded(app: XCUIApplication) {
         if app.launchArguments.contains("--ui-test-fresh-new-chat"),
            let editor = waitForMessageEditor(in: app, timeout: 10) {
@@ -561,20 +648,32 @@ enum RealAccountUITestSupport {
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
     }
 
-    private static func waitForPasswordInput(app: XCUIApplication) -> XCUIElement {
-        let passwordInput = app.secureTextFields["password-input"]
-        if passwordInput.waitForExistence(timeout: 30) {
-            return passwordInput
-        }
+    #endif
 
-        XCTFail("Password step did not appear. Visible auth labels: \(visibleAuthLabels(in: app))")
-        return passwordInput
+    private static func waitForPasswordInput(app: XCUIApplication) -> XCUIElement? {
+        let passwordInput = app.secureTextFields["password-input"]
+        let lookupError = app.staticTexts["lookup-error"]
+        let lookupCompleted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            passwordInput.exists || lookupError.exists
+        }, object: nil)
+        _ = XCTWaiter.wait(for: [lookupCompleted], timeout: 30)
+        if passwordInput.exists { return passwordInput }
+        if lookupError.exists {
+            XCTFail("Email lookup failed (\(authFormFailureClass(lookupError)))")
+        } else {
+            XCTFail("Email lookup did not reach the password step or show a form error")
+        }
+        return nil
     }
 
-    private static func visibleAuthLabels(in app: XCUIApplication) -> String {
-        let textLabels = app.staticTexts.allElementsBoundByIndex.compactMap(redactedLabel)
-        let buttonLabels = app.buttons.allElementsBoundByIndex.compactMap(redactedLabel)
-        return (textLabels + buttonLabels).prefix(12).joined(separator: " | ")
+    /// A fixed failure class is enough for CI triage. Never report form values or raw error text.
+    private static func authFormFailureClass(_ error: XCUIElement) -> String {
+        let text = [error.label, error.value as? String ?? ""].joined(separator: " ").lowercased()
+        if text.contains("server error (502)") || text.contains("bad gateway") { return "http_bad_gateway" }
+        if text.contains("server error (503)") || text.contains("service unavailable") { return "http_service_unavailable" }
+        if text.contains("server error (504)") || text.contains("gateway timeout") { return "http_gateway_timeout" }
+        if text.contains("coreerror") { return "core_error" }
+        return "form_error"
     }
 
     private static func visibleStateLabels(in app: XCUIApplication) -> String {
@@ -616,7 +715,12 @@ enum RealAccountUITestSupport {
             .matching(NSPredicate(format: "identifier == %@ AND hasKeyboardFocus == true", identifier))
             .firstMatch
         for _ in 0..<3 {
-            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            let center = element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            #if os(macOS)
+            center.click()
+            #else
+            center.tap()
+            #endif
             if focusedElement.waitForExistence(timeout: 1) {
                 return true
             }
@@ -760,6 +864,14 @@ private enum TOTP {
 // Shared resolution for retained SwiftUI panes. Queries can expose hidden
 // mounted duplicates; select the current on-screen candidate before an action.
 enum NativeUITestElementResolution {
+    static func activate(_ element: XCUIElement) {
+        #if os(macOS)
+        element.click()
+        #else
+        element.tap()
+        #endif
+    }
+
     static func isOnScreen(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
         guard element.exists else { return false }
         let frame = element.frame

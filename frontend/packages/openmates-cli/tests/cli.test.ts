@@ -3781,8 +3781,8 @@ describe("apps metadata commands", () => {
       const { stdout, stderr } = await execFileAsync("node", [
         "dist/cli.js",
         "--api-url", apiUrl,
-        "apps", "tasks", "create",
-        "--input", JSON.stringify({ tasks: [{ title: "Draft checklist" }] }),
+        "apps", "code", "search_repos",
+        "--input", JSON.stringify({ requests: [{ query: "typescript authentication library", language: "TypeScript" }] }),
       ], {
         cwd: PACKAGE_ROOT,
         encoding: "utf-8",
@@ -3790,11 +3790,11 @@ describe("apps metadata commands", () => {
         timeout: 15_000,
       });
 
-      assert.match(stdout, /Draft checklist/);
+      assert.match(stdout, /example\/auth-library/);
       assert.equal(stderr, "");
       assert.deepEqual(requests[0], {
-        url: "/v1/apps/tasks/skills/create",
-        body: { tasks: [{ title: "Draft checklist" }] },
+        url: "/v1/apps/code/skills/search_repos",
+        body: { requests: [{ query: "typescript authentication library", language: "TypeScript" }] },
       });
     });
   });

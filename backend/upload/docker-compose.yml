@@ -48,10 +48,11 @@ services:
   vault:
     container_name: uploads-vault
     image: hashicorp/vault:1.19
+    user: vault
     restart: unless-stopped
-    cap_add:
-      - IPC_LOCK
     environment:
+      SKIP_CHOWN: "1"
+      SKIP_SETCAP: "1"
       VAULT_LOG_LEVEL: "info"
     volumes:
       # Vault config (vault.hcl — file storage, TLS disabled)
@@ -185,6 +186,7 @@ services:
       context: ../../
       dockerfile: backend/admin_sidecar/Dockerfile
     restart: unless-stopped
+    user: "${OPENMATES_SIDECAR_UID:-10005}:${OPENMATES_SIDECAR_GID:-10005}"
     environment:
       # Admin authentication — same key as SECRET__UPLOAD_SERVER__ADMIN_LOG_API_KEY
       # on the core server (set in .env on this VM).
@@ -244,6 +246,8 @@ services:
   clamav:
     container_name: clamav
     image: clamav/clamav-debian:stable
+    user: clamav
+    entrypoint: ["/init-unprivileged"]
     restart: unless-stopped
     environment:
       CLAMAV_NO_FRESHCLAMD: "false" # Enable virus database auto-updates via freshclam

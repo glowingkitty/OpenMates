@@ -1,6 +1,6 @@
 {
   "name": "@repo/ui",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "type": "module",
   "module": "index.ts",
   "main": "index.ts",
@@ -42,6 +42,15 @@
       "types": "./src/services/recentChatWindowCache.ts",
       "default": "./src/services/recentChatWindowCache.ts"
     },
+    "./services/live/liveItemClient": {
+      "types": "./src/services/live/liveItemClient.ts",
+      "default": "./src/services/live/liveItemClient.ts"
+    },
+    "./services/connectedAccountOAuthReturn": {
+      "types": "./src/services/connectedAccountOAuthReturn.ts",
+      "default": "./src/services/connectedAccountOAuthReturn.ts"
+    },
+    "./actions/contentZoomSurface": "./src/actions/contentZoomSurface.ts",
     "./utils/*": "./src/utils/*",
     "./stores/*": "./src/stores/*",
     "./stores/uiStateStore": {
@@ -61,6 +70,10 @@
     "./config/meta": {
       "types": "./src/config/meta.ts",
       "default": "./src/config/meta.ts"
+    },
+    "./config/liveCollaborationFlag": {
+      "types": "./src/config/liveCollaborationFlag.ts",
+      "default": "./src/config/liveCollaborationFlag.ts"
     },
     "./config/workspaceFeatureGates": {
       "types": "./src/config/workspaceFeatureGates.ts",
@@ -129,10 +142,16 @@
     "build": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata && npm run generate-embed-registry && npm run generate-models-metadata && npm run generate-providers-metadata && npm run generate-icon-urls && npm run generate-privacy-promises && npm run generate-training-policies && npm run validate:icon-refs"
   },
   "dependencies": {
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/state": "6.7.6",
+    "@codemirror/view": "6.43.15",
     "@desert-ant-labs/redact": "4.1.0",
-    "@litertjs/core": "2.6.0",
-    "hash-wasm": "4.12.0",
-    "@repo/pairing-crypto": "workspace:*",
     "@fontsource-variable/figtree": "^5.2.10",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
@@ -143,6 +162,7 @@
     "@fontsource/atkinson-hyperlegible": "^5.2.8",
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@fontsource/ibm-plex-sans": "^5.2.8",
+    "@litertjs/core": "2.6.0",
     "@lucide/svelte": "^0.545.0",
     "@meteocons/svg": "^0.1.0",
     "@opentelemetry/api": "^1.9.1",
@@ -152,10 +172,16 @@
     "@opentelemetry/instrumentation-fetch": "^0.219.0",
     "@opentelemetry/resources": "^2.8.0",
     "@opentelemetry/sdk-trace-web": "^2.8.0",
+    "@repo/pairing-crypto": "workspace:*",
+    "@repo/public-site": "workspace:*",
+    "@repo/upload-privacy": "workspace:*",
+    "@ricky0123/vad-web": "0.0.31",
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
     "@sveltejs/kit": "2.70.4",
     "@tiptap/core": "3.30.5",
+    "@tiptap/extension-collaboration": "3.30.5",
+    "@tiptap/extension-collaboration-caret": "3.30.5",
     "@tiptap/extension-highlight": "3.30.5",
     "@tiptap/extension-link": "3.30.5",
     "@tiptap/extension-mathematics": "3.30.5",
@@ -169,6 +195,7 @@
     "@tiptap/extensions": "3.30.5",
     "@tiptap/pm": "3.30.5",
     "@tiptap/starter-kit": "3.30.5",
+    "@tiptap/y-tiptap": "3.3.0",
     "@toon-format/toon": "4.4.0",
     "@types/leaflet": "^1.9.21",
     "@types/lodash-es": "^4.17.12",
@@ -177,6 +204,7 @@
     "date-fns": "^4.4.0",
     "dompurify": "^3.4.17",
     "function-plot": "1.25.4",
+    "hash-wasm": "4.12.0",
     "highlight.js": "^11.11.1",
     "highlightjs-svelte": "^1.0.6",
     "html-docx-js-typescript": "0.1.5",
@@ -189,6 +217,7 @@
     "lowlight": "^3.3.0",
     "markdown-it": "^14.3.3",
     "mermaid": "^11.16.1",
+    "onnxruntime-web": "1.30.0",
     "pica": "^9.0.1",
     "prosemirror-state": "^1.4.4",
     "prosemirror-view": "1.42.3",
@@ -197,11 +226,10 @@
     "tweetnacl": "^1.0.3",
     "uuid": "^13.0.1",
     "vite": "^8.3.4",
+    "y-codemirror.next": "0.3.6",
+    "y-protocols": "1.0.7",
     "yaml": "^2.9.0",
-    "@repo/upload-privacy": "workspace:*",
-    "@repo/public-site": "workspace:*",
-    "@ricky0123/vad-web": "0.0.31",
-    "onnxruntime-web": "1.30.0"
+    "yjs": "13.6.33"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

@@ -1,0 +1,12 @@
+[Unit]
+Description=OpenMates weekday meeting schedule in Berlin time
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 08:30:00 Europe/Berlin
+OnCalendar=Mon..Fri *-*-* 11..23:00,30:00 Europe/Berlin
+OnCalendar=Tue..Sat *-*-* 00..02:00:00 Europe/Berlin
+AccuracySec=1s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

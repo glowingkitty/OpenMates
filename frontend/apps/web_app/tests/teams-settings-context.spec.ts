@@ -1036,20 +1036,68 @@ test.describe('Teams V1 context isolation', () => {
 			// Keep the verified Personal-only list and clean Personal chat visible long enough for proof capture.
 			await page.waitForTimeout(6000);
 
+			// Remove the local header so the Team link must use its exact scoped
+			// metadata lookup rather than waiting for bulk phased metadata.
+			await page.evaluate(async (id: string) => {
+				const db = await new Promise<IDBDatabase>((resolve, reject) => {
+					const request = indexedDB.open('chats_db');
+					request.onsuccess = () => resolve(request.result);
+					request.onerror = () => reject(request.error);
+				});
+				try {
+					await new Promise<void>((resolve, reject) => {
+						const tx = db.transaction('chats', 'readwrite');
+						tx.objectStore('chats').delete(id);
+						tx.oncomplete = () => resolve();
+						tx.onerror = tx.onabort = () => reject(tx.error);
+					});
+				} finally { db.close(); }
+			}, teamChatId);
+			let holdTeamSync = true;
+			const heldTeamSync: Array<() => void> = [];
+			await page.routeWebSocket(/\/v1\/ws(?:\?|$)/, (socket) => {
+				const server = socket.connectToServer();
+				server.onMessage((data) => {
+					if (holdTeamSync && typeof data === 'string') {
+						const { type, payload } = JSON.parse(data);
+						if (payload?.team_id === teamId && typeof type === 'string' &&
+							/^(?:phase_[123]|phased_sync_complete)/.test(type)) {
+							heldTeamSync.push(() => socket.send(data));
+							return;
+						}
+					}
+					socket.send(data);
+				});
+			});
+			const selectedMetadata = page.waitForResponse((response) => {
+				if (!isApiPath(response, 'POST', '/v1/chats/metadata/batch') ||
+					new URL(response.url()).searchParams.get('team_id') !== teamId) return false;
+				const ids = response.request().postDataJSON()?.chat_ids;
+				return Array.isArray(ids) && ids.length === 1 && ids[0] === teamChatId;
+			});
 			const teamWindowResponsePromise = page.waitForResponse((response) => {
 				if (!isApiPath(response, 'GET', `/v1/chats/${teamChatId}/messages/window`)) return false;
 				const params = new URL(response.url()).searchParams;
 				return params.get('team_id') === teamId && params.get('limit') === '1';
 			});
 			const teamLinkFrameIndex = frames.length;
-			await page.goto(
-				getE2EDebugUrl(
-					`/#team-id=${encodeURIComponent(teamId)}&chat-id=${encodeURIComponent(teamChatId)}`
-				),
-				{ waitUntil: 'domcontentloaded' }
-			);
-			const teamWindowResponse = await teamWindowResponsePromise;
-			expect(teamWindowResponse.ok(), 'Team link chat access check must succeed').toBe(true);
+			try {
+				await page.evaluate(({ teamId, chatId }) => {
+					history.replaceState(null, '',
+						`${location.pathname}${location.search}#team-id=${encodeURIComponent(teamId)}&chat-id=${encodeURIComponent(chatId)}`);
+				}, { teamId, chatId: teamChatId });
+				await page.reload({ waitUntil: 'domcontentloaded' });
+				const [teamWindowResponse, selectedMetadataResponse] = await Promise.all([
+					teamWindowResponsePromise, selectedMetadata
+				]);
+				expect(teamWindowResponse.ok(), 'Team link chat access check must succeed').toBe(true);
+				expect(selectedMetadataResponse.ok(), 'The target must have an authorized Team header').toBe(true);
+				await expect(page.getByTestId('message-user').filter({ hasText: ordinaryMessage }))
+					.toBeVisible({ timeout: 30000 });
+			} finally {
+				holdTeamSync = false;
+				for (const release of heldTeamSync) release();
+			}
 			await waitForPhasedSyncCompletion(frames, teamLinkFrameIndex, teamId);
 			await expectProfileTeamBadge(page, teamName);
 			await expect(page.getByTestId('active-chat-container')).toHaveAttribute(

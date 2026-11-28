@@ -1,0 +1,19 @@
+schema_version: 2
+profile: concise
+id: gemini-stream-context
+title: Preserve chat interruption and Gemini stream cleanup
+status: implementing
+goal: >-
+  Investigate the production chat failures and fix the clear causes on dev
+  with end-to-end coverage.
+specifications:
+  - feature.ai-model-routing
+  - feature.chat-processing-feedback
+scope:
+  in:
+    - Bind Gemini request timing while the current task drives the SDK.
+    - Preserve stream completion, cancellation and timeout handling.
+    - Preserve the Celery interruption signal during preprocessing and the recovery fence during main response streaming.
+checks:
+  - The provider entry point and chunk watchdog pass isolated pytest coverage against a local HTTP streaming endpoint using the real Google SDK.
+  - The chat cancellation and account-deletion fence regressions pass in isolated backend CI.

@@ -9,11 +9,11 @@
   import WorkflowGraphRenderer from './WorkflowGraphRenderer.svelte';
   import { text } from '../../i18n/translations';
   import { workspacePaneMotion } from '../../utils/workspacePaneMotion';
+  import { openGuestAccountEntry } from '../../utils/guestAccountEntry';
 
 
   let { greetingName = 'there', empty = false, guest = false }: { greetingName?: string; empty?: boolean; guest?: boolean } = $props();
   let value = $state('');
-  let signupRequested = $state(false);
   let browseMode = $state<'home' | 'workflows' | 'templates'>('home');
   let sortMode = $state<'recent' | 'running-next'>('recent');
   let selectedGuestTemplate = $state<WorkflowTemplate | null>(null);
@@ -83,24 +83,19 @@
   </svelte:fragment>
   <svelte:fragment slot="composer">
     <div class="workflow-home-composer">
-    <div inert={guest}>
     <WorkspacePromptComposer
       surface="workflows" bind:value placeholder={$text('workflows.builder.new_workflow_placeholder')}
       submitLabel="Create workflow" submittingLabel="Creating..." disabled={false} submitting={false}
-      testId="workflow-input-composer" inputTestId="workflow-input-textarea"
+      testId="workflow-input-composer" inputTestId={guest ? 'workflow-guest-signup' : 'workflow-input-textarea'}
       submitTestId="workflow-input-submit" micTestId="workflow-input-mic"
       onSubmit={() => {}} onMicClick={() => {}}
+      onAccountRequired={guest ? openGuestAccountEntry : undefined}
     />
-    </div>
-    {#if guest}<button type="button" class="workflow-guest-signup" data-testid="workflow-guest-signup" aria-label={$text('workflows.builder.new_workflow_placeholder')} onclick={() => { signupRequested = true; }}></button>{/if}
     </div>
   </svelte:fragment>
 </WorkspaceHomeShell>
 {/if}
 
-{#if signupRequested}<div role="dialog" aria-label="Sign up" data-testid="workflow-signup-dialog"><button type="button" onclick={() => { signupRequested = false; }}>Close</button></div>{/if}
 <style>
   .workflow-home-composer { position: relative; width: min(629px, 100%); margin: 0 auto; }
-  .workflow-guest-signup { position: absolute; inset: 0; border: 0; border-radius: var(--radius-5); background: transparent; cursor: text; }
-  .workflow-guest-signup:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 </style>

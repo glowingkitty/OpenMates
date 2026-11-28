@@ -37,7 +37,7 @@ fn team_wrappers<'a>(raw: &'a Value, team: &str) -> impl Iterator<Item = &'a Val
         .filter(move |row| {
             row["key_type"] == "team"
                 && row["hashed_team_id"].as_str() == Some(hashed.as_str())
-                && row["team_key_epoch"] == 1
+                && crate::work::team_epoch_ok(row)
         })
 }
 
@@ -47,6 +47,7 @@ pub(super) fn plan_key(
     master: &[u8; 32],
     team_key: Option<&[u8; 32]>,
     team: &str,
+    previous: &[(u64, Key)],
 ) -> Result<Key> {
     let id = uuid(string(raw, "plan_id")?)?;
     if raw["hashed_team_id"].as_str() != Some(hash(team).as_str()) {
@@ -66,9 +67,11 @@ pub(super) fn plan_key(
     let team_rows = team_wrappers(raw, team).collect::<Vec<_>>();
     let encrypted = match (team_rows.as_slice(), team_key) {
         ([row], Some(team_key)) => {
-            return key_bytes(&crypto::decrypt_bytes(
+            return key_bytes(&crate::work::open_team_wrapper(
                 string(row, "encrypted_plan_key")?,
+                row["team_key_epoch"].as_u64().unwrap_or(1),
                 team_key,
+                previous,
             )?);
         }
         ([_], None) => return Err(Error::Protocol),
@@ -110,7 +113,13 @@ impl Plans<'_> {
         } else {
             None
         };
-        let key = plan_key(&raw, &master, team_key.as_deref(), &team)?;
+        let key = match plan_key(&raw, &master, team_key.as_deref(), &team, &[]) {
+            Err(Error::Crypto) => {
+                let previous = self.tasks.backend.team_previous_keys(&team).await?;
+                plan_key(&raw, &master, team_key.as_deref(), &team, &previous)?
+            }
+            other => other?,
+        };
         decode_with_key(raw, key)
     }
 }

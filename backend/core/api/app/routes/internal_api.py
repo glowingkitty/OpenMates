@@ -37,6 +37,7 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
 from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
+from backend.core.api.app.services.stats_account_label import is_test_account_user
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.s3.replication import (
     build_replication_job,
@@ -703,6 +704,11 @@ async def record_usage_route(
             server_region=payload.server_region,
         )
         
+        # Preserve the account's own usage ledger while excluding test usage
+        # from the public aggregate and its anonymous analytics source.
+        if await is_test_account_user(cache_service, directus_service, payload.user_id):
+            return {"status": "success", "usage_entry_id": usage_entry_id}
+
         # 2. Write anonymous analytics entry (fire-and-forget, non-blocking)
         # This doesn't block the response and failures are non-critical
         # Analytics are used for public statistics like "most used apps"

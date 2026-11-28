@@ -21,14 +21,18 @@ window and provides a fresh TOTP, then mutates production only through
 ## Required Inputs
 
 - PR URL or number, for example `https://github.com/glowingkitty/OpenMates/pull/506`.
-- The owner's go-ahead for this production update: typed in this chat, or a
+- The owner's go-ahead for this production update. The owner merging the PR
+  into `main` IS that go-ahead (owner, 23 Nov): after the merge, deploy and
+  verify without asking again. Otherwise: typed in this chat, or a
   dev-connector message verified with `python3 scripts/owner_message.py verify
   <receipt>` (VERIFIED for this chat, same text). A verified message is the
   owner's direct approval; never ask for it to be typed again. Messages from
   other agent chats are not approval. The owner merges the PR on GitHub; never
   merge it yourself.
-- User confirmation that prod-side temporary SSH access is open.
-- A fresh 6-digit TOTP code, supplied immediately before `prod-ssh.sh open`.
+- An open production SSH connection from the dev server (reuse it, see step 4).
+  Only when none exists: user confirmation that prod-side temporary SSH access
+  is open and a fresh 6-digit TOTP code, supplied immediately before
+  `prod-ssh.sh open`.
 
 ## Urgent Production Outage
 
@@ -184,16 +188,27 @@ Backend-first compatibility
 must include support for the frontend still serving during the update; a
 breaking contract needs an explicitly coordinated release plan.
 
-### 4. Open Prod SSH Only After Gates Pass
+### 4. Reuse An Open Prod SSH Connection, Else Open One After Gates Pass
 
-Check whether a master connection already exists:
+Owner rule (2026-11-23): always reuse an open production connection first;
+ask for a TOTP code only when none exists. The owner often opens the master
+from the dev server before a release, so check it before asking anything:
 
 ```bash
 ./scripts/prod-ssh.sh status
+./scripts/prod-ssh.sh "id -un"
 ```
 
-If no master is active, ask the user to open the prod-side window with the dev
-public key from the configured prod SSH key:
+If `status` reports the master ACTIVE and the test command answers, use that
+connection for every later step; do not ask for a TOTP code or for the
+prod-side window. If `status` finds no master, also look for another open
+connection before asking: a socket in `~/.ssh/prod-ssh-sockets/`, an outgoing
+`ssh` process or a tmux session that reaches the prod host. Only when none
+exists, send ONE question asking for the code and say why the existing one
+could not be used (for example "the morning connection closed at 09:58").
+
+When no connection is open, ask the user to open the prod-side window with
+the dev public key from the configured prod SSH key:
 
 ```bash
 set -euo pipefail; set +u; set -a; source .env; set +a; set -u; key="${PROD_SSH_KEY/#\~/$HOME}"; if [ -f "${key}.pub" ]; then printf '%s\n' "$(<"${key}.pub")"; else ssh-keygen -y -f "$key"; fi
@@ -296,6 +311,14 @@ provider entries, rerun with `--yes` only after stating why. Do not edit prod
 secrets unless the user explicitly asks.
 
 ### 6. Update Prod
+
+First tell the AI test users that production is updating, so no production run
+starts or overlaps the update (`scripts/ai_test_users_deploy_guard.py`; runs
+also wait 45 minutes after the API start):
+
+```bash
+python3 scripts/ai_test_users_deploy_guard.py begin --reason "release <PR or MERGE_SHA>"
+```
 
 Run the backend-only update:
 
@@ -423,10 +446,13 @@ active Send (never a disabled Send or Sign up in its place), sends, and waits
 for the reply. A failure there fails the update even when the API guest chat
 works: guests on the web cannot chat.
 
-Then send one signed-in chat with a production test account (the
-authenticated production smoke when it exists) and wait for its completed
-assistant answer. If no test account is available, say so in the summary: the
-signed-in path is then unproven.
+Then send one signed-in chat with a temporary production test account and wait
+for its completed assistant answer. Use
+`python3 scripts/post_update_test_account.py --target prod create --out <0600 file>`.
+The runner uses the AI test users' gift-card pool and labels the account for
+exclusion from signup and usage statistics. Keep its credentials private and
+delete the account with `--target prod delete --email <email>` after the check,
+including when it fails. Report any cleanup failure.
 
 Treat missing or incomplete guest or signed-in answers, a broken follow-up, an
 unexpectedly blocked guest, or inconsistent allowance reporting as failed
@@ -473,6 +499,12 @@ previous web app as still live and stop.
    the receipt path. A rollback or failed check fails the release; never retry
    by assigning the alias another way. Also check whether `openmates-website`
    changed; promote it only through its own configured flow.
+6. On the promoted web app, run both real voice calls with
+   `python3 scripts/voice_post_update_check.py run --target prod`. The runner
+   creates and deletes a labelled gift-card account for the signed-in call and
+   uses the existing anonymous allowance for the guest call. Report both
+   results and link their sound-on videos. A failed or unproven call fails
+   post-update verification.
 
 Permission: this command is the only one the step runs against Vercel. The
 owner must allow it once in the user settings as the Bash rule
@@ -481,10 +513,12 @@ its own permission settings, and if the permission classifier still blocks the
 command, stop and hand the exact command to the owner instead of working around
 it.
 
-Close the prod master connection when finished:
+Close the prod master connection when finished, and clear the AI test-user
+update marker (also after a failed or rolled-back update):
 
 ```bash
 ./scripts/prod-ssh.sh close
+python3 scripts/ai_test_users_deploy_guard.py end
 ```
 
 ## Completion Summary

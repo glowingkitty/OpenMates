@@ -33,7 +33,9 @@
   onMount(() => {
     let cancelled = false;
     const chatId = sourceChat?.chatId ?? null;
-    void loadSpecPlanLinks(chatId).then((links) => { if (!cancelled && links) plan = links; });
+    if (!sourceChat?.isReadOnly && !sourceChat?.exampleChatId) {
+      void loadSpecPlanLinks(chatId).then((links) => { if (!cancelled && links) plan = links; });
+    }
     void (async () => {
       try {
         const index = chatId ? await loadChatProjectIndex() : [];

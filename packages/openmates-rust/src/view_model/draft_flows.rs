@@ -18,11 +18,17 @@ use std::collections::BTreeMap;
 use tokio_util::sync::CancellationToken;
 
 /// Read the saved draft of Personal chat `chat_id` for its composer; `None`
-/// when it has none. Online this is the server's current draft (one
-/// `GET /v1/drafts/{id}`, so a draft typed on another device is restored);
-/// the read row is cached and persisted, and the chat list is emitted when
-/// the draft differs from the cached one. Offline, and only when the host
-/// admits the offline cache, the cached draft is returned instead.
+/// when it has none. When the host admits the cache and the chat list is
+/// fresh (`Client::get_draft` checks the completed-sync receipt), the cached
+/// row is the current draft: phased sync and live draft events keep it so,
+/// as the web client relies on. Otherwise it is the server's current draft
+/// (one `GET /v1/drafts/{id}`, so a draft typed on another device is
+/// restored); the read row is cached and persisted, and the chat list is
+/// emitted when the draft differs from the cached one. Offline, and only when
+/// the host admits the offline cache, the cached draft is returned instead.
+///
+/// Ordering: this runs on the view-model actor, so a network read here held
+/// every later command of the chat being opened (device trace: 4.7 s).
 ///
 /// # Errors
 /// `Invalid` for a malformed or volatile id (before any network);
@@ -42,7 +48,8 @@ pub fn draft<'a, S: ByteStore + 'static, H: ViewHost<S>>(
         host.core_mut().begin_client_operation(cancel);
         let offline_allowed = host.offline_cache_allowed();
         let client = host.core_mut().client_mut();
-        let read = match client.get_draft(&chat_id, true).await {
+        // A host that refuses the offline cache also gets no fresh-cache read.
+        let read = match client.get_draft(&chat_id, !offline_allowed).await {
             Err(Error::Offline) if offline_allowed => {
                 return Ok(client.cached_draft(&chat_id).await?.map(DraftView::from));
             }

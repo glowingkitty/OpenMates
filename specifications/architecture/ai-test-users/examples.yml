@@ -1,0 +1,35 @@
+schema_version: 1
+specification: architecture.ai-test-users@1
+
+run_message:
+  - id: issues-split-by-environment
+    given: A run on 23 Nov files three dev issues (raw JSON in a message bubble, a long message that hangs with a RangeError, a sticky top bar over text) and two production issues (a recipe card title wrapped mid-word, an English "according to" in a German citation); the harness itself had no problems.
+    then: The message starts with an alert line counting 3 DEV and 2 PRODUCTION issues and the chats started; the DEV section lists the three titles each on its own line with "DEV" and its chat status, the PRODUCTION section the two with "PRODUCTION · waiting for your approval"; nowhere does it say the run had no problems.
+  - id: covered-issue-is-linked
+    given: The raw JSON issue is already the subject of the open Task TASK-2861.
+    then: Its line says "no new chat, already covered by open Task TASK-2861" and no second chat starts.
+  - id: clean-scheduled-run-is-quiet
+    given: All scheduled personas finish without findings or harness problems.
+    then: The runner writes its report and summary locally and sends no Discord alert.
+
+debug_routing:
+  - id: hang-starts-a-chat
+    given: A dev persona waits 120 s for a reply that never settles while the console shows "RangeError Unknown node type listItem", and no open Task or chat covers it.
+    then: 'A chat titled "AI test user issue <short> investigate" starts at once and the message names it.'
+  - id: subjective-ui-waits
+    given: A finding says a recipe card title is awkwardly split.
+    then: No chat starts; the message lists it as waiting for Marco's approval, and `ai_test_users.py debug --env prod --issue <short>` starts its chat once he approves.
+  - id: sticky-bar-ignored
+    given: A persona scrolls and the sticky top bar covers part of a message.
+    then: The judge does not report it, since sticky and overlay elements covering content while scrolling are correct.
+
+issue_emails:
+  - id: test-user-report-on-production
+    given: A production AI test user signed up as omtestuser-<16 hex>@inboxkitten.com files a report, even if its account label is missing.
+    then: The report is stored and gets a short id for the run message, but no "reported issue" email goes out.
+  - id: test-user-report-on-dev
+    given: A dev AI test user with a Mailosaur test inbox address files a report.
+    then: No issue email goes out.
+  - id: real-user-report
+    given: A real user with an ordinary address, or one who types an AI test-user address into the contact field, files a report.
+    then: The issue email is sent as before.

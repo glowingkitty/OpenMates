@@ -59,7 +59,7 @@ describe("context failure typing end", () => {
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("ends the matching task once without creating an assistant response", () => {
     const activeAITasks = new Map([["chat-1", { taskId: "task-1", userMessageId: "user-1" }]]);
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
     const payload = {
       chat_id: "chat-1", message_id: "task-1", task_id: "task-1",
       terminal_failure_code: "client_context_unavailable",
@@ -83,7 +83,7 @@ describe("context failure typing end", () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("ends the turn as failed for a refused focus continuation with its own task id", () => {
     const activeAITasks = new Map([["chat-1", { taskId: "cont-task", userMessageId: "user-1" }]]);
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
 
     handleAITypingEndedImpl(service, {
       chat_id: "chat-1", message_id: "user-1", task_id: "cont-task",
@@ -103,7 +103,7 @@ describe("context failure typing end", () => {
   // contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("leaves a replacement task and legacy typing ends alone", () => {
     const activeAITasks = new Map([["chat-1", { taskId: "task-2", userMessageId: "user-2" }]]);
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
 
     handleAITypingEndedImpl(service, {
       chat_id: "chat-1", message_id: "task-1", task_id: "task-1",
@@ -836,7 +836,7 @@ describe("async skill continuation task lifecycle", () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("keeps the turn active through an interim final and ignores a stale final after handoff", () => {
     const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
     handleAITaskInitiatedImpl(service, { chat_id: "chat-1", ai_task_id: "task-1", user_message_id: "user-1", status: "processing_started" });
     service.dispatchEvent = vi.fn();
 
@@ -862,7 +862,7 @@ describe("async skill continuation task lifecycle", () => {
   // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
   it("still clears a pending continuation when its task is cancelled", async () => {
     const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
     handleAITaskInitiatedImpl(service, { chat_id: "chat-1", ai_task_id: "task-1", user_message_id: "user-1", status: "processing_started" });
     handleAIMessageUpdateImpl(service, finalChunk("task-1", true));
     service.dispatchEvent = vi.fn();
@@ -878,7 +878,7 @@ describe("async skill continuation task lifecycle", () => {
     // A second device never gets ai_task_initiated; each resumed turn runs as a
     // new task whose final carries the shared assistant message id.
     const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
-    const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
     mockChatDB.getChat.mockResolvedValue(null);
     await handleAITypingStartedImpl(service, {
       chat_id: "chat-1", message_id: "task-2", task_id: "task-2", user_message_id: "user-1", category: "software_development",
@@ -2501,7 +2501,7 @@ describe("stream assembler parity vectors (TypeScript side)", () => {
       for (const active of [null, "t1", "t2"]) {
         const activeAITasks = new Map<string, { taskId: string; userMessageId: string }>();
         if (active) activeAITasks.set("c1", { taskId: active, userMessageId: "u-active" });
-        const service = { activeAITasks, dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+        const service = { activeAITasks, dispatchEvent: vi.fn(), finishIndependentReply: vi.fn() } as unknown as ChatSynchronizationService;
         const payload = {
           type: "ai_message_chunk" as const, chat_id: "c1", task_id: "t1", message_id: "a1", user_message_id: "u-payload",
           full_content_so_far: "", sequence: 1, is_final_chunk: true,

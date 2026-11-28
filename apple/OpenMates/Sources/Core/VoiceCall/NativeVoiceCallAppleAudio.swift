@@ -12,6 +12,17 @@ import Foundation
 import UIKit
 #endif
 
+/// Builds AVFoundation callbacks outside any actor. AVFoundation invokes taps
+/// and player completion handlers on its own audio threads; a closure written
+/// inside a @MainActor type is main-actor isolated, and Swift 6 traps when it
+/// runs there. `body` runs on the main actor after an explicit hop.
+enum NativeAudioCallbacks {
+    nonisolated static func playedBack(_ body: @escaping @MainActor @Sendable () -> Void)
+        -> AVAudioPlayerNodeCompletionHandler {
+        { _ in Task { @MainActor in body() } }
+    }
+}
+
 /// Memory-only duplex audio, separate from AAC composer recording and ordinary
 /// 1.25x response speech. On iOS the voice-chat audio session stays active for
 /// the whole call, so with the `audio` background mode the call keeps running
@@ -45,13 +56,7 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
 
     init(runtime: AssistantSpeechAppRuntime = .shared,
          permission: @escaping @MainActor @Sendable () async -> Bool = {
-             #if os(iOS)
-             return await withCheckedContinuation { continuation in
-                 AVAudioSession.sharedInstance().requestRecordPermission { continuation.resume(returning: $0) }
-             }
-             #else
-             return await AVCaptureDevice.requestAccess(for: .audio)
-             #endif
+             await NativeVoiceCallAppleAudio.requestMicrophonePermission()
          }, invalidated: @escaping @Sendable () async -> Void) {
         self.runtime = runtime; self.permission = permission; self.invalidated = invalidated
         #if os(iOS)
@@ -108,9 +113,48 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
             DispatchQueue.main.async { MainActor.assumeIsolated { self?.levelSink?(levels) } }
         }
         self.meter = meter
-        engine.inputNode.installTap(onBus: 0, bufferSize: 1_024, format: source) { buffer, _ in
+        engine.inputNode.installTap(onBus: 0, bufferSize: 1_024, format: source,
+                                    block: Self.makeMicrophoneTap(meter: meter, converter: converter,
+                                                                  continuation: continuation, failure: failure))
+        tapInstalled = true
+        if !configured {
+            engine.attach(player)
+            engine.connect(player, to: engine.mainMixerNode, format: playback)
+            speechOutput.attach(to: engine)
+            configured = true
+        }
+        // Read-only tap on the existing mixer: playback level of assistant speech and cues.
+        engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil,
+                                        block: Self.makePlaybackTap(meter: meter))
+        playbackTapInstalled = true
+        engine.prepare()
+        try engine.start()
+        player.play()
+        runtime.attachLiveCallSpeechOutput(speechOutput)
+    }
+
+    // AVFoundation calls taps, completion handlers and the permission callback
+    // on its own audio threads. Closures written inside this @MainActor class
+    // would be main-actor isolated, and Swift 6 traps when such a closure runs
+    // off the main thread (the call crashed on its first audio buffer). They
+    // are built in nonisolated factories and hop to the main actor explicitly.
+
+    nonisolated static func requestMicrophonePermission() async -> Bool {
+        #if os(iOS)
+        return await AVAudioApplication.requestRecordPermission()
+        #else
+        return await AVCaptureDevice.requestAccess(for: .audio)
+        #endif
+    }
+
+    nonisolated private static func makeMicrophoneTap(
+        meter: NativeVoiceCallLevelMeter, converter: NativeVoiceCallAVCaptureConverter,
+        continuation: AsyncStream<Data>.Continuation,
+        failure: @escaping @Sendable (NativeVoiceCallError) async -> Void
+    ) -> AVAudioNodeTapBlock {
+        { buffer, _ in
             // Muted or stopped microphone contributes no level.
-            meter.submit(.microphone, level: converter.isEnabled ? Self.level(of: buffer) : 0)
+            meter.submit(.microphone, level: converter.isEnabled ? level(of: buffer) : 0)
             do {
                 guard let data = try converter.convert(buffer) else { return }
                 if case .dropped = continuation.yield(data) {
@@ -124,22 +168,10 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
                 Task { await failure(.audioUnavailable) }
             }
         }
-        tapInstalled = true
-        if !configured {
-            engine.attach(player)
-            engine.connect(player, to: engine.mainMixerNode, format: playback)
-            speechOutput.attach(to: engine)
-            configured = true
-        }
-        // Read-only tap on the existing mixer: playback level of assistant speech and cues.
-        engine.mainMixerNode.installTap(onBus: 0, bufferSize: 1_024, format: nil) { buffer, _ in
-            meter.submit(.playback, level: Self.level(of: buffer))
-        }
-        playbackTapInstalled = true
-        engine.prepare()
-        try engine.start()
-        player.play()
-        runtime.attachLiveCallSpeechOutput(speechOutput)
+    }
+
+    nonisolated static func makePlaybackTap(meter: NativeVoiceCallLevelMeter) -> AVAudioNodeTapBlock {
+        { buffer, _ in meter.submit(.playback, level: level(of: buffer)) }
     }
 
     nonisolated private static func level(of buffer: AVAudioPCMBuffer) -> Float {
@@ -148,6 +180,22 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
     }
 
     func setMicrophoneEnabled(_ enabled: Bool) { capture?.setEnabled(enabled) }
+
+    /// Whether the call's audio engine is running (diagnostics and the DEBUG smoke preview).
+    var isEngineRunning: Bool { engine.isRunning }
+
+    /// Counts only, for the DEBUG smoke preview: engine state, whether the
+    /// reservation is still current, and frames still waiting for playback.
+    /// Played-back completions bring `queued` back to 0.
+    var smokeDiagnostics: String {
+        let current = reservation.map { runtime.isLiveCallReservationCurrent($0) } ?? false
+        #if os(iOS)
+        let suspended = sessionLifecycle.isSuspended
+        #else
+        let suspended = false
+        #endif
+        return "engine=\(engine.isRunning) reservation=\(current) suspended=\(suspended) queued=\(queuedPlaybackFrames)"
+    }
 
     func play(_ pcm16: Data, sampleRate: Int) throws {
         #if os(iOS)
@@ -167,12 +215,11 @@ final class NativeVoiceCallAppleAudio: NativeVoiceCallAudio {
         for index in samples.indices { output[index] = samples[index] }
         queuedPlaybackFrames += samples.count
         let frames = samples.count, generation = playbackGeneration
-        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.playbackGeneration == generation else { return }
-                self.queuedPlaybackFrames = max(0, self.queuedPlaybackFrames - frames)
-            }
-        }
+        player.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack,
+                              completionHandler: NativeAudioCallbacks.playedBack { [weak self] in
+            guard let self, self.playbackGeneration == generation else { return }
+            self.queuedPlaybackFrames = max(0, self.queuedPlaybackFrames - frames)
+        })
         if !player.isPlaying { player.play() }
     }
 

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Dict, Any, List, Optional
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.chat_sync_feed_service import socket_uses_opened_startup
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
@@ -66,9 +67,12 @@ async def handle_load_more_chats(
     try:
         try:
             offset = payload.get("offset", 100)
-            limit = min(payload.get("limit", 20), 50)  # Cap at 50 to prevent abuse
             raw_team_id = payload.get("team_id")
             team_id = raw_team_id if isinstance(raw_team_id, str) and raw_team_id else None
+            opened_startup = socket_uses_opened_startup(websocket, team_id)
+            limit = min(payload.get("limit", 20), 20 if opened_startup else 50)
+            if type(offset) is not int or offset < 0 or type(limit) is not int or limit < 1:
+                raise ValueError("Invalid show-more window")
             context_epoch = payload.get("context_epoch")
             if team_id:
                 await directus_service.team.require_team_role(
@@ -79,6 +83,32 @@ async def handle_load_more_chats(
         
             logger.info(f"Loading more chats for user {user_id[:8]}...: offset={offset}, limit={limit}")
         
+            if opened_startup:
+                if offset < 100:
+                    raise ValueError("Show more starts after the recent 100-chat window")
+                feed = getattr(websocket.app.state, "chat_sync_feed", None)
+                if feed is None:
+                    raise RuntimeError("Modified chat inventory unavailable")
+                rows, total_count = await feed.recent_modified(user_id, team_id, limit, offset)
+                from .phased_sync_handler import _build_chat_details_from_directus_metadata
+
+                await manager.send_personal_message(
+                    {"type": "load_more_chats_response", "payload": {
+                        "chats": [{
+                            "chat_details": _build_chat_details_from_directus_metadata(row, row["id"]),
+                            "messages": None,
+                        } for row in rows],
+                        "has_more": offset + len(rows) < total_count,
+                        "total_count": total_count,
+                        "offset": offset,
+                        "team_id": team_id,
+                        "context_epoch": context_epoch,
+                    }},
+                    user_id,
+                    device_fingerprint_hash,
+                )
+                return
+
             # Get total chat count (Redis + Directus fallback for accuracy)
             total_count = await _get_total_chat_count(
                 cache_service,

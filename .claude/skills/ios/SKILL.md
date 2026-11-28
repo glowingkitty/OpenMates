@@ -285,6 +285,11 @@ First submit `python3 scripts/ci_coordinator.py submit --mode apple-core` (core
 lanes), `--mode apple-unit` (XCTest) or `--mode apple-ui --spec
 OpenMatesUITests/<Class>[/<test>]` (XCUITest) and wait for it. Use the Mac only as
 the follow-up for TestFlight, physical device/APNs and real-account tests.
+Submit one round's Apple jobs for one source within 60 seconds of each other (the
+coordinator collects the round that long): the first Xcode job builds and the other unit/UI jobs
+test its products instead of compiling again. At most 5 Apple jobs run at once (GitHub
+Free's macOS limit); the rest wait in the coordinator, and resubmitting the same check
+on a newer source replaces the older queued one. Never use the Mac as a CI runner.
 
 #### Remote Mac CLI verification loop
 

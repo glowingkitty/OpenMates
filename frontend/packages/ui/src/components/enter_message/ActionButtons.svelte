@@ -10,6 +10,7 @@
     import { tooltip } from '../../actions/tooltip';
     import { text } from '@repo/ui';
     import ComposerModelSelector from './ComposerModelSelector.svelte';
+    import ComposerIconButton from '../workspace/ComposerIconButton.svelte';
     import { isComposerSendBusy } from './sendReadiness';
 
     const SPEECH_STATUS_DURATION_MS = 1800;
@@ -67,7 +68,7 @@
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
-    let recordButton: HTMLButtonElement;
+    let recordButton = $state<HTMLButtonElement>();
     let previousBlockedMicAttempt = 0;
     $effect(() => {
         if (blockedMicAttempt === previousBlockedMicAttempt) return;
@@ -172,10 +173,9 @@
 <div class="action-buttons" data-testid="action-buttons">
     <div class="left-buttons">
         <div class="attachment-menu" bind:this={attachmentMenuElement} data-preserve-composer-focus="true">
-            <button
-                type="button"
-                class="clickable-icon attachment-plus-icon"
-                data-testid="composer-attachment-menu-button"
+            <ComposerIconButton
+                icon="attachment-plus-icon"
+                testId="composer-attachment-menu-button"
                 data-icon="plus"
                 onclick={() => showAttachmentMenu = !showAttachmentMenu}
                 aria-label={$text('enter_message.attachments.attach_files')}
@@ -183,8 +183,8 @@
                 aria-expanded={showAttachmentMenu}
                 disabled={disableAttachments}
                 onkeydown={handleAttachmentKeydown}
-                use:tooltip
-            ></button>
+                showTooltip
+            />
             {#if showAttachmentMenu}
                 <div class="attachment-menu-popover" data-testid="composer-attachment-menu" role="menu" tabindex="-1" onkeydown={handleAttachmentKeydown}>
                     <button class:active={isSketchOpen} type="button" role="menuitem" data-testid="composer-attachment-drawing" onclick={() => selectAttachment(handleSketchClick)}><span class="clickable-icon icon_sketch"></span>{$text('enter_message.attachments.sketch')}</button>
@@ -244,11 +244,11 @@
             </button>
         </div>
 
-        <button
-            type="button"
-            class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
-            data-testid="record-audio-button"
-            bind:this={recordButton}
+        <ComposerIconButton
+            class={isRecordButtonPressed ? 'recording' : ''}
+            icon="icon_recordaudio"
+            testId="record-audio-button"
+            bind:button={recordButton}
             disabled={disableRecording}
             onmousedown={handleRecordMouseDown}
             onmouseup={handleRecordMouseUp}
@@ -256,8 +256,8 @@
             ontouchstart={handleRecordTouchStart}
             ontouchend={handleRecordTouchEnd}
             aria-label={disableRecording ? $text('voicecall.recording_disabled') : $text('enter_message.attachments.record_audio')}
-            use:tooltip
-        ></button>
+            showTooltip
+        />
 
         {#if showSendButton || forceUnauthenticatedCta || (isAuthenticated && hasNoCredits)}
             {#if isAuthenticated && hasNoCredits}
@@ -312,7 +312,7 @@
     }
 
     .attachment-menu { position: relative; }
-    .attachment-plus-icon {
+    .attachment-menu :global(.attachment-plus-icon) {
         -webkit-mask-image: var(--icon-url-plus);
         mask-image: var(--icon-url-plus);
     }
@@ -392,7 +392,7 @@
 
     .assistant-speech-glyph[data-visible='true'] { opacity: 1; }
 
-    .icon_recordaudio { touch-action: none; }
+    .action-buttons :global(.icon_recordaudio) { touch-action: none; }
 
     .send-button {
         height: 40px;

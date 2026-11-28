@@ -678,3 +678,22 @@ async def test_recovery_fails_closed_if_provider_repeats_offset_page(monkeypatch
     assert result["status"] == "unavailable" and result["checked_users"] == 1
     assert send.await_count == 1
     assert task.directus_service.get_items.await_args.kwargs["params"]["offset"] == 1
+
+
+# contract-test: supporting surface=rest_api assertions=notifications.workflow-digest.daily-activity,notifications.delivery.idempotent
+@pytest.mark.asyncio
+async def test_recovery_survives_roster_shift_between_pages(monkeypatch):
+    """Prod 23 Nov 06:30: a user added mid-sweep shifted the next offset page so it
+    began with the last row already checked ('Unordered recovery user page')."""
+    monkeypatch.setattr(dispatcher, "initialize_notification_email_services", AsyncMock())
+    monkeypatch.setattr(dispatcher, "USER_PAGE_SIZE", 2)
+    task, _ = recovery_task([
+        [recovery_user("a"), recovery_user("b")],
+        [recovery_user("b"), recovery_user("c")],
+        [],
+    ])
+    send = AsyncMock(return_value="sent")
+    monkeypatch.setattr(dispatcher, "send_user_workflow_digest", send)
+    result = await dispatcher._async_recover_workflow_digests(task)
+    assert result["status"] == "complete" and result["checked_users"] == 3
+    assert [call.args[1] for call in send.await_args_list] == ["a", "b", "c"]

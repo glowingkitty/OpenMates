@@ -1,5 +1,6 @@
 // playwright-account: not_required reason=public_guest_navigation
 /* eslint-disable @typescript-eslint/no-require-imports */
+import type { BrowserContext, Page } from '@playwright/test';
 export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
@@ -136,7 +137,50 @@ test.describe('Guest Describe new workflow', () => {
     await expect(page.getByTestId('workflows-start-screen')).toBeVisible({ timeout: 30000 });
     await page.getByTestId('workflow-guest-signup').click();
     await expect(page.getByTestId('signup-modal')).toBeVisible();
-    await expect(page.getByTestId('login-wrapper')).toHaveCount(0);
+    await expect(page.getByTestId('login-wrapper')).toHaveCount(1);
     expect(await page.evaluate(() => sessionStorage.getItem('openmates.workflows.describeAfterSignup'))).toBe('1');
   });
+
+  for (const [surface, action] of [
+    ['workflows', 'workflow-guest-signup'],
+    ['projects', 'projects-guest-account'],
+    ['tasks', 'tasks-guest-account'],
+    ['apps', 'header-login-signup-btn'],
+  ] as const) {
+    for (const known of [false, true]) {
+      // contract-test: direct surface=gui.web assertions=workspace-shell.guest.shared-account-entry,workspace-shell.start.chat-visual-parity
+      test(`${surface} uses the chat account interface on a ${known ? 'known' : 'new'} device`, async ({ page, context }: { page: Page; context: BrowserContext }) => {
+        if (known) await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
+        await page.goto(getE2EDebugUrl(`/#${surface}`), { waitUntil: 'domcontentloaded' });
+        await expect(page.getByTestId(action)).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId('header-login-signup-btn')).toHaveAttribute('data-workspace-control', 'account');
+        const report = page.getByTestId('report-issue-button').filter({ visible: true });
+        await expect(report).toHaveCount(1);
+        await expect(page.getByTestId('report-issue-button-shell').filter({ visible: true })).toHaveAttribute('data-workspace-control', 'report-issue');
+        await expect(report.locator('[aria-hidden="true"]')).toHaveCSS('width', '25px');
+        await expect(report.locator('[aria-hidden="true"]')).toHaveCSS('height', '25px');
+        await page.getByTestId(action).click();
+        const entry = page.getByTestId('login-wrapper');
+        await expect(entry).toHaveCount(1);
+        await expect(entry.getByTestId(known ? 'login-modal' : 'signup-modal')).toBeVisible();
+        await expect(page.getByTestId(known ? 'signup-modal' : 'login-modal')).toHaveCount(0);
+        expect(context.pages()).toHaveLength(1);
+        await test.info().attach(`${surface}-${known ? 'login' : 'signup'}`, { body: await page.screenshot(), contentType: 'image/png' });
+      });
+    }
+  }
+});
+
+test.describe('Guest account-only Settings links', () => {
+  for (const known of [false, true]) {
+    // contract-test: direct surface=gui.web assertions=workspace-shell.guest.shared-account-entry
+    test(`protected Settings opens the chat account interface on a ${known ? 'known' : 'new'} device`, async ({ page }: { page: Page }) => {
+      if (known) await page.addInitScript(() => localStorage.setItem('openmates:last-auth-method', 'email'));
+      await page.goto(getE2EDebugUrl('/#settings/privacy'), { waitUntil: 'domcontentloaded' });
+      const account = page.getByTestId('login-wrapper');
+      await expect(account.getByTestId(known ? 'login-modal' : 'signup-modal')).toBeVisible({ timeout: 30_000 });
+      await expect(account).toHaveCount(1);
+      expect(await page.evaluate(() => sessionStorage.getItem('pendingDeepLink'))).toContain('settings/privacy');
+    });
+  }
 });

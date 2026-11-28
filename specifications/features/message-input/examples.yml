@@ -1,5 +1,19 @@
 schema_version: 1
-specification: feature.message-input@13
+specification: feature.message-input@17
+dictation_correction_gate:
+- id: clean-dictation-is-kept
+  given: The web composer has recognized “Please close the window.” exactly as spoken.
+  when: The user finishes dictation and Jev confirms the transcript is ready.
+  then: The same sentence appears as editable text without a correction request or a recording title.
+- id: late-words-get-checked-at-finish
+  assertion_ids: [message-input.audio.correction-gate]
+  given: A signed-in user says “Book the room for Friday” and sees “Book the room” when they press Finish.
+  when: The fast check starts on the available phrase and the provider then delivers “for Friday”.
+  then: The returned draft includes “for Friday”, and the complete phrase is checked before applying any correction.
+- id: uncertain-dictation-still-gets-corrected
+  given: The speaker says “Ask Maya to bring fifteen copies, sorry, fifty copies.”
+  when: Jev detects a name, number or spoken correction, or its request fails.
+  then: The existing correction model cleans up the transcript and the composer receives editable text without a recording title.
 parent_state:
 - id: focus-and-text-update-parent
   given:
@@ -368,13 +382,13 @@ voxtral3_dictation:
 - id: preview-and-editable-result
   assertion_ids: [message-input.audio.realtime-voxtral3]
   given: A signed-in user with one credit, or an official-cloud guest with available free allowance, starts microphone dictation in an unsent draft.
-  when: The user speaks for one second and then stops the recording.
-  then: Voxtral 3 partial words appear before stopping, and the complete corrected transcript becomes editable draft text without an audio upload, automatic send or Audio transcribe skill invocation. The recording settles once for one credit against the account or guest allowance, respectively.
+  when: The user speaks a short phrase, pauses, adds the last words and chooses Finish.
+  then: Streamed words remain editable when dictation finishes. The trailing words and any late correction remain in the draft without attaching an audio file or sending the message. If the connection drops first, the words already shown stay in the unsent draft. The brief recording settles once for one credit against the account or guest allowance, respectively.
 - id: realtime-price-and-separate-batch
   assertion_ids: [message-input.audio.realtime-voxtral3]
-  given: A user streams 10 seconds of dictation, disconnects after 61 seconds of another recording, ends an empty recording, and later transcribes an uploaded file with the Audio transcribe app skill.
+  given: A user forwards 10 seconds of dictation, disconnects after forwarding 61 seconds in another recording, ends an empty recording, and later transcribes an uploaded file with the Audio transcribe app skill.
   when: The completed and interrupted dictation usage settles and the uploaded-file request is processed.
-  then: The positive-duration dictation recordings settle once each for two and eleven credits respectively; the empty recording costs zero. The published dictation price remains ten credits per minute. The separate app skill retains its existing model and three-credit-per-started-minute price.
+  then: The positive-duration dictation recordings settle once each for three and sixteen credits respectively. The empty recording costs zero. The separate app skill retains its existing model and three-credit-per-started-minute price.
 
 live_editor_recording:
 - id: dictation-follows-caret
@@ -387,6 +401,11 @@ live_editor_recording:
   given: A user dictates in one place and says an email address.
   when: The address is detected, then the user presses Finish.
   then: The address is highlighted and can be excluded by tapping, the recording Send control fades out leaving Cancel and Finish, and after Finish the dictated text shows an animated gradient above the still-colored recording controls until the corrected text replaces it.
+- id: edit-dictation-before-correction
+  assertion_ids: [message-input.audio.editable-transcript]
+  given: A signed-in user's chat composer shows the streamed words "review the plan", and final transcription is still pending.
+  when: The user presses Finish and immediately changes "plan" to "schedule" in the editor.
+  then: The editor accepts "review the schedule" while the recording controls indicate processing. The late word "tomorrow" appears after that phrase, and the late correction keeps the user's edit.
 
 workspace_dictation:
 - id: fullscreen-followup-dictation-matches-chat
@@ -430,6 +449,15 @@ signed_out_states:
   given: A signed-out visitor with guest chat open types "Capital of France?" and clicks Send, but the on-device privacy runtime never finishes loading.
   when: Fifteen seconds pass without the send reaching the server.
   then: A notification says the send is taking too long, the draft text stays in the composer, an active Send comes back, and the message is never sent twice.
+signed_out_action_access:
+- id: blocked-composer-actions-on-a-new-browser
+  given: A signed-out visitor on a new browser has used the available free allowance.
+  when: They press Record audio, Attach files, or Start voice call.
+  then: Sign up opens directly. The microphone, file chooser, and call setup stay closed.
+- id: blocked-composer-actions-on-a-returning-browser
+  given: A visitor has signed out on a browser where they previously logged in, and free usage is unavailable.
+  when: They press Record audio, Attach files, or Start voice call.
+  then: The same Log in flow used for sending a message opens directly, with no microphone, file chooser, or call setup.
 send_collapse:
 - id: phone-send-closes-keyboard-at-once
   assertion_ids: [message-input.send.collapse-at-send]

@@ -224,6 +224,9 @@ struct ChatListRow: View {
         .accessibilityValue(accessibilityValue)
         .accessibilityLabel("\(titleForDisplay)\(isDraftOnly ? formattedDraftPreview.map { ": " + $0 } ?? "" : "")\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
+        #if DEBUG
+        .onAppear { if accessibilityScope == "user-chat" { NativeStartupBenchmark.rowAppeared() } }
+        #endif
     }
 }
 

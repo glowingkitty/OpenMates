@@ -3,6 +3,30 @@
 const fs = require('node:fs');
 const MAX_PROCESSES = 128, MAX_ANCESTORS = 16, COMMAND_TIMEOUT_MS = 2000;
 const finite = (v) => Number.isFinite(v) && v >= 0;
+const PROCESS_TYPES = new Set(['browser', 'renderer', 'gpu', 'utility', 'zygote']);
+const RENDERER_METRICS = {
+  TaskDuration: 'task_ms',
+  ScriptDuration: 'script_ms',
+  LayoutDuration: 'layout_ms',
+  LayoutCount: 'layout_count',
+  RecalcStyleDuration: 'style_ms',
+  RecalcStyleCount: 'style_count',
+};
+function processType(value) {
+  const normalized = typeof value === 'string' ? value.toLowerCase() : '';
+  return PROCESS_TYPES.has(normalized) ? normalized : 'other';
+}
+function rendererDelta(before, after) {
+  return {
+    available: before?.values.task_ms !== undefined && after?.values.task_ms !== undefined,
+    running_animations_at_start: before?.animations ?? null,
+    running_animations_at_end: after?.animations ?? null,
+    deltas: Object.fromEntries(Object.values(RENDERER_METRICS).map((key) => {
+      const delta = after?.values[key] - before?.values[key];
+      return [key, finite(delta) ? delta : null];
+    })),
+  };
+}
 function procIdentity(pid, reader = fs, uid = process.getuid?.()) {
   if (!Number.isSafeInteger(pid) || pid <= 1 || uid === undefined) throw new Error('proc_unavailable');
   const readStat = () => {
@@ -33,16 +57,29 @@ function descendsFrom(pid, ancestor, readIdentity) {
 function sanitizeWindow(before, after) {
   const stable = after.rows.filter((row) => before.rows.some((old) => old.pid === row.pid && old.birth === row.birth));
   let cpuMs = 0, invalidCpuPairs = 0;
+  const cpuByType = new Map();
   for (const row of stable) {
     const old = before.rows.find((item) => item.pid === row.pid && item.birth === row.birth);
     const delta = row.cpuTime - old.cpuTime;
-    if (!finite(delta)) invalidCpuPairs++;
-    else cpuMs += delta * 1000;
+    const currentType = processType(row.type);
+    const type = currentType === processType(old.type) ? currentType : 'other';
+    const group = cpuByType.get(type) ?? { processCount: 0, cpuMs: 0, invalidCpuPairs: 0 };
+    group.processCount++;
+    if (finite(delta)) {
+      cpuMs += delta * 1000;
+      group.cpuMs += delta * 1000;
+    } else {
+      invalidCpuPairs++;
+      group.invalidCpuPairs++;
+    }
+    cpuByType.set(type, group);
   }
   const snapshot = (sample) => ({ reportedVerifiedProcessCount: sample.rows.length, summedReportedProcessRssBytes: sample.rows.reduce((sum, row) => sum + row.rssBytes, 0) });
   return {
     available: true, stableReportedProcessCpuMs: invalidCpuPairs ? null : cpuMs,
     stableProcessCount: stable.length, invalidCpuPairs,
+    stableProcessCpuByType: Object.fromEntries(Array.from(cpuByType, ([type, group]) =>
+      [type, { ...group, cpuMs: group.invalidCpuPairs ? null : group.cpuMs }])),
     newlyReportedOrReplacedProcessCount: after.rows.length - stable.length,
     noLongerReportedOrReplacedProcessCount: before.rows.length - stable.length,
     before: snapshot(before), after: snapshot(after),
@@ -80,7 +117,8 @@ async function createBrowserProcessEvidence(page, options = {}) {
   const browser = page.context().browser();
   const readIdentity = options.readIdentity || ((pid) => procIdentity(pid));
   const ownerPid = options.ownerPid || process.pid;
-  let browserSession, pageSession, before = null;
+  let browserSession, pageSession, before = null, rendererBefore = null;
+  let rendererEnabled = false;
   const unavailable = () => ({ available: false, reason: 'local_owned_chromium_process_metrics_unavailable' });
   const soleContext = () => browser && browser.contexts().length === 1 && browser.contexts()[0] === page.context() && page.context().pages().length === 1;
   async function snapshot() {
@@ -96,11 +134,30 @@ async function createBrowserProcessEvidence(page, options = {}) {
       ids.add(info.id);
       const identity = readIdentity(info.id);
       if (identity.uid !== owner.uid || !descendsFrom(info.id, root.pid, readIdentity)) throw new Error('reported_process_owner');
-      return { ...identity, cpuTime: info.cpuTime };
+      return { ...identity, cpuTime: info.cpuTime, type: processType(info.type) };
     });
     const checkedRoot = readIdentity(root.pid), checkedOwner = readIdentity(ownerPid);
     if (checkedRoot.birth !== root.birth || checkedOwner.birth !== owner.birth) throw new Error('owner_changed');
     return { rows, startedMs, finishedMs: Date.now() };
+  }
+  async function sampleRenderer() {
+    if (!rendererEnabled) return null;
+    try {
+      const [metrics, animations] = await Promise.all([
+        bounded(() => pageSession.send('Performance.getMetrics')),
+        bounded(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === 'running').length)),
+      ]);
+      if (!Number.isSafeInteger(animations) || !finite(animations)) return null;
+      const values = {};
+      for (const { name, value } of metrics.metrics) {
+        if (Object.hasOwn(RENDERER_METRICS, name) && finite(value)) {
+          values[RENDERER_METRICS[name]] = name.endsWith('Duration') ? value * 1000 : value;
+        }
+      }
+      return { values, animations };
+    } catch {
+      return null;
+    }
   }
   try {
     if (!soleContext() || typeof browser.newBrowserCDPSession !== 'function') throw new Error('unsupported');
@@ -108,6 +165,9 @@ async function createBrowserProcessEvidence(page, options = {}) {
     pageSession = await bounded(() => page.context().newCDPSession(page));
     // Verify local ownership before any HTTP-cache mutation.
     await snapshot();
+    if (options.collectRendererMetrics) {
+      rendererEnabled = await bounded(() => pageSession.send('Performance.enable')).then(() => true, () => false);
+    }
   } catch {
     await browserSession?.detach().catch(() => {});
     await pageSession?.detach().catch(() => {});
@@ -125,13 +185,30 @@ async function createBrowserProcessEvidence(page, options = {}) {
         return { available: true, definition: 'Browser HTTP cache cleared once after login; cache enabled for cold fill and two same-route warm reload attempts; service-worker bypass held true for all samples. Auth/IDB/application data untouched. Warm cache hits are observations, not guaranteed.' };
       } catch { return { available: false, reason: 'http_cache_control_unavailable' }; }
     },
-    async begin() { try { before = await snapshot(); return { available: true }; } catch { before = null; return unavailable(); } },
+    async begin() {
+      try {
+        [before, rendererBefore] = await Promise.all([snapshot(), sampleRenderer()]);
+        return { available: true };
+      } catch {
+        before = null;
+        rendererBefore = null;
+        return unavailable();
+      }
+    },
     async end() {
-      const initial = before; before = null;
+      const initial = before, initialRenderer = rendererBefore;
+      before = null;
+      rendererBefore = null;
       if (!initial) return unavailable();
-      try { return sanitizeWindow(initial, await snapshot()); } catch { return unavailable(); }
+      try {
+        const [after, rendererAfter] = await Promise.all([snapshot(), sampleRenderer()]);
+        const result = sanitizeWindow(initial, after);
+        if (options.collectRendererMetrics) result.renderer = rendererDelta(initialRenderer, rendererAfter);
+        return result;
+      } catch { return unavailable(); }
     },
     async close() {
+      if (rendererEnabled) await bounded(() => pageSession.send('Performance.disable')).catch(() => {});
       await bounded(() => pageSession.send('Network.setBypassServiceWorker', { bypass: false })).catch(() => {});
       await pageSession.detach().catch(() => {});
       await browserSession.detach().catch(() => {});

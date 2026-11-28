@@ -81,6 +81,23 @@ accounts or runtime seeds, and are not lightweight (macOS runners are scarce, ab
   Mac. Screenshots, recordings, the result summary and the `.xcresult` are
   uploaded as the separate `apple-ui-evidence` artifact.
 
+Rounds. GitHub Free runs at most 5 macOS jobs at once (20 jobs in total). The
+coordinator dispatches at most 5 Apple jobs (`OPENMATES_CI_MAX_MACOS`, counting
+other macOS jobs of the account) and keeps the rest queued in its own fair queue,
+so one chat's large round cannot hold every macOS runner, queued Apple jobs hold no
+Linux slot, and a newer candidate for the same check supersedes an older queued one.
+Running jobs are never cancelled. With the `apple-shared-build` speedup
+(`scripts/ci_speedups.py`), one owner's round on one source builds once: the first
+Xcode job (`apple-build`, `apple-unit` or `apple-ui`) is the producer. It builds, uploads
+its Debug products as the 1-day `apple-products` artifact, then runs its own tests.
+A new Xcode job waits up to 60 s for its round's siblings. That owner's other
+`apple-unit`/`apple-ui` jobs on the same source wait in the
+coordinator ("waiting for the shared Apple build"), are dispatched with the producer's
+run as `prepared_run_id`, verify source commit, tree and build identity, and run only
+`xcodebuild test-without-building`, with the same selectors, recordings and evidence.
+If the producer publishes nothing (build error, cancel, 75 minutes), they build
+themselves. The private startup benchmark never shares products.
+
 ```sh
 python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-core --spec all
 python3 scripts/ci_coordinator.py submit --session SESSION --mode apple-ui \

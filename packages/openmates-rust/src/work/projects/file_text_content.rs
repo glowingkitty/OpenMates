@@ -1,6 +1,6 @@
 //! The text of a Project code file inside its stored embed content (shared
 //! core, native and web Worker). A hosted file's head content is an object
-//! (`type: "code"`, `code` or legacy `content`, `filename`, `language`,
+//! (`type: "code"` or `"code-code"`, `code` or legacy `content`, `filename`, `language`,
 //! `version_number`, `status`, `line_count`) stored as TOON or JSON, while the
 //! hosted writer (`work::projects::hosted::job`) keeps only the text in the
 //! version history. A web edit stores the whole object as its history
@@ -61,15 +61,15 @@ pub(crate) fn line_count(content: &str) -> usize {
 
 /// The file text of one replayed version. A history row holds either the
 /// text itself (hosted writer) or the whole code object (web edit); only an
-/// object with `type: "code"` and a string text field counts as the latter,
-/// so a JSON source file such as package.json stays text.
+/// object with a stored code embed type and a string text field counts as
+/// the latter, so a JSON source file such as package.json stays text.
 pub(crate) fn version_text(replayed: Zeroizing<String>) -> Zeroizing<String> {
     let Some(fields) = decode_content_fields(&replayed) else {
         return replayed;
     };
-    let is_code = fields
-        .iter()
-        .any(|(key, value)| key == "type" && value.as_str() == Some("code"));
+    let is_code = fields.iter().any(|(key, value)| {
+        key == "type" && matches!(value.as_str(), Some("code" | "code-code" | "code_code"))
+    });
     let field = text_field(&fields);
     let text = fields
         .iter()
@@ -100,6 +100,50 @@ pub(crate) fn content_with_text(
         ("version_number", json!(version)),
         ("status", json!("finished")),
         ("line_count", json!(line_count(text))),
+    ] {
+        match fields.iter_mut().find(|(existing, _)| existing == key) {
+            Some(entry) => entry.1 = value,
+            None => fields.push((key.to_owned(), value)),
+        }
+    }
+    let ordered: Vec<(&str, Value)> = fields
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.clone()))
+        .collect();
+    toon_encode::encode_fields(&ordered).map(Zeroizing::new)
+}
+
+/// Lines of an edited code file as the web code editor counts them
+/// (`countCodeLines` in `codeEmbedContent.ts`): CR/CRLF as LF, one trailing
+/// newline ignored, empty text is 0.
+fn edited_line_count(code: &str) -> usize {
+    let normalized = code.replace("\r\n", "\n").replace('\r', "\n");
+    let trimmed = normalized.strip_suffix('\n').unwrap_or(&normalized);
+    if trimmed.is_empty() {
+        0
+    } else {
+        trimmed.split('\n').count()
+    }
+}
+
+/// The head content a user edit of a code embed saves as version `version`
+/// (`spec: specifications/features/embed-user-edits`, `edit.next-version`):
+/// the current content object (`head_plain`, TOON or JSON) with `code`,
+/// `line_count`, `content_hash` (SHA-256 hex of the code) and
+/// `version_number` replaced, other fields kept in stored order, TOON-encoded.
+/// Mirrors web `CodeEmbedFullscreen.svelte` `saveEdit` + `saveContentEdit`;
+/// the core commit then version-checks and encrypts it.
+///
+/// # Errors
+/// `Protocol` when the head content is not an object; the TOON encoder's
+/// errors.
+pub fn code_edit_content(head_plain: &str, code: &str, version: u64) -> Result<Zeroizing<String>> {
+    let mut fields = decode_content_fields(head_plain).ok_or(Error::Protocol)?;
+    for (key, value) in [
+        ("code", json!(code)),
+        ("line_count", json!(edited_line_count(code))),
+        ("content_hash", json!(super::content_hash(code))),
+        ("version_number", json!(version)),
     ] {
         match fields.iter_mut().find(|(existing, _)| existing == key) {
             Some(entry) => entry.1 = value,

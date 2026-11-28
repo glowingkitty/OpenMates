@@ -183,6 +183,16 @@ Account Settings - Main menu for account-related settings including Security, Ex
         });
     }
 
+    /** Navigate to the central Connected accounts page. */
+    function navigateToConnectedAccounts() {
+        dispatch('openSettings', {
+            settingsPath: 'account/connected-accounts',
+            direction: 'forward',
+            icon: 'privacy',
+            title: $text('settings.app_store.connected_accounts.title')
+        });
+    }
+
     /**
      * Navigate to Delete Account submenu.
      * Dispatches navigation event to parent Settings component.
@@ -297,6 +307,14 @@ Account Settings - Main menu for account-related settings including Security, Ex
     icon="storage"
     title={$text('common.storage')}
     onClick={navigateToStorage}
+/>
+
+<SettingsItem
+    type="submenu"
+    icon="privacy"
+    title={$text('settings.app_store.connected_accounts.title')}
+    data-testid="settings-account-connected-accounts"
+    onClick={navigateToConnectedAccounts}
 />
 
 <SettingsItem

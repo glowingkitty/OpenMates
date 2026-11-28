@@ -63,13 +63,14 @@ test('Browse preview reports the task outcome and keeps saved structured results
       session_id: '11111111-1111-4111-8111-111111111111', status: 'paused',
     }),
   }));
+  const stop = card.getByRole('button', { name: 'Stop', exact: true });
   await mockControl(503);
-  await card.locator('.stop-button').click();
+  await stop.click();
   await expect(card.getByRole('alert')).toBeVisible();
   await expect(card).toHaveAttribute('data-status', 'processing');
   await page.unroute('**/v1/apps/web/browse/*/control');
   await mockControl(200);
-  await card.locator('.stop-button').click();
+  await stop.click();
   await expect(card).toHaveAttribute('data-status', 'cancelled');
   await page.unroute('**/v1/apps/web/browse/*/control');
   await preview(page, 'BrowseEmbedFullscreen', 1280);
@@ -116,6 +117,8 @@ for (const width of [1280, 390]) {
     await page.getByRole('button', { name: 'Tab', exact: true }).click();
     await page.getByRole('button', { name: 'Scroll down', exact: true }).click();
     await info.attach(`browse-manual-${width}`, { body: await viewer.screenshot({ path: info.outputPath(`browse-manual-${width}.png`) }), contentType: 'image/png' });
+    // Take control holds the software-update toast back (NotificationStack reads this state).
+    await expect(page.locator('html')).toHaveAttribute('data-browse-takeover', '');
     await page.getByRole('button', { name: 'Let AI continue', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-browse-continued', '11111111-1111-4111-8111-111111111111');
     await expect(viewer).toContainText('Browsing');
@@ -198,5 +201,38 @@ for (const width of [1280, 390]) {
 
     await preview(page, 'BrowseEmbedFullscreen', width);
     await expect(page.getByTestId('browse-partial')).toHaveCount(0);
+  });
+}
+
+for (const width of [1280, 390]) {
+  // contract-test: supporting surface=gui.web assertions=web-browse.exclusive-takeover,web-browse.embed-and-observation
+  test(`Browse fullscreen address line stays clear of the top bar buttons at ${width}px`, async ({ page }, info) => {
+    await preview(page, 'BrowseEmbedFullscreen', width);
+    // Measure only after the fullscreen panel finished sliding in (two equal readings 100ms apart).
+    const topBar = page.getByTestId('embed-top-bar');
+    let previousTop = Number.NaN;
+    await expect.poll(async () => {
+      const top = (await topBar.boundingBox())!.y;
+      const settled = Math.abs(top - previousTop) < 0.5;
+      previousTop = top;
+      return settled;
+    }, { intervals: [100], timeout: 5_000 }).toBe(true);
+    await page.getByTestId('browse-fullscreen-content').evaluate(element => { (element as HTMLElement).style.paddingBottom = '2400px'; });
+    const address = page.getByTestId('browse-address-bar');
+    // Take control moves only the content scroller the same way (BrowseEmbedFullscreen, 76px clearance).
+    await address.evaluate(element => {
+      const scroller = element.closest<HTMLElement>('.content-area');
+      if (!scroller) throw new Error('Browse address bar is outside the fullscreen scroll area');
+      scroller.scrollTop = scroller.scrollHeight;
+      const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      scroller.scrollTop = Math.max(0, scroller.scrollTop + offset - 76);
+    });
+    await expect(address).toBeVisible();
+    const bar = await page.getByTestId('embed-top-bar').boundingBox();
+    const line = await address.boundingBox();
+    // The top bar stays fully on screen (not scrolled away) and the address line sits below its buttons.
+    expect(bar!.y).toBeGreaterThanOrEqual(0);
+    expect(line!.y).toBeGreaterThanOrEqual(bar!.y + bar!.height + 4);
+    await info.attach(`browse-take-control-fullscreen-${width}`, { body: await page.screenshot({ path: info.outputPath(`browse-take-control-fullscreen-${width}.png`) }), contentType: 'image/png' });
   });
 }

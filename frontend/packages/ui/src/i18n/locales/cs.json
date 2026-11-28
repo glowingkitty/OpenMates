@@ -959,6 +959,12 @@
         "description": {
           "text": "Načte návrh z Figmy a vrátí strukturu, styly a předání do kódu."
         }
+      },
+      "author": {
+        "text": "Vytvořit návrh",
+        "description": {
+          "text": "Vytvořte upravitelný leták, příspěvek nebo maketu."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Vytvořit úkol",
-          "description": {
-            "text": "Vytvářejte úkoly s názvy, popisy a odpovědnými osobami."
-          }
-        },
         "search": {
           "text": "Hledat úkoly",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Příklad chatu"
       },
+      "sub_chat": {
+        "text": "Podchat"
+      },
       "shared_chat": {
         "text": "Sdílený chat"
       },
@@ -3722,6 +3725,9 @@
     "loadMore": {
       "button": {
         "text": "Zobrazit více"
+      },
+      "account_total": {
+        "text": "{count} chatů ve vašem účtu"
       }
     },
     "latest_news": {
@@ -7109,6 +7115,11 @@
         "text": "Sbalit {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Úkol"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Mermaid diagram"
@@ -8074,6 +8085,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Načítám grafiku…"
+        },
+        "progress_checking": {
+          "text": "Kontroluji návrh…"
+        },
+        "progress_adjusting": {
+          "text": "Upravuji návrh pro výšivku…"
+        },
+        "progress_stitching": {
+          "text": "Vytvářím stehy a náhled…"
+        },
+        "progress_saving": {
+          "text": "Ukládám soubory pro stroj…"
+        },
         "threads": {
           "text": "Nitě"
         },
@@ -8606,6 +8632,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Stáhnout návrh"
+        },
+        "current_page": {
+          "text": "Aktuální stránka"
+        },
+        "all_pages": {
+          "text": "Všechny stránky"
+        },
+        "image_unavailable": {
+          "text": "Některý obrázek není v tomto zařízení dostupný. Otevřete stránku, počkejte na načtení obrázků a zkuste to znovu."
+        },
+        "failed": {
+          "text": "Návrh se nepodařilo stáhnout. Zkuste to znovu."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21098,7 +21143,7 @@
       "text": "Vyzkoušet zdarma"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "E-mailová doména není povolena."
@@ -21892,9 +21937,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Hovory používají přepis Mistral, hlas ElevenLabs v4 Turbo, běžné směrování AI OpenMates a účtování podle využití."
-    },
     "privacy_description": {
       "text": "Mistral přepisuje zvuk mikrofonu; ElevenLabs v4 Turbo vytváří hlas asistenta z textu odpovědi a nastavení hlasu. Konverzace používá běžné směrování AI a dovednosti OpenMates. Poskytovatelé mohou uchovávat údaje požadavků podle svých zásad."
     },

@@ -1,4 +1,5 @@
-import type { SavedPageSelector } from "./protocol";
+import type { LegacyOpenedHistoryPage, OpenedHistoryPageWitness } from "../db/openedHistoryStorage";
+import { DrainedSelectedColdReadCancellation, type SavedPageSelector } from "./protocol";
 import type { LocalCursorSelector, LocalReadPlan } from "./protocol";
 /** Selected saved-view publication stays page-owned and synchronous.
  * Rust owns account admission, ciphertext decoding, PII and read/sync policy.
@@ -11,6 +12,8 @@ import type { BrowserCoreWorkerHost } from "./workerHost";
 import type { PriorProfileLifecycle } from "./platformLifecycle";
 import type { SessionStatus } from "./protocol";
 import type { SavedChatReadback, LocalChatReadback, CheckpointPresentation } from "./savedReadProtocol";
+import type { BrowserRetainedRead } from "./browserCacheProtocol";
+import { createBrowserCacheEffectHandler } from "./browserCacheEffects";
 
 /** UI selection identity only. It cannot grant Rust account/workspace authority. */
 export interface SavedChatSelection {
@@ -39,7 +42,7 @@ function selectionGuard<P extends SavedReadWitness>(input: SelectedSavedReadInpu
       || selectionFields.some(field => selected[field] !== now[field])) throw new Error("invalidated_snapshot");
   };
 }
-function supportedView(page: SavedChatReadback | LocalChatReadback): boolean {
+function supportedView(page: Pick<LocalChatReadback, "chat" | "messageMetadata">): boolean {
   return !!page.messageMetadata && page.chat.messages.every(message => ["user", "assistant", "system"].includes(message.role))
     && page.messageMetadata.every(message =>
       (message.queueMode === null || ["follow_up", "steer"].includes(message.queueMode))
@@ -50,6 +53,7 @@ async function publishOwnedSelection<P extends SavedReadWitness, T>(
   input: SelectedSavedReadInput<P> & { publish(page: T): void },
   read: (selected: SavedChatSelection, current: () => void) => Promise<T>,
   supported:(page:T)=>boolean,
+  preserveAfterStop?: (error: unknown) => boolean,
 ): Promise<void> {
   const selected = { ...input.currentSelection() };
   const current = selectionGuard(input, selected);
@@ -60,7 +64,14 @@ async function publishOwnedSelection<P extends SavedReadWitness, T>(
     if (!supported(page)) throw new Error("unavailable");
     // No await between the final selection/lifetime check and the owned UI write.
     current(); input.publish(page);
-  } catch (error) { input.host.close(); throw error; }
+  } catch (error) {
+    if (preserveAfterStop?.(error)) {
+      try {
+        current(); await input.reader.assertCurrent(input.prior); current();
+      } catch (invalidated) { input.host.close(); throw invalidated; }
+    } else input.host.close();
+    throw error;
+  }
 }
 async function publishSelected<P extends SavedReadWitness,T extends SavedChatReadback|LocalChatReadback>(input:SelectedSavedReadInput<P>&{publish(page:T):void},read:(selected:SavedChatSelection,current:()=>void)=>Promise<T>):Promise<void>{
   await publishOwnedSelection(input,read,supportedView);
@@ -70,12 +81,16 @@ function sameStatus(current: SessionStatus | null | undefined, expected: Session
     && current.generation === expected.generation && current.persistence === expected.persistence
     && current.localReadOnly === expected.localReadOnly;
 }
-function copyPageSelector(selector:SavedPageSelector):SavedPageSelector {
-  if(selector.direction==="latest")return Object.freeze({direction:"latest"});
-  const shape={...(selector.limit!==undefined?{limit:selector.limit}:{}),
-    ...(selector.respectCompressionBoundary!==undefined?{respectCompressionBoundary:selector.respectCompressionBoundary}:{})};
-  if(selector.direction==="around")return Object.freeze({direction:"around",anchorMessageId:selector.anchorMessageId,...shape});
-  return Object.freeze({direction:selector.direction,cursor:Object.freeze({...selector.cursor}),...shape});
+function copyPageSelector(selector: SavedPageSelector): SavedPageSelector {
+  const shape = {
+    ...(selector.limit !== undefined ? { limit: selector.limit } : {}),
+    ...(selector.respectCompressionBoundary !== undefined ? { respectCompressionBoundary: selector.respectCompressionBoundary } : {}),
+  };
+  if (selector.direction === "latest") return Object.freeze({ direction: "latest", ...shape });
+  if (selector.direction === "around") {
+    return Object.freeze({ direction: "around", anchorMessageId: selector.anchorMessageId, ...shape });
+  }
+  return Object.freeze({ direction: selector.direction, cursor: Object.freeze({ ...selector.cursor }), ...shape });
 }
 async function publishCanonicalSavedPage<P extends SavedReadWitness>(input:SelectedSavedReadInput<P>&{publish(page:SavedChatReadback):void},selector?:SavedPageSelector):Promise<void>{
   const selectedPage=selector?copyPageSelector(selector):undefined;
@@ -92,6 +107,64 @@ async function publishCanonicalSavedPage<P extends SavedReadWitness>(input:Selec
 export async function publishSelectedSavedChat<P extends SavedReadWitness>(input:SelectedSavedReadInput<P>&{publish(page:SavedChatReadback):void}):Promise<void>{
   await publishCanonicalSavedPage(input);
 }
+/** Cold latest read using the existing guarded Rust persistence operation. */
+export async function publishSelectedColdSavedChat<P extends SavedReadWitness>(
+  input: SelectedSavedReadInput<P> & {
+    publish(page: BrowserRetainedRead): void; selector?: SavedPageSelector;
+    selectionSignal?: AbortSignal;
+    observeCoverage?(witness: OpenedHistoryPageWitness | LegacyOpenedHistoryPage): void;
+  },
+): Promise<void> {
+  await publishOwnedSelection(input, async (selected, current) => {
+    if (input.status.localReadOnly || !globalThis.indexedDB) throw new Error("unavailable");
+    const effects = createBrowserCacheEffectHandler(globalThis.indexedDB, current, undefined, undefined, input.observeCoverage);
+    const diagnosedEffects = {
+      ...effects,
+      async execute(...args: Parameters<typeof effects.execute>) {
+        stage("cold-retention-io-start");
+        try {
+          // Recheck the original profile/key before a plan can open a write transaction.
+          await input.reader.assertCurrent(input.prior);
+          current();
+          const packet = await effects.execute(...args);
+          stage("cold-retention-io-complete");
+          return packet;
+        } catch (error) {
+          stage(`cold-retention-io-failed-${fixedCode(error)}`);
+          throw error;
+        }
+      },
+    };
+    try {
+      stage("cold-retention-request");
+      const requestSignal = input.selectionSignal ? AbortSignal.any([input.signal, input.selectionSignal]) : input.signal;
+      const response = await input.host.request({
+        operation: "read_cold_retained_saved_chat", handle: input.status.handle,
+        generation: input.status.generation, expectedPrincipal: input.status.principal,
+        chatId: selected.chatId, selector: input.selector ?? { direction: "latest" },
+        scope: { lifecycleGeneration: input.prior.generation, workspaceEpoch: selected.workspaceEpoch },
+        nowSeconds: Math.floor(Date.now() / 1000),
+      }, requestSignal, undefined, undefined, diagnosedEffects);
+      if (!response.ok) {
+        const code = "error" in response ? response.error : "session_expired";
+        throw new Error(code);
+      }
+      if (!sameStatus(response.status, input.status) || response.retainedRead?.chat.id !== selected.chatId) {
+        throw new Error("session_expired");
+      }
+      if (!response.retainedRead.coldLivePage) throw new Error("unavailable");
+      stage("cold-retention-ready");
+      return response.retainedRead;
+    } catch (error) {
+      stage(`cold-retention-failed-${fixedCode(error)}`);
+      throw error;
+    } finally {
+      await effects.close();
+    }
+  }, supportedView, error => input.selectionSignal?.aborted === true && !input.signal.aborted &&
+    error instanceof DrainedSelectedColdReadCancellation && error.message === "cancelled");
+}
+
 /** Existing shared canonical paging; no local/raw/TS fallback on refusal. */
 export async function publishSelectedSavedChatPage<P extends SavedReadWitness>(input:SelectedSavedReadInput<P>&{selector:SavedPageSelector;publish(page:SavedChatReadback):void}):Promise<void>{
   await publishCanonicalSavedPage(input,input.selector);
@@ -181,7 +254,14 @@ export async function publishSelectedOnlineCachedSavedChat<P extends SavedReadWi
         }catch(error){stage(`cache-plan-${plan.kind}-failed-${fixedCode(error)}`);throw error;}
       }
     });
-    if(!response.ok&&"error" in response&&response.error==="chat_unavailable"){current();stage("cache-miss-rust");throw new Error("chat_unavailable");}
+    if (!response.ok && "error" in response) {
+      // A real refusal from Rust takes precedence over a concurrent loss of connectivity.
+      if (response.error === "session_expired" || response.error === "authentication_failed" ||
+        response.error === "reauthentication_required") throw new Error(response.error);
+      current();
+      if (response.error === "chat_unavailable") stage("cache-miss-rust");
+      throw new Error(response.error);
+    }
     const read=!response.ok?undefined:local?response.localRead:response.onlineCachedRead;
     if(!response.ok||!sameStatus(response.status,input.status)||!read||!("chatMetadata" in read)
       ||read.chat.id!==selected.chatId)throw Error("session_expired");

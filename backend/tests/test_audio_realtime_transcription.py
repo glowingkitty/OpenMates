@@ -5,6 +5,7 @@ import base64
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 import yaml
@@ -19,6 +20,9 @@ from backend.apps.audio.pricing import (
 )
 from backend.apps.audio.skills.transcribe_skill import VOXTRAL_MODEL
 from backend.core.api.app.routes import audio_realtime
+from backend.shared.providers import transcript_correction_gate as gate
+from backend.shared.providers.typesafe.client import DecisionResponseInvalid
+from backend.shared.providers.typesafe.models import NoulAnswer
 
 
 class _FakeWebSocket:
@@ -243,8 +247,8 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
             await self.ended.wait()
             return SimpleNamespace(
                 type=audio_realtime.aiohttp.WSMsgType.TEXT,
-                data=json.dumps({"type": "transcription.done", "text": "",
-                                 "usage": {"prompt_audio_seconds": 10}}),
+                data=json.dumps({"type": "transcription.done", "text": "Keep all the trailing words.",
+                                 "usage": {"prompt_audio_seconds": 60}}),
             )
 
     class ProviderContext:
@@ -290,6 +294,10 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
                         lambda *_args: asyncio.sleep(0, result=(None, "lock", "token")))
     monkeypatch.setattr(audio_realtime, "_release_stream_lock",
                         lambda *_args: asyncio.sleep(0))
+    async def correction_unavailable(socket, *_args):
+        await socket.send_json({"type": "correction.failed"})
+
+    monkeypatch.setattr(audio_realtime, "_correct_and_send", correction_unavailable)
     with TestClient(app) as client:
         with client.websocket_connect(
             "/v1/apps/audio/realtime-transcription",
@@ -302,7 +310,9 @@ def test_authenticated_websocket_settles_ten_seconds_for_three_credits(
                     b"\x00\x01" * (audio_realtime.PCM_SAMPLE_RATE * 5)
                 ).decode()})
             websocket.send_json({"type": "input_audio.end"})
-            assert websocket.receive_json()["type"] == "transcription.done"
+            final = websocket.receive_json()
+            assert final["type"] == "transcription.done"
+            assert final["transcript"] == "Keep all the trailing words."
             assert websocket.receive_json()["type"] == "correction.failed"
     assert len(charges) == 1
     assert charges[0]["credits_to_deduct"] == 3
@@ -355,12 +365,14 @@ async def test_realtime_audio_rejects_balance_below_one_credit(
 )
 # contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,message-input.embeds.gated-send
 @pytest.mark.parametrize("credits", [1, 9, 100])
+@pytest.mark.parametrize("dictation", [False, True], ids=["legacy", "dictation"])
 async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     monkeypatch: pytest.MonkeyPatch,
     deltas: list[str],
     final_text: str | None,
     expected_transcript: str,
     credits: int,
+    dictation: bool,
 ) -> None:
     provider_messages: list[dict[str, object]] = []
     browser_messages: list[dict[str, object]] = []
@@ -368,6 +380,9 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     released: list[tuple[object, str, str]] = []
     corrected_batches: list[str] = []
     background_corrected = asyncio.Event()
+    deltas_delivered = asyncio.Event()
+    finish_correction_started = asyncio.Event()
+    snapshot = "".join(deltas).strip()
     long_stream = len("".join(deltas)) >= 800
 
     class FakeProvider:
@@ -396,10 +411,12 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
                 self.ended.set()
 
         async def receive(self) -> SimpleNamespace:
-            if not long_stream:
+            if not long_stream and not dictation:
                 await self.ended.wait()
             elif self.events[0]["type"] == "transcription.done":
                 await self.ended.wait()
+                if dictation and snapshot and not long_stream:
+                    await asyncio.wait_for(finish_correction_started.wait(), 2)
             event = self.events.pop(0)
             return SimpleNamespace(
                 type=audio_realtime.aiohttp.WSMsgType.TEXT,
@@ -431,7 +448,7 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     class BrowserSocket(_FakeWebSocket):
         def __init__(self) -> None:
             super().__init__()
-            self.query_params: dict[str, str] = {}
+            self.query_params = {"correction_context": "dictation"} if dictation else {}
             self.inputs = [
                 json.dumps(
                     {
@@ -455,12 +472,19 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
             await asyncio.sleep(0)
             if not self.inputs:
                 await asyncio.Future()
-            if long_stream and json.loads(self.inputs[0])["type"] == "input_audio.end":
-                await asyncio.wait_for(background_corrected.wait(), 2)
+            if json.loads(self.inputs[0])["type"] == "input_audio.end":
+                if long_stream:
+                    await asyncio.wait_for(background_corrected.wait(), 2)
+                if dictation and deltas:
+                    await asyncio.wait_for(deltas_delivered.wait(), 2)
             return self.inputs.pop(0)
 
         async def send_json(self, message: dict[str, object]) -> None:
             browser_messages.append(message)
+            if message["type"] == "transcription.text.delta" and sum(
+                frame["type"] == "transcription.text.delta" for frame in browser_messages
+            ) == len(deltas):
+                deltas_delivered.set()
             if message["type"] == "correction.progress" and not provider.ended.is_set():
                 background_corrected.set()
 
@@ -472,8 +496,10 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
     ) -> dict[str, str]:
         assert raw in expected_transcript
         assert language in (None, "en")
-        assert context is None
+        assert context == ("dictation" if dictation else None)
         corrected_batches.append(raw)
+        if provider.ended.is_set():
+            finish_correction_started.set()
         return {"title": "Plans", "transcript": raw, "correction_model": "test"}
 
     class FakeBillingService:
@@ -521,12 +547,14 @@ async def test_realtime_audio_relays_pcm_deltas_and_final_text(
         assert " ".join(corrected_batches) == expected_transcript
         assert all(len(batch) <= 800 for batch in corrected_batches)
         assert len(corrected_batches) > 1
+    elif dictation and snapshot and snapshot != expected_transcript:
+        assert corrected_batches == [snapshot, expected_transcript]
     else:
         assert corrected_batches == [expected_transcript]
     assert [message["text"] for message in browser_messages if message["type"] == "transcription.text.delta"] == deltas
     assert billed["idempotency_key"] == "audio-realtime:provider-1"
     assert billed["credits_to_deduct"] == 1
-    assert billed["usage_details"]["duration_seconds"] == 1.25
+    assert billed["usage_details"]["duration_seconds"] == 0.05
     assert billed["usage_details"]["billing_unit"] == "second"
     assert released == [(None, "lock", "token")]
 
@@ -700,6 +728,56 @@ async def test_realtime_mercury_correction_reports_model_and_sanitizes_text(monk
         {"type": "correction.started", "model": "mercury-3"},
         {"type": "correction.done", "title": "Grüne Boxen", "transcript": "Grüne Boxen unter 50 Euro.", "correction_model": "mercury-3"},
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "raw,decision,skipped",
+    [
+        ("Please close the window.", 0.99, True),
+        ("I will bring 50 copies.", 0.99, False),
+        ("Maya, eigentlich morgen, please.", 0.08, False),
+        ("Could you um close the window?", 0.79, False),
+        ("Please close the window.", None, False),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=message-input.audio.correction-gate
+async def test_dictation_gate_skips_only_confident_batches_and_falls_back(
+    monkeypatch, caplog, raw, decision, skipped
+):
+    sent = []
+    evaluate = AsyncMock()
+    if decision is None:
+        evaluate.side_effect = DecisionResponseInvalid(raw)
+    else:
+        evaluate.return_value = SimpleNamespace(
+            answers={gate.READY_QUESTION: NoulAnswer(type="noul", noul=decision)}
+        )
+    monkeypatch.setattr(gate.JevDecisionClient, "evaluate", evaluate)
+    hidden = "".join(chr(0xE0000 + ord(character)) for character in "private-marker")
+    correct = AsyncMock(return_value={"corrected_transcript": f"Corrected text.{hidden}", "model": "model"})
+    monkeypatch.setattr(audio_realtime, "correct_transcript", correct)
+
+    class Socket(_FakeWebSocket):
+        async def send_json(self, message):
+            sent.append(message)
+
+    socket = Socket()
+    manager = socket.app.state.secrets_manager = SimpleNamespace()
+    with caplog.at_level("INFO", logger=gate.__name__):
+        await audio_realtime._correct_and_send(socket, raw, None, "dictation")
+    evaluate.assert_awaited_once()
+    assert raw not in caplog.text
+    assert "private-marker" not in caplog.text
+    assert sent[0] == {"type": "correction.started"}
+    if skipped:
+        correct.assert_not_awaited()
+        assert sent[1] == {"type": "correction.skipped", "transcript": raw}
+    else:
+        correct.assert_awaited_once_with(raw, manager, None, include_title=False)
+        assert sent[1] == {
+            "type": "correction.done", "transcript": "Corrected text.", "correction_model": "model",
+        }
 
 
 # contract-test: supporting surface=gui.web assertions=workflows-ui.mvp.authoring

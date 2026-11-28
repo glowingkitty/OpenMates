@@ -8,10 +8,10 @@ import {
 import { setChatRecommendations } from "../stores/chatRecommendationsStore";
 import type { ChatRecommendation, ChatRecommendationsState } from "../types/recommendations";
 import { persistGeneratedChatMetadata } from "./generatedChatMetadataPersistence";
-import { getWorkspaceCacheEpoch } from "./workspaceCacheLifecycle";
+import { getWorkspaceCacheEpoch, registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 import { noteChatMetadataTurn, completeChatMetadataTurn, isChatMetadataTurnCurrent } from "./lateChatMetadataGuard";
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
-import type { ChatSynchronizationService } from "./chatSyncService";
+import type { ChatSynchronizationService, IndependentReplyView } from "./chatSyncService";
 import type { ChatCompressionCheckpoint, PreprocessorStepResult } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db"; // Import chatDB
@@ -180,6 +180,12 @@ const pendingFinalizedEmbedFlushTimersByChat = new Map<
   string,
   ReturnType<typeof setTimeout>
 >();
+registerWorkspaceCacheClear(() => {
+  for (const timer of pendingFinalizedEmbedFlushTimersByChat.values()) clearTimeout(timer);
+  pendingFinalizedEmbedFlushTimersByChat.clear();
+  pendingFinalizedEmbedQueuedAtByChat.clear();
+  pendingFinalizedEmbedsByChat.clear();
+});
 const SERVER_INCOGNITO_CHAT_ID = "incognito";
 const PENDING_FINALIZED_EMBED_RETRY_MS = 2000;
 const PENDING_FINALIZED_EMBED_TTL_MS = 120000;
@@ -358,6 +364,8 @@ export async function flushPendingFinalizedEmbedsForChat(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
 ): Promise<void> {
+  const owner = getWorkspaceCacheIdentity();
+  if (!owner) return;
   let pendingQueueChatId = chatId;
   let pendingForChat = pendingFinalizedEmbedsByChat.get(pendingQueueChatId);
   if (
@@ -375,7 +383,7 @@ export async function flushPendingFinalizedEmbedsForChat(
   if (!pendingForChat) return;
 
   const rawChatId = await resolveRawChatIdForFinalizedEmbed(pendingQueueChatId);
-  if (!rawChatId) return;
+  if (!rawChatId || owner !== getWorkspaceCacheIdentity()) return;
 
   console.info(
     `[ChatSyncService:AI] Flushing ${pendingForChat.size} finalized embed(s) queued for chat ${pendingQueueChatId}`,
@@ -384,6 +392,7 @@ export async function flushPendingFinalizedEmbedsForChat(
   do {
     processedThisPass = false;
     for (const [embedId, { embedData, localOnly }] of Array.from(pendingForChat)) {
+      if (owner !== getWorkspaceCacheIdentity()) return;
       try {
         const payloadForRawChat: EmbedDataPayload = {
           ...embedData,
@@ -395,6 +404,7 @@ export async function flushPendingFinalizedEmbedsForChat(
           undefined,
           { localOnly },
         );
+        if (owner !== getWorkspaceCacheIdentity()) return;
         if (isEmbedAlreadyProcessed(embedId, embedData.version_number)) {
           pendingForChat.delete(embedId);
           processedThisPass = true;
@@ -418,6 +428,7 @@ function schedulePendingFinalizedEmbedsFlush(
   chatId: string,
 ): void {
   if (pendingFinalizedEmbedFlushTimersByChat.has(chatId)) return;
+  const owner = getWorkspaceCacheIdentity();
 
   const timer = setTimeout(() => {
     pendingFinalizedEmbedFlushTimersByChat.delete(chatId);
@@ -426,11 +437,12 @@ function schedulePendingFinalizedEmbedsFlush(
       if (!pendingForChat) return;
 
       const rawChatId = await resolveRawChatIdForFinalizedEmbed(chatId);
-      if (rawChatId && chatKeyManager.getKeySync(rawChatId)) {
-        await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
-      }
+      if (!owner || owner !== getWorkspaceCacheIdentity()) return;
+      const key = rawChatId && await chatKeyManager.getKey(rawChatId);
+      if (owner !== getWorkspaceCacheIdentity()) return;
+      if (key) await flushPendingFinalizedEmbedsForChat(serviceInstance, chatId);
 
-      if (!pendingFinalizedEmbedsByChat.has(chatId)) return;
+      if (owner !== getWorkspaceCacheIdentity() || !pendingFinalizedEmbedsByChat.has(chatId)) return;
       const queuedAt = pendingFinalizedEmbedQueuedAtByChat.get(chatId) ?? Date.now();
       if (Date.now() - queuedAt >= PENDING_FINALIZED_EMBED_TTL_MS) {
         pendingFinalizedEmbedsByChat.delete(chatId);
@@ -610,17 +622,48 @@ export function unmarkEmbedAsProcessed(embedId: string): void {
 
 // --- AI Task and Stream Event Handler Implementations ---
 
+function finishIndependentReplyView(
+  service: ChatSynchronizationService,
+  taskId: string,
+  status: string,
+  fallback?: IndependentReplyView,
+  expectedChatId?: string,
+): boolean {
+  const view = service.finishIndependentReply(taskId, fallback, expectedChatId);
+  if (!view) return false;
+  service.dispatchEvent(new CustomEvent("aiTaskEnded", {
+    detail: { ...view, status, independentReply: true },
+  }));
+  return true;
+}
+
+function finishIndependentStream(
+  service: ChatSynchronizationService,
+  payload: AIMessageUpdatePayload | AIBackgroundResponseCompletedPayload,
+): boolean {
+  const status = payload.interrupted_by_revocation ? "cancelled"
+    : payload.interrupted_by_soft_limit ? "timed_out" : "completed";
+  return finishIndependentReplyView(service, payload.task_id, status, {
+    chatId: payload.chat_id, taskId: payload.task_id, userMessageId: payload.user_message_id,
+  });
+}
+
 export function handleAITaskInitiatedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: AITaskInitiatedPayload,
 ): void {
   console.info("[ChatSyncService:AI] Received 'ai_task_initiated':", payload);
-  // Accessing public member activeAITasks
-  if (!noteChatMetadataTurn(payload.chat_id, payload.ai_task_id, payload.user_message_id)) return;
-  serviceInstance.activeAITasks.set(payload.chat_id, {
-    taskId: payload.ai_task_id,
-    userMessageId: payload.user_message_id,
-  });
+  if (payload.independent_reply === true) {
+    if (!serviceInstance.observeIndependentReply({
+      chatId: payload.chat_id, taskId: payload.ai_task_id, userMessageId: payload.user_message_id,
+    })) return;
+  } else {
+    if (!noteChatMetadataTurn(payload.chat_id, payload.ai_task_id, payload.user_message_id)) return;
+    serviceInstance.activeAITasks.set(payload.chat_id, {
+      taskId: payload.ai_task_id,
+      userMessageId: payload.user_message_id,
+    });
+  }
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTaskInitiated", { detail: payload }),
   );
@@ -747,6 +790,12 @@ export function handleAIMessageUpdateImpl(
   const { suggested_followup_message: _privateSuggestion, ...chunkPayloadForLog } = payload;
   console.debug("[ChatSyncService:AI] Full payload:", chunkPayloadForLog);
 
+  if (payload.independent_reply === true && !payload.is_final_chunk) {
+    serviceInstance.observeIndependentReply({
+      chatId: payload.chat_id, taskId: payload.task_id, userMessageId: payload.user_message_id,
+    });
+  }
+
   // Dispatch event for ActiveChat component
   console.log(
     `[ChatSyncService:AI] 🟢 Dispatching 'aiMessageChunk' event (seq: ${payload.sequence})`,
@@ -756,7 +805,7 @@ export function handleAIMessageUpdateImpl(
   );
 
   // Process embeds from content if present (streaming or final)
-  if (payload.full_content_so_far) {
+  if (payload.full_content_so_far && payload.independent_reply !== true) {
     processEmbedsFromContent(payload.full_content_so_far).catch((err) => {
       console.error(
         "[ChatSyncService:AI] Error processing embeds from AI message chunk:",
@@ -775,6 +824,11 @@ export function handleAIMessageUpdateImpl(
     // entry; only a genuine final or cancellation ends the processing status.
     if (payload.awaiting_async_skill_continuation && !payload.interrupted_by_revocation
         && !payload.interrupted_by_soft_limit && !payload.rejection_reason) return;
+
+    if (payload.independent_reply === true) {
+      if (finishIndependentStream(serviceInstance, payload) && !payload.interrupted_by_revocation) replyFinished();
+      return;
+    }
 
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (taskInfo && taskInfo.taskId !== payload.task_id) {
@@ -975,6 +1029,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
   try {
     if (payload.recovery_protocol_version === 1 && payload.recovery_job_id) {
       recordRecoveryFinalTimestamp({ ...payload, is_final_chunk: true });
+      if (payload.independent_reply === true) finishIndependentStream(serviceInstance, payload);
       console.info(
         `[ChatSyncService:AI] Deferring epoch-1 background completion ${payload.message_id} to sealed recovery job ${payload.recovery_job_id}`,
       );
@@ -2077,6 +2132,7 @@ export function handleAITypingEndedImpl(
   },
 ): void {
   console.debug("[ChatSyncService:AI] Received 'ai_typing_ended':", payload);
+  if (finishIndependentReplyView(serviceInstance, payload.task_id || payload.message_id, "failed", undefined, payload.chat_id)) return;
   aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
   if (endsTurnAsFailed(payload)) {
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
@@ -2111,6 +2167,7 @@ export async function handleAIMessageReadyImpl(
   serviceInstance.dispatchEvent(
     new CustomEvent("aiMessageCompletedOnServer", { detail: payload }),
   );
+  if (finishIndependentReplyView(serviceInstance, payload.message_id, "completed", undefined, payload.chat_id)) return;
   const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
   if (taskInfo && taskInfo.taskId === payload.message_id) {
     serviceInstance.activeAITasks.delete(payload.chat_id);
@@ -2147,6 +2204,9 @@ export async function handleAITaskCancelRequestedImpl(
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTaskCancellationAcknowledged", { detail: payload }),
   );
+
+  if (payload.status === "revocation_sent" &&
+      finishIndependentReplyView(serviceInstance, payload.task_id, "cancellation_requested")) return;
 
   // Clear activeAITasks for all statuses when cancellation is acknowledged
   // This ensures the frontend state matches the backend state

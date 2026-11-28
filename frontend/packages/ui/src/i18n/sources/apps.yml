@@ -1588,6 +1588,16 @@ design.description:
   sv: Hitta ikoner och visuella resurser för produktdesign.
   he: מצא אייקונים ונכסים חזותיים לעיצוב מוצר.
   verified_by_human: [en, de]
+sheets:
+  context: App name for the Sheets spreadsheet editor
+  en: Sheets
+  de: Tabellen
+  verified_by_human: []
+sheets.description:
+  context: Description of the Sheets spreadsheet editor
+  en: Create and format spreadsheets.
+  de: Erstelle und formatiere Tabellen.
+  verified_by_human: []
 docs:
   context: App name for the Docs app
   en: Docs

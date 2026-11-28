@@ -132,7 +132,7 @@ fn code_path(code: &Node) -> Result<String, String> {
 ///
 /// Input: `{filename, completenessJson, chat:{title,createdAt}, messages:[{role,
 /// createdAt, content}], pii, code:[{filePath,filename,language,embedId}],
-/// transcripts, images, generatedAudio, staticFiles, audio, pdfs:[{folderName,
+/// transcripts, images, generatedAudio, generatedFiles, staticFiles, audio, pdfs:[{folderName,
 /// pages}]}` where the name lists hold the page-resolved file names.
 /// Output: `{"kind":"ok","base","zipName","entries"}`; each entry is
 /// `{path,text}` or `{path,src:[group,index,page?]}`.
@@ -164,6 +164,14 @@ pub fn zip_chat_plan_json(input: &str) -> Result<String, String> {
     for (key, prefix, group) in groups {
         for (index, name) in names(&input, key)?.iter().enumerate() {
             entries.push(src_entry(format!("{prefix}{name}"), json!([group, index])));
+        }
+    }
+    if input.get("generatedFiles").is_some() {
+        for (index, name) in names(&input, "generatedFiles")?.iter().enumerate() {
+            entries.push(src_entry(
+                format!("files/{name}"),
+                json!(["generatedFile", index]),
+            ));
         }
     }
     for (index, name) in names(&input, "audio")?.iter().enumerate() {

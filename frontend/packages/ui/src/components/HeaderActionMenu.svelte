@@ -29,6 +29,7 @@
     triggerTestId,
     menuTestId,
     compactMoreOnly = false,
+    keepClose = false,
     reportInMenu = false,
     leadingAction,
     responsiveAction,
@@ -49,6 +50,7 @@
     triggerTestId?: string;
     menuTestId?: string;
     compactMoreOnly?: boolean;
+    keepClose?: boolean;
     /** Opt-in: list Report Issue inside More instead of the primary row. */
     reportInMenu?: boolean;
     /** Opt-in: an always-visible action rendered directly before Share/More. */
@@ -74,7 +76,7 @@
   let compactMenuLeft = $state(0);
   let compactMenuPositioned = $state(false);
   const menuId = $props.id();
-  const responsiveInline = $derived(Boolean(responsiveAction) && containerWidth >= responsiveActionMinWidth);
+  const responsiveInline = $derived(Boolean(responsiveAction) && !compactMoreOnly && containerWidth >= responsiveActionMinWidth);
   const responsiveInMenu = $derived(Boolean(responsiveAction) && !responsiveInline);
   const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)) + Number(responsiveInMenu));
   // Keep Share in More whenever sensitive-data controls occupy the primary slot.
@@ -200,6 +202,7 @@
 <div
   class="header-action-menu"
   class:compact-more-only={compactMoreOnly}
+  class:keep-close={keepClose}
   bind:this={root}
   bind:clientWidth={width}
   onkeydown={keydown}
@@ -288,6 +291,7 @@
             {#if compactMoreOnly || reportInMenu}{@render report()}{/if}
             {#if hasShare && (compactMoreOnly || hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
             {#if compactMoreOnly && hasPriorityAction && priorityAction}{@render priorityAction()}{/if}
+            {#if compactMoreOnly && keepClose}{@render restoreChat?.()}{/if}
             {#if responsiveInMenu && responsiveAction}{@render responsiveAction()}{/if}
             {@render actions()}
           </div>
@@ -306,7 +310,7 @@
     {/if}
     {@render navigationAction?.()}
   </div>
-  {#if !compactMoreOnly}<div class="close-action">{@render close?.()}</div>{/if}
+  {#if !compactMoreOnly || keepClose}<div class="close-action">{@render close?.()}</div>{/if}
 </div>
 
 <style>
@@ -320,7 +324,7 @@
     pointer-events: none;
   }
   .header-action-menu.compact-more-only { width:auto; flex:none; }
-  .compact-more-only .more-wrapper { padding:0; border-radius:var(--radius-full); background:color-mix(in srgb,var(--color-font-button) 20%,transparent); }
+  .compact-more-only:not(.keep-close) .more-wrapper { padding:0; border-radius:var(--radius-full); background:color-mix(in srgb,var(--color-font-button) 20%,transparent); }
   .compact-more-only .more-actions {
     min-width: min(190px, calc(100cqw - var(--spacing-8) - var(--spacing-8)));
     max-width: min(260px, calc(100cqw - var(--spacing-8) - var(--spacing-8)));
@@ -346,16 +350,16 @@
   }
   /* One interaction treatment for every toolbar pill, including More. */
   .header-action-menu :global(.button-wrapper),
-  .header-action-menu :global(.new-chat-button-wrapper) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell)) {
     transition: background-color var(--duration-normal), transform var(--duration-normal), box-shadow var(--duration-normal);
   }
   .header-action-menu :global(.button-wrapper:hover),
-  .header-action-menu :global(.new-chat-button-wrapper:hover) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell):hover) {
     transform: scale(1.08);
     box-shadow: var(--shadow-lg);
   }
   .header-action-menu :global(.button-wrapper:active),
-  .header-action-menu :global(.new-chat-button-wrapper:active) {
+  .header-action-menu :global(.new-chat-button-wrapper:not(.report-issue-button-shell):active) {
     transform: scale(0.95);
     box-shadow: var(--shadow-xs);
   }
@@ -418,8 +422,8 @@
     min-width: 25px;
     min-height: 25px;
   }
-  .header-action-menu.compact-more-only .more-trigger { width:2.75rem; height:2.75rem; color:var(--color-font-button); }
-  .header-action-menu.compact-more-only .more-trigger .icon_more { background:var(--color-font-button); filter:none; }
+  .header-action-menu.compact-more-only:not(.keep-close) .more-trigger { width:2.75rem; height:2.75rem; color:var(--color-font-button); }
+  .header-action-menu.compact-more-only:not(.keep-close) .more-trigger .icon_more { background:var(--color-font-button); filter:none; }
   .header-action-menu :global(.header-action:focus-visible) {
     outline: 2px solid var(--color-primary);
     outline-offset: 4px;
@@ -456,13 +460,13 @@
     overflow-wrap: anywhere;
   }
   .more-actions :global(.button-wrapper),
-  .more-actions :global(.new-chat-button-wrapper) {
+  .more-actions :global(.new-chat-button-wrapper:not(.report-issue-button-shell)) {
     max-width: 100%;
     box-sizing: border-box;
     transform-origin: left center;
   }
   .more-actions :global(.button-wrapper:hover),
-  .more-actions :global(.new-chat-button-wrapper:hover) {
+  .more-actions :global(.new-chat-button-wrapper:not(.report-issue-button-shell):hover) {
     transform: scale(var(--menu-hover-scale));
   }
   .header-action-menu :global([data-header-overlay] .action-label) {
@@ -472,7 +476,7 @@
     mask-image: url('@openmates/ui/static/icons/more.svg');
     -webkit-mask-image: url('@openmates/ui/static/icons/more.svg');
   }
-  @media(max-width:700px) { .header-action-menu.compact-more-only .more-trigger { width:2.25rem; height:2.25rem; } }
+  @media(max-width:700px) { .header-action-menu.compact-more-only:not(.keep-close) .more-trigger { width:2.25rem; height:2.25rem; } }
   @media (prefers-reduced-motion: reduce) {
     .more-wrapper,
     .header-action-menu :global(.action-label) {

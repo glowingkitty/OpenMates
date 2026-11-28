@@ -1790,7 +1790,7 @@ final class EmbedRenderingParityUITests: XCTestCase {
         attachScreenshot(name: "3D model fullscreen dismissal remains interactive")
     }
 
-    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.image-gestures
     func testNewsSearchCentersPreviewAndOpensRegularArticleCardsWithImages() {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "embed-preview", "--dev-preview-variant", "news-search",
@@ -1828,6 +1828,22 @@ final class EmbedRenderingParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["website-fullscreen-body"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.staticTexts["embed-header-title"].label.contains("AI Advances Continue to Transform Software Development"))
         attachScreenshot(name: "News article drill down")
+
+        #if os(iOS)
+        let leadImage = app.descendants(matching: .any)["website-fullscreen-image"].firstMatch
+        XCTAssertTrue(leadImage.waitForExistence(timeout: 8))
+        XCTAssertTrue(waitForValue(leadImage, containing: "100%", timeout: 5))
+        let frame = leadImage.frame
+        let titleFrame = app.staticTexts["embed-header-title"].frame
+        leadImage.pinch(withScale: 2.2, velocity: 1.2)
+        XCTAssertNotEqual(leadImage.value as? String, "100%")
+        leadImage.swipeLeft()
+        XCTAssertEqual(leadImage.frame, frame)
+        XCTAssertEqual(app.staticTexts["embed-header-title"].frame, titleFrame)
+        attachScreenshot(name: "News article image zoomed and panned")
+        leadImage.doubleTap()
+        XCTAssertTrue(waitForValue(leadImage, containing: "100%", timeout: 5))
+        #endif
     }
 
     // contract-test: direct surface=gui.apple assertions=videos.transcript.surface-parity

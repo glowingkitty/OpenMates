@@ -977,8 +977,9 @@ enum TeamWorkspaceOfflineRetention {
                         }, publishChats: { rows, fence in
                             try await fence.check()
                             OfflineStore.shared.persistChats(rows)
-                            NotificationCenter.default.post(name: chatMetadataChanged, object: nil,
-                                userInfo: ["accountID": fence.accountID, "scope": fence.scope, "server": fence.server])
+                            var scopeInfo: [String: Any] = ["accountID": fence.accountID, "scope": fence.scope, "server": fence.server]
+                            if let teamID = ticket.scope.teamID { scopeInfo["teamID"] = teamID }
+                            NotificationCenter.default.post(name: chatMetadataChanged, object: nil, userInfo: scopeInfo)
                         }, retainOverviews: { responses, scope, cache in
                             guard scope.teamID != TeamWorkspaceContext.shared.teamID else { return }
                             try await ProjectsWorkspaceService().maintainReadmes(responses: responses, scope: scope,

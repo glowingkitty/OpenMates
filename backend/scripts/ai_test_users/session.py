@@ -459,8 +459,8 @@ class Session:
         await self.secrets.initialize()
         api_key = await get_e2b_api_key_async(self.secrets)
         self.browser = E2BBrowser(api_key)
-        if self.mode == "delete_only":
-            return await self.run_delete_only()
+        if self.mode != "run":
+            return await self.run_account_only(api_key)
         models = TesterModels(self.secrets, cap_usd=Decimal(str(self.job["harness_cap_usd"])))
         wall = time.monotonic()
         result = self.result
@@ -532,25 +532,32 @@ class Session:
         (self.out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=1))
         return result
 
-    async def run_delete_only(self) -> dict[str, Any]:
-        """Retry the deletion of an account whose earlier deletion failed: login, delete, no persona, no video."""
+    async def run_account_only(self, api_key: str) -> dict[str, Any]:
+        """Sign up or delete a temporary account without a persona or recordings."""
         wall = time.monotonic()
         result = self.result
         result.update(target=self.job.get("target"), deletion={"status": "failed", "error": None})
         try:
-            await self.create_sandbox(await get_e2b_api_key_async(self.secrets))
+            await self.create_sandbox(api_key)
             await self.rpc({
                 "operation": "launch", "url": self.job["app_url"], "allowed_hosts": self.job["allowed_hosts"],
                 "device": self.job.get("device") or {"width": 1280, "height": 800}, "locale": "en-US", "timezone": "Europe/Berlin", "voice": False,
             }, timeout=60)
-            result["deletion"] = {"status": await flows.login_and_delete(self), "error": None}
-            result["status"] = "delete_only_done"
+            if self.mode == "signup_only":
+                await flows.signup(self)
+                await flows.gift_card(self)
+                result["status"] = "signup_only_done"
+            else:
+                result["deletion"] = {"status": await flows.login_and_delete(self), "error": None}
+                result["status"] = "delete_only_done"
         except flows.STAGE_ERRORS + (SandboxException,) as exc:
             result["status"] = "harness_error"
             result["deletion"] = {"status": "failed", "error": f"{type(exc).__name__}: {str(exc)[:200]}"}
             if self.sandbox is not None:
                 result["driver_log_tail"] = await self.driver_error()
         finally:
+            if self.mode == "signup_only" and result["status"] != "signup_only_done" and self.provider:
+                await flows.delete_stage(self)
             result["e2b"] = {
                 "seconds": round(time.monotonic() - self.sandbox_started, 1) if self.sandbox_started else 0,
                 "cpu": self.cpu, "memory_mb": self.memory_mb, "usd": float(round(self.e2b_cost(), 4)),

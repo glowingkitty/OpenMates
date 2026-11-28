@@ -18,14 +18,14 @@ BUCKET_NAME = "dev-openmates-ci-candidates"
 LIFECYCLE_DAYS = 2
 EXPIRES_SECONDS = 48 * 60 * 60
 DEFAULT_CONTAINER = "api"
-CONTAINER_TMP_DIR = "/tmp/openmates-ci-candidates"
 MAX_PATCH_BYTES = 100 * 1024**2
 
 INNER_UPLOAD_CODE = r'''
 import asyncio
+import hashlib
 import json
 import os
-from pathlib import Path
+import sys
 import time
 
 import boto3
@@ -38,6 +38,9 @@ REQUEST = json.loads(os.environ["OPENMATES_CI_CANDIDATE_REQUEST"])
 
 
 async def main():
+    content = sys.stdin.buffer.read(REQUEST["size"] + 1)
+    if len(content) != REQUEST["size"] or hashlib.sha256(content).hexdigest() != REQUEST["sha256"]:
+        raise RuntimeError("CI candidate stream differs from the verified patch")
     manager = SecretsManager()
     await manager.initialize()
     access_key = await manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key")
@@ -54,24 +57,42 @@ async def main():
         config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
     bucket = REQUEST["bucket"]
+    created = False
     try:
         client.head_bucket(Bucket=bucket)
     except ClientError as exc:
         if exc.response.get("Error", {}).get("Code") not in {"404", "NoSuchBucket"}:
             raise
         client.create_bucket(Bucket=bucket)
+        created = True
         time.sleep(2)
-    client.put_bucket_acl(Bucket=bucket, ACL="private")
-    client.put_bucket_lifecycle_configuration(
-        Bucket=bucket,
-        LifecycleConfiguration={"Rules": [{
-            "ID": "ExpireCiCandidatesAfterTwoDays",
-            "Status": "Enabled",
-            "Filter": {"Prefix": "candidates/"},
-            "Expiration": {"Days": int(REQUEST["lifecycle_days"])},
-        }]},
-    )
-    content = Path(REQUEST["container_path"]).read_bytes()
+    # Hetzner creates buckets private by default. Verify privacy without
+    # requiring permission to rewrite the bucket ACL for every candidate.
+    acl = client.get_bucket_acl(Bucket=bucket)
+    owner = acl["Owner"]["ID"]
+    if not acl["Grants"] or any(
+        grant["Grantee"].get("Type") != "CanonicalUser" or grant["Grantee"].get("ID") != owner
+        for grant in acl["Grants"]
+    ):
+        raise RuntimeError("CI candidate bucket ACL must grant access only to its owner")
+    try:
+        client.get_bucket_policy(Bucket=bucket)
+    except ClientError as exc:
+        if exc.response.get("Error", {}).get("Code") != "NoSuchBucketPolicy":
+            raise
+    else:
+        raise RuntimeError("CI candidate bucket must not have a bucket policy")
+    expiry_rule = {
+        "ID": "ExpireCiCandidatesAfterTwoDays",
+        "Status": "Enabled",
+        "Filter": {"Prefix": "candidates/"},
+        "Expiration": {"Days": int(REQUEST["lifecycle_days"])},
+    }
+    if created:
+        client.put_bucket_lifecycle_configuration(Bucket=bucket, LifecycleConfiguration={"Rules": [expiry_rule]})
+    rules = client.get_bucket_lifecycle_configuration(Bucket=bucket)["Rules"]
+    if expiry_rule not in rules:
+        raise RuntimeError("CI candidate bucket must have the enabled two-day expiry rule")
     client.put_object(
         Bucket=bucket,
         Key=REQUEST["key"],
@@ -112,8 +133,12 @@ def validate_url(value: str) -> str:
     return value
 
 
-def _run(command: list[str], *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(command, capture_output=True, text=True, env=env, check=False)
+def _run(command: list[str], *, env: dict[str, str], input_bytes: bytes) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, input=input_bytes, capture_output=True, env=env, check=False)
+    return subprocess.CompletedProcess(
+        result.args, result.returncode,
+        result.stdout.decode(errors="replace"), result.stderr.decode(errors="replace"),
+    )
 
 
 def upload_patch(
@@ -133,36 +158,27 @@ def upload_patch(
         raise ValueError("CI candidate patch digest changed before upload")
     instant = now or dt.datetime.now(dt.timezone.utc)
     key = f"candidates/{instant:%Y/%m/%d}/{source}/{uuid.uuid4().hex}-{sha256}.patch"
-    container_path = f"{CONTAINER_TMP_DIR}/{uuid.uuid4().hex}.patch"
     request = {
         "bucket": BUCKET_NAME,
         "key": key,
-        "container_path": container_path,
+        "size": len(content),
         "source": source,
         "sha256": sha256,
         "lifecycle_days": LIFECYCLE_DAYS,
         "expires_in": EXPIRES_SECONDS,
     }
-    mkdir = _run(["docker", "exec", container, "mkdir", "-p", CONTAINER_TMP_DIR])
-    if mkdir.returncode:
-        raise RuntimeError(mkdir.stderr.strip() or mkdir.stdout.strip())
-    copied = _run(["docker", "cp", str(patch_path), f"{container}:{container_path}"])
-    if copied.returncode:
-        raise RuntimeError(copied.stderr.strip() or copied.stdout.strip())
-    try:
-        env = {**os.environ, "OPENMATES_CI_CANDIDATE_REQUEST": json.dumps(request, sort_keys=True)}
-        uploaded = _run(
-            ["docker", "exec", "-e", "OPENMATES_CI_CANDIDATE_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
-            env=env,
-        )
-        if uploaded.returncode:
-            raise RuntimeError(uploaded.stderr.strip() or uploaded.stdout.strip())
-        lines = [line for line in uploaded.stdout.splitlines() if line.strip().startswith("{")]
-        if not lines:
-            raise RuntimeError("CI candidate upload completed without JSON output")
-        result = json.loads(lines[-1])
-        validate_url(result["url"])
-        expires_at = instant + dt.timedelta(seconds=EXPIRES_SECONDS)
-        return {**result, "expires_at": expires_at.isoformat()}
-    finally:
-        _run(["docker", "exec", container, "rm", "-f", container_path])
+    env = {**os.environ, "OPENMATES_CI_CANDIDATE_REQUEST": json.dumps(request, sort_keys=True)}
+    uploaded = _run(
+        ["docker", "exec", "-i", "-e", "OPENMATES_CI_CANDIDATE_REQUEST", container, "python", "-c", INNER_UPLOAD_CODE],
+        env=env,
+        input_bytes=content,
+    )
+    if uploaded.returncode:
+        raise RuntimeError(uploaded.stderr.strip() or uploaded.stdout.strip())
+    lines = [line for line in uploaded.stdout.splitlines() if line.strip().startswith("{")]
+    if not lines:
+        raise RuntimeError("CI candidate upload completed without JSON output")
+    result = json.loads(lines[-1])
+    validate_url(result["url"])
+    expires_at = instant + dt.timedelta(seconds=EXPIRES_SECONDS)
+    return {**result, "expires_at": expires_at.isoformat()}

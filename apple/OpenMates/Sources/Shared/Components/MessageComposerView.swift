@@ -271,6 +271,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var onExcludePII: (String) -> Void = { _ in }
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
+    var overlayAtBottom = false
     var idleFieldContent: AnyView? = nil
     // Hosts explicitly opt in after evaluating focus, fullscreen and active overlays.
     var showsDraftPreview = false
@@ -306,6 +307,7 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                 inlineFieldContent: inlineFieldContent,
                 idleFieldContent: idleFieldContent,
                 overlayContent: AnyView(overlayContent()),
+                overlayAtBottom: overlayAtBottom,
                 onSubmit: onSubmit
             ) {
                 actionButtons()

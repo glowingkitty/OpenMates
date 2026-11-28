@@ -117,6 +117,7 @@ pub(super) struct Host {
     /// A ciphertext snapshot applied during `recover_before_list`, as the
     /// rows another device's refresh would bring.
     pub(super) recovered_snapshot: Option<serde_json::Value>,
+    cancel_during_list_recovery: Option<CancellationToken>,
 }
 
 impl ViewHost<FileByteStore> for Host {
@@ -156,6 +157,9 @@ impl ViewHost<FileByteStore> for Host {
                 self.core
                     .client_mut()
                     .restore_ciphertext_snapshot(&snapshot)?;
+            }
+            if let Some(cancel) = self.cancel_during_list_recovery.take() {
+                cancel.cancel();
             }
             Ok(None)
         })
@@ -217,6 +221,7 @@ pub(super) fn fixture() -> Fixture {
             calls: Vec::new(),
             offline_allowed: true,
             recovered_snapshot: None,
+            cancel_during_list_recovery: None,
         },
         credentials,
         _dir: dir,
@@ -281,6 +286,31 @@ async fn start_emits_cached_list_from_the_index_before_admission_and_network() {
 }
 
 #[tokio::test]
+async fn superseded_list_refresh_preserves_the_published_cached_rows() {
+    let mut f = fixture();
+    persisted(&mut f).await;
+    let sink = Sink::default();
+    handle(
+        &mut f.host,
+        ViewCommand::Start {
+            credentials: Box::new(session()),
+        },
+        &sink,
+        &CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    let cached = sink.events();
+    let cancel = CancellationToken::new();
+    f.host.cancel_during_list_recovery = Some(cancel.clone());
+
+    let result = handle(&mut f.host, ViewCommand::RefreshChats, &sink, &cancel).await;
+    assert!(matches!(result, Err(Error::Cancelled)));
+    assert_eq!(sink.events(), cached);
+    assert_eq!(names(&f.host.calls).last(), Some(&"recover Refresh"));
+}
+
+#[tokio::test]
 async fn lazy_start_keeps_chat_content_on_disk_until_opened() {
     let mut f = fixture();
     persisted(&mut f).await;
@@ -329,13 +359,14 @@ async fn superseded_boot_sync_publishes_nothing() {
     start(&mut f.host, session(), &sink, &CancellationToken::new())
         .await
         .unwrap();
-    let before = sink.events().len();
+    let events_before = sink.events().len();
+    let calls_before = f.host.calls.len();
     let cancel = CancellationToken::new();
     cancel.cancel();
     let result = boot_sync(&mut f.host, &sink, &cancel).await;
     assert_eq!(result, Err(Error::Cancelled));
-    assert_eq!(sink.events().len(), before);
-    assert_eq!(names(&f.host.calls).last(), Some(&"recover BootSync"));
+    assert_eq!(sink.events().len(), events_before);
+    assert_eq!(f.host.calls.len(), calls_before, "pre-cancelled startup must not begin recovery");
 }
 
 #[tokio::test]

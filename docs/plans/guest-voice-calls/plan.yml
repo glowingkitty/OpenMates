@@ -68,4 +68,17 @@ verification:
     - Isolated CI E2E of a guest web call (desktop and phone width) with proof audio.
     - voice-call-opening.spec.ts green with the tooltip and single-opening assertions.
     - Real dev run of the post-update voice check from the deployed commit, both callers, videos with sound.
-  evidence: ''
+  evidence: >-
+    The component preview, guest desktop and phone browser cases, opening
+    frame checks, backend metering and test-account coverage, web controller
+    tests, and Rust guest protocol tests passed in isolated CI. The final
+    guest and opening runs were 45331609148 and 45331649131. Dev c84d7749b8
+    served the guest socket and start button. After the shared dev allowance
+    was enabled at its existing caps and ElevenLabs quota was restored, one
+    guest call and one signed-in call on web build 07b6206552 transcribed the
+    microphone question, played the answer, and hung up. The guest call used
+    runtime 3f2e4400bf with the same guest voice implementation. The signed-in
+    call used runtime 07b6206552, with a sealed routing handoff and audible
+    reply. The recurring checks use one short question and allow at most one
+    attempt per served revision, including after interruption and rollback.
+    Production verification remains with the focused release.

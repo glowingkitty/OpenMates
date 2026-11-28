@@ -423,13 +423,15 @@ async def _async_recover_workflow_digests(task: BaseServiceTask) -> dict:
         if client is None or not await client.set(lock_key, token, nx=True, ex=900):
             return {**stats, "status": "locked"}
         acquired = True
-        last_id = None
+        seen_ids: set[str] = set()
         offset = 0
         while _is_current_digest_cutoff(epoch):
             filters = [{"status": {"_eq": "active"}}, {"email_notifications_enabled": {"_eq": True}}]
             # Directus UUID filters do not support ordered comparisons. Stable
-            # id ordering plus actual returned-count offsets remains cap-safe;
-            # a roster change is recovered by the next current-window sweep.
+            # id ordering plus actual returned-count offsets remains cap-safe.
+            # A user added or re-enabled during the sweep shifts later pages, so
+            # rows already checked can reappear at a page boundary: skip them.
+            # A shifted-out user is recovered by the next current-window sweep.
             users = await task.directus_service.get_items(
                 "directus_users", params={
                     "fields": "id,email_notifications_enabled,email_notification_preferences,email_notification_preference_choices",
@@ -441,13 +443,18 @@ async def _async_recover_workflow_digests(task: BaseServiceTask) -> dict:
             if not users:
                 break
             offset += len(users)
-            for user in users:
+            page_ids = [user.get("id") if isinstance(user, dict) else None for user in users]
+            if any(not isinstance(user_id, str) or not user_id for user_id in page_ids):
+                raise RuntimeError("Recovery user page without ids")
+            if all(user_id in seen_ids for user_id in page_ids):
+                # The provider ignored the offset: fail closed instead of looping.
+                raise RuntimeError("Recovery user page repeated")
+            for user, user_id in zip(users, page_ids):
                 if not _is_current_digest_cutoff(epoch):
                     return {**stats, "status": "expired_cutoff"}
-                user_id = user.get("id") if isinstance(user, dict) else None
-                if not isinstance(user_id, str) or not user_id or (last_id is not None and user_id <= last_id):
-                    raise RuntimeError("Unordered recovery user page")
-                last_id = user_id
+                if user_id in seen_ids:
+                    continue
+                seen_ids.add(user_id)
                 stats["checked_users"] += 1
                 if not notification_category_enabled(user, "workflowRuns"):
                     continue

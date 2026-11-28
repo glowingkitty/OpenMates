@@ -1,4 +1,7 @@
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from backend.apps.ai.daily_inspiration.schemas import (
     drop_unsupported_inspirations,
@@ -25,6 +28,59 @@ def test_authenticated_persistence_requires_exactly_three_video_and_three_wiki()
         [{"content_type": "wiki"} for _ in range(4)]
         + [{"content_type": "feature"} for _ in range(2)]
     ) is False
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=daily-inspiration.encrypted-persistence,daily-inspiration.personalized-priority
+async def test_authenticated_recovery_uses_newest_six_supported_rows() -> None:
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from backend.core.api.app.routes import daily_inspirations_api
+
+    today = [
+        {
+            "daily_inspiration_id": f"today-{index}",
+            "generated_at": 1_800_000_000 - index,
+            "content_type": kind,
+            "encrypted_phrase": f"ciphertext-{index}",
+        }
+        for index, kind in enumerate(["video", "wiki"] * 3)
+    ]
+    retired = [
+        {
+            "daily_inspiration_id": f"retired-{index}",
+            "generated_at": 1_800_000_010 - index,
+            "content_type": "feature",
+        }
+        for index in range(5)
+    ]
+    yesterday = [
+        dict(row, daily_inspiration_id=f"yesterday-{index}", generated_at=row["generated_at"] - 86_400)
+        for index, row in enumerate(today)
+    ]
+
+    async def fetch(*, user_id, since_timestamp, limit):
+        assert user_id == "test-owner"
+        retained = retired + today + yesterday
+        return [
+            row for row in retained
+            if since_timestamp is None or row["generated_at"] >= since_timestamp
+        ][:limit]
+
+    app = FastAPI()
+    app.include_router(daily_inspirations_api.router)
+    app.dependency_overrides[daily_inspirations_api.get_current_user] = lambda: SimpleNamespace(id="test-owner")
+    app.state.directus_service = SimpleNamespace(
+        user_daily_inspiration=SimpleNamespace(get_user_inspirations=fetch)
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://fixture.invalid") as client:
+        result = await client.get("/v1/daily-inspirations")
+        assert result.status_code == 200
+        assert result.json() == {"inspirations": today}
+        incomplete = await client.get("/v1/daily-inspirations", params={"since": 1_800_000_000})
+        assert incomplete.status_code == 200
+        assert incomplete.json() == {"inspirations": []}
 
 
 # contract-test: supporting surface=rest_api assertions=daily-inspiration.public-defaults

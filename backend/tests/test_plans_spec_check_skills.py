@@ -107,14 +107,16 @@ async def test_check_source_validation(sources, message):
     assert not result.success and message in result.error
 
 
-# contract-test: supporting surface=rest_api assertions=checks.sources.mixed-types
 @pytest.mark.asyncio
 @pytest.mark.parametrize("skill_id,arguments", [
     ("check", {"title": "Ordering works", "sources": [src("a", "e2e", test_target="order.spec.ts"),
                                                       src("b", "human_confirmation", "supporting", instruction="Taste it")]}),
     ("specification", {"title": "Ordering", "summary": "s", "scope_included": ["loaves", "pickup"],
                        "requirements": [{"id": "R1", "statement": "a"}, {"id": "R2", "statement": "b"}]}),
+    # Real Gemini run: a Plan with 2 assumptions was split into 2 calls of one dict each.
+    ("create", {"title": "Watering", "assumptions": [{"text": "a"}, {"text": "b"}]}),
 ])
+# contract-test: supporting surface=rest_api assertions=checks.sources.mixed-types,plans.sub-chats.assumption-and-task-chats
 async def test_executor_keeps_check_and_specification_lists_in_one_call(monkeypatch, skill_id, arguments):
     # A Check's sources and a Specification's requirements are one definition,
     # not one request per list item (real Gemini run sent 2 sources -> 2 broken calls).
@@ -138,7 +140,7 @@ async def test_plan_create_mints_ids_and_returns_contract_payload():
     result = await _skill(CreateSkill).execute(
         title=" Offline notes ", summary="s", goal="g", specification_ref="spec-1",
         assumptions=[{"text": " Pickup only "}, {"text": "No delivery", "required_before": "task_execution"}],
-        user_id="u1", chat_id="c1", message_id="m1",
+        user_id="u1", chat_id="c1", message_id="m1", directus_service=_PlanStore([]),
     )
     action = result.pending_client_action
     assert result.success and result.plan_id == action["plan_id"]
@@ -162,3 +164,52 @@ async def test_plan_create_mints_ids_and_returns_contract_payload():
 async def test_plan_create_rejects_invalid_assumptions(assumptions, message):
     result = await _skill(CreateSkill).execute(title="t", assumptions=assumptions, user_id="u1")
     assert not result.success and message in result.error and result.pending_client_action is None
+
+
+# contract-test: supporting surface=rest_api assertions=plans.sub-chats.assumption-and-task-chats
+def test_plan_create_names_the_assumption_sub_chat_step() -> None:
+    import asyncio as _asyncio
+
+    from backend.apps.plans.skills.create_skill import CreateSkill as _PlanCreate
+
+    skill = _PlanCreate.__new__(_PlanCreate)
+    result = _asyncio.run(skill.execute(
+        title="Watering reminders", user_id="user-1", chat_id="chat-1", directus_service=_PlanStore([]),
+        assumptions=[{"text": "browsers allow scheduled notifications"}],
+    ))
+    assert result.success, result.error
+    assert len(result.assumption_ids) == 1
+    assert result.next_step and "start_sub_chats" in result.next_step
+    assert result.assumption_ids[0] in result.next_step and result.plan_id in result.next_step
+    no_assumptions = _asyncio.run(skill.execute(title="Plain plan", user_id="user-1"))
+    assert no_assumptions.success and no_assumptions.next_step is None
+
+
+class _PlanStore:
+    """Directus stand-in exposing only user_plan.list_plans."""
+
+    def __init__(self, plans: list[dict]) -> None:
+        self.calls: list[tuple] = []
+        store = self
+
+        class _UserPlan:
+            async def list_plans(self, user_id, **kwargs):
+                store.calls.append((user_id, kwargs))
+                return plans
+
+        self.user_plan = _UserPlan()
+
+
+# contract-test: supporting surface=rest_api assertions=plans.sub-chats.assumption-and-task-chats
+@pytest.mark.asyncio
+async def test_plan_create_refuses_a_second_plan_in_the_same_chat():
+    # Real spec run 2026-11-23: the resumed turn created a second Plan with new
+    # assumptions, and the implement turn checked those instead of starting Task sub-chats.
+    store = _PlanStore([{"plan_id": "11111111-1111-4111-8111-111111111111"}])
+    result = await _skill(CreateSkill).execute(
+        title="Again", user_id="u1", chat_id="c1", assumptions=[{"text": "x"}], directus_service=store,
+    )
+    assert not result.success and result.pending_client_action is None
+    assert result.plan_id == "11111111-1111-4111-8111-111111111111"
+    assert "already has the Plan" in result.error and "tasks create" in result.error
+    assert store.calls == [("u1", {"chat_id": "c1", "limit": 1})]

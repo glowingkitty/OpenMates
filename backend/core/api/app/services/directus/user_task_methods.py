@@ -12,6 +12,7 @@ import hashlib
 import logging
 import re
 import secrets
+import time
 from typing import Any
 
 from backend.shared.python_utils.encrypted_slug_metadata import (
@@ -670,6 +671,7 @@ class UserTaskMethods:
         }
         success, created = await self.directus_service.create_item("user_task_activity", record)
         if success and isinstance(created, dict):
+            await self._touch_task_updated_at(user_id, task_id, team_id)
             return created
         raced = await self.directus_service.get_items(
             "user_task_activity",
@@ -686,6 +688,25 @@ class UserTaskMethods:
                 raise ValueError("Task Activity entry id conflicts with different content")
             return current
         return None
+
+    async def _touch_task_updated_at(self, user_id: str, task_id: str, team_id: str | None) -> None:
+        """A new activity entry counts as an update of its Task (owner decision, 27 Nov), so
+        "Tasks updated yesterday" includes Tasks that only received notes, e.g. handoffs.
+
+        Only `updated_at` moves forward; `version` stays, because no Task field changed and
+        clients holding the current version must keep editing without a conflict.
+        The entry is already stored, so a failure here is logged as an error instead of
+        failing the request (a retry with the same entry id would not repair it).
+        """
+        task = await self.get_task(task_id, user_id, team_id)
+        if not task or not task.get("id"):
+            logger.error("Task %s missing while recording the update time of a new activity entry", hash_id(task_id))
+            return
+        now = int(time.time())
+        if int(task.get("updated_at") or 0) >= now:
+            return
+        if not await self.directus_service.update_item("user_tasks", task["id"], {"updated_at": now}):
+            logger.error("Failed to record the update time of Task %s for a new activity entry", hash_id(task_id))
 
     async def delete_task_activity(
         self,

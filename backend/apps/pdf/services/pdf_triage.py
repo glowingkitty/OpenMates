@@ -174,7 +174,7 @@ def triage_pages_sync(pdf_bytes: bytes, *, signals: bool = True) -> TriageResult
     ``signals=False`` reads only the text and outline (routes preset to ``ocr``,
     undecided); the processing task uses it when the upload already decided every
     route, and falls back to a full triage if those routes do not fit."""
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     try:

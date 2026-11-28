@@ -10,6 +10,8 @@
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
 
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.startup.recent-metadata-cap
 // Specification: specifications/features/apple-recent-offline-chats/specification.yml
 // Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
 
@@ -483,6 +485,10 @@ final class OfflineStore: ObservableObject {
     func activate(userId: String, apiBaseURL: URL) throws {
         let scope = Self.scopeId(userId: userId, apiBaseURL: apiBaseURL)
         guard activeScopeId != scope else { return }
+        #if DEBUG && !os(watchOS)
+        let benchmark = ProcessInfo.processInfo.arguments.contains("--ui-test-read-only-performance")
+        let started = benchmark ? NativeSyncPerfLog.now() : 0
+        #endif
         deactivate()
         let directory = try storageDirectory ?? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask,
@@ -499,7 +505,16 @@ final class OfflineStore: ObservableObject {
         modelContext = container.mainContext
         activeScopeId = scope
         if self === Self.shared { UnreadMessagesStore.shared.configure(scopeID: scope, teamID: nil) }
+        #if DEBUG && !os(watchOS)
+        let countStarted = benchmark ? NativeSyncPerfLog.now() : 0
+        #endif
         updatePendingCount()
+        #if DEBUG && !os(watchOS)
+        if benchmark {
+            NativeStartupBenchmark.scopeSetupDurationMS = Int((countStarted - started) * 1_000)
+            NativeStartupBenchmark.scopePendingCountDurationMS = NativeSyncPerfLog.ms(since: countStarted)
+        }
+        #endif
     }
 
     func deactivate() {
@@ -862,6 +877,18 @@ final class OfflineStore: ObservableObject {
         return (try? context.fetch(descriptor).first)?.toChat()
     }
 
+    /// One recent metadata window for Personal (nil) or an authorized Team.
+    /// Older pins/drafts and exact navigation use their own reads.
+    func loadRecentChats(teamID: String?) -> [Chat] {
+        guard let context = modelContext else { return [] }
+        var descriptor = FetchDescriptor<PersistedChat>(
+            predicate: #Predicate { $0.teamId == teamID },
+            sortBy: [SortDescriptor(\.lastEditedOverallTimestamp, order: .reverse),
+                     SortDescriptor(\.lastMessageAt, order: .reverse), SortDescriptor(\.id)])
+        descriptor.fetchLimit = 100
+        return (try? context.fetch(descriptor))?.map { $0.toChat() } ?? []
+    }
+
     func loadStartupChats(lastOpenedChatId: String?, limit: Int) -> [Chat] {
         guard let context = modelContext else { return [] }
         var descriptor = FetchDescriptor<PersistedChat>(
@@ -1110,6 +1137,25 @@ final class OfflineStore: ObservableObject {
     func loadEmbedKeys() -> [EmbedKeyRecord] {
         guard let context = modelContext else { return [] }
         let descriptor = FetchDescriptor<PersistedEmbedKey>()
+        return (try? context.fetch(descriptor))?.map { $0.toEmbedKey() } ?? []
+    }
+
+    /// An account with cached Team chats still uses the legacy preload.
+    /// An unreadable store also keeps that path.
+    func mayHaveCachedTeamChats() -> Bool {
+        guard let context = modelContext else { return true }
+        var descriptor = FetchDescriptor<PersistedChat>(predicate: #Predicate { $0.teamId != nil })
+        descriptor.fetchLimit = 1
+        do { return try context.fetch(descriptor).first != nil }
+        catch { return true }
+    }
+
+    /// Read the encrypted wrappers for the requested embed only.
+    func loadEmbedKeys(hashedEmbedId: String) -> [EmbedKeyRecord] {
+        guard let context = modelContext else { return [] }
+        let descriptor = FetchDescriptor<PersistedEmbedKey>(
+            predicate: #Predicate { $0.hashedEmbedId == hashedEmbedId }
+        )
         return (try? context.fetch(descriptor))?.map { $0.toEmbedKey() } ?? []
     }
 

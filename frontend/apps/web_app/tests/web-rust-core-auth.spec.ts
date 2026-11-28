@@ -23,6 +23,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 const STATIC_BODY_FIELDS = new Set(['purpose', 'login_method', 'credential_version', 'code_type', 'stay_logged_in']);
 const COMPARED_HEADERS = ['content-type', 'accept', 'origin'];
 const RESTORE_SAMPLES = 3;
+const FIRST_SESSION_RESPONSE_MARK = 'openmates:rust:auth-first-session-response';
 
 interface AuthRequestShape { method: string; path: string; headers: Record<string, string>; body: unknown }
 
@@ -264,20 +265,18 @@ test('Rust login, restore and logout with cross-tab invalidation', async ({ page
 		let restoreRequests: AuthRequestShape[] = [];
 		for (let sample = 0; sample < RESTORE_SAMPLES; sample++) {
 			const before = await cpuMetrics(cdp);
-			// Every restore must validate the session with the server; waiting for that
-			// response also keeps a late check inside this sample's request capture.
-			const sessionChecked = page.waitForResponse((response: any) => response.request().method() === 'POST'
-				&& new URL(response.url()).pathname === '/v1/auth/session', { timeout: 30000 });
+			// This returning-page POST runs inside the Worker, so a Page response
+			// observer may miss it. The mark follows the actual native reply and its
+			// terminal, including network time, on the original Host.
 			await page.reload();
 			await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
-			const sessionResponse = await sessionChecked;
-			await sessionResponse.finished();
+			const firstReply = await page.waitForFunction(
+				(name: string) => performance.getEntriesByName(name)[0]?.startTime, FIRST_SESSION_RESPONSE_MARK, { timeout: 30000 },
+			);
+			const sessionCheckedAt: number = await firstReply.jsonValue();
+			await firstReply.dispose();
 			const restoreMarks = await marks(page);
-			// Session check done, relative to this document's navigation start (Playwright timing: epoch start + relative end).
-			const sessionTiming = sessionResponse.request().timing();
-			const timeOrigin = await page.evaluate(() => performance.timeOrigin);
-			const sessionCheckedAt = sessionTiming.responseEnd >= 0 ? sessionTiming.startTime + sessionTiming.responseEnd - timeOrigin : NaN;
 			const after = await cpuMetrics(cdp);
 			const domContentLoaded = await page.evaluate(() => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)?.domContentLoadedEventEnd ?? NaN);
 			restoreSamples.push({

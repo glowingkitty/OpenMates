@@ -96,7 +96,7 @@ connected_accounts:
     connector_status:
       type: string
       length: 32
-      note: "Local connector state: online, offline, setup_required, or revoked"
+      note: "Local connector state: online, offline, setup_required, reconnect_required, or revoked"
 
     connector_public_metadata:
       type: json
@@ -124,6 +124,10 @@ connected_accounts:
       type: integer
       required: true
       note: "Unix timestamp when encrypted metadata last changed"
+
+    encrypted_last_used_at:
+      type: text
+      note: "[Client-encrypted] Time the account was last used for a turn; written by the client at most once per 10 minutes"
 
     revoked_at:
       type: integer

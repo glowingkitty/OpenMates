@@ -703,9 +703,10 @@ class ProjectMethods:
             not _validate_project_key_wrapper(wrapper)
             or wrapper.get("key_type") != "team"
             or wrapper.get("hashed_team_id") != expected_team_hash
-            or wrapper.get("team_key_epoch") != 1
+            or not isinstance(wrapper.get("team_key_epoch"), int)
+            or wrapper.get("team_key_epoch") < 1
         ):
-            raise ProjectMoveError("A matching Team epoch-1 Project key wrapper is required")
+            raise ProjectMoveError("A matching Team Project key wrapper with a valid key epoch is required")
         if project.get("encrypted_slug") or project.get("slug_lookup_hash"):
             validate_encrypted_slug_metadata(
                 {"encrypted_slug": encrypted_slug, "slug_lookup_hash": slug_lookup_hash},

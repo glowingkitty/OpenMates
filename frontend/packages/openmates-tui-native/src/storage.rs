@@ -742,6 +742,45 @@ impl Store {
         self.atomic_write(&file, &serde_json::to_vec(&record)?)?;
         Ok(result)
     }
+    /// Exchange a device/vault-bound offline record with the existing
+    /// authenticated journal. The wrapping key stays in this store.
+    pub(crate) fn personal_offline_record(
+        &self, session: &Session, passphrase: Option<&str>, replacement: Option<serde_json::Value>,
+    ) -> Result<Option<serde_json::Value>> {
+        let epoch = self.active_epoch()?;
+        let Some(record) = self.envelope()? else { return Ok(None) };
+        if record.mode != StorageMode::EncryptedVault || session.active_team_id.is_some()
+            || record.context != session_context(session)?
+            || record.owner != owner_id(&session.hashed_email)
+            || record.expires_at != session.paired_session_expires_at
+            || session.is_expired()
+        {
+            return Ok(None);
+        }
+        record.validate()?;
+        let key = self.unwrap_key(&record, passphrase)?;
+        let actual: Session = serde_json::from_slice(&decrypt(&key, &record.ciphertext, &record.aad()?)?)?;
+        if !actual.matches_stored_session(session) {
+            return Ok(None);
+        }
+        let device = if replacement.is_some() {
+            self.device_identity()?
+        } else {
+            let Some(bytes) = self.read("sdk-device-id")? else { return Ok(None) };
+            String::from_utf8(bytes).map_err(|_| Error::Protocol)?
+        };
+        let context = serde_json::to_string(&(
+            &epoch, self.bytes.directory_instance()?, device, self.vault_binding(&record)?,
+            digest(session.master_key.as_ref()),
+        ))?;
+        let value = self.update_private_record(
+            &session.hashed_email, &context, "personal-offline-v1", &key,
+            |previous| Ok((replacement, previous.filter(|value| !value.is_null()))),
+        )?;
+        self.require_epoch(&epoch)?;
+        Ok(value)
+    }
+
     /// Durable, descriptor-anchored announcement never waits for session/keyring
     /// work. Repeated announcements preserve the context and cleanup intent.
     pub fn revoke_session(&self) -> Result<()> {
@@ -1231,10 +1270,11 @@ pub struct CacheBytes {
     #[cfg(test)]
     io: Arc<IoCounts>,
 }
+use crate::native_chat_open_trace::cache_error as trace;
 impl ByteStore for CacheBytes {
     type Version = FileIdentity;
     fn get(&self, name: &str) -> std::result::Result<Option<Vec<u8>>, ByteStoreError> {
-        let read = self.inner.get(name)?;
+        let read = self.inner.get(name).inspect_err(|error| trace("cache.get", *error))?;
         #[cfg(test)]
         if read.is_some() && name.starts_with("cache-") {
             self.io.cache_reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1242,29 +1282,29 @@ impl ByteStore for CacheBytes {
         Ok(read)
     }
     fn version(&self, name: &str) -> std::result::Result<Option<FileIdentity>, ByteStoreError> {
-        self.inner.version(name)
+        self.inner.version(name).inspect_err(|error| trace("cache.version", *error))
     }
     fn put(&self, name: &str, bytes: &[u8], durability: Durability) -> std::result::Result<(), ByteStoreError> {
         #[cfg(test)]
         if name.starts_with("cache-") {
             self.io.cache_writes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
-        self.inner.put(name, bytes, durability)
+        self.inner.put(name, bytes, durability).inspect_err(|error| trace("cache.put", *error))
     }
     fn delete(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
-        self.inner.delete(name)
+        self.inner.delete(name).inspect_err(|error| trace("cache.delete", *error))
     }
     fn list(&self, prefix: &str) -> std::result::Result<Vec<String>, ByteStoreError> {
-        self.inner.list(prefix)
+        self.inner.list(prefix).inspect_err(|error| trace("cache.list", *error))
     }
     fn barrier(&self) -> std::result::Result<(), ByteStoreError> {
-        self.inner.barrier()
+        self.inner.barrier().inspect_err(|error| trace("cache.barrier", *error))
     }
     fn sync(&self, name: &str) -> std::result::Result<(), ByteStoreError> {
-        self.inner.sync(name)
+        self.inner.sync(name).inspect_err(|error| trace("cache.sync", *error))
     }
     fn lock(&self, scope: &str) -> std::result::Result<LockGuard, ByteStoreError> {
-        self.inner.lock(scope)
+        self.inner.lock(scope).inspect_err(|error| trace("cache.lock", *error))
     }
 }
 fn session_context(session: &Session) -> Result<String> {

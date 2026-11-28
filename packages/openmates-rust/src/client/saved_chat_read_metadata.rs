@@ -33,7 +33,7 @@ pub(in crate::client) fn unsigned(row: &Value, name: &str) -> Result<Option<u64>
 }
 // The metadata route explicitly serializes source timestamps as decimal strings.
 // Accept exact nonnegative integers only, never a clock or floating-point fallback.
-pub(in crate::client) fn timestamp(row: &Value, name: &str) -> Result<Option<i64>> {
+pub(crate) fn timestamp(row: &Value, name: &str) -> Result<Option<i64>> {
     match row.get(name) {
         None | Some(Value::Null) => Ok(None),
         Some(Value::String(value))

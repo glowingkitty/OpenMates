@@ -76,17 +76,44 @@ def deliver(notifications: Sequence[Notification], channels: Channels) -> list[s
     else:
         failures.append("discord: not configured")
     if channels.brevo_api_key and channels.email_to:
-        payload = {
-            "sender": {"name": "OpenMates Status", "email": channels.email_from},
-            "to": [{"email": channels.email_to}],
-            "subject": subject,
-            "textContent": body,
-            "tags": ["status-monitor"],
-        }
         try:
-            _post_json(BREVO_URL, payload, {"api-key": channels.brevo_api_key, "accept": "application/json"})
+            _post_email(channels, subject, body)
         except OSError as exc:
             failures.append(f"email: {type(exc).__name__}")
     else:
         failures.append("email: not configured")
     return failures
+
+
+def post_uptime(message: str, webhook: str) -> bool:
+    """Send one incident update and report whether Discord accepted it."""
+    if not webhook:
+        return False
+    try:
+        _post_json(webhook, {"content": message, "allowed_mentions": {"parse": []}}, {})
+    except OSError:
+        return False
+    return True
+
+
+def _post_email(channels: Channels, subject: str, body: str) -> None:
+    payload = {
+        "sender": {"name": "OpenMates Status", "email": channels.email_from},
+        "to": [{"email": channels.email_to}],
+        "subject": subject,
+        "textContent": body,
+        "tags": ["status-monitor"],
+    }
+    _post_json(BREVO_URL, payload, {"api-key": channels.brevo_api_key, "accept": "application/json"})
+
+
+def deliver_uptime(message: str, channels: Channels) -> bool:
+    """Retain email delivery on the external monitor and acknowledge either channel."""
+    discord_ok = post_uptime(message, channels.discord_webhook_url)
+    if not channels.email_to or not channels.brevo_api_key:
+        return discord_ok
+    try:
+        _post_email(channels, message, message)
+    except OSError:
+        return discord_ok
+    return True

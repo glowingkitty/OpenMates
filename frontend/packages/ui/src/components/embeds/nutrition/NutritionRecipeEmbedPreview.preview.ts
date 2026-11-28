@@ -27,6 +27,8 @@ export const variants = {
   assistant: { ...defaultProps, resultContext: 'chat' as const },
   noImage: { ...defaultProps, image_url: null },
   zero: { ...defaultProps, total_time_minutes: 0, servings: 0, rating: 0, rating_count: 0 },
+  /** Prod issue b8bbd177: a short two-word title must wrap only between words. */
+  vegetarianLasagna: { ...defaultProps, title: 'Vegetarian lasagna', image_url: null },
   longTitle: { ...defaultProps, title: 'Slow cooked chickpeas and garden spinach with aromatic herbs, roasted seasonal vegetables and fresh lemon dressing' },
   /** Recipe with many tags */
   multiTag: {

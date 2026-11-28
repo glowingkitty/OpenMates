@@ -4,7 +4,7 @@ const { expect, test } = require('./helpers/cookie-audit');
 const { loginToTestAccount, startNewChat, sendMessage, waitForChatReady } = require('./helpers/chat-test-helpers');
 const { getE2EDebugUrl, withMockMarker } = require('./signup-flow-helpers');
 
-// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction,apps.results.shared-fullscreen
+// contract-test: direct surface=gui.web assertions=chats.rendering.inline-entity-interaction,apps.results.shared-fullscreen,shared-embed-fullscreen.followup
 test('fullscreen correction sends the text and a rendered image into the existing chat', async ({ page }: { page: any }) => {
   test.setTimeout(180_000);
   expect(process.env.E2E_USE_MOCKS, 'This regression requires committed inference fixtures').toBeTruthy();
@@ -38,9 +38,12 @@ test('fullscreen correction sends the text and a rendered image into the existin
   }, seeded);
   const fullscreen = page.getByTestId('embed-fullscreen-overlay');
   await expect(fullscreen).toBeVisible({ timeout: 20_000 });
+  await expect(fullscreen).toHaveAttribute('data-embed-shell', 'shared');
+  const composer = fullscreen.getByTestId('embed-fixed-bottom').getByTestId('embed-followup-composer');
+  await expect(composer).toBeInViewport({ ratio: 1 });
   const correction = 'Make the sky brighter and keep the mountain';
-  await fullscreen.getByTestId('apps-request-textarea').fill(withMockMarker(correction, 'chat_flow_capital', 'instant'));
-  const send = fullscreen.getByTestId('apps-request-submit');
+  await composer.getByTestId('apps-request-textarea').fill(withMockMarker(correction, 'chat_flow_capital', 'instant'));
+  const send = composer.getByTestId('apps-request-submit');
   await expect(send).toHaveText('Send');
   await send.click();
   await expect(page.getByTestId('message-user')).toHaveCount(before + 1, { timeout: 30_000 });

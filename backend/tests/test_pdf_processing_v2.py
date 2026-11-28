@@ -78,7 +78,7 @@ def test_borderline_unsure_or_failing_decision_defaults_to_ocr_and_confident_tex
 
 
 def _two_page_pdf() -> bytes:
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     doc = fitz.open()
     page = doc.new_page()

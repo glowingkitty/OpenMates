@@ -11,6 +11,7 @@
  */
 export {};
 import type { TestInfo } from '@playwright/test';
+import { createInterface } from 'node:readline';
 const { execFileSync, spawn, spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -24,6 +25,20 @@ let displayCounter = 0;
 type RunResult = { code: number | null; stdout: string; stderr: string };
 type TerminalStep = Record<string, unknown> & { name: string };
 type CaptureManifest = { input_checkpoints?: Array<{ name: string; at_ms: number; transcript_offset: number }>; [key: string]: unknown };
+type InputProgress = { index: number; completed: boolean; card?: string };
+
+export function parseInputProgress(line: string, steps: TerminalStep[]): InputProgress | undefined {
+	if (line.length > 64) return;
+	let value: unknown;
+	try { value = JSON.parse(line); } catch { return; }
+	if (!Array.isArray(value) || value.length !== 3) return;
+	const [index, completed, card] = value;
+	if (!Number.isInteger(index) || index < 0 || index >= steps.length || typeof completed !== 'boolean') return;
+	const expectsCard = completed && steps[index].capture_code_card === true;
+	if (expectsCard ? typeof card !== 'string' || !/^emb-v-[1-9][0-9]{0,5}$/.test(card) : card !== null) return;
+	return { index, completed, ...(expectsCard ? { card } : {}) };
+}
+
 
 function buildRustCli(testInfo?: TestInfo): string {
 	const supplied = process.env.OPENMATES_RUST_CLI_BIN;
@@ -114,7 +129,7 @@ function recordRust(
 	env: Record<string, string | undefined>,
 	testInfo: TestInfo,
 	name: string,
-	options: { steps?: TerminalStep[]; timeoutSeconds?: number } = {}
+	options: { steps?: TerminalStep[]; timeoutSeconds?: number; onInputProgress?: (event: InputProgress) => void } = {}
 ) {
 	ensureRecorder();
 	const outputDir = testInfo.outputPath(`rust-terminal-${name}`);
@@ -137,11 +152,22 @@ function recordRust(
 		fs.writeFileSync(plan, JSON.stringify({ steps: options.steps }, null, 2));
 		captureArgs.push('--input-plan', plan);
 	}
+	const progressEnabled = Boolean(options.onInputProgress && options.steps);
+	if (progressEnabled) captureArgs.push('--input-progress');
 	const child = spawn('python3', [...captureArgs, '--', binary, ...args], {
 		cwd: ROOT,
 		env: terminalEnv,
-		stdio: ['ignore', 'pipe', 'pipe']
+		stdio: progressEnabled ? ['ignore', 'pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
 	});
+	const completedInputs = new Map<number, InputProgress>();
+	if (progressEnabled) {
+		createInterface({ input: child.stdio[3], crlfDelay: Infinity }).on('line', (line) => {
+			const event = parseInputProgress(line, options.steps!);
+			if (!event) return;
+			if (event.completed) completedInputs.set(event.index, event);
+			options.onInputProgress?.(event);
+		});
+	}
 	let closed = false;
 	let captureStdout = '';
 	let captureStderr = '';
@@ -176,6 +202,16 @@ function recordRust(
 				await new Promise((resolve) => setTimeout(resolve, 100));
 			}
 			throw new Error(`Terminal ${name} did not reach ${pattern}:\n${plain(transcript()).slice(-3000)}\n${captureStdout}${captureStderr}`);
+		},
+		async waitForInputCheckpoint(index: number, timeoutMs: number): Promise<InputProgress> {
+			const deadline = Date.now() + timeoutMs;
+			while (Date.now() < deadline) {
+				const checkpoint = completedInputs.get(index);
+				if (checkpoint) return checkpoint;
+				if (closed) break;
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			}
+			throw new Error('Terminal did not reach the required screen checkpoint');
 		},
 		typeText(text: string): void {
 			focus();
@@ -232,4 +268,4 @@ function createRustHome(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), `openmates-rust-${prefix}-`));
 }
 
-module.exports = { buildRustCli, createRustHome, recordRust, runRust, rustEnv, plainTerminalText: plain };
+module.exports = { buildRustCli, createRustHome, recordRust, runRust, rustEnv, plainTerminalText: plain, parseInputProgress };

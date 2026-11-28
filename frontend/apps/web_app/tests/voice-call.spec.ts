@@ -2,6 +2,7 @@
  * Only external providers use deterministic fixtures; browser sockets, routing,
  * encrypted messages, speech assets and source uploads use their normal owners.
  */
+import { selectCompactWorkspace } from './helpers/workspace-navigation';
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import { installNativeVoiceInput, nativeVoiceInput } from './helpers/voice-call-test-helpers';
@@ -340,7 +341,8 @@ async function observeRealTransport(page: Page, deferReady = false, bootstrapCon
             autoSpeak:turn.auto_speak_response===true,forcedModel:!!(turn.model||turn.provider||turn.model_id),
             ...(turn.voice_heard_boundary?{heardBoundary:turn.voice_heard_boundary}:{})};})():{}),
           ...(event.type==='billing_activity'?{inputListening:payload.input_listening,processing:payload.processing}:{}),
-          ...(event.type==='usage'?{creditsCharged:payload.credits_charged}:{}),
+          ...(event.type==='usage'?{creditsCharged:payload.credits_charged,
+            creditsAccrued:payload.credits_accrued,sttDuration:payload.stt_duration_seconds}:{}),
           ...(event.type==='transcript'?{final:payload.final===true,createdAt:payload.created_at}:{}),
           ...(event.type==='transcript.pending'?{pendingReason:payload.reason==='incomplete'||payload.reason==='uncertain'?payload.reason:undefined}:{}),
           ...(event.type==='ai_message_update'?{userMessageId:payload.user_message_id,
@@ -747,7 +749,7 @@ async function assertActivityCounter(page: Page, active: boolean): Promise<void>
 async function chooseAppsHome(page: Page): Promise<void> {
   const link=page.getByTestId('apps-nav-link');
   if(await link.isVisible()) await link.click();
-  else await page.getByTestId('workspace-mobile-select').selectOption('/#apps');
+  else await selectCompactWorkspace(page, '/#apps');
   await expect(page.getByTestId('apps-workspace-home')).toBeVisible();
   await expect.poll(()=>new URL(page.url()).hash.split('&')[0]).toBe('#apps');
   await expect(page.getByTestId('apps-route-header').getByTestId('voice-call-pill')).toHaveAccessibleName('Return to chat');
@@ -857,7 +859,7 @@ async function evictOwnedCallRows(page:Page,chatId:string,callId:string,transcri
     const db=await new Promise<IDBDatabase>((resolve,reject)=>{const r=indexedDB.open('chats_db');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});
     try {
       await new Promise<void>((resolve,reject)=>{
-        const tx=db.transaction('messages','readwrite');const store=tx.objectStore('messages');
+        const tx=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readwrite');const store=tx.objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'));
         for(const id of ids) { const r=store.get(id);r.onsuccess=()=>{if(r.result?.chat_id===chatId) store.delete(id);}; }
         tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);
       });
@@ -1842,7 +1844,10 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(await page.evaluate(() => (window as unknown as { __voiceCallEvidence: CallEvidence }).__voiceCallEvidence.voiceSocketCount)).toBe(starts.length);
     expect(new Set(starts.map((frame) => frame.chatId)).size, 'every attempt resumes the same chat').toBe(1);
     expect(resumed.received.filter((frame) => frame.type === 'ready' && frame.path === '/v1/voice-call')).toHaveLength(2);
+    await playNativeVoiceFixture(page);
     await expect(page.getByTestId('voice-call-status-text')).toHaveText('Listening · You can speak now',{timeout:CALL_LISTENING_TIMEOUT_MS});
+    await expect.poll(async () => voiceFrames(await evidence(page), 'mic_audio')
+      .some(frame => frame.socketId === starts.at(-1)?.socketId && frame.audioNonzero)).toBe(true);
     await expect(page.getByTestId('voice-call-bar')).toBeVisible();
     // The call chat's id may reach the URL just after Listening, so the page
     // shows either where it was or the call's own chat, never another chat.
@@ -1923,23 +1928,28 @@ test.describe('Voice mode through ordinary chat', () => {
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.',{timeout:15_000});
       await expect.poll(async()=>(await evidence(page)).received.filter(frame=>frame.type==='billing_activity').at(-1)).toMatchObject({inputListening:false,processing:false});
       const idle=await evidence(page);const idleCount=voiceFrames(idle,'mic_audio').length;
+      const sentSeconds=voiceFrames(idle,'mic_audio').reduce((sum,frame)=>sum+(frame.audioSamples??0),0)/16_000;
+      await expect.poll(async()=>{
+        const usage=(await evidence(page)).received.filter(frame=>frame.type==='usage').at(-1);
+        return { sttDuration: usage?.sttDuration, creditsAccrued: usage?.creditsAccrued };
+      }).toEqual({ sttDuration: sentSeconds, creditsAccrued: Math.ceil(sentSeconds * 0.25) });
+      const ledgerBeforeQuiet = (await evidence(page)).received.filter(frame=>frame.type==='usage').at(-1);
       expect(voiceFrames(idle,'audio_stream_end')).toHaveLength(1);await assertActivityCounter(page,false);
       const timer=await page.getByTestId('voice-call-timer').textContent();
       const sampleCount=(await nativeVoiceInput(page)).samples;
       await expect.poll(async()=>(await nativeVoiceInput(page)).samples).toBeGreaterThan(sampleCount+24_000);
       expect(voiceFrames(await evidence(page),'mic_audio')).toHaveLength(idleCount);
       await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
-      // Keep the real browser/server call idle beyond the provider's 30-second
-      // application-audio timeout. Provider unit/live checks prove the silent
-      // transport keepalive; this checks that the client stays idle and resumes
-      // the same authenticated call without charging synthetic microphone time.
+      // Verify that the same browser/backend call stays open with a frozen
+      // transcription ledger after a long quiet stretch.
       const idleStarted=Date.now();
       await expect.poll(()=>Date.now()-idleStarted,{timeout:41_000,intervals:[1_000]}).toBeGreaterThan(35_000);
       const afterLongIdle=await evidence(page);
       expect(voiceFrames(afterLongIdle,'mic_audio')).toHaveLength(idleCount);
       expect(voiceFrames(afterLongIdle,'start')).toHaveLength(1);
+      expect(afterLongIdle.received.filter(frame=>frame.type==='usage').at(-1)).toEqual(ledgerBeforeQuiet);
       expect(afterLongIdle.received.filter(frame=>frame.type==='ready'&&frame.path==='/v1/voice-call')).toHaveLength(1);
-      expect(afterLongIdle.received.filter(frame=>frame.path==='/v1/voice-call'&&(frame.type==='error'||frame.type==='ended'))).toHaveLength(0);
+      expect(afterLongIdle.received.filter(frame=>frame.path==='/v1/voice-call'&&(frame.type==='error'||frame.type==='ended'||frame.type==='speech_idle_warning'))).toHaveLength(0);
       await expect(page.getByTestId('voice-call-timer')).toHaveText(timer!);
       await expect(page.getByTestId('voice-call-status-text')).toHaveText('Speak to resume call.');
       await playNativeVoiceFixture(page);
@@ -2046,7 +2056,7 @@ test.describe('Voice mode through ordinary chat', () => {
           const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);
         });
         try { return await new Promise<string|undefined>((resolve,reject)=>{
-          const request=db.transaction('messages','readonly').objectStore('messages').get(messageId);
+          const request=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(messageId);
           request.onsuccess=()=>resolve(request.result?.status);request.onerror=()=>reject(request.error);
         }); } finally { db.close(); }
       },started.data.message_id)).toBe('synced');
@@ -2876,7 +2886,7 @@ test.describe('Voice mode through ordinary chat', () => {
     expect(protocol.received.some(frame=>frame.type==='audio.interrupted'&&frame.assistantMessageId===boundary.assistant_message_id)).toBe(true);
     const privateRow=await page.evaluate(async id=>{
       const db=await new Promise<IDBDatabase>((resolve,reject)=>{const request=indexedDB.open('chats_db');request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});
-      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction('messages','readonly').objectStore('messages').get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
+      try{return await new Promise<{encrypted:boolean;plaintext:boolean;heardMetadata:boolean}>((resolve,reject)=>{const request=db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'),'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).get(id);request.onsuccess=()=>resolve({encrypted:typeof request.result?.encrypted_content==='string',plaintext:typeof request.result?.content==='string',heardMetadata:'voice_heard_boundary' in (request.result??{})});request.onerror=()=>reject(request.error);});}
       finally{db.close();}
     },nextId);
     expect(privateRow).toEqual({encrypted:true,plaintext:false,heardMetadata:false});

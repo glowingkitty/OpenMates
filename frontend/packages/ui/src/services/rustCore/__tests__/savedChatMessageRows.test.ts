@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { localReadToMessageWindow, RustHistoryRefusal, savedReadToMessages, savedReadToMessageWindow } from '../savedChatMessageRows';
-import { declareRustChatHistorySource, installRustChatHistorySource, readRustChatHistoryPage, readRustChatHistoryWindow } from '../activeChatRustHistory';
+import { isConfirmedEmptyLatestLocalWindow, localReadToMessageWindow, RustHistoryRefusal, savedReadToMessages, savedReadToMessageWindow } from '../savedChatMessageRows';
+import { canPreparePersonalLatestHistory, declareRustChatHistorySource, installRustChatHistorySource, preparePersonalLatestHistory, readRustChatHistoryPage, readRustChatHistoryWindow } from '../activeChatRustHistory';
 import type { LocalChatReadback, SavedChatReadback, SavedMessageMetadata } from '../savedReadProtocol';
 import type { Chat } from '../../../types/chat';
 
@@ -119,6 +119,68 @@ describe('savedReadToMessages', () => {
     expect(window.startCursorRef).toEqual(server.startCursor);
     expect(() => localReadToMessageWindow(cached, chatId, true)).toThrow(new RustHistoryRefusal('anchor_not_found'));
     expect(() => localReadToMessageWindow({ ...cached, messageMetadata: undefined }, chatId, false)).toThrow('protocol');
+  });
+});
+
+describe('confirmed empty local latest window', () => {
+  const profilePage: LocalChatReadback = {
+    source: 'local_profile', coverage: 'retained_only', readOnly: true, cached: true, fresh: false,
+    historyComplete: false, contentMode: 'page_local', pagesRead: 0, piiRestoration: 'page_local',
+    chat: { ...read().chat, messages: [] }, chatMetadata: read().chatMetadata, messageMetadata: [],
+    piiMappingsByMessageId: {}, hasMoreBefore: null, hasMoreAfter: false, anchorFound: false,
+    startCursor: null, endCursor: null, payloadBytes: 0,
+  };
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it('accepts an exact Rust latest miss but never an anchored or unsettled cache read', () => {
+    expect(isConfirmedEmptyLatestLocalWindow(profilePage, chatId, null)).toBe(true);
+    expect(isConfirmedEmptyLatestLocalWindow(profilePage, chatId, 'anchor')).toBe(false);
+    expect(isConfirmedEmptyLatestLocalWindow(null, chatId, null)).toBe(false);
+    expect(isConfirmedEmptyLatestLocalWindow({ ...profilePage, chat: read().chat }, chatId, null)).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.authoritative-enforcement
+  it('refuses mismatched, malformed, or cursor-bearing cache evidence', () => {
+    expect(isConfirmedEmptyLatestLocalWindow(profilePage, 'other-chat', null)).toBe(false);
+    expect(isConfirmedEmptyLatestLocalWindow({ ...profilePage, chatMetadata: { ...read().chatMetadata, id: 'other-chat' } }, chatId, null)).toBe(false);
+    expect(isConfirmedEmptyLatestLocalWindow({ ...profilePage, messageMetadata: undefined }, chatId, null)).toBe(false);
+    expect(isConfirmedEmptyLatestLocalWindow({ ...profilePage, startCursor: read().startCursor }, chatId, null)).toBe(false);
+  });
+});
+
+describe('early Personal latest history', () => {
+  const owner = 'current-owner';
+  const chat = { chat_id: chatId, user_id: owner, messages_v: 2, encrypted_chat_key: 'fixture-wrapper',
+    is_hidden: false, is_hidden_candidate: false } as Chat;
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,auth.session.authoritative-enforcement
+  it('requires a confirmed ordinary Personal row and its current owner', () => {
+    expect(canPreparePersonalLatestHistory(chat, owner)).toBe(true);
+    expect(canPreparePersonalLatestHistory(chat, null)).toBe(false);
+    expect(canPreparePersonalLatestHistory(chat, 'other-owner')).toBe(false);
+    const unclear: Array<Partial<Chat>> = [
+      { chat_id: 'example' }, { messages_v: 0 }, { encrypted_chat_key: null }, { is_hidden: true },
+      { is_hidden_candidate: undefined }, { is_hidden_candidate: true }, { team_id: 'team' },
+      { chat_visibility: 'direct' }, { is_incognito: true }, { is_anonymous: true }, { is_shared: true },
+      { is_shared_by_others: true }, { parent_id: 'parent' }, { encrypted_draft_md: 'draft' },
+      { waiting_for_metadata: true },
+    ];
+    for (const fields of unclear) expect(canPreparePersonalLatestHistory({ ...chat, ...fields }, owner)).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,auth.session.authoritative-enforcement
+  it('starts one latest request immediately and retains a denial for later consumption', async () => {
+    const failure = new Error('session_expired');
+    const readWindow = vi.fn(async () => { throw failure; });
+    const unregister = installRustChatHistorySource({ readWindow, readPage: vi.fn() });
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const prepared = preparePersonalLatestHistory(chat);
+      expect(readWindow).toHaveBeenCalledExactlyOnceWith({ chatId, anchorMessageId: null });
+      await vi.waitFor(() => expect(log).toHaveBeenCalledExactlyOnceWith('[RustCore] saved chat history failed:', 'session_expired'));
+      await expect(prepared).rejects.toBe(failure);
+      expect(readWindow).toHaveBeenCalledOnce();
+    } finally { unregister(); log.mockRestore(); }
   });
 });
 

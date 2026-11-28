@@ -16,7 +16,7 @@ import hashlib
 import time
 from dataclasses import dataclass
 from weakref import WeakKeyDictionary, WeakSet
-from typing import Dict, Any, List, Optional, Union, AsyncIterator, Literal
+from typing import Dict, Any, Awaitable, Callable, List, Optional, TypeVar, Union, AsyncIterator, Literal
 import tiktoken
 
 # Use the newer google-genai library
@@ -71,6 +71,45 @@ class _GoogleStreamTiming:
 _active_google_stream: contextvars.ContextVar[Optional[_GoogleStreamTiming]] = contextvars.ContextVar(
     "active_google_stream", default=None,
 )
+_GoogleOperationResult = TypeVar("_GoogleOperationResult")
+
+
+async def _run_traced_google_operation(
+    timing: _GoogleStreamTiming,
+    operation: Callable[..., Awaitable[_GoogleOperationResult]],
+    *args: Any,
+    **kwargs: Any,
+) -> _GoogleOperationResult:
+    """Run one SDK operation in a context owned by its task."""
+    context = contextvars.copy_context()
+    context.run(_active_google_stream.set, timing)
+
+    async def run() -> _GoogleOperationResult:
+        return await operation(*args, **kwargs)
+
+    # Celery can interrupt the caller at an await and shut its generator down
+    # from a different context. The SDK task's context needs no token reset.
+    task = asyncio.create_task(run(), context=context)
+    try:
+        return await task
+    finally:
+        if not task.done():
+            task.cancel()
+
+
+async def _read_google_stream(
+    stream: AsyncIterator[types.GenerateContentResponse], timing: _GoogleStreamTiming,
+) -> AsyncIterator[types.GenerateContentResponse]:
+    """Trace SDK reads without carrying a context token across an async yield."""
+    async_iterator = aiter(stream)
+    while True:
+        try:
+            chunk = await _run_traced_google_operation(timing, anext, async_iterator)
+        except StopAsyncIteration:
+            return
+        yield chunk
+
+
 # Celery creates a fresh asyncio loop for each task. Clients may be shared by
 # multiple model iterations on that loop, but must be closed before it closes.
 _google_clients_by_loop: WeakKeyDictionary = WeakKeyDictionary()
@@ -925,6 +964,16 @@ def _prepare_messages_and_system_prompt(
                 history.append(types.Content(role="user", parts=tool_response_parts))
                 logger.debug(f"Added {len(tool_response_parts)} function response parts in single Content")
         
+        elif role == "system":
+            # Gemini has no mid-conversation system role. A later system note is
+            # context for the model, so it goes on the user side; as a model turn
+            # it could end the request, which Gemini refuses ("Requests ending
+            # with a model turn are not supported").
+            parts = _parts_from_message_content(content)
+            if parts:
+                history.append(types.Content(role="user", parts=parts))
+            i += 1
+
         else:
             # Unknown role: treat as model message (fallback)
             if content:
@@ -1139,7 +1188,6 @@ async def invoke_google_ai_studio_chat_completions(
         # Calculate token breakdown from input messages (estimate)
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
         timing = _GoogleStreamTiming(task_id, "google_ai_studio", normalized_model_id, time.monotonic())
-        trace_token = _active_google_stream.set(timing)
 
         stream_iterator = None
         output_buffer = ""
@@ -1156,20 +1204,22 @@ async def invoke_google_ai_studio_chat_completions(
             _log_google_stream_request_policy(timing, generation_config)
             _google_stream_phase(timing, "sdk_stream_call_start")
             try:
-                stream_iterator = await google_genai_client.aio.models.generate_content_stream(
+                stream_iterator = await _run_traced_google_operation(
+                    timing, google_genai_client.aio.models.generate_content_stream,
                     model=normalized_model_id, contents=request_contents, config=request_config,
                 )
             except google_errors.APIError as e_cache:
                 if not (cache_plan.is_hit and gemini_context_cache.is_cached_content_missing(e_cache)):
                     raise
                 await gemini_context_cache.drop_entry(cache_plan)
-                stream_iterator = await google_genai_client.aio.models.generate_content_stream(
+                stream_iterator = await _run_traced_google_operation(
+                    timing, google_genai_client.aio.models.generate_content_stream,
                     model=normalized_model_id, contents=contents, config=generation_config,
                 )
             _google_stream_phase(timing, "sdk_stream_iterator_ready")
 
             first_chunk_seen = False
-            async for chunk in stream_iterator:
+            async for chunk in _read_google_stream(stream_iterator, timing):
                 if not first_chunk_seen:
                     first_chunk_seen = True
                     _google_stream_phase(timing, "first_provider_chunk")
@@ -1318,7 +1368,6 @@ async def invoke_google_ai_studio_chat_completions(
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
         finally:
-            _active_google_stream.reset(trace_token)
             if not usage and stream_succeeded:
                 logger.warning(f"{log_prefix} Stream finished successfully but without usage data. Estimating tokens with tiktoken.")
                 try:
@@ -1541,7 +1590,6 @@ async def invoke_google_chat_completions(
         # Calculate token breakdown from input messages (estimate)
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
         timing = _GoogleStreamTiming(task_id, "google", normalized_model_id, time.monotonic())
-        trace_token = _active_google_stream.set(timing)
 
         stream_iterator = None
         output_buffer = ""
@@ -1557,15 +1605,14 @@ async def invoke_google_chat_completions(
         try:
             _log_google_stream_request_policy(timing, generation_config)
             _google_stream_phase(timing, "sdk_stream_call_start")
-            stream_iterator = await google_genai_client.aio.models.generate_content_stream(
-                model=normalized_model_id,
-                contents=contents,
-                config=generation_config
+            stream_iterator = await _run_traced_google_operation(
+                timing, google_genai_client.aio.models.generate_content_stream,
+                model=normalized_model_id, contents=contents, config=generation_config,
             )
             _google_stream_phase(timing, "sdk_stream_iterator_ready")
 
             first_chunk_seen = False
-            async for chunk in stream_iterator:
+            async for chunk in _read_google_stream(stream_iterator, timing):
                 if not first_chunk_seen:
                     first_chunk_seen = True
                     _google_stream_phase(timing, "first_provider_chunk")
@@ -1718,7 +1765,6 @@ async def invoke_google_chat_completions(
             # Don't estimate usage for unexpected errors - stream failed
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
         finally:
-            _active_google_stream.reset(trace_token)
             # Only estimate usage if stream completed successfully but didn't provide usage metadata
             # This handles cases where the stream finished but usage metadata wasn't available
             # We should NOT estimate usage when the stream failed due to errors

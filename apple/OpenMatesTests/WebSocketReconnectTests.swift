@@ -155,6 +155,33 @@ final class WebSocketReconnectTests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.surface.semantic-parity
+    func testOfflinePathPausesRetryAndTransportRecoveryDoesNotForceAdmission() async {
+        let manager = WebSocketManager()
+        let reopened = expectation(description: "reachability restores one socket")
+        let fixtureGrant = UUID().uuidString
+        var attempts = 0
+        manager.debugConnectionAttempt = {
+            attempts += 1
+            if attempts == 2 { reopened.fulfill() }
+        }
+        manager.configureSessionRecovery { authenticationRejected in
+            XCTAssertFalse(authenticationRejected)
+            return .authenticated(sessionID: "synthetic-session", token: fixtureGrant)
+        }
+        manager.connect(sessionId: "synthetic-session", token: fixtureGrant)
+        manager.networkPathDidChange(available: false)
+        manager.networkPathDidChange(available: false)
+        await Task.yield()
+        XCTAssertEqual(attempts, 1)
+        XCTAssertEqual(manager.connectionState, .reconnecting(attempt: 1))
+        manager.networkPathDidChange(available: true)
+        manager.networkPathDidChange(available: true)
+        await fulfillment(of: [reopened], timeout: 1)
+        XCTAssertEqual(attempts, 2)
+        manager.disconnect()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.lifecycle,sync.surface.semantic-parity
     func testFreshRecoveryTokensDoNotResetFailedHandshakeRetryBudget() async {
         let manager = WebSocketManager()
         manager.debugReconnectDelay = 0
@@ -162,7 +189,7 @@ final class WebSocketReconnectTests: XCTestCase {
         var attempts = 0
         var nextAttempt: XCTestExpectation?
         manager.debugConnectionAttempt = { attempts += 1; nextAttempt?.fulfill() }
-        manager.configureSessionRecovery {
+        manager.configureSessionRecovery { _ in
             validations += 1
             return .authenticated(sessionID: "synthetic-session", token: "rotated-token-\(validations)")
         }
@@ -237,7 +264,7 @@ final class WebSocketReconnectTests: XCTestCase {
         var attempts = 0
         manager.debugConnectionAttempt = { attempts += 1 }
         let recovered = expectation(description: "retry asks for fresh credentials")
-        manager.configureSessionRecovery {
+        manager.configureSessionRecovery { _ in
             recovered.fulfill()
             return .authenticated(sessionID: "synthetic-session", token: "rotated-token")
         }
@@ -315,7 +342,7 @@ final class WebSocketReconnectTests: XCTestCase {
             attempts += 1
             if attempts == 2 { recovered.fulfill() }
         }
-        manager.configureSessionRecovery {
+        manager.configureSessionRecovery { _ in
             await withCheckedContinuation { pending = $0 }
         }
         manager.connect(sessionId: "synthetic-session", token: "old-token")
@@ -371,7 +398,7 @@ final class WebSocketReconnectTests: XCTestCase {
         let validated = expectation(description: "session rejection handled")
         var attempts = 0
         manager.debugConnectionAttempt = { attempts += 1 }
-        manager.configureSessionRecovery { validated.fulfill(); return .rejected }
+        manager.configureSessionRecovery { _ in validated.fulfill(); return .rejected }
         manager.connect(sessionId: "synthetic-session", token: "expired-token")
         manager.debugFailCurrentConnection(authenticationRejected: true)
         await fulfillment(of: [validated], timeout: 1)
@@ -388,7 +415,7 @@ final class WebSocketReconnectTests: XCTestCase {
         var pending: CheckedContinuation<WebSocketManager.SessionRecoveryResult, Never>?
         var attempts = 0
         manager.debugConnectionAttempt = { attempts += 1 }
-        manager.configureSessionRecovery { await withCheckedContinuation { pending = $0 } }
+        manager.configureSessionRecovery { _ in await withCheckedContinuation { pending = $0 } }
         manager.connect(sessionId: "old-session", token: "old-token")
         manager.debugFailCurrentConnection(authenticationRejected: true)
         while pending == nil { await Task.yield() }
@@ -409,7 +436,7 @@ final class WebSocketReconnectTests: XCTestCase {
         var attempts = 0
         let recovered = expectation(description: "retry after transient validation failure")
         manager.debugConnectionAttempt = { attempts += 1; if attempts == 2 { recovered.fulfill() } }
-        manager.configureSessionRecovery {
+        manager.configureSessionRecovery { _ in
             validations += 1
             return validations == 1 ? .unavailable : .authenticated(sessionID: "synthetic-session", token: "new-token")
         }
@@ -430,7 +457,7 @@ final class WebSocketReconnectTests: XCTestCase {
         var attempts = 0
         let recovered = expectation(description: "receive-first recovery uses rotated token")
         manager.debugConnectionAttempt = { attempts += 1; if attempts == 2 { recovered.fulfill() } }
-        manager.configureSessionRecovery {
+        manager.configureSessionRecovery { _ in
             validations += 1
             return .authenticated(sessionID: "synthetic-session", token: "rotated-token")
         }
@@ -461,7 +488,7 @@ final class WebSocketReconnectTests: XCTestCase {
             let recovered = expectation(description: "HTTP \(status) recovery")
             var attempts = 0
             manager.debugConnectionAttempt = { attempts += 1; if attempts == 2 { recovered.fulfill() } }
-            manager.configureSessionRecovery {
+            manager.configureSessionRecovery { _ in
                 validations += 1
                 return .authenticated(sessionID: "synthetic-session", token: "rotated-token")
             }
@@ -529,7 +556,7 @@ final class WebSocketReconnectTests: XCTestCase {
         let manager = WebSocketManager()
         manager.debugConnectionAttempt = {}
         var validations = 0
-        manager.configureSessionRecovery { validations += 1; return .rejected }
+        manager.configureSessionRecovery { _ in validations += 1; return .rejected }
         let session = URLSession(configuration: .ephemeral)
         let oldTask = session.webSocketTask(with: URL(string: "wss://invalid.example")!)
         let replacementTask = session.webSocketTask(with: URL(string: "wss://invalid.example")!)

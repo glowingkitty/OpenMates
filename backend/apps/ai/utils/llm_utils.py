@@ -2068,6 +2068,8 @@ async def call_main_llm_stream(
     first_substantive_timeout_seconds: Optional[float] = None,
     allowed_server_ids: Optional[set[str]] = None,
     server_region_preference: str = "eu",
+    on_reasoning_dispatch: Optional[Callable[[], Awaitable[None]]] = None,
+    prefer_instant_voice: bool = False,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -2147,8 +2149,16 @@ async def call_main_llm_stream(
     # each hosting server. Mercury's main-answer default never affects auxiliary
     # uses of its adapter (which retain their existing defaults).
     effective_requested_reasoning = normalize_reasoning_level(requested_reasoning_level)
+    instant_mercury = (prefer_instant_voice and original_model_id == MERCURY_MODEL
+                       and requested_reasoning_level in (None, "LOW"))
     if effective_requested_reasoning is None and original_model_id == MERCURY_MODEL:
         effective_requested_reasoning = "MEDIUM"
+
+    def server_reasoning_parameters(provider: str, model: str) -> dict[str, str]:
+        return resolve_reasoning_parameters(
+            reasoning_model_config, provider, effective_requested_reasoning,
+            prefer_instant_voice=instant_mercury and (provider, model) == ("inception", "mercury-3"),
+        )
     
     # Resolve fallback servers from provider config (if any).
     # This enables per-model fallbacks (e.g., Google AI Studio -> OpenRouter) configured in provider YAML.
@@ -2427,9 +2437,7 @@ async def call_main_llm_stream(
             )
             if _retry_thinking_level:
                 _retry_input["thinking_level"] = _retry_thinking_level
-            _retry_input.update(resolve_reasoning_parameters(
-                reasoning_model_config, _retry_provider_prefix, effective_requested_reasoning,
-            ))
+            _retry_input.update(server_reasoning_parameters(_retry_provider_prefix, _retry_actual_model_id))
             _retry_attempt_id = uuid.uuid4().hex
             _retry_region = _configured_server_region(
                 original_model_id, _retry_provider_prefix, _retry_actual_model_id,
@@ -2606,9 +2614,7 @@ async def call_main_llm_stream(
         )
         if server_thinking_level:
             server_llm_input_details["thinking_level"] = server_thinking_level
-        server_llm_input_details.update(resolve_reasoning_parameters(
-            reasoning_model_config, server_provider_prefix, effective_requested_reasoning,
-        ))
+        server_llm_input_details.update(server_reasoning_parameters(server_provider_prefix, server_actual_model_id))
         
         # For openrouter, if the original model has provider_overrides configured, 
         # we need to pass the original model_id (e.g., "alibaba/qwen3-235b-a22b-2507") 
@@ -2725,6 +2731,14 @@ async def call_main_llm_stream(
 
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
+            if on_reasoning_dispatch is not None:
+                effort = server_llm_input_details.get(
+                    "reasoning_effort", (reasoning_model_config or {}).get("reasoning_effort"),
+                )
+                if effort != "instant" and (server_llm_input_details.get("thinking_level") or (
+                    effort not in {"none", "off"} and (effort or is_reasoning_model)
+                )):
+                    await on_reasoning_dispatch()
             if (original_model_id == MERCURY_MODEL and server_provider_prefix == "inception"
                     and first_substantive_timeout_seconds is not None):
                 raw_chunk_stream = _dispatch_with_substantive_deadline(

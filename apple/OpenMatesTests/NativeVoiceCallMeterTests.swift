@@ -1,5 +1,6 @@
 // Specification: specifications/features/video-call/specification.yml
-// Assertions: video-call.chat.activity-status
+// Assertions: video-call.chat.activity-status, video-call.audio.single-owner
+import AVFoundation
 import XCTest
 @testable import OpenMates
 
@@ -61,5 +62,35 @@ final class NativeVoiceCallMeterTests: XCTestCase {
         XCTAssertEqual(received.frames.last?.last, 0.4, "coalesced to the maximum")
         for _ in 0..<100 { clock.time += 0.06; meter.submit(.microphone, level: 0.5) }
         XCTAssertEqual(received.frames.last?.count, NativeVoiceCallLevelMeter.barCount)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.single-owner
+    /// AVFoundation runs player completions and node taps on its own audio
+    /// threads. Build 100 crashed there: closures written inside a @MainActor
+    /// type trap under Swift 6 when called off the main actor. The factories
+    /// must run from any thread and reach the main actor only through a hop.
+    func testAudioThreadCallbacksRunOffTheMainThreadAndHopToTheMainActor() {
+        let completed = expectation(description: "played-back completion reached the main actor")
+        let handler = NativeAudioCallbacks.playedBack {
+            XCTAssertTrue(Thread.isMainThread)
+            completed.fulfill()
+        }
+        let received = Received(), clock = Clock()
+        let meter = make(clock, received)
+        let tap = NativeVoiceCallAppleAudio.makePlaybackTap(meter: meter)
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 24_000, channels: 1, interleaved: false)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 1_024)!
+        buffer.frameLength = 1_024
+        let samples = tone(amplitude: 0.4)
+        for index in samples.indices { buffer.floatChannelData![0][index] = samples[index] }
+        let tapped = expectation(description: "playback tap ran on an audio-like thread")
+        DispatchQueue.global(qos: .userInteractive).async {
+            XCTAssertFalse(Thread.isMainThread)
+            handler(.dataPlayedBack)
+            tap(buffer, AVAudioTime(sampleTime: 0, atRate: 24_000))
+            tapped.fulfill()
+        }
+        wait(for: [tapped, completed], timeout: 5)
+        XCTAssertGreaterThan(received.frames.last?.last ?? 0, 0, "the tap metered the buffer")
     }
 }

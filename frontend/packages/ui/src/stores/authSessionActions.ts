@@ -95,14 +95,23 @@ const RETIRED_INTRO_CHAT_HASHES = new Set([
 let activeAuthCheck: { generation: number; promise: Promise<boolean> } | null = null;
 let sessionReadTail: Promise<void> = Promise.resolve();
 
+function withPageAuthSessionLock<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (signal?.aborted) throw signal.reason ?? new Error('Session read aborted');
+  return typeof navigator !== 'undefined' && navigator.locks
+    ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read) as Promise<T>
+    : read();
+}
+
 /** All first-party session POSTs share cookie-rotation ordering. A privacy read
  * stays fresh rather than reusing an initialized authentication boolean. */
 export function serializeAuthSessionRead<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  return enqueueAuthSessionRead(() => withPageAuthSessionLock(read, signal), signal);
+}
+
+function enqueueAuthSessionRead<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   const run = (): Promise<T> => {
     if (signal?.aborted) throw signal.reason ?? new Error('Session read aborted');
-    return typeof navigator !== 'undefined' && navigator.locks
-      ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read) as Promise<T>
-      : read();
+    return read();
   };
   const operation = sessionReadTail.then(run, run);
   sessionReadTail = operation.then(() => undefined, () => undefined);
@@ -123,6 +132,7 @@ export function serializeAuthSessionRead<T>(read: () => Promise<T>, signal?: Abo
 export function checkAuth(
   deviceSignals?: Record<string, string | null>,
   force: boolean = false,
+  returningPage = false,
 ): Promise<boolean> {
   // Flag builds: a logout in another tab ends this tab's local session too
   // (no second server request; the sender already revoked the session).
@@ -141,7 +151,7 @@ export function checkAuth(
     promise: Promise.resolve(false),
   };
   flight.promise = Promise.resolve()
-    .then(() => performAuthCheck(deviceSignals, generation))
+    .then(() => performAuthCheck(deviceSignals, generation, returningPage))
     .finally(() => {
       if (activeAuthCheck === flight) {
         activeAuthCheck = null;
@@ -156,6 +166,7 @@ export function checkAuth(
 async function performAuthCheck(
   deviceSignals: Record<string, string | null> | undefined,
   generation: number,
+  returningPage: boolean,
 ): Promise<boolean> {
   const isCurrentSession = () => getLoginSessionGeneration() === generation;
   const currentAuthResult = () => get(authStore).isAuthenticated;
@@ -179,24 +190,31 @@ async function performAuthCheck(
       // Bound both the cross-tab wait and network request. A stalled refresh must
       // retain the existing offline-first behavior, not confirm a logout.
       const authAbortController = new AbortController();
-      const authTimeoutId = setTimeout(() => authAbortController.abort(), 10000);
+      const deadlineEpochMs = Date.now() + 10_000;
+      const authTimeoutId = setTimeout(() => authAbortController.abort(), 10_000);
       try {
         const checkSession = async (): Promise<SessionCheckResult | null> => {
           // A queued tab or an older login attempt may have been superseded.
           if (!isCurrentSession()) return null;
-          // Rust builds and classifies the request; the page executes it.
+          // Rust classifies the response from the normal Page or shared Worker request.
           const decision = await rustSessionCheck({
             deviceSignals: deviceSignals || {},
             sessionId: getSessionId(),
             signal: authAbortController.signal,
+            original: returningPage ? {
+              deadlineEpochMs, isCurrent: isCurrentSession,
+              pageFallback: read => withPageAuthSessionLock(read, authAbortController.signal),
+            } : undefined,
           });
           if (decision.kind === "unreachable") throw new Error(`HTTP ${decision.status}`);
           return decision.data as SessionCheckResult;
         };
 
-        // Cookies are read when fetch starts under the lock, after the previous
-        // tab's Set-Cookie rotation has completed. No lock spans UI processing.
-        const result = await serializeAuthSessionRead(checkSession, authAbortController.signal);
+        // The transport owns the physical cross-tab lock through its request.
+        // The Page still serializes this check with all of its other session reads.
+        const result = await (returningPage ? enqueueAuthSessionRead : serializeAuthSessionRead)(
+          checkSession, authAbortController.signal,
+        );
         if (result == null || !isCurrentSession()) return currentAuthResult();
         data = result;
       } finally {

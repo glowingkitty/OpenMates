@@ -212,10 +212,10 @@ project_specialist:
 - id: debugging-specialist-layer
   assertion_ids:
   - focus-modes.project-specialist-composition
-  given: Work on SocialHub is active and its Debugging specialist becomes active.
+  given: Work on Harbor is active and its Debugging specialist becomes active.
   when: The assistant investigates a retry bug on a narrow screen and then switches to Release preparation.
   then: Project base instructions stay effective, one shortened Project-qualified specialist indicator is shown, and the switch
-    retains the authorized SocialHub binding.
+    retains the authorized Harbor binding.
 - id: explicit-specialist-over-project-base
   assertion_ids:
   - focus-modes.project-specialist-composition
@@ -294,14 +294,14 @@ recommendation_catalog:
 - id: inactive-focus-candidate
   assertion_ids:
   - focus-modes.project-recommendation-catalog
-  given: SocialHub has active Debugging and inactive Release preparation Focuses.
+  given: Harbor has active Debugging and inactive Release preparation Focuses.
   when: A completed release-planning response is evaluated against their titles and summaries.
   then: Release preparation may be selected for full inspection even though inactive; no authoring LLM runs. Public app Focuses
     are excluded.
 - id: new-project-focus-recommendation
   assertion_ids:
   - focus-modes.project-recommendation-catalog
-  given: No existing SocialHub Focus covers a recurring release-retrospective process discussed in the chat.
+  given: No existing Harbor Focus covers a recurring release-retrospective process discussed in the chat.
   when: Catalog Jev judges that a new non-overlapping Focus is useful.
   then: Create focus mode may appear directly; creation waits for its button click.
 recommendation_full:
@@ -316,7 +316,7 @@ authoring_click:
 - id: click-starts-background-job
   assertion_ids:
   - focus-modes.project-authoring-click
-  given: A validated Update button is shown for SocialHub Release preparation.
+  given: A validated Update button is shown for Harbor Release preparation.
   when: Alice clicks it twice during reconnect, then continues chatting.
   then: One background job receives permitted history and update instructions. Chat stays usable, no regular authoring chat
     is created, and no authoring call occurred before the first click.
@@ -332,7 +332,7 @@ updated_followup:
 - id: updated-active-focus-next-turn
   assertion_ids:
   - focus-modes.updated-followup-revision
-  given: SocialHub Debugging is active at revision 3, and a background update saves revision 4 while one response is running.
+  given: Harbor Debugging is active at revision 3, and a background update saves revision 4 while one response is running.
   when: Alice sends the next follow-up using that Focus.
   then: The new request uses revision 4 and refreshed context; the already-running response finishes with revision 3.
 natural_request:

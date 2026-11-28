@@ -18,7 +18,7 @@ mod oversized_join;
 /// Encode one exact-resource path segment, once. Query form encoding uses `+`
 /// for spaces and must not be reused here. The caller separately refuses dot
 /// segments; the backend's decoded-slash routing limitation remains explicit.
-fn exact_message_segment(value: &str) -> String {
+pub(super) fn exact_message_segment(value: &str) -> String {
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut encoded = String::new();
     for byte in value.bytes() {

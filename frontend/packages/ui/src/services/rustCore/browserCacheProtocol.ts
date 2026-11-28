@@ -1,12 +1,17 @@
 /// <reference lib="es2022.object" />
 /** Inactive closed transport shapes; Rust owns all restore/merge/key policy. */
-import {validCheckpointPresentation,boundedJson,validReadMessageId,validSavedReadData} from './savedReadProtocol';
-import type {CheckpointPresentation,SavedReadData} from './savedReadProtocol';
+import {validCheckpointPresentation,boundedJson,cursor,validReadMessageId,validSavedReadData} from './savedReadProtocol';
+import type {CheckpointPresentation,SavedReadCursor,SavedReadData} from './savedReadProtocol';
 export interface BrowserRetainedRead extends SavedReadData {
  source:'browser_retained_message_cache';readOnly:true;cached:true;fresh:false;historyComplete:false;
  coverage:'retained_rows_only';piiRestoration:'page_local';pagesRead:0;
  hasMoreBefore:null;hasMoreAfter:null;startCursor:null;endCursor:null;anchorFound:false;checkpointPresentation:null|CheckpointPresentation;
  cacheReadKind?:'cold'|'monitor'|'local';contentCoverage?:'unknown';
+ coldLivePage?: {
+  hasMoreBefore:boolean;hasMoreAfter:boolean;
+  startCursor:SavedReadCursor|null;endCursor:SavedReadCursor|null;
+  messagesVersion?:number|null;serverMessageCount?:number|null;
+ };
  rowDispositions:Array<{messageId:string;storedPhysicalMessageId?:string;incomingPhysicalMessageId?:string;disposition:'retained'|'merged'|'inserted'|'replaced'|'retained_local';incomingSuppliedWriteFieldsMatch:boolean;canonicalIncomingDurablyAcknowledged:false}>;
  messagesVersionAdvanced:false;windowCoverageChanged:false;canonicalIncomingDurablyAcknowledged:false;
  credentialAcknowledged:false;nativeDurabilityAcknowledged:false;crossDatabaseAssociationProven:false;inventoryComplete:false;recoveryProof:false;
@@ -18,8 +23,15 @@ function exact(v:Record<string,unknown>,fields:readonly string[]):boolean{return
 export function validBrowserRetainedRead(value:unknown):value is BrowserRetainedRead {
  if(!record(value)||!validSavedReadData(value))return false;
  const extended=Object.hasOwn(value,'cacheReadKind');
+ const livePage=value.coldLivePage;
+ const hasLivePage=Object.hasOwn(value,'coldLivePage');
+ if(hasLivePage&&(value.cacheReadKind!=='cold'||!record(livePage)
+  ||!exact(livePage,['hasMoreBefore','hasMoreAfter','startCursor','endCursor',...['messagesVersion','serverMessageCount'].filter(key=>Object.hasOwn(livePage,key))])
+  ||['messagesVersion','serverMessageCount'].some(key=>Object.hasOwn(livePage,key)&&livePage[key]!==null&&(!Number.isSafeInteger(livePage[key])||Number(livePage[key])<0))
+  ||typeof livePage.hasMoreBefore!=='boolean'||typeof livePage.hasMoreAfter!=='boolean'
+  ||!cursor(livePage.startCursor,value.chat.id)||!cursor(livePage.endCursor,value.chat.id)))return false;
  if(!exact(value,['source','readOnly','cached',...negative,'coverage','chat','chatMetadata','messageMetadata',
-  'piiMappingsByMessageId','piiRestoration','pagesRead','hasMoreBefore','hasMoreAfter','startCursor','endCursor','checkpointPresentation','rowDispositions',...(extended?['cacheReadKind','contentCoverage']:[])])
+  'piiMappingsByMessageId','piiRestoration','pagesRead','hasMoreBefore','hasMoreAfter','startCursor','endCursor','checkpointPresentation','rowDispositions',...(extended?['cacheReadKind','contentCoverage']:[]),...(hasLivePage?['coldLivePage']:[])])
   ||value.source!=='browser_retained_message_cache'||value.readOnly!==true||value.cached!==true||value.coverage!=='retained_rows_only'
   ||extended&&(!['cold','monitor','local'].includes(String(value.cacheReadKind))||value.contentCoverage!=='unknown')
   ||value.piiRestoration!=='page_local'||value.pagesRead!==0||!negative.every(k=>value[k]===false)

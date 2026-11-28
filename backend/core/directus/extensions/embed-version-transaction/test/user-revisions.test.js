@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 
 import { ProtocolError } from '../src/operations.js';
 import { commitUserEmbedRevision } from '../src/user-revisions.js';
+import { applyTeamKeyRotation, removeTeamMember } from '../src/team-key-rotation.js';
 
 const hash = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const OWNER = 'a'.repeat(64);
@@ -38,7 +39,19 @@ function fakeDatabase(initial) {
         forUpdate() { return query; },
         forShare() { return query; },
         async first() { return matching()[0]; },
-        async insert(value) { store[table] ??= []; store[table].push(structuredClone(value)); return 1; },
+        async insert(value) {
+          if (database.failInsert === table) throw new Error('fixture insert failure');
+          const entries = Array.isArray(value) ? value : [value];
+          store[table] ??= [];
+          store[table].push(...structuredClone(entries));
+          return entries.length;
+        },
+        async del() {
+          if (database.failDelete === table) throw new Error('fixture delete failure');
+          const found = matching();
+          store[table] = (store[table] ?? []).filter((row) => !found.includes(row));
+          return found.length;
+        },
         async update(value) {
           const found = matching();
           for (const row of found) Object.assign(row, structuredClone(value));
@@ -301,6 +314,17 @@ test('types outside the allowlist are refused', async () => {
     403, 'embed_access_denied');
 });
 
+// contract-test: supporting surface=gui.web assertions=design-editor.edit.revision
+test('an owned client-side encrypted Design root can be revised, but its asset cannot', async () => {
+  const design = { app_id: 'design', skill_id: 'document' };
+  const db = fakeDatabase(seed({ embed: design }));
+  const result = await commitUserEmbedRevision(db, body());
+  assert.equal(result.current_revision, 2);
+  assert.equal(db.rows.embeds[0].encrypted_content, 'cipher-v2');
+  const child = fakeDatabase(seed({ embed: { ...design, parent_embed_id: DIAGRAM_ID } }));
+  await rejectsWith(commitUserEmbedRevision(child, body()), 403, 'embed_type_not_editable');
+});
+
 // contract-test: direct surface=rest_api assertions=projects.items.create-documents,projects.files.user-edit-direct
 test('a code file is editable in its Project but not in a chat', async () => {
   const rows = seed({ embed: { app_id: 'code', skill_id: 'code' } });
@@ -376,4 +400,186 @@ test('malformed requests are refused before any read', async () => {
     [{ action: 'enhance' }, 'file_source_required'],
   ]) await rejectsWith(commitUserEmbedRevision(db, body(changed)), 400, code);
   assert.equal(db.locks.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=live-collab.versions.named-snapshots
+test('version kind, sealed name and hashed contributors are stored only when sent and strictly validated', async () => {
+  const plain = fakeDatabase(seed());
+  await commitUserEmbedRevision(plain, body());
+  const plainRow = plain.rows.embed_diffs.find((row) => row.version_number === 2);
+  assert.equal('version_kind' in plainRow || 'encrypted_version_name' in plainRow || 'contributors' in plainRow, false);
+
+  const db = fakeDatabase(seed());
+  const contributors = [{ user_hash: MEMBER }, { mate_name: 'Sophia' }];
+  await commitUserEmbedRevision(db, body({ version_kind: 'named', encrypted_version_name: 'sealed-name', contributors }));
+  const row = db.rows.embed_diffs.find((entry) => entry.version_number === 2);
+  assert.equal(row.version_kind, 'named');
+  assert.equal(row.encrypted_version_name, 'sealed-name');
+  assert.deepEqual(JSON.parse(row.contributors), contributors);
+
+  const bad = [
+    [{ version_kind: 'weekly' }, 'invalid_version_kind'],
+    [{ version_kind: 'session', encrypted_version_name: 'sealed' }, 'invalid_version_name'],
+    [{ contributors: [{ user_hash: 'user-1' }] }, 'invalid_contributors'],
+    [{ contributors: [{ user_hash: MEMBER, mate_name: 'x' }] }, 'invalid_contributors'],
+    [{ contributors: [] }, 'invalid_contributors'],
+  ];
+  for (const [extra, code] of bad) {
+    await rejectsWith(commitUserEmbedRevision(fakeDatabase(seed()), body(extra)), 400, code);
+  }
+});
+
+
+function rotationFixture() {
+  const team = hash(TEAM_ID);
+  const project = hash(PROJECT_ID);
+  const database = fakeDatabase({
+    teams: [{ id: 'team-row', hashed_team_id: team, status: 'active', team_key_epoch: 1, rotation_pending: true,
+      encrypted_name: 'old-name' }],
+    team_memberships: [
+      { id: 'owner-membership', hashed_team_id: team, hashed_user_id: OWNER, status: 'active', role: 'owner' },
+      { id: 'member-membership', hashed_team_id: team, hashed_user_id: MEMBER, status: 'active', role: 'member' },
+      { hashed_team_id: team, hashed_user_id: STRANGER, status: 'removed', role: 'member' },
+    ],
+    team_key_wrappers: [{ id: 'old', hashed_team_id: team, hashed_user_id: OWNER, team_key_epoch: 1 }],
+    project_key_wrappers: [{ id: 'project-row', hashed_project_id: project, hashed_team_id: team,
+      key_type: 'team', encrypted_project_key: 'old-project', team_key_epoch: 1 }],
+  });
+  const upload = {
+    team_hash: team, actor_user_hash: OWNER, team_key_epoch: 2, encrypted_previous_team_keys: 'sealed-history',
+    profile: { encrypted_name: { before: 'old-name', after: 'new-name' } },
+    wrappers: [
+      { hashed_user_id: OWNER, encrypted_team_key: 'new-owner' },
+      { hashed_user_id: MEMBER, encrypted_team_key: 'new-member' },
+    ],
+    project_key_wrappers: [{ hashed_project_id: project, encrypted_project_key: 'new-project' }],
+  };
+  return { database, upload };
+}
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Team rotation commits the complete key set once under the published epoch', async () => {
+  const { database, upload } = rotationFixture();
+  const [winner, retry] = await Promise.allSettled([
+    applyTeamKeyRotation(database, upload),
+    applyTeamKeyRotation(database, upload),
+  ]);
+  assert.deepEqual(winner, { status: 'fulfilled', value: { team_key_epoch: 2 } });
+  assert.equal(retry.reason.code, 'team_key_epoch_conflict');
+  assert.equal(database.rows.teams[0].rotation_pending, false);
+  assert.equal(database.rows.teams[0].team_key_epoch, 2);
+  assert.equal(database.rows.teams[0].encrypted_name, 'new-name');
+  assert.equal(database.rows.project_key_wrappers[0].encrypted_project_key, 'new-project');
+  assert.deepEqual(database.rows.team_key_wrappers.map((row) => [row.hashed_user_id, row.team_key_epoch]), [
+    [OWNER, 2], [MEMBER, 2],
+  ]);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Team rotation preserves profile edits made after the key set was prepared', async () => {
+  const { database, upload } = rotationFixture();
+  database.rows.teams[0].encrypted_name = 'edited-name';
+  await assert.rejects(applyTeamKeyRotation(database, upload), { code: 'team_profile_changed' });
+  assert.equal(database.rows.teams[0].encrypted_name, 'edited-name');
+  assert.equal(database.rows.teams[0].rotation_pending, true);
+  assert.equal(database.rows.project_key_wrappers[0].encrypted_project_key, 'old-project');
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Team rotation rolls back every key write if publishing one wrapper fails', async () => {
+  const { database, upload } = rotationFixture();
+  const before = structuredClone(database.rows);
+  database.failInsert = 'team_key_wrappers';
+  await assert.rejects(applyTeamKeyRotation(database, upload), /fixture insert failure/);
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Team rotation refuses uploads containing a removed member', async () => {
+  const { database, upload } = rotationFixture();
+  const before = structuredClone(database.rows);
+  upload.wrappers.push({ hashed_user_id: STRANGER, encrypted_team_key: 'removed-member-wrapper' });
+  await assert.rejects(applyTeamKeyRotation(database, upload), { code: 'team_key_member_set_changed' });
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Member removal revokes wrappers and invalidates a rotation prepared before removal', async () => {
+  const { database, upload } = rotationFixture();
+  database.rows.team_key_wrappers.push({
+    id: 'old-member', hashed_team_id: upload.team_hash, hashed_user_id: MEMBER, team_key_epoch: 1,
+  });
+  const removal = { team_hash: upload.team_hash, actor_user_hash: OWNER, target_user_hash: MEMBER, removed_at: 100 };
+  const [removed, staleUpload] = await Promise.allSettled([
+    removeTeamMember(database, removal), applyTeamKeyRotation(database, upload),
+  ]);
+  assert.deepEqual(removed, { status: 'fulfilled', value: { removed: true } });
+  assert.equal(staleUpload.reason.code, 'team_key_member_set_changed');
+  assert.equal(database.rows.team_memberships[1].status, 'removed');
+  assert.deepEqual(database.rows.team_key_wrappers.map((row) => row.hashed_user_id), [OWNER]);
+  assert.equal(database.rows.teams[0].rotation_pending, true);
+  assert.equal(database.rows.teams[0].team_key_epoch, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Member removal rolls back membership if wrapper deletion fails', async () => {
+  const { database, upload } = rotationFixture();
+  database.rows.teams[0].rotation_pending = false;
+  const before = structuredClone(database.rows);
+  database.failDelete = 'team_key_wrappers';
+  await assert.rejects(removeTeamMember(database, {
+    team_hash: upload.team_hash, actor_user_hash: OWNER, target_user_hash: MEMBER, removed_at: 100,
+  }), /fixture delete failure/);
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('A pending Team rotation refuses new revisions and preserves committed receipts', async () => {
+  const database = fakeDatabase(seed({ team: true }));
+  const revision = body({ actor_user_hash: MEMBER, scope: { kind: 'chat', chat_id: CHAT_ID, team_id: TEAM_ID } });
+  assert.equal((await commitUserEmbedRevision(database, revision)).current_revision, 2);
+  database.rows.teams[0].rotation_pending = true;
+  const before = structuredClone(database.rows);
+  assert.equal((await commitUserEmbedRevision(database, revision)).idempotent, true);
+  await rejectsWith(commitUserEmbedRevision(database, { ...revision, operation_id: 'later' }),
+    409, 'team_key_rotation_pending');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=live-collab.keys.rotation-on-removal
+test('Versioned Team revisions require the committed epoch for every new ciphertext', async () => {
+  const database = fakeDatabase(seed({ team: true, embed: {
+    app_id: 'docs', skill_id: 'document', encrypted_text_preview: 'legacy-preview',
+  } }));
+  database.rows.teams[0].team_key_epoch = 3;
+  const cipher = (epoch) => `OMRV1.${epoch}.${'A'.repeat(40)}`;
+  const revision = body({
+    actor_user_hash: MEMBER, scope: { kind: 'chat', chat_id: CHAT_ID, team_id: TEAM_ID },
+    head: { encrypted_content: cipher(3), status: 'finished', updated_at: 20 },
+    history_rows: [{ version_number: 2, encrypted_snapshot: cipher(3), created_at: 20 }],
+  });
+  const before = structuredClone(database.rows);
+  await rejectsWith(commitUserEmbedRevision(database, body({
+    actor_user_hash: MEMBER, scope: revision.scope,
+  })), 409, 'team_key_epoch_conflict');
+  await rejectsWith(commitUserEmbedRevision(database, {
+    ...revision, history_rows: [{ ...revision.history_rows[0], encrypted_snapshot: cipher(2) }],
+  }), 409, 'team_key_epoch_conflict');
+  await rejectsWith(commitUserEmbedRevision(database, {
+    ...revision, head: { ...revision.head, encrypted_text_preview: 'old-preview' },
+  }), 409, 'team_key_epoch_conflict');
+  await rejectsWith(commitUserEmbedRevision(database, {
+    ...revision, head: { ...revision.head, encrypted_content: 'OMRV1.03.invalid' },
+  }), 400, 'invalid_revision_ciphertext');
+  assert.deepEqual(database.rows, before);
+
+  assert.equal((await commitUserEmbedRevision(database, revision)).current_revision, 2);
+  assert.equal(database.rows.embeds[0].encrypted_text_preview, null);
+  const stored = structuredClone(database.rows);
+  await rejectsWith(commitUserEmbedRevision(database, body({
+    actor_user_hash: MEMBER, scope: revision.scope, operation_id: 'downgrade', expected_revision: 2,
+    expected_content_hash: hash(cipher(3)),
+    history_rows: [{ version_number: 3, encrypted_snapshot: 'legacy-snapshot', created_at: 30 }],
+  })), 409, 'team_key_epoch_conflict');
+  assert.deepEqual(database.rows, stored);
 });

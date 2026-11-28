@@ -959,6 +959,12 @@
         "description": {
           "text": "Legge un design Figma e fornisce struttura, stili e un passaggio al codice."
         }
+      },
+      "author": {
+        "text": "Crea design",
+        "description": {
+          "text": "Crea un volantino, un post o un mockup modificabile."
+        }
       }
     },
     "electronics": {
@@ -1671,12 +1677,6 @@
     },
     "tasks": {
       "skills": {
-        "create": {
-          "text": "Crea attività",
-          "description": {
-            "text": "Crea attività con titoli, descrizioni e assegnatari."
-          }
-        },
         "search": {
           "text": "Cerca attività",
           "description": {
@@ -3038,6 +3038,9 @@
       "example_chat": {
         "text": "Chat di esempio"
       },
+      "sub_chat": {
+        "text": "Sotto-chat"
+      },
       "shared_chat": {
         "text": "Chat condivisa"
       },
@@ -3749,6 +3752,9 @@
     "loadMore": {
       "button": {
         "text": "Mostra altro"
+      },
+      "account_total": {
+        "text": "{count} chat nel tuo account"
       }
     },
     "latest_news": {
@@ -7136,6 +7142,11 @@
         "text": "Comprimi {label}"
       }
     },
+    "tasks": {
+      "task": {
+        "text": "Attività"
+      }
+    },
     "diagrams": {
       "mermaid": {
         "text": "Diagramma Mermaid"
@@ -8101,6 +8112,21 @@
     },
     "design": {
       "embroidery": {
+        "progress_reading": {
+          "text": "Lettura della grafica…"
+        },
+        "progress_checking": {
+          "text": "Controllo del disegno…"
+        },
+        "progress_adjusting": {
+          "text": "Adattamento del disegno al ricamo…"
+        },
+        "progress_stitching": {
+          "text": "Creazione di punti e anteprima…"
+        },
+        "progress_saving": {
+          "text": "Salvataggio dei file macchina…"
+        },
         "threads": {
           "text": "Fili"
         },
@@ -8633,6 +8659,25 @@
     },
     "slides_remote_close": {
       "text": "Close remote"
+    },
+    "design_document": {
+      "export": {
+        "label": {
+          "text": "Scarica design"
+        },
+        "current_page": {
+          "text": "Pagina corrente"
+        },
+        "all_pages": {
+          "text": "Tutte le pagine"
+        },
+        "image_unavailable": {
+          "text": "Un'immagine non è disponibile su questo dispositivo. Apri la pagina, attendi il caricamento delle immagini e riprova."
+        },
+        "failed": {
+          "text": "Impossibile scaricare il design. Riprova."
+        }
+      }
     }
   },
   "embeds_input": {},
@@ -21125,7 +21170,7 @@
       "text": "Prova gratis"
     },
     "version_title": {
-      "text": "v0.32"
+      "text": "v0.33"
     },
     "domain_not_allowed": {
       "text": "Dominio e-mail non consentito."
@@ -21919,9 +21964,6 @@
     }
   },
   "voicecall": {
-    "start_hint": {
-      "text": "Le chiamate usano trascrizione Mistral, voce ElevenLabs v4 Turbo, normale instradamento IA di OpenMates e fatturazione a consumo."
-    },
     "privacy_description": {
       "text": "Mistral trascrive l’audio del microfono; ElevenLabs v4 Turbo genera la voce dell’assistente dal testo della risposta e dalle impostazioni vocali. La conversazione usa il normale instradamento IA e le funzionalità di OpenMates. I fornitori possono conservare i dati delle richieste secondo le proprie politiche."
     },

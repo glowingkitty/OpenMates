@@ -122,9 +122,11 @@ changes to the documentation (to keep the documentation up to date).
     const dispatch = createEventDispatcher();
 
     const SETTINGS_ROUTE_ICON_OVERRIDES: Record<string, string> = {
+        'account/connected-accounts': 'privacy',
         'account/export': 'download',
         'apps/all': 'app',
         'learning-mode/setup': 'study',
+        'privacy/connected-accounts': 'privacy',
         'privacy/hide-personal-data': 'anonym',
         'privacy/share-debug-logs': 'privacy',
         'projects': 'project',
@@ -448,7 +450,7 @@ changes to the documentation (to keep the documentation up to date).
             // Apps and mates are read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
                 if (key === 'interface' || key.startsWith('interface/') ||
-                    key === 'privacy' || key === 'privacy/connected-accounts' ||
+                    key === 'privacy' || key === 'privacy/connected-accounts' || key === 'account/connected-accounts' ||
                     key === 'ai' || key.startsWith('ai/') ||
                     key === 'settings_memories' ||
                     key === 'apps' || key.startsWith('apps/') ||
@@ -1053,13 +1055,13 @@ changes to the documentation (to keep the documentation up to date).
             routedPendingConnectedAccountOAuth = false;
             return;
         }
-        if (routedPendingConnectedAccountOAuth && activeSettingsView === 'privacy/connected-accounts') {
+        if (routedPendingConnectedAccountOAuth && activeSettingsView === 'account/connected-accounts') {
             return;
         }
         routedPendingConnectedAccountOAuth = true;
         void handleOpenSettings(new CustomEvent('openSettings', {
             detail: {
-                settingsPath: 'privacy/connected-accounts',
+                settingsPath: 'account/connected-accounts',
                 direction: 'forward',
                 icon: 'privacy',
                 title: $text('settings.privacy.connected_accounts.title')
@@ -1745,7 +1747,7 @@ changes to the documentation (to keep the documentation up to date).
                 activeSubMenuTitleKey = 'safety_appeal.admin_title';
             } else if (settingsPath === 'server/anonymous-free-usage') {
                 activeSubMenuTitleKey = 'settings.server.anonymous_free_usage_budget.title';
-            } else if (settingsPath === 'privacy/connected-accounts') {
+            } else if (settingsPath === 'privacy/connected-accounts' || settingsPath === 'account/connected-accounts') {
                 activeSubMenuTitleKey = 'settings.privacy.connected_accounts.title';
             } else if (settingsPath === 'projects') {
                 activeSubMenuTitleKey = 'settings.projects';
@@ -2728,7 +2730,7 @@ changes to the documentation (to keep the documentation up to date).
                 let translationKey;
                 if (cleanPath === 'shared/share') {
                     translationKey = 'settings.share';
-                } else if (cleanPath === 'privacy/connected-accounts') {
+                } else if (cleanPath === 'privacy/connected-accounts' || cleanPath === 'account/connected-accounts') {
                     translationKey = 'settings.privacy.connected_accounts.title';
                 } else if (cleanPath === 'incognito/info') {
                     // Incognito info page: use the incognito icon and the top-level "Incognito" title.

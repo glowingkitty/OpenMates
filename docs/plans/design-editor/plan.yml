@@ -1,0 +1,25 @@
+schema_version: 2
+profile: concise
+id: design-editor
+title: Built-in Design embed
+status: implementing
+goal: "Ship view mode first, then edit mode, then assistant creation and follow-up edits, then SVG and PDF export (PNG as tested). Keep 250 layers as provisional cap. Everything client-side encrypted."
+task: c93d6fc2-ff70-44b2-a6fd-be37fcbefd77
+scope:
+  in:
+    - "Phase 1A (3–5 engineer-days): Versioned typed scene validation in the Rust core and a read slice using the existing client-side encrypted embed path. Prove valid, malformed, locked and unauthorized reads."
+    - "Phase 1B (5–8 engineer-days): Preview and read-only Canvas 2D artboards, fit and zoom, multi-page navigation, and locally resolved authorized PNG assets in bounded client-side encrypted child embeds. Prove a saved embed after reload on desktop and phone."
+    - "Phase 2A (5–8 engineer-days): Ship revision-checked changes to text and transforms, undo, and client-side encrypted persistence with reload and read-only tests."
+    - "Phase 2B (5–8 engineer-days): Ship layer insertion, ordering, duplication and removal, page changes, and version history. Exercise stale revisions and interrupted writes."
+    - "Phase 3A (5–8 engineer-days): Add a Design app skill using the SVG author's short request, dedicated model, metering, progress and bounded correction structure. Validate typed scenes and have Jev review rendered output for copy, clipping and legibility before returning it to the authorized client."
+    - "Phase 3B (4–6 engineer-days): Pass a bounded revision and targeted scene context to the skill for edits. Validate typed changes and preview them before the client applies a revision-checked change set."
+    - "Phase 4A (3–5 engineer-days): Ship locally generated one-page SVG and PNG exports and check crops, text, vectors and dimensions."
+    - "Phase 4B (4–6 engineer-days): Ship local multipage PDF with stable page order and parity checks. Document that SVG and PDF open in Adobe Illustrator."
+  out:
+    - Native Illustrator export, arbitrary HTML/CSS import, and simultaneous multi-user canvas editing. The stable-ID command model leaves room for shared Rust merge later.
+verification:
+  - Each phase passes its focused checks before dev deploy and has screenshot or recording evidence from that phase.
+  - Phase 1 proves the authenticated saved-embed read, reload, asset access, read-only behavior, and validation failures through supported entry points.
+  - Phase 2 proves edit, undo, reload, permission refusal, stale revisions and history on the real stack.
+  - Phase 3 compares the five Phase 0 briefs against the cheap chat baseline and records acceptance, total credits and p50/p95 time to first valid render. Prove real inference, bounded correction, and revision-safe application.
+  - Phase 4 opens the local export files, checks pixels, geometry and page ordering, and verifies the absence of network asset reads during export.

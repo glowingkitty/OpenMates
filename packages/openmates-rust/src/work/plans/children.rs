@@ -787,11 +787,47 @@ mod field_interop_tests {
     #[test]
     fn actual_plan_child_create_patch_fields_read_in_web_legacy_decoders() {
         let key = [32; 32];
-        let create = encode(PlanCriterionInput { text: Some("Accepted criterion Δ".into()), ..Default::default() }, &key, true).unwrap();
-        let patch = encode(PlanCriterionInput { evidence: Some("Private evidence".into()), coverage_note: Some("Exact coverage".into()), waiver_reason: Some("Explicit waiver".into()), ..Default::default() }, &key, false).unwrap();
-        let mut cases = vec![case("criterion.text", "object-text", create["encrypted_text"].as_str().unwrap(), &key, b"Accepted criterion \xce\x94", "")];
-        for (field, text) in [("evidence", "Private evidence"), ("coverage_note", "Exact coverage"), ("waiver_reason", "Explicit waiver")] {
-            cases.push(case(field, "object-text", patch[format!("encrypted_{field}")].as_str().unwrap(), &key, text.as_bytes(), ""));
+        let create = encode(
+            PlanCriterionInput {
+                text: Some("Accepted criterion Δ".into()),
+                ..Default::default()
+            },
+            &key,
+            true,
+        )
+        .unwrap();
+        let patch = encode(
+            PlanCriterionInput {
+                evidence: Some("Private evidence".into()),
+                coverage_note: Some("Exact coverage".into()),
+                waiver_reason: Some("Explicit waiver".into()),
+                ..Default::default()
+            },
+            &key,
+            false,
+        )
+        .unwrap();
+        let mut cases = vec![case(
+            "criterion.text",
+            "object-text",
+            create["encrypted_text"].as_str().unwrap(),
+            &key,
+            b"Accepted criterion \xce\x94",
+            "",
+        )];
+        for (field, text) in [
+            ("evidence", "Private evidence"),
+            ("coverage_note", "Exact coverage"),
+            ("waiver_reason", "Explicit waiver"),
+        ] {
+            cases.push(case(
+                field,
+                "object-text",
+                patch[format!("encrypted_{field}")].as_str().unwrap(),
+                &key,
+                text.as_bytes(),
+                "",
+            ));
         }
         assert_web(cases);
         assert!(create.get("text").is_none());

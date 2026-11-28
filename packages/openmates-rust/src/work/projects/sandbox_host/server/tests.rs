@@ -35,11 +35,21 @@ async fn start() -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(serve(listener, host));
-    Server { addr, dir, bodies: Default::default() }
+    Server {
+        addr,
+        dir,
+        bodies: Default::default(),
+    }
 }
 
 impl Server {
-    async fn call(&self, method: &str, path: &str, token: Option<&str>, body: &Value) -> (u16, Value) {
+    async fn call(
+        &self,
+        method: &str,
+        path: &str,
+        token: Option<&str>,
+        body: &Value,
+    ) -> (u16, Value) {
         let mut stream = tokio::net::TcpStream::connect(self.addr).await.unwrap();
         let payload = body.to_string();
         let auth = token.map_or(String::new(), |t| format!("Authorization: Bearer {t}\r\n"));
@@ -120,7 +130,11 @@ async fn every_endpoint_requires_the_bearer_token() {
     for (method, path) in ENDPOINTS {
         for token in [None, Some("wrong"), Some("test-bearer-toke")] {
             let (status, body) = server.call(method, path, token, &json!({})).await;
-            assert_eq!((status, body["error"].as_str()), (401, Some("unauthorized")), "{path}");
+            assert_eq!(
+                (status, body["error"].as_str()),
+                (401, Some("unauthorized")),
+                "{path}"
+            );
         }
     }
 }
@@ -131,9 +145,19 @@ async fn needs_the_key_before_tree_endpoints() {
     let hello = server.ok("GET", "/v1/hello", json!({})).await;
     assert_eq!(hello["has_key"], false);
     assert_eq!(hello["project_id"], PROJECT);
-    for path in ["/v1/op", "/v1/file-ids", "/v1/sync-in", "/v1/baseline", "/v1/scan"] {
+    for path in [
+        "/v1/op",
+        "/v1/file-ids",
+        "/v1/sync-in",
+        "/v1/baseline",
+        "/v1/scan",
+    ] {
         let (status, body) = server.call("POST", path, Some(TOKEN), &json!({})).await;
-        assert_eq!((status, body["error"].as_str()), (409, Some("no_key")), "{path}");
+        assert_eq!(
+            (status, body["error"].as_str()),
+            (409, Some("no_key")),
+            "{path}"
+        );
     }
 }
 
@@ -144,29 +168,78 @@ async fn full_flow_never_leaks_key_or_plaintext() {
     let public = hello["sandbox_public_key"].as_str().unwrap().to_owned();
     let now = key_request(&public, JOB).expires_at - 600;
 
-    let wrong = seal_project_key_grant(&key_request(&public, "other-job"), &project_key(), now).unwrap();
-    let (status, body) = server.call("POST", "/v1/key", Some(TOKEN), &json!({"sealed_grant": wrong})).await;
-    assert_eq!((status, body["error"].as_str()), (409, Some("binding_mismatch")));
-    let (status, body) = server.call("POST", "/v1/key", Some(TOKEN), &json!({"sealed_grant": "AAAA"})).await;
+    let wrong =
+        seal_project_key_grant(&key_request(&public, "other-job"), &project_key(), now).unwrap();
+    let (status, body) = server
+        .call(
+            "POST",
+            "/v1/key",
+            Some(TOKEN),
+            &json!({"sealed_grant": wrong}),
+        )
+        .await;
+    assert_eq!(
+        (status, body["error"].as_str()),
+        (409, Some("binding_mismatch"))
+    );
+    let (status, body) = server
+        .call(
+            "POST",
+            "/v1/key",
+            Some(TOKEN),
+            &json!({"sealed_grant": "AAAA"}),
+        )
+        .await;
     assert_eq!((status, body["error"].as_str()), (400, Some("open_failed")));
 
     let grant = seal_project_key_grant(&key_request(&public, JOB), &project_key(), now).unwrap();
-    assert_eq!(server.ok("POST", "/v1/key", json!({"sealed_grant": grant})).await["ok"], true);
-    let (status, body) = server.call("POST", "/v1/key", Some(TOKEN), &json!({"sealed_grant": grant})).await;
+    assert_eq!(
+        server
+            .ok("POST", "/v1/key", json!({"sealed_grant": grant}))
+            .await["ok"],
+        true
+    );
+    let (status, body) = server
+        .call(
+            "POST",
+            "/v1/key",
+            Some(TOKEN),
+            &json!({"sealed_grant": grant}),
+        )
+        .await;
     assert_eq!((status, body["error"].as_str()), (409, Some("already_set")));
-    assert_eq!(server.ok("GET", "/v1/hello", json!({})).await["has_key"], true);
+    assert_eq!(
+        server.ok("GET", "/v1/hello", json!({})).await["has_key"],
+        true
+    );
 
     let base = ten_lines();
     let ids = server
-        .ok("POST", "/v1/file-ids", json!({"items": [item("f.txt"), item("g.txt")]}))
+        .ok(
+            "POST",
+            "/v1/file-ids",
+            json!({"items": [item("f.txt"), item("g.txt")]}),
+        )
         .await;
-    assert_eq!(ids["embed_ids"], json!([embed_id("f.txt"), embed_id("g.txt")]));
+    assert_eq!(
+        ids["embed_ids"],
+        json!([embed_id("f.txt"), embed_id("g.txt")])
+    );
     let synced = server
         .ok("POST", "/v1/sync-in", json!({"heads": [
             raw_head("f.txt", &base, 1), raw_head("g.txt", "gee", 1), raw_head("stray.txt", "SECRET-PLAINTEXT", 1)]}))
         .await;
-    assert_eq!((synced["written"].as_u64(), synced["failed"][0]["reason"].as_str()), (Some(2), Some("unknown_embed")));
-    assert_eq!(std::fs::read_to_string(server.project_file("f.txt")).unwrap(), base);
+    assert_eq!(
+        (
+            synced["written"].as_u64(),
+            synced["failed"][0]["reason"].as_str()
+        ),
+        (Some(2), Some("unknown_embed"))
+    );
+    assert_eq!(
+        std::fs::read_to_string(server.project_file("f.txt")).unwrap(),
+        base
+    );
     let baseline = server.ok("POST", "/v1/baseline", json!({})).await;
     assert_eq!(baseline["files"], 2);
     assert!(server.project_file(".git").exists());
@@ -175,20 +248,39 @@ async fn full_flow_never_leaks_key_or_plaintext() {
         .ok("POST", "/v1/op", json!({"operation": "create_file", "arguments": {"path": "new.txt", "content": "SECRET-PLAINTEXT"}}))
         .await;
     let revisions = created["revisions"].as_array().unwrap();
-    assert_eq!((revisions.len(), revisions[0]["kind"].as_str()), (1, Some("create")));
+    assert_eq!(
+        (revisions.len(), revisions[0]["kind"].as_str()),
+        (1, Some("create"))
+    );
     let refused = server
-        .ok("POST", "/v1/op", json!({"operation": "read_text", "arguments": {"path": "missing.txt"}}))
+        .ok(
+            "POST",
+            "/v1/op",
+            json!({"operation": "read_text", "arguments": {"path": "missing.txt"}}),
+        )
         .await;
     assert_eq!(refused["result"]["code"], "file_not_found");
     let embed = revisions[0]["embed_id"].as_str().unwrap();
     server
-        .ok("POST", "/v1/committed", json!({"path": "new.txt", "embed_id": embed, "version_number": 1}))
+        .ok(
+            "POST",
+            "/v1/committed",
+            json!({"path": "new.txt", "embed_id": embed, "version_number": 1}),
+        )
         .await;
 
-    std::fs::write(server.project_file("f.txt"), base.replace("line 1\n", "mine 1\n")).unwrap();
+    std::fs::write(
+        server.project_file("f.txt"),
+        base.replace("line 1\n", "mine 1\n"),
+    )
+    .unwrap();
     let theirs = base.replace("line 10", "theirs 10");
     let merged = server
-        .ok("POST", "/v1/merge", json!({"path": "f.txt", "head": raw_head("f.txt", &theirs, 2)}))
+        .ok(
+            "POST",
+            "/v1/merge",
+            json!({"path": "f.txt", "head": raw_head("f.txt", &theirs, 2)}),
+        )
         .await;
     assert_eq!(merged["status"], "merged");
     assert!(merged["revision"]["transaction"].is_object());
@@ -204,8 +296,14 @@ async fn full_flow_never_leaks_key_or_plaintext() {
     ];
     for body in server.bodies.lock().unwrap().iter() {
         for needle in &needles {
-            assert!(!body.contains(needle.as_str()), "key material in a response");
+            assert!(
+                !body.contains(needle.as_str()),
+                "key material in a response"
+            );
         }
-        assert!(!body.contains("SECRET-PLAINTEXT"), "plaintext in a response");
+        assert!(
+            !body.contains("SECRET-PLAINTEXT"),
+            "plaintext in a response"
+        );
     }
 }

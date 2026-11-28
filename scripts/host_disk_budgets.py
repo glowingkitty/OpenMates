@@ -9,10 +9,10 @@ PRESSURE_PERCENT or more.
 
 | category | unit | protected |
 |---|---|---|
-| rust (25 GB) | one cargo target folder, or one subfolder of the shared cache root | a cargo/rustc process names it or works in its worktree; used in the last hour |
+| rust (25 GB) | one cargo target folder (OpenMates checkouts, sibling projects, /tmp), or one subfolder of the shared cache root | a cargo/rustc process names it or works in its worktree; any process works in its sibling project; used in the last hour |
 | ci_artifacts (10 GB) | one run under test-results/ci-runs, logs/ci-runs, logs/ci-candidates | a non-terminal CI job references it; changed in the last hour |
 | scratchpads (6 GB, 2 GB per chat) | one entry of a chat's scratch folder | open or in use; changed in the last 6 h |
-| worktrees (15 GB) | node_modules or .svelte-kit of an agent worktree | a process works in the worktree; a file in it changed in the last 12 h |
+| worktrees (15 GB) | node_modules or .svelte-kit of an agent worktree, or its downloaded CI evidence and runtime scratch (top-level test-results/, .runtime/) | a process works in the worktree; a file in it changed in the last 12 h |
 
 Everything removed is rebuildable (build output, downloaded CI results, installed
 dependencies, scratch files); source, worktrees themselves, WIP and recovery
@@ -31,6 +31,7 @@ import shutil
 import time
 
 import host_disk_usage as usage
+import resource_budget
 
 PRESSURE_PERCENT = 75.0
 PRESSURE_SHARE = 0.8
@@ -38,9 +39,18 @@ RUST_IDLE_SECONDS = 3600
 CI_IDLE_SECONDS = 3600
 SCRATCH_IDLE_SECONDS = 6 * 3600
 WORKTREE_IDLE_SECONDS = 12 * 3600
+# Emergency: free space below resource_budget.CLEANUP_TARGET_FREE (TASK-5181). Caps
+# drop to half and idle windows shrink, so the budgets free space before the 10 GiB
+# floor instead of keeping everything touched in the last hours. In-use protections
+# (cargo, processes in a worktree or project, live CI jobs) never change.
+EMERGENCY_SHARE = 0.5
+EMERGENCY_IDLE_SECONDS = {"rust": 900, "ci_artifacts": 900, "worktrees": 4 * 3600, "scratchpads": 3600}
 SCRATCH_PER_CHAT = 2 * usage.GB
 SHARED_RUST_ROOT = usage.HOME / ".cache" / "openmates-rust-target"
 DEPENDENCY_NAMES = frozenset({"node_modules", ".svelte-kit"})
+# Top-level worktree folders that only hold downloaded CI results and runtime scratch.
+# Without them the worktrees budget could never get under its cap (TASK-5181).
+WORKTREE_SCRATCH_NAMES = ("test-results", ".runtime")
 
 
 @dataclass
@@ -109,13 +119,38 @@ def _worktree_of(path: str, roots: list[str]) -> Path | None:
 
 def rust_units(projects: Path) -> list[Unit]:
     roots = usage.worktree_roots(projects) + [str(projects / "OpenMates")]
+    siblings = usage.other_project_roots(projects)
     units = []
     for path in usage.rust_paths(projects):
         folder = Path(path)
         children = [child for child in folder.iterdir() if child.is_dir() and not child.is_symlink()] \
             if folder == SHARED_RUST_ROOT else [folder]
-        units += [Unit(child, _recent_mtime(child), owner=_worktree_of(str(child), roots)) for child in children]
+        for child in children:
+            sibling = _worktree_of(str(child), siblings)
+            owner = sibling or _worktree_of(str(child), roots)
+            group = "sibling" if sibling else ""
+            # Incremental caches are often half a target; they go before whole targets.
+            for incremental in incremental_dirs(child):
+                units.append(Unit(incremental, _recent_mtime(incremental), group=group, owner=owner))
+            units.append(Unit(child, _recent_mtime(child), group=group, owner=owner))
     return units
+
+
+def incremental_dirs(target: Path, depth: int = 4) -> list[Path]:
+    """Cargo `incremental` folders inside one target folder (any profile or triple)."""
+    found, level = [], [target]
+    for _ in range(depth):
+        following = []
+        for folder in level:
+            try:
+                entries = [Path(entry.path) for entry in os.scandir(folder)
+                           if entry.is_dir(follow_symlinks=False)]
+            except OSError:
+                continue
+            for entry in entries:
+                (found if entry.name == "incremental" else following).append(entry)
+        level = following
+    return sorted(found)
 
 
 def ci_units(repository: Path) -> list[Unit]:
@@ -157,6 +192,10 @@ def dependency_units(projects: Path, max_depth: int = 4) -> list[Unit]:
     for root in usage.worktree_roots(projects):
         worktree = Path(root)
         activity = _worktree_activity(worktree)
+        for name in WORKTREE_SCRATCH_NAMES:
+            scratch = worktree / name
+            if scratch.is_dir() and not scratch.is_symlink():
+                units.append(Unit(scratch, max(activity, _deep_mtime(scratch)), owner=worktree))
         base = root.rstrip("/").count("/")
         for current, dirs, _files in os.walk(root):
             for name in [name for name in dirs if name in DEPENDENCY_NAMES]:
@@ -187,9 +226,11 @@ def trim(units: list[Unit], total: int, target: int, *, apply: bool, now: float,
          protected, report: dict, category: str, size=None) -> int:
     """Remove units least recently used first until total <= target; returns the new total."""
     size = size or _size
-    for unit in sorted(units, key=lambda item: item.last_used):
+    for unit in sorted(units, key=lambda item: (item.path.name != "incremental", item.last_used)):
         if total <= target:
             break
+        if apply and not unit.path.exists():
+            continue  # removed with an enclosing unit earlier in this pass
         if now - unit.last_used < idle:
             report["skipped"]["recent"] += 1
             continue
@@ -221,12 +262,17 @@ def enforce(repository: Path, *, apply: bool, in_use: list[str], cargo: list[str
     scratch_root = scratch_root or Path(f"/tmp/claude-{os.getuid()}")
     disk = usage.filesystem(repository)
     pressure = disk["percent"] >= PRESSURE_PERCENT
-    share = PRESSURE_SHARE if pressure else 1.0
+    emergency = disk.get("available", resource_budget.CLEANUP_TARGET_FREE) < resource_budget.CLEANUP_TARGET_FREE
+    share = EMERGENCY_SHARE if emergency else PRESSURE_SHARE if pressure else 1.0
+
+    def idle_for(category: str, normal: float) -> float:
+        return EMERGENCY_IDLE_SECONDS[category] if emergency else normal
     cats = {cat.name: cat for cat in usage.categories(projects) if cat.cap}
     totals = (measure or (lambda chosen: {name: value["bytes"]
                                           for name, value in usage.measure_paths(chosen).items()}))(
         tuple(cats.values()))
-    report = {"pressure": pressure, "percent": disk["percent"], "share": share, "categories": {},
+    report = {"pressure": pressure, "emergency": emergency, "percent": disk["percent"], "share": share,
+              "categories": {},
               "deleted": [], "skipped": {"recent": 0, "in_use": 0, "permission": 0}, "failures": []}
 
     def busy(unit: Unit) -> str | None:
@@ -237,6 +283,8 @@ def enforce(repository: Path, *, apply: bool, in_use: list[str], cargo: list[str
         prefix, owner = str(unit.path), str(unit.owner) if unit.owner else None
         if any(_within(item, prefix) or (owner and _within(item, owner)) for item in cargo):
             return "cargo_running"
+        if unit.group == "sibling" and owner and any(_within(item, owner) for item in in_use):
+            return "in_use"  # a chat or dev server works in that project: keep its build output
         return busy(unit)
 
     def worktree_busy(unit: Unit) -> str | None:
@@ -245,9 +293,10 @@ def enforce(repository: Path, *, apply: bool, in_use: list[str], cargo: list[str
     def ci_busy(unit: Unit) -> str | None:
         return "referenced" if unit.path.name in (references or ()) else busy(unit)
 
-    plans = [("rust", lambda: rust_units(projects), RUST_IDLE_SECONDS, cargo_busy),
-             ("ci_artifacts", lambda: ci_units(repository), CI_IDLE_SECONDS, ci_busy),
-             ("worktrees", lambda: dependency_units(projects), WORKTREE_IDLE_SECONDS, worktree_busy)]
+    plans = [("rust", lambda: rust_units(projects), idle_for("rust", RUST_IDLE_SECONDS), cargo_busy),
+             ("ci_artifacts", lambda: ci_units(repository), idle_for("ci_artifacts", CI_IDLE_SECONDS), ci_busy),
+             ("worktrees", lambda: dependency_units(projects), idle_for("worktrees", WORKTREE_IDLE_SECONDS),
+              worktree_busy)]
     if references is None:
         plans = [plan for plan in plans if plan[0] != "ci_artifacts"]
         report["skipped"]["queue_unreadable"] = 1
@@ -266,13 +315,13 @@ def enforce(repository: Path, *, apply: bool, in_use: list[str], cargo: list[str
         held = usage.du_bytes(group)
         if held > SCRATCH_PER_CHAT * share:
             left = trim(members, held, int(SCRATCH_PER_CHAT * share), apply=apply, now=now,
-                        idle=SCRATCH_IDLE_SECONDS, protected=busy, report=report, category="scratchpads")
+                        idle=idle_for("scratchpads", SCRATCH_IDLE_SECONDS), protected=busy, report=report, category="scratchpads")
             total -= held - left
     if total > target:
         remaining = [unit for unit in units if unit.path.exists() or not apply]
         removed = {item["path"] for item in report["deleted"]}
         total = trim([unit for unit in remaining if str(unit.path) not in removed], total, target,
-                     apply=apply, now=now, idle=SCRATCH_IDLE_SECONDS, protected=busy, report=report,
+                     apply=apply, now=now, idle=idle_for("scratchpads", SCRATCH_IDLE_SECONDS), protected=busy, report=report,
                      category="scratchpads")
     report["categories"]["scratchpads"] = {"before": before, "after": total, "target": target}
     report["reclaimed_bytes"] = sum(item["bytes"] for item in report["deleted"])

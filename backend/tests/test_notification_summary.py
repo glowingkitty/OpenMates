@@ -20,7 +20,7 @@ from backend.apps.ai.processing.postprocessor import handle_postprocessing
 from backend.core.api.app.services.notification_headline_handoff import (
     HEADLINE_TTL_SECONDS, headline_key, read_headline, stage_headline,
 )
-from backend.core.api.app.services.push_notification_content import GENERIC_PUSH_TITLE, compose_push_content
+from backend.core.api.app.services.push_notification_content import GENERIC_PUSH_TITLE, compose_push_content, truncate_at_word
 from backend.apps.ai.utils.llm_utils import LLMPreprocessingCallResult
 
 
@@ -174,22 +174,48 @@ def test_invalid_headline_is_not_staged():
     assert redis.values == {}
 
 
-@pytest.mark.parametrize("prefs,headline,hidden,expected", [
-    ({}, "✅ Added 4 models", False, ("✅ Added 4 models", 'in "Garden notes"', "")),
-    ({"includeChatTitle": False}, "✅ Added 4 models", False, (GENERIC_PUSH_TITLE, None, "")),
-    ({"includePreview": True}, "✅ Added 4 models", False, ("✅ Added 4 models", 'in "Garden notes"', "The beds are planned.")),
-    ({"includeChatTitle": False, "includePreview": True}, None, False, (GENERIC_PUSH_TITLE, None, "The beds are planned.")),
-    ({}, None, False, ("Mate in Garden notes", None, "")),
-    ({"includePreview": True}, "✅ Added 4 models", True, (GENERIC_PUSH_TITLE, None, "")),
+@pytest.mark.parametrize("prefs,hidden,expected", [
+    ({}, False, ("Garden notes", "The beds are planned.")),
+    ({"includeChatTitle": False}, False, (GENERIC_PUSH_TITLE, "The beds are planned.")),
+    ({"includeAnswerText": False}, False, ("Garden notes", "")),
+    ({"includeChatTitle": False, "includeAnswerText": False}, False, (GENERIC_PUSH_TITLE, "")),
+    ({"includeAnswerText": True}, True, (GENERIC_PUSH_TITLE, "")),
+    # The retired default-off key was stored as `false` by old web settings saves.
+    ({"includePreview": False}, False, ("Garden notes", "The beds are planned.")),
 ])
-def test_push_content_matrix(prefs, headline, hidden, expected):
-    content = compose_push_content(preferences=prefs, headline=headline, chat_title="Garden notes", mate_name="Mate",
+def test_push_content_matrix(prefs, hidden, expected):
+    content = compose_push_content(preferences=prefs, chat_title="Garden notes",
                                    preview_text="The beds are planned.", hidden=hidden)
-    assert (content.title, content.context, content.body) == expected
+    assert (content.title, content.body) == expected
+    assert content.context is None
     assert (content.sealed_title is None) == (content.title == GENERIC_PUSH_TITLE)
+
+
+@pytest.mark.parametrize("text,limit,expected", [
+    ("short text", 50, "short text"),
+    ("The beds are planned for spring", 20, "The beds are…"),
+    ("Words, then more words", 13, "Words, then…"),
+    ("Supercalifragilistic", 10, "Supercali…"),
+])
+def test_truncate_at_word_boundary_with_ellipsis(text, limit, expected):
+    assert truncate_at_word(text, limit) == expected
+    assert len(truncate_at_word(text, limit)) <= limit
+
+
+def test_long_chat_title_is_bounded_and_missing_title_stays_generic():
+    content = compose_push_content(preferences={}, chat_title="word " * 40, preview_text="", hidden=False)
+    assert content.sealed_title.startswith("word") and content.sealed_title.endswith("…") and len(content.sealed_title) <= 120
+    untitled = compose_push_content(preferences={}, chat_title=None, preview_text="Answer.", hidden=False)
+    assert (untitled.title, untitled.sealed_title, untitled.body) == (GENERIC_PUSH_TITLE, None, "Answer.")
 
 
 def test_headline_or_none_is_the_icon_line_or_nothing():
     assert headline_or_none("done", "Built the recipe app") == "✅ Built the recipe app"
     assert headline_or_none("question", None) is None
     assert headline_or_none("weird", "x") is None
+
+
+def test_truncate_keeps_whole_leading_lines():
+    text = "First line here.\nSecond line here.\nThird line is longer than the rest."
+    assert truncate_at_word(text, 40) == "First line here.\nSecond line here.…"
+    assert truncate_at_word(text, 60).startswith("First line here.\nSecond line here.\nThird line")

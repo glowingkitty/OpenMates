@@ -6,7 +6,7 @@
 //! run when a chat window opens (`view_model::window_flows::open_window`).
 use super::{
     RevisionResult, RevisionScope, UserRevisionCommit, UserRevisionError, UserRevisionIo,
-    UserRevisionRequest, commit_prepared, prepare_user_revision,
+    UserRevisionRequest, commit_prepared,
 };
 use crate::client::embed_updated_event::{
     EmbedEventIdentity, EmbedUpdatedWriter, EventWrite, NoticeReconcileReport, SystemEventSink,
@@ -254,10 +254,29 @@ impl Client {
         identity: Option<EmbedEventIdentity>,
         key: Key,
     ) -> RevisionResult<EmbedRevisionOutcome> {
+        self.commit_embed_user_revision_with_cipher(request, identity, key, None)
+            .await
+    }
+
+    /// Seals a live Team checkpoint with the resolved revision key for its current epoch.
+    pub(in crate::client) async fn commit_embed_user_revision_with_cipher(
+        &mut self,
+        request: UserRevisionRequest,
+        identity: Option<EmbedEventIdentity>,
+        key: Key,
+        team_cipher: Option<super::team_cipher::TeamRevisionCipher>,
+    ) -> RevisionResult<EmbedRevisionOutcome> {
         self.require_credentials()?;
         self.verify_private_operation()?;
-        let prepared = prepare_user_revision(&request, &key, now_ms() as i64, &mut OsNonces)?;
+        let prepared = super::prepare_user_revision_with_cipher(
+            &request,
+            &key,
+            team_cipher.as_ref(),
+            now_ms() as i64,
+            &mut OsNonces,
+        )?;
         drop(key);
+        drop(team_cipher);
         let commit = commit_prepared(&mut ClientRevisionIo { client: self }, prepared).await?;
         let (event, notice) = self.announce(&commit, &request.scope, identity).await;
         Ok(EmbedRevisionOutcome {

@@ -32,6 +32,7 @@ class Calls:
         self.scripts: list[tuple[str, ...]] = []
         self.alerts: list[str] = []
         self.watches = 0  # claude_chat_inputs.py watch runs
+        self.flushes = 0  # agent_question.py flush runs (queued Discord pushes)
         self.zellij: list[tuple[str, ...]] = []  # zellij actions (never the real server)
         self.panes = [  # list-panes --json --all of a chat session with bars
             {"id": 0, "is_plugin": True, "plugin_url": "zellij:link"},
@@ -49,6 +50,9 @@ def calls(monkeypatch) -> Calls:
     def fake_script(*args):
         if args[0] == "claude_chat_inputs.py":
             record.watches += 1
+            return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        if args[0] == "agent_question.py":
+            record.flushes += 1
             return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
         record.scripts.append(args)
         out = "stopped Idle chat (abc, pid 1): idle 30 min\n" if "reap" in args else "released Held chat (def)\n"
@@ -255,3 +259,10 @@ def test_zellij_servers_reads_session_name_rss_and_cpu_from_proc(tmp_path):
     other.mkdir()
     (other / "cmdline").write_bytes(b"/usr/local/bin/zellij\0attach\0claude\0")
     assert res.zellij_servers(tmp_path) == {"claude": {"pid": 123, "rss_bytes": 2048 * 1024, "cpu_ticks": 1000}}
+
+
+def test_every_tick_sends_queued_pushes_that_are_due(tmp_path, calls):
+    """Owner, 23 Nov: a held push is sent later, never dropped (agent_question.py flush)."""
+    res.tick(sample(3), HEALTHY, tmp_path, tmp_path, now=NOW)
+    res.tick(sample(1), OVERLOADED, tmp_path, tmp_path, now=NOW + 60)
+    assert calls.flushes == 2

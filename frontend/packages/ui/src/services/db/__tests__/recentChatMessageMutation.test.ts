@@ -10,11 +10,15 @@ const row: Message = {
   status: 'synced', encrypted_content: 'ciphertext',
 };
 
-function mutationDb(sourceRow: Message = row) {
+function mutationDb(sourceRow: Message = row, version = 33) {
   const listeners = new Map<string, Array<() => void>>();
   const request = <T>(result: T) => {
-    const value = { result, error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null };
-    queueMicrotask(() => value.onsuccess?.());
+    const success: Array<() => void> = [];
+    const value = {
+      result, error: null, onsuccess: null as (() => void) | null, onerror: null as (() => void) | null,
+      addEventListener(type: string, listener: () => void) { if (type === 'success') success.push(listener); },
+    };
+    queueMicrotask(() => { value.onsuccess?.(); success.forEach(listener => listener()); });
     return value;
   };
   const store = {
@@ -22,8 +26,11 @@ function mutationDb(sourceRow: Message = row) {
     put: vi.fn((value: Message) => request(value)),
     delete: vi.fn(() => request(undefined)),
   };
+  const coverage = { put: vi.fn() };
   const transaction = {
-    objectStore: () => store,
+    db: { version },
+    objectStoreNames: { contains: (name: string) => version === 34 && name === 'opened_history_coverage' },
+    objectStore: (name: string) => name === 'opened_history_coverage' ? coverage : store,
     oncomplete: null as (() => void) | null,
     onerror: null as (() => void) | null,
     onabort: null as (() => void) | null,
@@ -32,15 +39,16 @@ function mutationDb(sourceRow: Message = row) {
       listeners.set(type, [...(listeners.get(type) ?? []), listener]);
     },
   };
+  const begin = vi.fn(() => transaction);
   const db = {
-    db: { transaction: () => transaction },
+    db: { version, transaction: begin },
     init: vi.fn(async () => undefined),
   } as unknown as Parameters<typeof updateMessageStatus>[0];
   const complete = () => {
     transaction.oncomplete?.();
     for (const listener of listeners.get('complete') ?? []) listener();
   };
-  return { db, store, complete };
+  return { db, store, complete, coverage, begin };
 }
 
 afterEach(clearRecentChatWindows);
@@ -104,6 +112,30 @@ describe('queued message revisions', () => {
 });
 
 describe('canonical message mutations fence recent chat windows', () => {
+  // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
+  it.each(['delete', 'status', 'raw fields', 'queued transition'] as const)(
+    'uses the gated store and dirties its receipt in the same saved-row transaction for %s',
+    async (operation) => {
+      const { db, store, complete, coverage, begin } = mutationDb(row, 34);
+      vi.stubGlobal('IDBKeyRange', class {});
+      try {
+        const pending = {
+          delete: () => deleteMessage(db, row.message_id),
+          status: () => updateMessageStatus(db, row.message_id, 'delivered'),
+          'raw fields': () => updateMessageRawFields(db, row.message_id, { created_at: 2 }),
+          'queued transition': () => applyQueuedMessageRevision(db, row.chat_id, row.message_id, 1, 'steer', 'ciphertext'),
+        }[operation]();
+        await vi.waitFor(() => expect(coverage.put).toHaveBeenCalledExactlyOnceWith({
+          chatId: row.chat_id, revision: expect.any(String),
+        }));
+        expect(begin).toHaveBeenCalledExactlyOnceWith(['saved_messages_v34', 'opened_history_coverage'], 'readwrite');
+        expect(operation === 'delete' ? store.delete : store.put).toHaveBeenCalledOnce();
+        complete();
+        await pending;
+      } finally { vi.unstubAllGlobals(); }
+    },
+  );
+
   // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent
   it('fences chat deletion while its view is unmounted and again on transaction commit', async () => {
     const listeners: Array<() => void> = [];

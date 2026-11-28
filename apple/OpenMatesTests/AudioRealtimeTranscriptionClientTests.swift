@@ -285,6 +285,30 @@ final class AudioRealtimeTranscriptionClientTests: XCTestCase {
         XCTAssertEqual(closeCalls, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.audio.correction-gate
+    func testTitlelessCorrectionKeepsOriginalAndCorrectedText() async throws {
+        let transport = FakeAudioRealtimeTransport()
+        let recorder = AudioRealtimeEventRecorder()
+        let client = makeClient(transport: transport, recorder: recorder)
+        try await client.start()
+        await transport.push(#"{"type":"session.ready"}"#)
+        await transport.push(#"{"type":"transcription.done","transcript":"um hello world"}"#)
+        await transport.push(#"{"type":"correction.done","transcript":"Hello, world.","correction_model":"gemini"}"#)
+        await recorder.waitForCompleted()
+
+        let events = await recorder.events()
+        let corrections = events.compactMap { event -> AudioRealtimeTranscriptionClient.CorrectionResult? in
+            if case .correctionDone(let result) = event { return result }
+            return nil
+        }
+        let correction = try XCTUnwrap(corrections.first)
+        XCTAssertNil(correction.title)
+        XCTAssertEqual(correction.transcriptOriginal, "um hello world")
+        XCTAssertEqual(correction.transcriptCorrected, "Hello, world.")
+        XCTAssertEqual(correction.correctionModel, "gemini")
+        XCTAssertTrue(correction.useCorrected)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
     func testQueueOverflowFailsOnceAndClosesWithoutPlaintextFinalization() async throws {
         let transport = FakeAudioRealtimeTransport()

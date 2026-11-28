@@ -250,7 +250,10 @@ async def test_gemini_correction_prompt_supports_german_and_long_confusing_audio
     assert "same language" in prompt
     assert "Do not translate" in prompt
     assert "German" in prompt
-    assert "long or confusing recordings" in prompt
+    # Long or confusing recordings: only batch-local evidence may repair a word.
+    assert "Use only evidence within this batch" in prompt
+    assert "Prefer the smallest correction" in prompt
+    assert "preserve the original uncertainty" in prompt
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction

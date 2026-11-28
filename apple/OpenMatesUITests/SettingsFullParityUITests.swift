@@ -191,7 +191,7 @@ final class SettingsFullParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Share settings must not render default List/table chrome")
     }
 
-    // contract-test: direct surface=gui.apple assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.authenticated-capture
+    // contract-test: direct surface=gui.apple assertions=issue-reporting.submission.confirmed-and-durable,issue-reporting.logs.authenticated-capture,issue-reporting.form.single-text-quick-actions
     func testReportIssueSubmissionSucceedsAndUploadsSimulatorLogs() throws {
         let app = XCUIApplication()
         app.launchArguments = [
@@ -206,10 +206,12 @@ final class SettingsFullParityUITests: XCTestCase {
         XCTAssertTrue(waitForElement("settings-menu", in: app, timeout: 10))
 
         openDestination((row: "settings-report-issue-row", page: "settings-report-issue-page"), in: app)
-        enterText("Report issue UI test submission", into: "report-issue-title", in: app)
-        enterText("Opened Settings, Report issue, and submitted from the simulator.", into: "report-issue-user-flow", in: app)
-        enterText("A success reference appears and logs are uploaded.", into: "report-issue-expected", in: app)
-        enterText("The UI test verifies the native issue-log payload.", into: "report-issue-actual", in: app)
+        XCTAssertTrue(app.buttons["report-issue-record-voice"].isHittable)
+        XCTAssertFalse(app.textViews["report-issue-user-flow"].exists)
+        XCTAssertFalse(app.textViews["report-issue-expected"].exists)
+        XCTAssertFalse(app.textViews["report-issue-actual"].exists)
+        attachScreenshot(name: "Report Issue single text field and voice action")
+        enterText("Opened Settings and submitted a report from the simulator.", into: "report-issue-title", in: app)
 
         app.descendants(matching: .any)["report-issue-submit"].tap()
         XCTAssertTrue(waitForElement("report-issue-reference", in: app, timeout: 10))
@@ -251,6 +253,27 @@ final class SettingsFullParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Report Issue must keep OpenMates product chrome.")
 
         attachScreenshot(name: "Device shake report entry with diagnostics excluded")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.parity.web-apple-shell
+    func testSettingsHeaderCollapsesWhileMenuScrolls() {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-disable-auth-cache"]
+        app.launch()
+        let settings = app.buttons["settings-button"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 15))
+        settings.tap()
+        let header = app.descendants(matching: .any)["settings-main-header"].firstMatch
+        let menu = app.scrollViews["settings-menu"].firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertTrue(menu.exists)
+        let expandedHeight = header.frame.height
+        attachScreenshot(name: "Settings header expanded")
+        menu.swipeUp()
+        XCTAssertLessThan(header.frame.height, expandedHeight - 20)
+        attachScreenshot(name: "Settings header collapsed while scrolling")
+        menu.swipeDown()
+        XCTAssertEqual(header.frame.height, expandedHeight, accuracy: 2)
     }
 
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,settings-ui.parity.web-apple-shell

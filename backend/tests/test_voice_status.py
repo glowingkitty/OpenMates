@@ -197,6 +197,33 @@ async def test_instant_acknowledgement_uses_only_the_answering_mates_voice(monke
     assert published[0]["payload"]["audio_url"].startswith("/audio/assistant-acknowledgements/sophia/")
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+async def test_reasoning_clip_is_call_bound_and_uses_the_routed_voice_and_language(monkeypatch):
+    from types import SimpleNamespace
+
+    from backend.apps.ai.tasks import stream_consumer
+
+    published = []
+
+    async def capture(_cache, _channel, event, *_args):
+        published.append(event["payload"])
+
+    monkeypatch.setattr(stream_consumer, "_publish_to_redis", capture)
+    request = SimpleNamespace(chat_id="chat", user_id_hash="owner", voice_call_id="call")
+    kwargs = dict(task_id="task", request_data=request, voice_profile_id="george",
+                  cache_service=None, log_prefix="[test]")
+    await stream_consumer.publish_voice_reasoning_confirmation(language="de-DE", phase=1, **kwargs)
+    await stream_consumer.publish_voice_reasoning_confirmation(language="de-DE", phase=2, **kwargs)
+    await stream_consumer.publish_voice_reasoning_confirmation(language="ja-JP", phase=3, **kwargs)
+
+    assert len(published) == 2
+    assert all(payload["voice_call_id"] == "call" for payload in published)
+    assert published[0]["audio_url"].startswith("/audio/assistant-acknowledgements/george/de-DE/reasoning-")
+    assert published[1]["audio_url"] == "/audio/assistant-acknowledgements/george/de-DE/still_thinking-1.mp3"
+    assert len({payload["clip_id"] for payload in published}) == 2
+    assert "task" not in stream_consumer._INSTANT_ACK_SENT
+
+
 # contract-test: direct surface=rest_api assertions=video-call.audio.localized-waiting
 def test_new_chat_is_confirmed_in_the_neutral_system_voice_never_a_mate_voice():
     from backend.apps.ai.assistant_speech.voice_status import select_chat_start_confirmation
@@ -276,3 +303,55 @@ def test_prerecorded_clip_words_resolve_only_from_approved_static_assets():
     for unknown in (f"{root}/hiro/en-US/lookup-9.mp3", f"{root}/hiro/ja-JP/general-1.mp3",
                     f"{root}/../en-US/general-1.mp3", "https://example.org/general-1.mp3", ""):
         assert prerecorded_clip_text(unknown) == ""
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.first-audible-response,video-call.audio.intentional-interruption
+@pytest.mark.asyncio
+async def test_work_cues_follow_actual_phases_and_cancel_pending_reminders(monkeypatch):
+    from backend.apps.ai.assistant_speech import voice_status
+    from types import SimpleNamespace
+    waits, published = asyncio.Queue(), asyncio.Queue()
+
+    async def sleep(delay):
+        pending = asyncio.get_running_loop().create_future()
+        await waits.put((delay, pending))
+        await pending
+
+    async def publish(kind, sequence):
+        await published.put((kind, sequence))
+
+    monkeypatch.setattr(voice_status, "asyncio", SimpleNamespace(
+        sleep=sleep, create_task=asyncio.create_task, gather=asyncio.gather))
+    cues = voice_status.VoiceWorkCues(publish)
+    cues.begin("thinking")
+    delay, pending = await asyncio.wait_for(waits.get(), 1)
+    assert delay == 10 and published.empty()
+    pending.set_result(None)
+    assert await published.get() == ("still_thinking", 1)
+    delay, old = await waits.get()
+    assert delay == 30
+    cues.begin("writing_code")
+    assert await published.get() == ("writing_code", 2)
+    assert old.cancelled()
+    cues.begin("writing_code")
+    delay, pending = await waits.get()
+    assert delay == 10 and published.empty()
+    pending.set_result(None)
+    assert await published.get() == ("still_working", 3)
+    await cues.close()
+    assert published.empty()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+def test_static_work_cues_match_approved_echo_text_in_each_locale():
+    from backend.apps.audio.assistant_speech.acknowledgements import (
+        RECORDED_WORK_CUE_LOCALES, WORK_CUE_TEXTS, build_work_cue, prerecorded_clip_text,
+    )
+    for language, categories in WORK_CUE_TEXTS.items():
+        for kind, lines in categories.items():
+            clip = build_work_cue(voice_profile_id="ace", language=language, category=kind)
+            if language in RECORDED_WORK_CUE_LOCALES:
+                assert prerecorded_clip_text(clip["asset_url"]) == lines[0]
+            else:
+                assert clip is None
+    assert build_work_cue(voice_profile_id="ace", language="ja", category="writing_code") is None

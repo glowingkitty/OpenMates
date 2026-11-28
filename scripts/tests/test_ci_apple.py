@@ -169,6 +169,101 @@ def test_test_lanes_build_once_then_test_on_those_products(mode, specs):
     assert sum(1 for _, command, *_ in plan if command[:2] == ["xcodebuild", "build-for-testing"]) == 1
 
 
+def test_only_private_startup_uses_the_multi_relaunch_allowance():
+    plans = [
+        (ci_apple.STARTUP_BENCHMARK_SPECS, True, "600"),
+        (ci_apple.MAC_STARTUP_BENCHMARK_SPECS, True, "600"),
+        (ci_apple.STARTUP_BENCHMARK_SPECS, False, "300"),
+        ({"OpenMatesUITests/A"}, False, "300"),
+    ]
+    for specs, private, allowance in plans:
+        command = ci_apple.xcode_plan("apple-ui", Path("/out"), sorted(specs), benchmark=private)[-1][1]
+        for flag in ("default", "maximum"):
+            option = f"-{flag}-test-execution-time-allowance"
+            assert command[command.index(option) + 1] == allowance
+
+
+def test_private_mac_startup_uses_hosted_macos_and_preserves_recordings():
+    specs = sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)
+    assert ci_apple.validate_specs("apple-ui", specs) == specs
+    plan = ci_apple.xcode_plan("apple-ui", Path("/out"), specs, benchmark=True)
+    build = next(command for name, command, *_ in plan if name == ci_apple.BUILD_STEP)
+    assert build[build.index("-scheme") + 1] == "OpenMates_macOS"
+    assert build[build.index("-destination") + 1] == "platform=macOS"
+    assert "CODE_SIGNING_ALLOWED=YES" in build
+    assert build[build.index("-configuration") + 1] == "Debug"
+    names = [name for name, *_ in plan]
+    signing = names.index(ci_apple.SIGN_MAC_STARTUP_STEP)
+    assert names.index(ci_apple.BUILD_STEP) < signing < names.index(ci_apple.KEEP_RECORDINGS_STEP)
+    assert plan[signing][1][-2:] == [
+        "sign-macos-startup", "/out/DerivedData/Build/Products/Debug/OpenMates.app",
+    ]
+    ios = ci_apple.xcode_plan("apple-ui", Path("/out"), sorted(ci_apple.STARTUP_BENCHMARK_SPECS), benchmark=True)
+    release_build = ci_apple.xcode_plan("apple-build", Path("/out"), ["all"])
+    assert all(name != ci_apple.SIGN_MAC_STARTUP_STEP for name, *_ in ios + release_build)
+    test = plan[-1][1]
+    assert test[test.index("-destination") + 1] == "platform=macOS"
+    assert {test[index + 1] for index, field in enumerate(test) if field == "-only-testing"} == set(specs)
+
+
+def test_private_mac_signing_replaces_profile_bound_app_signature(tmp_path, monkeypatch):
+    import plistlib
+    import subprocess
+
+    root = Path(__file__).resolve().parents[2]
+    app = tmp_path / "OpenMates.app"
+    contents = app / "Contents"
+    extension = contents / "PlugIns" / "Share.appex"
+    extension.mkdir(parents=True)
+    plist = contents / "Info.plist"
+    plist.write_bytes(plistlib.dumps({
+        "CFBundleIdentifier": "org.openmates.app",
+        "OpenMatesKeychainAccessGroup": "TEAM.example.keychain",
+    }))
+    calls = []
+    monkeypatch.setattr(subprocess, "run", lambda arguments, *, check: calls.append((arguments, check)))
+
+    ci_apple.sign_macos_startup_app(root, app)
+
+    assert plistlib.loads(plist.read_bytes()) == {"CFBundleIdentifier": "org.openmates.app"}
+    assert [Path(arguments[-1]) for arguments, _ in calls] == [extension, app, app]
+    for arguments, check in calls[:2]:
+        assert check and arguments[:5] == ["codesign", "--force", "--sign", "-", "--entitlements"]
+        entitlements = plistlib.loads(Path(arguments[5]).read_bytes())
+        assert "com.apple.security.application-groups" not in entitlements
+        assert "keychain-access-groups" not in entitlements
+        assert "com.apple.developer.associated-domains" not in entitlements
+    assert calls[-1] == (["codesign", "--verify", "--deep", "--strict", str(app)], True)
+
+
+@pytest.mark.parametrize("restricted", [
+    "keychain-access-groups",
+    "com.apple.security.application-groups",
+    "com.apple.developer.associated-domains",
+])
+def test_private_mac_signing_rejects_entitlements_from_a_profile_bound_build(tmp_path, restricted):
+    import plistlib
+
+    app_entitlements = tmp_path / "apple/OpenMates/Resources/OpenMatesMacOSPersonalTeam.entitlements"
+    app_entitlements.parent.mkdir(parents=True)
+    app_entitlements.write_bytes(plistlib.dumps({restricted: ["TEAM.example.group"]}))
+
+    # Fail before any codesign call or mutation of the built app. The hosted
+    # app was rejected by taskgated when ad-hoc signed with its normal settings.
+    with pytest.raises(ValueError, match="requires unrestricted entitlements"):
+        ci_apple.sign_macos_startup_app(tmp_path, tmp_path / "OpenMates.app")
+
+
+def test_mac_startup_rejects_unencrypted_execution_and_mixed_platforms(monkeypatch, tmp_path):
+    monkeypatch.delenv("CI_APPLE_PRIVATE_STARTUP", raising=False)
+    specs = sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)
+    with pytest.raises(ValueError, match="requires private evidence"):
+        ci_apple.run(tmp_path, [], "apple-ui", specs)
+    for refused in (specs[:1], [specs[0], sorted(ci_apple.STARTUP_BENCHMARK_SPECS)[1]]):
+        with pytest.raises(ValueError, match="apple-ui targets"):
+            ci_apple.validate_specs("apple-ui", refused)
+
+
 def test_swift_errors_are_unique_relative_and_complete():
     log = [
         "/w/subject/apple/A.swift:3:5: error: cannot find 'x' in scope",
@@ -215,3 +310,30 @@ def test_apple_build_compiles_macos_even_when_the_ios_build_fails(tmp_path, monk
     assert results[-1]["failures"] == ["apple/B.swift:3:4: error: mac only"]
     errors = (tmp_path / "test-results" / "apple-build" / "swift-errors.txt").read_text().splitlines()
     assert errors == ["apple/A.swift:1:2: error: ios only", "apple/B.swift:3:4: error: mac only"]
+
+
+def test_only_private_startup_builds_with_the_release_optimizer():
+    for specs in (sorted(ci_apple.STARTUP_BENCHMARK_SPECS), sorted(ci_apple.MAC_STARTUP_BENCHMARK_SPECS)):
+        build = ci_apple.xcode_plan("apple-ui", Path("/out"), specs, benchmark=True)[2][1]
+        assert all(setting in build for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
+    ordinary = ci_apple.xcode_plan("apple-ui", Path("/out"), ["OpenMatesUITests/A/testB"])[2][1]
+    assert not any(setting in ordinary for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
+
+
+def test_benchmark_collects_the_apps_own_main_thread_samples(tmp_path):
+    simulator = tmp_path / "home/Library/Developer/CoreSimulator/Devices/D/data/Containers/Data/Application/A/tmp"
+    macos = tmp_path / "temp/T"
+    for folder in (simulator, macos):
+        folder.mkdir(parents=True)
+    (simulator / "openmates-main-samples-11.txt").write_text("E 1")
+    (macos / "openmates-main-samples-22.txt").write_text("E 2")
+    (macos / "unrelated.txt").write_text("x")
+    evidence = tmp_path / "evidence"
+    ci_apple.collect_app_samples(evidence, home=tmp_path / "home",
+                                 temp_glob=str(tmp_path / "temp/*/openmates-main-samples-*.txt"))
+    assert sorted(path.name for path in evidence.iterdir()) == [
+        "openmates-main-samples-11.txt", "openmates-main-samples-22.txt", "sampler.log"]
+    assert not (simulator / "openmates-main-samples-11.txt").exists()
+    assert (macos / "unrelated.txt").exists()
+
+

@@ -116,7 +116,13 @@ impl SendObservations {
         }
         Ok(())
     }
-    pub(super) fn capture_jobs(&mut self, payload: &Value, chat: &str) -> Result<()> {
+    /// Bind an offered Task job to the authenticated turn before retaining it for persistence.
+    pub(super) fn capture_jobs(
+        &mut self,
+        payload: &Value,
+        chat: &str,
+        user_message: &str,
+    ) -> Result<()> {
         let rows = payload["jobs"].as_array().ok_or(Error::Protocol)?;
         if rows.len() > 256 {
             return Err(Error::Protocol);
@@ -130,7 +136,13 @@ impl SendObservations {
             for field in ["revision", "task_key_version", "expires_at"] {
                 row[field].as_u64().ok_or(Error::Protocol)?;
             }
-            self.jobs.insert(id.into(), row.clone());
+            let mut job = row.as_object().ok_or(Error::Protocol)?.clone();
+            // Only the stream envelope can bind a job to this turn.
+            job.remove("message_id");
+            if payload["message_id"] == user_message || payload["user_message_id"] == user_message {
+                job.insert("message_id".into(), json!(user_message));
+            }
+            self.jobs.insert(id.into(), Value::Object(job));
         }
         if self.jobs.len() > 256 {
             return Err(Error::Protocol);
@@ -230,7 +242,15 @@ mod tests {
     #[test]
     fn jobs_require_exact_chat_and_remain_pending_without_a_persistence_receipt() {
         let mut observed = SendObservations::default();
-        observed.capture_jobs(&json!({"jobs":[{"chat_id":"other","job_id":"wrong"},{"chat_id":"chat","job_id":"job","task_id":"task","revision":2,"task_key_version":1,"expires_at":42}]}),"chat").unwrap();
+        observed.capture_jobs(
+            &json!({"message_id":"human","jobs":[
+                {"chat_id":"other","job_id":"wrong"},
+                {"chat_id":"chat","job_id":"job","task_id":"task","revision":2,"task_key_version":1,"expires_at":42,"message_id":"wrong"}
+            ]}),
+            "chat",
+            "human",
+        ).unwrap();
+        assert_eq!(observed.jobs["job"]["message_id"], "human");
         assert_eq!(observed.jobs.len(), 1);
         let result = observed.finish(
             Chat {

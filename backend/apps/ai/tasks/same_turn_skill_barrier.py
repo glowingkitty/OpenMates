@@ -76,6 +76,80 @@ def _latest_turn_key(user_id: str, chat_id: str) -> str:
     return f"async_skill_latest_user_turn:{user_id}:{chat_id}"
 
 
+def _paused_code_index(user_id: str, chat_id: str) -> str:
+    return f"{PREFIX}:code:{user_id}:{chat_id}"
+
+
+def code_work_fence(metadata: dict[str, Any]) -> str:
+    return f"{PREFIX}:work:{metadata['user_id']}:{metadata['chat_id']}:{metadata['logical_task_id']}"
+
+
+async def resume_authority_key(cache: Any, metadata: dict[str, Any]) -> str | None:
+    """Return the turn fence to compare again when reserving the foreground delivery."""
+    latest = _latest_turn_key(metadata["user_id"], metadata["chat_id"])
+    if await cache.get(latest) == metadata["turn_id"]:
+        return latest
+    if metadata.get("code_work") and await cache.get(code_work_fence(metadata)) == metadata["turn_id"]:
+        return code_work_fence(metadata)
+    return None
+
+
+async def find_paused_code_work(cache: Any, *, user_id: str, chat_id: str) -> list[dict[str, Any]]:
+    """List armed owner-scoped code batches. Keep command arguments and output private."""
+    client = await cache.client
+    if client is None:
+        return []
+    batches = await client.zrangebyscore(_paused_code_index(user_id, chat_id), time.time(), "+inf")
+    work = []
+    for value in batches:
+        batch_id = value.decode() if isinstance(value, bytes) else value
+        metadata = await cache.get(_key(batch_id, "batch"))
+        if (not isinstance(metadata, dict) or not metadata.get("code_work")
+                or metadata.get("user_id") != user_id or metadata.get("chat_id") != chat_id):
+            continue
+        sent, stopped, stale, claimed, active = await client.mget([
+            _key(batch_id, marker) for marker in ("sent", "stopped", "stale", "resume_claim")
+        ] + [cache._get_active_task_key(chat_id)])
+        if (sent or stopped or stale or (claimed and claimed == active)
+                or not await barrier_is_armed(cache, batch_id)
+                or not await resume_authority_key(cache, metadata)):
+            continue
+        task_ids = metadata["task_ids"]
+        slots = await client.mget([_key(batch_id, "slot", task_id) for task_id in task_ids])
+        work.append({
+            "batch_id": batch_id, "turn_id": metadata["turn_id"], "task_ids": task_ids,
+            "logical_task_id": metadata["logical_task_id"],
+            "source_delivery_task_id": metadata["source_delivery_task_id"],
+            "task_count": len(task_ids), "completed_count": sum(slot is not None for slot in slots),
+        })
+    return work
+
+
+async def preserve_paused_code_work(cache: Any, *, user_id: str, chat_id: str, batch_id: str, turn_id: str) -> bool:
+    """Bind a confirmed independent follow-up to a still-recoverable original execution."""
+    metadata = await cache.get(_key(batch_id, "batch"))
+    if (not isinstance(metadata, dict) or not metadata.get("code_work")
+            or metadata.get("turn_id") != turn_id or metadata.get("user_id") != user_id
+            or metadata.get("chat_id") != chat_id or metadata["deadline"] <= time.time()):
+        return False
+    client = await cache.client
+    if client is None:
+        return False
+    return bool(await client.eval(
+        "if redis.call('EXISTS', KEYS[1]) == 0 or redis.call('EXISTS', KEYS[2], KEYS[3], KEYS[4]) > 0 "
+        "then return 0 end; "
+        "local resume = redis.call('GET', KEYS[5]); "
+        "if resume and resume == redis.call('GET', KEYS[6]) then return 0 end; "
+        "local saved = redis.call('GET', KEYS[8]); "
+        "if saved and saved ~= ARGV[1] then return 0 end; "
+        "if not saved and redis.call('GET', KEYS[7]) ~= ARGV[1] then return 0 end; "
+        "redis.call('SET', KEYS[8], ARGV[1], 'EX', ARGV[2]); return 1",
+        8, _key(batch_id, "armed"), _key(batch_id, "sent"), _key(batch_id, "stopped"),
+        _key(batch_id, "stale"), _key(batch_id, "resume_claim"), cache._get_active_task_key(chat_id),
+        _latest_turn_key(user_id, chat_id), code_work_fence(metadata), turn_id, TTL_SECONDS,
+    ))
+
+
 async def _set_once(cache: Any, key: str, value: str) -> bool:
     client = await cache.client
     if client is None:
@@ -87,7 +161,7 @@ async def register_barrier(
     cache: Any, *, batch_id: str, user_id: str, chat_id: str, turn_id: str,
     task_ids: list[str], checkpoint_ref: str, deadline: float, logical_task_id: str,
     source_delivery_task_id: str, recovery_inference_task_id: str | None = None,
-    handoff_ttl_seconds: int = 20 * 60,
+    handoff_ttl_seconds: int = 20 * 60, code_work: bool = False,
 ) -> None:
     if (not task_ids or len(task_ids) != len(set(task_ids)) or deadline <= time.time()
             or not 1200 <= handoff_ttl_seconds <= TTL_SECONDS
@@ -101,6 +175,8 @@ async def register_barrier(
         "recovery_inference_task_id": recovery_inference_task_id,
         "handoff_ttl_seconds": handoff_ttl_seconds,
     }
+    if code_work:
+        metadata["code_work"] = True
     if not await _set_once(cache, _key(batch_id, "batch"), json.dumps(metadata)):
         previous = await cache.get(_key(batch_id, "batch"))
         if previous != metadata:
@@ -348,9 +424,20 @@ def selected_resume_route(
 
 async def arm_barrier(cache: Any, batch_id: str) -> None:
     """Publish readiness only after the durable recovery pause is established."""
-    if not isinstance(await cache.get(_key(batch_id, "batch")), dict):
+    metadata = await cache.get(_key(batch_id, "batch"))
+    if not isinstance(metadata, dict):
         raise RuntimeError("Same-turn barrier is unavailable")
-    await _set_once(cache, _key(batch_id, "armed"), "armed")
+    if metadata.get("code_work"):
+        client = await cache.client
+        index = _paused_code_index(metadata["user_id"], metadata["chat_id"])
+        async with client.pipeline(transaction=True) as pipe:
+            pipe.zremrangebyscore(index, "-inf", time.time())
+            pipe.zadd(index, {batch_id: metadata["deadline"]})
+            pipe.expire(index, TTL_SECONDS)
+            pipe.set(_key(batch_id, "armed"), "armed", nx=True, ex=TTL_SECONDS)
+            await pipe.execute()
+    else:
+        await _set_once(cache, _key(batch_id, "armed"), "armed")
 
 
 async def barrier_is_armed(cache: Any, batch_id: str) -> bool:
@@ -378,7 +465,7 @@ async def claim_ready(cache: Any, *, batch_id: str, expire_missing: bool = False
         return None
     if not await barrier_is_armed(cache, batch_id):
         return None
-    if await cache.get(_latest_turn_key(metadata["user_id"], metadata["chat_id"])) != metadata["turn_id"]:
+    if not await resume_authority_key(cache, metadata):
         await _set_once(cache, _key(batch_id, "stale"), "1")
         return None
     expire_missing = bool(expire_missing and time.time() >= metadata["deadline"])
@@ -527,7 +614,7 @@ async def verify_resume_delivery(cache: Any, request: Any, delivery_task_id: str
         return False
     if await cache.get(_key(batch_id, "resume_claim")) != delivery_task_id:
         return False
-    if await cache.get(_latest_turn_key(request.user_id, request.chat_id)) != request.message_id:
+    if not await resume_authority_key(cache, metadata):
         return False
     if [slot.get("task_id") for slot in request.same_turn_slots] != metadata.get("task_ids"):
         return False

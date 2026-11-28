@@ -17,7 +17,7 @@ goal: >-
   judge also rates answer quality and flags demo-chat candidates; transcripts
   are readable per persona. Reports from test accounts start investigation
   chats that may only fix small, clear bugs (TASK-8809). One short Discord
-  summary per day. Monday to Friday 3 dev + 2 production personas, never on
+  alert on days with issues or harness problems. Monday to Friday 3 dev + 2 production personas, never on
   weekends (owner, 21 Nov 2026), about 30 USD per month. Models stay as they are.
 scope:
   - >-
@@ -35,19 +35,24 @@ scope:
     Report issue: up to 5 screenshots on web, API, storage and the admin/debug
     readers; the legacy single field stays accepted (Apple, CLI).
   - >-
-    Reports only collect findings (owner, 20 Nov 2026 evening): no
-    investigation chat starts from a test-user report. Test accounts send no
-    issue emails; real issue emails carry the first ~60 characters of the
-    title as subject.
+    Debug chats (owner, 23 Nov 2026, replacing the 20 Nov "reports only
+    collect findings" rule): clear functional errors start an investigation
+    chat by themselves after a duplicate check against open Tasks and chats;
+    subjective findings wait for Marco's approval in the run message. Test
+    accounts (label or AI test-user account address) send no issue emails;
+    real issue emails carry the first ~60 characters of the title as subject.
   - >-
     Production gift card batch: backend/scripts/create_test_gift_card_batch.py
     run by Marco inside the production api container over SSH; codes land in a
-    0600 file on the dev host, outside the repository.
+    0600 file on the dev host, outside the repository. One card per production
+    persona, two per weekday. The 160-card default covers 80 weekday runs
+    (about 112 calendar days). At 20 cards the runner warns once per batch
+    with the refill command.
   - >-
     Schedule: systemd user timer on the dev host, weekday rotation (3 dev, 2
     prod, disjoint personas, every persona on each server within a week),
     Monday to Friday only (no Saturday full run since 21 Nov 2026), one daily
-    summary push, one low-batch question push.
+    alert for issues or harness problems, and one early low-stock warning per batch.
 contracts:
   - issue-reporting.form.single-text-quick-actions
   - issue-reporting.submission.confirmed-and-durable
@@ -83,7 +88,10 @@ decisions:
     problem (a persona that did not finish, a report not filed, a judge error,
     an account left undeleted) sends its summary as a ❌ alert naming the
     problems; a crash, timeout or kill of the unit sends one ❌ alert from the
-    unit's OnFailure hook. Manual runs push the same summary with --notify.
+    unit's OnFailure hook. Owner, 25 Nov 2026: clean daily runs write a local
+    summary without a Discord push. When a production release blocks the
+    production personas, the daily run proceeds on dev and names the skip in
+    its alert. Manual runs push the same summary with --notify.
   - >-
     Owner, 20 Nov 2026: every run (dev and prod, daily, weekly, manual)
     records each persona's browser session and uploads it to a private S3

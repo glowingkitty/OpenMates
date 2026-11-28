@@ -17,10 +17,11 @@ use crate::error::{Error, Result};
 use serde_json::{Map, Value};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Top-level snapshot fields that form the Chat-list index section.
 /// Cached account display name for the first paint of the home screen.
 pub const DISPLAY_NAME_FIELD: &str = "display_name_hint_v1";
-pub fn index_fields() -> [&'static str; 8] {
+pub(super) const CHAT_TOTAL_FIELD: &str = "chat_total_count_v1";
+/// Top-level snapshot fields that form the chat-list index section.
+pub fn index_fields() -> [&'static str; 10] {
     [
         "chats",
         "wrappers",
@@ -31,6 +32,8 @@ pub fn index_fields() -> [&'static str; 8] {
         // architecture.sync@2 feed cursor and overview inputs.
         "chat_sync_feed_v1",
         DISPLAY_NAME_FIELD,
+        CHAT_TOTAL_FIELD,
+        super::recently_opened::SNAPSHOT_FIELD,
     ]
 }
 /// Top-level snapshot field carrying the protected list-freshness receipt.

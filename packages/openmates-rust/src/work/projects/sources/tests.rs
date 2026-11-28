@@ -449,7 +449,7 @@ async fn source_expiry_and_wrong_team_key_epoch_fail_without_source_write() {
         Err(Error::Expired)
     ));
     let mut raw = project(Some(TEAM));
-    raw["key_wrappers"][0]["team_key_epoch"] = json!(2);
+    raw["key_wrappers"][0]["team_key_epoch"] = json!(0);
     // The epoch is refused from the Project row itself, before the Team
     // read: no Team key is fetched or unwrapped for an unusable wrapper.
     let (api, server) = mock(vec![session(), json!({"project": raw})]).await;

@@ -62,10 +62,16 @@ else:
 def test_all_legacy_celery_services_build_complete_repository_layout_without_volume_changes():
     compose_path = ROOT / "backend/core/docker-compose.yml"
     compose = yaml.safe_load(compose_path.read_text())
-    workers = [service for service in compose["services"].values()
-               if service.get("build", {}).get("dockerfile", "").endswith("Dockerfile.celery")]
-    assert len(workers) == 10
-    for worker in workers:
+    workers = {
+        name: service for name, service in compose["services"].items()
+        if service.get("build", {}).get("dockerfile", "").endswith("Dockerfile.celery")
+    }
+    assert workers.keys() == {
+        "task-worker", "workflow-worker", "task-scheduler", "app-ai-worker",
+        "app-ai-routing-worker", "app-images-worker", "app-music-worker",
+        "app-videos-worker", "app-pdf-worker", "app-code-worker", "app-social-media-worker",
+    }
+    for worker in workers.values():
         build = worker["build"]
         context = (compose_path.parent / build["context"]).resolve()
         assert context == ROOT

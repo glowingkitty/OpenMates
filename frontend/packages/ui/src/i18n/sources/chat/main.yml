@@ -2777,6 +2777,31 @@ header.example_chat:
   he: "צ'אט לדוגמה"
   verified_by_human: []
 
+header.sub_chat:
+  context: Pill in the chat header marking a chat that was started as a sub-chat of another chat
+  en: Sub-chat
+  de: Sub-Chat
+  zh: 子聊天
+  es: Subchat
+  fr: Sous-discussion
+  pt: Subchat
+  ru: Подчат
+  ja: サブチャット
+  ko: 하위 채팅
+  it: Sotto-chat
+  tr: Alt sohbet
+  vi: Cuộc trò chuyện con
+  id: Sub-chat
+  pl: Podczat
+  nl: Subchat
+  ar: محادثة فرعية
+  hi: सब-चैट
+  th: แชตย่อย
+  cs: Podchat
+  sv: Underchatt
+  he: תת-צ'אט
+  verified_by_human: []
+
 header.shared_chat:
   context: Label shown as a badge/pill in the chat header banner and as an accessible label in the chat list when the user is viewing a public shared chat owned by someone else.
   en: Shared chat

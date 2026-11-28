@@ -30,27 +30,54 @@ fn recovery_validates_typed_pointerless_plan_projections() {
 fn recovery_rejects_ciphertext_and_cyclic_dependencies() {
     let mut ciphertext = document();
     ciphertext["plans"][0]["encrypted_goal"] = json!("ciphertext");
-    assert_eq!(error(&ciphertext), "Recovery projection must not contain ciphertext field encrypted_goal.");
+    assert_eq!(
+        error(&ciphertext),
+        "Recovery projection must not contain ciphertext field encrypted_goal."
+    );
     let mut cyclic = document();
-    cyclic["dependencies"].as_array_mut().unwrap().push(json!({"source_ref": "plan:plan-1", "target_ref": "task:task-1"}));
-    assert_eq!(error(&cyclic), "Work recovery dependency cycle includes task:task-1.");
+    cyclic["dependencies"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"source_ref": "plan:plan-1", "target_ref": "task:task-1"}));
+    assert_eq!(
+        error(&cyclic),
+        "Work recovery dependency cycle includes task:task-1."
+    );
 }
 
 #[test]
 fn recovery_reports_exact_schema_and_reference_errors() {
-    assert_eq!(error(&json!("text")), "Work recovery document must be an object.");
-    assert_eq!(error(&json!({"schema_version": 2})), "Unsupported work recovery schema_version.");
-    assert_eq!(error(&json!({"schema_version": 1, "project": {}})), "Work recovery document requires project.project_id.");
+    assert_eq!(
+        error(&json!("text")),
+        "Work recovery document must be an object."
+    );
+    assert_eq!(
+        error(&json!({"schema_version": 2})),
+        "Unsupported work recovery schema_version."
+    );
+    assert_eq!(
+        error(&json!({"schema_version": 1, "project": {}})),
+        "Work recovery document requires project.project_id."
+    );
     let mut missing = document();
     missing.as_object_mut().unwrap().remove("revisions");
-    assert_eq!(error(&missing), "Work recovery document requires revisions.");
+    assert_eq!(
+        error(&missing),
+        "Work recovery document requires revisions."
+    );
     let mut duplicate = document();
     let plan = duplicate["plans"][0].clone();
     duplicate["plans"].as_array_mut().unwrap().push(plan);
-    assert_eq!(error(&duplicate), "Recovery document has duplicate plan ID plan-1.");
+    assert_eq!(
+        error(&duplicate),
+        "Recovery document has duplicate plan ID plan-1."
+    );
     let mut scoped = document();
     scoped["tasks"][0]["linked_project_ids"] = json!(["project-1", "project-2"]);
-    assert_eq!(error(&scoped), "Recovery task must be scoped only to project project-1.");
+    assert_eq!(
+        error(&scoped),
+        "Recovery task must be scoped only to project project-1."
+    );
     let mut orphan = document();
     orphan["tasks"][0]["plan_id"] = json!("plan-9");
     assert_eq!(error(&orphan), "Task references missing plan plan-9.");
@@ -59,16 +86,28 @@ fn recovery_reports_exact_schema_and_reference_errors() {
     assert_eq!(error(&no_id), "Recovery assumption requires assumption_id.");
     let mut sources = document();
     sources["assumptions"][0]["sources"] = json!("text");
-    assert_eq!(error(&sources), "Assumption sources must be a typed cleartext proof list.");
+    assert_eq!(
+        error(&sources),
+        "Assumption sources must be a typed cleartext proof list."
+    );
     let mut snapshot = document();
     snapshot["revisions"][0]["snapshot"] = json!([]);
-    assert_eq!(error(&snapshot), "Revision requires a canonical plan snapshot.");
+    assert_eq!(
+        error(&snapshot),
+        "Revision requires a canonical plan snapshot."
+    );
     let mut dangling = document();
     dangling["dependencies"][0]["target_ref"] = json!("plan:plan-9");
-    assert_eq!(error(&dangling), "Work recovery dependency references missing object plan:plan-9.");
+    assert_eq!(
+        error(&dangling),
+        "Work recovery dependency references missing object plan:plan-9."
+    );
     let mut half = document();
     half["dependencies"][0]["target_ref"] = json!("");
-    assert_eq!(error(&half), "Work recovery dependencies require source_ref and target_ref.");
+    assert_eq!(
+        error(&half),
+        "Work recovery dependencies require source_ref and target_ref."
+    );
 }
 
 #[test]
@@ -83,7 +122,11 @@ fn recovery_ignores_server_generated_metadata_during_semantic_comparison() {
     restored["assumptions"].as_array_mut().unwrap().clear();
     assert_eq!(
         semantic_mismatch_paths(&document(), &restored),
-        vec!["$.assumptions.length", "$.plans[0].goal", "$.tasks[0].extra"]
+        vec![
+            "$.assumptions.length",
+            "$.plans[0].goal",
+            "$.tasks[0].extra"
+        ]
     );
     let mut float = document();
     float["schema_version"] = json!(1.0);
@@ -99,10 +142,23 @@ fn recovery_conflicts_name_existing_and_wrong_project_objects() {
         r#"[{"kind":"plan","id":"plan-1","reason":"already_exists"},{"kind":"task","id":"task-1","reason":"already_exists"}]"#
     );
     let wrong = find_conflicts(&value, "project-2", &[], &[]);
-    assert_eq!(wrong, vec![RecoveryConflict { kind: "plan", id: "project-1".into(), reason: "wrong_project" }]);
+    assert_eq!(
+        wrong,
+        vec![RecoveryConflict {
+            kind: "plan",
+            id: "project-1".into(),
+            reason: "wrong_project"
+        }]
+    );
     let report = dry_run_report(&value, "project-1", &[]);
-    assert_eq!(report["would_restore"], json!({"plans":1,"tasks":1,"assumptions":1,"dependencies":1,"revisions":1}));
-    assert_eq!(dry_run_report(&value, "project-2", &wrong)["would_restore"], Value::Null);
+    assert_eq!(
+        report["would_restore"],
+        json!({"plans":1,"tasks":1,"assumptions":1,"dependencies":1,"revisions":1})
+    );
+    assert_eq!(
+        dry_run_report(&value, "project-2", &wrong)["would_restore"],
+        Value::Null
+    );
 }
 
 #[test]
@@ -116,12 +172,18 @@ fn recovery_projections_match_existing_cli_shapes() {
         "external_chat": {"provider": "github", "id": "9"}});
     let projected = task_projection(&task);
     assert_eq!(projected["blocked_reason"], Value::Null);
-    assert_eq!(projected["external_chat"], json!({"provider": "github", "id": "9", "title": ""}));
+    assert_eq!(
+        projected["external_chat"],
+        json!({"provider": "github", "id": "9", "title": ""})
+    );
     assert!(projected.get("created_at").is_none() && projected.get("read_only").is_none());
     assert_eq!(projected.as_object().unwrap().len(), 25);
     let assumption = json!({"assumption_id": "A", "text": "Known", "sources": r#"[{"kind":"file","path":"a.rs"}]"#});
     let projected = assumption_projection("p", &assumption).unwrap();
-    assert_eq!(projected["sources"], json!([{"kind": "file", "path": "a.rs"}]));
+    assert_eq!(
+        projected["sources"],
+        json!([{"kind": "file", "path": "a.rs"}])
+    );
     assert_eq!(projected["linked_criterion_ids"], json!([]));
     assert_eq!(projected["category"], Value::Null);
     let bad = json!({"assumption_id": "A", "sources": r#"[{"kind":"url"}]"#});
@@ -130,12 +192,22 @@ fn recovery_projections_match_existing_cli_shapes() {
         "Assumption encrypted_sources must contain typed proof records."
     );
     let revision = json!({"revision_id": "R", "fingerprint": "f", "created_at": 5});
-    assert_eq!(revision_projection("p", &revision, "").unwrap_err().to_string(), "Revision R could not be decrypted.");
     assert_eq!(
-        revision_projection("p", &revision, r#"{"encrypted_goal":"x"}"#).unwrap_err().to_string(),
+        revision_projection("p", &revision, "")
+            .unwrap_err()
+            .to_string(),
+        "Revision R could not be decrypted."
+    );
+    assert_eq!(
+        revision_projection("p", &revision, r#"{"encrypted_goal":"x"}"#)
+            .unwrap_err()
+            .to_string(),
         "Recovery projection must not contain ciphertext field encrypted_goal."
     );
-    assert_eq!(revision_projection("p", &revision, r#"{"goal":"x"}"#).unwrap()["snapshot"], json!({"goal": "x"}));
+    assert_eq!(
+        revision_projection("p", &revision, r#"{"goal":"x"}"#).unwrap()["snapshot"],
+        json!({"goal": "x"})
+    );
 }
 
 #[test]
@@ -148,13 +220,22 @@ fn recovery_restore_inputs_require_existing_cli_fields() {
     assert_eq!(input.linked_project_ids, vec![project.to_owned()]);
     assert!(input.slug.is_none() && input.primary_chat_id.is_none());
     plan.as_object_mut().unwrap().remove("risks");
-    assert_eq!(plan_create_input(&plan, project).err().unwrap().to_string(), "Recovery record requires risks.");
+    assert_eq!(
+        plan_create_input(&plan, project).err().unwrap().to_string(),
+        "Recovery record requires risks."
+    );
     let mut task = json!({"task_id": "t", "title": "T", "description": "", "labels": ["a"], "status": "todo",
         "assignee_type": "user", "assignee_hash": null, "priority": 2, "due_at": null});
     let input = task_create_input(&task, project).unwrap();
-    assert_eq!((input.assign.as_deref(), input.priority, input.due_at), (Some("user"), Some(2), None));
+    assert_eq!(
+        (input.assign.as_deref(), input.priority, input.due_at),
+        (Some("user"), Some(2), None)
+    );
     task["labels"] = json!([1]);
-    assert_eq!(task_create_input(&task, project).err().unwrap().to_string(), "Recovery record requires labels string array.");
+    assert_eq!(
+        task_create_input(&task, project).err().unwrap().to_string(),
+        "Recovery record requires labels string array."
+    );
     assert_eq!(projection_path("/tmp/root/", "id"), "/tmp/root/id.yml");
     assert_eq!(projection_path("/tmp/root", "id"), "/tmp/root/id.yml");
 }
@@ -166,9 +247,15 @@ fn recovery_yaml_round_trips_sorted_and_rejects_invalid_documents() {
     assert!(source.find("assumptions:").unwrap() < source.find("dependencies:").unwrap());
     assert!(source.find("plans:").unwrap() < source.find("project:").unwrap());
     assert_eq!(parse_document(&source).unwrap(), document());
-    assert_eq!(parse_document("a: [").unwrap_err().to_string(), "Recovery projection is not valid YAML.");
+    assert_eq!(
+        parse_document("a: [").unwrap_err().to_string(),
+        "Recovery projection is not valid YAML."
+    );
     let mut cyclic = document();
-    cyclic["dependencies"].as_array_mut().unwrap().push(json!({"source_ref": "plan:plan-1", "target_ref": "task:task-1"}));
+    cyclic["dependencies"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"source_ref": "plan:plan-1", "target_ref": "task:task-1"}));
     assert!(serialize_document(&cyclic).is_err());
 }
 
@@ -182,6 +269,9 @@ fn recovery_atomic_write_uses_private_permissions_and_leaves_no_temporary_file()
     let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
     assert_eq!(mode, 0o600);
     assert!(!root.join("nested").join("project-1.yml.tmp").exists());
-    assert_eq!(parse_document(&std::fs::read_to_string(&path).unwrap()).unwrap(), document());
+    assert_eq!(
+        parse_document(&std::fs::read_to_string(&path).unwrap()).unwrap(),
+        document()
+    );
     std::fs::remove_dir_all(root).unwrap();
 }

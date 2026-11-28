@@ -135,7 +135,7 @@ impl CanonicalHistory {
 }
 
 /// Exact non-draft Item crypto projection, usable without a Client borrow.
-pub(super) fn saved_item(row: &Value, key: &[u8; 32]) -> Result<Item> {
+pub(in crate::client) fn saved_item(row: &Value, key: &[u8; 32]) -> Result<Item> {
     let mut item = Plain::new(Item {
         id: required(row, "id")?.into(),
         ..Item::default()

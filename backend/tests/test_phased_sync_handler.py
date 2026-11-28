@@ -12,6 +12,7 @@ import asyncio
 import sys
 import types
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 
 if "redis.asyncio" not in sys.modules:
@@ -827,6 +828,68 @@ async def test_phase_all_runs_phase1b_and_phase2_concurrently(monkeypatch, doc_a
     assert "phase3" not in calls
     assert all(message["type"] != "background_message_sync" for message in manager.sent)
     assert manager.sent[-1]["payload"]["context_epoch"] == 7
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+@pytest.mark.parametrize("team_id", [None, "team-1"])
+async def test_opened_startup_sends_only_resume_metadata_then_modified_inventory(monkeypatch, team_id):
+    recent = [
+        {"id": "opened-first", "messages_v": 8},
+        {"id": "opened-second", "messages_v": 0},
+        {"id": "opened-no-version"},
+        {"id": "opened-invalid-version", "messages_v": True},
+    ]
+    feed = SimpleNamespace(startup_opened=AsyncMock(return_value=recent))
+    originating_socket = SimpleNamespace(
+        query_params={"client_capabilities": "chat_startup_opened_v1"},
+        app=SimpleNamespace(state=SimpleNamespace(chat_sync_feed=feed)),
+    )
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    legacy = AsyncMock()
+    legacy_metadata = AsyncMock(return_value=["legacy-team-parent"])
+    modified = AsyncMock()
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase1_sync", legacy_metadata)
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase1b_sync", legacy)
+    monkeypatch.setattr(phased_sync_handler, "_handle_phase2_sync", modified)
+    async def suggestions_after_priority(*_args):
+        assert manager.send_personal_message.await_count == 1
+        assert manager.send_personal_message.await_args.args[0]["type"] == "chat_startup_opened_ready"
+        return []
+
+    monkeypatch.setattr(phased_sync_handler, "_fetch_new_chat_suggestions", suggestions_after_priority)
+    monkeypatch.setattr(phased_sync_handler, "_fetch_daily_inspirations", AsyncMock(return_value=[]))
+    monkeypatch.setattr(phased_sync_handler, "_handle_app_settings_memories_sync", AsyncMock())
+
+    await handle_phased_sync_request(
+        websocket=originating_socket, manager=manager, cache_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(team=SimpleNamespace(require_team_role=AsyncMock())),
+        encryption_service=SimpleNamespace(), user_id="user-1", device_fingerprint_hash="device-1",
+        payload={"phase": "all", "context_epoch": 7, "team_id": team_id},
+    )
+
+    frames = [call.args[0] for call in manager.send_personal_message.await_args_list]
+    modified.assert_awaited_once()
+    if team_id:
+        legacy_metadata.assert_awaited_once()
+        legacy.assert_awaited_once()
+        feed.startup_opened.assert_not_awaited()
+        assert "startup_feed" not in modified.await_args.kwargs
+        assert [frame["type"] for frame in frames] == ["phased_sync_complete"]
+        return
+    assert [frame["type"] for frame in frames] == [
+        "chat_startup_opened_ready", "phase_1_last_chat_ready", "phased_sync_complete",
+    ]
+    priority, shell = (frame["payload"] for frame in frames[:2])
+    assert priority["chat_id"] == shell["chat_id"] == "opened-first"
+    assert priority["offline_chat_ids"] == [row["id"] for row in recent]
+    assert priority["messages_versions"] == {"opened-first": 8, "opened-second": 0}
+    feed.startup_opened.assert_awaited_once_with("user-1", None)
+    assert "offline_chat_ids" not in shell and "messages_versions" not in shell
+    assert shell["messages"] is None and shell["recent_chat_metadata"] == []
+    legacy_metadata.assert_not_awaited()
+    assert modified.await_args.kwargs["startup_feed"] is feed
+    legacy.assert_not_awaited()
 
 
 @pytest.mark.anyio
@@ -1835,6 +1898,35 @@ async def test_phase2_skips_current_chats_from_directus_versions_when_redis_is_c
     payload = manager.sent[-1]["payload"]
     assert [row["chat_details"]["id"] for row in payload["chats"]] == ["stale", "new"]
     assert payload["total_chat_count"] == 3
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.recent-metadata-cap,sync.deletion.partial-window-not-authoritative
+@pytest.mark.anyio
+async def test_phase2_client_only_durable_deletion_preserves_authoritative_total(monkeypatch) -> None:
+    client_only_id = "172419a1-35dc-4d58-a0e7-806231ebe338"
+    counted_id = "c2175bf9-dd93-471a-93ac-ab9aeaf0481a"
+    feed = SimpleNamespace(recent_modified=AsyncMock(return_value=(
+        [{"id": counted_id, "encrypted_title": "opaque-title"}], 125,
+    )))
+    manager = SimpleNamespace(send_personal_message=AsyncMock())
+    lookup = AsyncMock(return_value={client_only_id})
+    monkeypatch.setattr(phased_sync_handler, "_get_tombstoned_chat_ids", AsyncMock(return_value=set()))
+    monkeypatch.setattr(phased_sync_handler, "_lookup_durable_deleted_chat_ids", lookup)
+    monkeypatch.setattr(phased_sync_handler, "_apply_phase2_authoritative_drafts", AsyncMock())
+    monkeypatch.setattr(phased_sync_handler, "stale_draft_probe_fields", AsyncMock(return_value={}))
+
+    await phased_sync_handler._handle_phase2_sync(
+        manager=manager, cache_service=SimpleNamespace(), directus_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1", client_chat_versions={},
+        client_chat_ids=[client_only_id], sent_embed_ids=set(), startup_feed=feed,
+    )
+
+    payload = manager.send_personal_message.await_args.args[0]["payload"]
+    assert payload["total_chat_count"] == 125
+    assert payload["explicit_deleted_chat_ids"] == [client_only_id]
+    assert payload["authoritative"] is False
+    assert [row["chat_details"]["id"] for row in payload["chats"]] == [counted_id]
+    assert lookup.await_args.args[2] == [client_only_id, counted_id]
 
 
 # ─── Phase 1b bounded concurrent per-chat reads ───────────────────────────────

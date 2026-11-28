@@ -1,0 +1,25 @@
+schema_version: 2
+profile: concise
+id: apple-dev-parity
+title: Native Apple parity before the next TestFlight build
+status: implementing
+goal: >-
+  When Marco next asks to build the Apple app to TestFlight, all recent web
+  changes and all pending Apple work must already be in the native Apple app
+  on dev for iPhone, iPad and Mac.
+scope:
+  in:
+    - Compare recent dev changes with the last verifiable Apple build and record every native counterpart and gap.
+    - Finish the preserved performance, reconnect, dictation, start-screen and Daily Inspiration work.
+    - Match web idle artwork and notification audio, the compact fullscreen embed layout, voice, signed-out entry and Continue ordering.
+    - Match Design, Rich Sheets and hosted realtime editing where the corresponding native surface exists.
+  out:
+    - Production changes, pull requests and TestFlight upload.
+decisions:
+  - Follow the production PR without gating it on Apple.
+  - Keep transport, call policy, sync, persistence and encryption in their owning shared layers.
+  - Reuse active implementation lanes and preserved source and evidence.
+required_checks:
+  - Fresh Apple unit and UI checks on the exact source shipped to dev, with simulator recordings of the changed flows.
+  - Check iPhone and iPad layouts, plus the macOS build and interaction where applicable.
+  - Record real-device and Mac proof still required, including audio routes, thermal behavior and pointer hover when simulator evidence cannot prove them.

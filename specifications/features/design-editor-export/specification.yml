@@ -1,0 +1,40 @@
+schema_version: 1
+id: feature.design-editor-export
+version: 1
+status: draft
+title: Local Design exports
+summary: Download the current artboard as SVG or PNG and the full Design as PDF.
+inherits:
+  - feature.design-editor@1
+scope:
+  includes:
+    - View-mode downloads of the selected artboard as SVG or PNG.
+    - PDF export of all artboards in document order, using their original proportions.
+    - Local encoding from the validated scene and locally available, authorized images.
+  excludes:
+    - Native Illustrator files or sending source documents and images to an export service.
+assertions:
+  - id: design-editor.export.artboard
+    type: behavior
+    must: >-
+      Export the selected artboard as an SVG with editable text and vector objects, or as a PNG
+      at artboard dimensions. Preserve placement, color, clipping, and locally available images.
+  - id: design-editor.export.pdf
+    type: behavior
+    must: >-
+      Export one PDF page per artboard in document order, retaining page sizes and appearance.
+  - id: design-editor.export.local
+    type: security
+    must: >-
+      Use the validated in-memory scene and images already available locally under their authorized
+      embed. Create the output on the device. A missing required image prevents the download and
+      displays an explanation. Export leaves the saved Design client-side encrypted.
+applies_to:
+  gui:
+    required: true
+    implementations:
+      web: {required: true, role: Artboard export controls.}
+      apple: {required: false, role: Follows the web export flow.}
+examples:
+  file: examples.yml
+  required_groups: [exports]

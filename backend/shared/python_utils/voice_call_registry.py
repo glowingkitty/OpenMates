@@ -3,6 +3,8 @@
 Only identities and lifecycle state are stored in Redis. Transcript text and
 audio never enter this registry. A completed call retains its issued identities
 briefly so a browser can retry ciphertext synchronization after hangup.
+The session identity comes from the authenticated session ledger and survives
+rotation of its refresh credential.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ FINALIZATION_GRACE_SECONDS = 300
 class VoiceCallBinding:
     state: str
     grace_expires_at: int | None
+    state_cues: bool = False
 
 
 def _keys(call_id: str) -> tuple[str, str]:
@@ -39,6 +42,7 @@ async def _client(cache: Any) -> Any:
 async def register_active_call(
     cache: Any, *, user_id: str, session_id: str, chat_id: str, call_id: str,
     ttl_seconds: int = ACTIVE_TTL_SECONDS,
+    instant_feedback: bool = False, state_cues: bool = False,
 ) -> None:
     key, _ = _keys(call_id)
     if not all(isinstance(value, str) and value for value in (user_id, session_id, chat_id)):
@@ -46,9 +50,9 @@ async def register_active_call(
     client = await _client(cache)
     created = await client.eval(
         "if redis.call('EXISTS', KEYS[1]) ~= 0 then return 0 end "
-        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active') "
+        "redis.call('HSET', KEYS[1], 'user', ARGV[1], 'session', ARGV[2], 'chat', ARGV[3], 'state', 'active', 'instant_feedback', ARGV[5], 'state_cues', ARGV[6]) "
         "redis.call('EXPIRE', KEYS[1], ARGV[4]) return 1",
-        1, key, user_id, session_id, chat_id, ttl_seconds,
+        1, key, user_id, session_id, chat_id, ttl_seconds, int(instant_feedback or state_cues), int(state_cues),
     )
     if created != 1:
         raise RuntimeError("Call identity already exists")
@@ -98,23 +102,27 @@ async def issue_message_id(
 
 async def require_active_call(
     cache: Any, *, user_id: str, session_id: str, chat_id: str, call_id: str,
-    message_id: str, role: str,
+    message_id: str, role: str, legacy_session_hash: str | None = None,
 ) -> VoiceCallBinding:
     key, messages_key = _keys(call_id)
     client = await _client(cache)
-    values = await client.hmget(key, "user", "session", "chat", "state", "grace_expires_at")
+    values = await client.hmget(key, "user", "session", "chat", "state", "grace_expires_at", "state_cues")
     decoded = [value.decode() if isinstance(value, bytes) else value for value in values]
-    if decoded[:3] != [user_id, session_id, chat_id] or decoded[3] not in ("active", "finalizing"):
+    owner, bound_session, bound_chat, state, expires_at, state_cues = decoded
+    session_matches = bound_session == session_id or (
+        bool(legacy_session_hash) and bound_session == legacy_session_hash
+    )
+    if owner != user_id or not session_matches or bound_chat != chat_id or state not in ("active", "finalizing"):
         raise ValueError("Call message not authorized")
     issued_role = await client.hget(messages_key, message_id)
     if isinstance(issued_role, bytes):
         issued_role = issued_role.decode()
     if issued_role != role:
         raise ValueError("Call message not authorized")
-    expiry = int(decoded[4]) if decoded[4] else None
-    if decoded[3] == "finalizing" and (expiry is None or expiry <= int(time.time())):
+    expiry = int(expires_at) if expires_at else None
+    if state == "finalizing" and (expiry is None or expiry <= int(time.time())):
         raise ValueError("Call message not authorized")
-    return VoiceCallBinding(state=decoded[3], grace_expires_at=expiry)
+    return VoiceCallBinding(state=state, grace_expires_at=expiry, state_cues=state_cues == "1")
 
 
 async def finalize_active_call(
@@ -137,7 +145,9 @@ async def finalize_active_call(
         raise RuntimeError("Voice call authority lost")
 
 
-async def active_call_session(cache: Any, *, user_id: str, chat_id: str, call_id: str) -> str | None:
+async def active_call_session(
+    cache: Any, *, user_id: str, chat_id: str, call_id: str, require_instant_feedback: bool = False,
+) -> str | None:
     """Return the owning session only while this owner/chat call is active.
 
     Speech status delivery uses call ownership rather than the visible chat.
@@ -150,9 +160,11 @@ async def active_call_session(cache: Any, *, user_id: str, chat_id: str, call_id
     except ValueError:
         return None
     client = await _client(cache)
-    values = await client.hmget(key, "user", "session", "chat", "state")
+    values = await client.hmget(key, "user", "session", "chat", "state", "instant_feedback")
     values = [value.decode() if isinstance(value, bytes) else value for value in values]
-    if values[0] != user_id or values[2:] != [chat_id, "active"]:
+    if values[0] != user_id or values[2:4] != [chat_id, "active"]:
+        return None
+    if require_instant_feedback and values[4] != "1":
         return None
     session_id = values[1]
     return session_id if isinstance(session_id, str) and session_id else None

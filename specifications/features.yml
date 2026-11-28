@@ -75,6 +75,7 @@ features:
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "default-model-settings.spec.ts verifies a saved tier selection after session refresh and the return to Auto"
       sdk_npm: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
       sdk_pypi: "sdk.ts model option + default_ai_model_*; sdk.py ask(model=), AiModelDefaults"
   - id: answer-safety-check
@@ -149,6 +150,13 @@ features:
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
       tui: "frontend/packages/openmates-tui-native/src/ui.rs:4417 billing/* settings rows"
+  - id: shared-embed-fullscreen
+    name: "Shared content embed fullscreen"
+    kind: core
+    description: "Compact identity, shared controls, and an embed-scoped follow-up composer."
+    specifications: [feature.shared-embed-fullscreen]
+    release: unreleased
+    surfaces: {web: implemented, apple: planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: chat-awareness
     name: "Consent-Scoped Cross-Chat Awareness"
     kind: core
@@ -250,6 +258,8 @@ features:
     product_features: [trusted-quotes, chat-file-downloads]
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts]
     subfeatures:
       - id: send-and-delivery
         name: "Sending and delivery"
@@ -266,7 +276,7 @@ features:
       - id: message-rendering
         name: "Message rendering"
         description: "Inline entities, preview info, skill failure banner, history entrance"
-        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.preview-info-top", "chats.rendering.skill-card-call-order", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
+        assertions: ["chats.rendering.inline-entity-interaction", "chats.rendering.image-gestures", "chats.rendering.embed-zoom-view", "chats.rendering.preview-info-top", "chats.rendering.skill-card-call-order", "chats.rendering.skill-failure-banner", "chats.rendering.web-history-entrance"]
       - id: followups
         name: "Follow-up suggestions"
         description: "Main-generated composer follow-ups and reconciliation"
@@ -305,6 +315,8 @@ features:
     specifications: [feature.continue-carousel]
     release: untagged-main
     surfaces: {web: implemented, apple: in_progress, cli: implemented, tui: implemented, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts]
   - id: daily-inspiration
     name: "Daily Inspiration"
     kind: core
@@ -343,6 +355,7 @@ features:
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "The incognito flow waits for a completed assistant reply before reloading its session history."
       apple: "apple/OpenMates/Sources/Features/Chat/Views/IncognitoMode.swift, Settings/Views/SettingsIncognitoInfoView.swift"
       cli: "openmates chats incognito|incognito-clear|incognito-history"
       rest_api: "routes/sdk.py POST /v1/sdk/chats (chat:create_incognito, save_to_account=false)"
@@ -420,6 +433,15 @@ features:
     specifications: [feature.marketing-landing]
     release: v0.13.0-alpha
     surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: message-highlights
+    name: "Message Highlights and Selection Toolbar"
+    kind: core
+    description: "Selecting text in a chat message offers a toolbar to highlight it, highlight and comment, or explain it in a new chat."
+    specifications: [feature.message-highlights]
+    release: unverified
+    surfaces: {web: implemented, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "frontend/packages/ui/src/components/ChatMessage.svelte, MessageSelectionToolbar.svelte"
   - id: message-input
     name: "Message Input"
     kind: core
@@ -431,9 +453,13 @@ features:
     evidence:
       tui: "frontend/packages/openmates-tui-native/src/ui/editor.rs, ui.rs composer, drafts, paste, @file"
     subfeatures:
+      - id: signed-out-action-access
+        name: "Signed-out composer actions"
+        description: "Guest allowance checks before starting dictation or calls, and account routing before opening the file picker."
+        assertions: ["message-input.signed-out-action-access"]
       - id: dictation
         name: "Dictation"
-        description: "Realtime transcription, editable transcript, guest admission, workspace dictation"
+        description: "Speech-window uploads, user-controlled Finish, realtime transcription, gated correction, editable text, guest admission and workspace dictation"
         assertions: ["message-input.audio.*"]
       - id: audio-recording
         name: "Audio recording"
@@ -595,7 +621,8 @@ features:
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
     key_tests:
       web: [frontend/apps/web_app/tests/voice-call.spec.ts, frontend/apps/web_app/tests/voice-call-existing-chat.spec.ts, frontend/apps/web_app/tests/voice-call-real.spec.ts, frontend/apps/web_app/tests/voice-call-opening.spec.ts, frontend/apps/web_app/tests/voice-call-guest.spec.ts]
-    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event."
+      rest_api: [backend/tests/test_voice_call_protocol.py, backend/tests/test_voice_call_admission.py]
+    notes: "Clients that opt in at call start (likely_end_hints) receive turn.likely_end / turn.resumed hints from the server; the web app with the Rust core opts in and lets the core prepare the turn early, dropping that preparation on turn.resumed. Apple does not opt in yet. The voice-call web spec is the key end-to-end test. Signed-in transcription settles at 0.25 credits per forwarded second; web keeps the same call during quiet without PCM keepalives or idle charges, and guest calls retain their cap. Native Apple changes follow the web deployment. A spoken hold uses the fast decision and a ready-made line. Spoken tap requests (needs-you chime, ready-made line, 15 s reminder, 30 s memory self-cancel with a timed-out event; video-call.chat.permission-prompt) are web-only so far; the Apple app ignores the voice_call_permission_prompt event."
   - id: webhooks
     name: "Webhooks"
     kind: core
@@ -635,6 +662,8 @@ features:
     specifications: [feature.workspace-shell]
     release: v0.11.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: not_planned, tui: implemented, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/header-mobile-layout-preview.spec.ts, frontend/apps/web_app/tests/header-mobile-layout.spec.ts, frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts, frontend/apps/web_app/tests/guest-workspace-navigation.spec.ts, frontend/apps/web_app/tests/components/idle-decorative-motion.spec.ts]
   - id: ai
     name: "AI"
     kind: app
@@ -738,7 +767,7 @@ features:
     name: "Design"
     kind: app
     description: "Find icons and visual assets, and read your Figma or Penpot designs to build them."
-    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma]
+    specifications: [feature.app-skill.design-embroidery, feature.app-skills.design-figma, feature.design-editor, feature.design-editor-edit, feature.design-editor-assistant, feature.design-editor-export]
     apps: [design]
     release: v0.19.0
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -748,6 +777,8 @@ features:
       tui: "generic app skill via /apps, /app-run, /app-skill (ui/apps.rs) and generic embed rendering (ui/embeds.rs)"
       sdk_npm: "sdk.design facade (npm)"
       sdk_pypi: "sdk.design facade (py)"
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/design-editor.spec.ts, frontend/apps/web_app/tests/components/design-editor-performance.spec.ts, frontend/apps/web_app/tests/components/design-document.spec.ts, frontend/apps/web_app/tests/design-document-view.spec.ts]
     subfeatures:
       - id: figma-get-design
         name: "Figma and Penpot designs"
@@ -755,6 +786,26 @@ features:
         assertions: ["design-figma.*"]
         surfaces: {web: in_progress, apple: planned, cli: in_progress, tui: unverified, rest_api: in_progress, sdk_npm: in_progress, sdk_pypi: in_progress}
         notes: "Unreleased. Spec v2 (draft) adds Penpot, outline-first reads, budgets and export_assets; dev code implements v1 (Figma only). Real-account check with the owner's Figma app on dev pending."
+      - id: editor-phase-0
+        name: "Design editor preview"
+        description: "Dev preview with view mode, direct layer editing in memory, and fixed-size artboard examples."
+        surfaces: {web: in_progress}
+        notes: "Developer preview with public fixture data. The product embed contract is subject to review."
+      - id: editor-view
+        name: "View a saved design"
+        description: "Read-only Canvas artboards and page navigation for a client-side encrypted Design embed."
+        assertions: ["design-editor.view.*"]
+        surfaces: {web: in_progress, apple: planned}
+      - id: editor-assistant
+        name: "Create and revise with the assistant"
+        description: "Dedicated authoring model and visual review for editable, client-side encrypted Design documents."
+        assertions: ["design-editor.assistant.*"]
+        surfaces: {web: in_progress, cli: in_progress, apple: planned}
+      - id: editor-export
+        name: "Export Design artboards"
+        description: "Local SVG and PNG artboards and PDF documents."
+        assertions: ["design-editor.export.*"]
+        surfaces: {web: in_progress, apple: planned}
   - id: diagrams
     name: "Diagrams"
     kind: app
@@ -815,7 +866,10 @@ features:
       sdk_npm: "src/generated/appSkills.ts apps.events (generic skill call)"
       sdk_pypi: "generated/app_skills.py apps.events (generic skill call)"
     key_tests:
-      web: [frontend/apps/web_app/tests/skill-events-search.spec.ts]
+      web:
+        - frontend/apps/web_app/tests/skill-events-search.spec.ts
+        - frontend/apps/web_app/tests/real-inference-events-question.spec.ts
+        - frontend/apps/web_app/tests/components/result-travel-event-design.spec.ts
   - id: file
     name: "File"
     kind: app
@@ -979,7 +1033,7 @@ features:
     name: "Mail"
     kind: app
     description: "Draft emails and work with mail."
-    specifications: []
+    specifications: [feature.app-skills.mail-gmail]
     apps: [mail]
     release: v0.5.0-alpha
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
@@ -990,8 +1044,10 @@ features:
       rest_api: "POST /v1/apps/{app}/skills/{skill} generic skill route (apps_api.py); skills in backend/apps/mail/skills"
       sdk_npm: "src/generated/appSkills.ts apps.mail (generic skill call)"
       sdk_pypi: "generated/app_skills.py apps.mail (generic skill call)"
+    notes: "Gmail through Google's official API (search, read threads, create drafts) uses the shared Google connected account. Sending is deferred by owner decision (2026-11-22). Proton Mail Bridge search stays as is."
     key_tests:
-      web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts]
+      web: [frontend/apps/web_app/tests/skill-mail-search.spec.ts, frontend/apps/web_app/tests/components/mail-search-fullscreen.spec.ts]
+      rest_api: [backend/tests/test_gmail_skills.py, backend/tests/test_connected_account_output_safety.py]
   - id: maps
     name: "Maps"
     kind: app
@@ -1265,6 +1321,16 @@ features:
       sdk_pypi: "generated/app_skills.py apps.shopping (generic skill call)"
     key_tests:
       web: [frontend/apps/web_app/tests/skill-shopping-search.spec.ts]
+  - id: rich-sheets
+    name: "Rich Formatted Sheets"
+    kind: app
+    description: "Create, format and exchange spreadsheets with editable cell styles and layout."
+    specifications: [feature.rich-sheets]
+    apps: [sheets]
+    release: unverified
+    surfaces: {web: in_progress, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    key_tests:
+      web: [frontend/apps/web_app/tests/components/sheet-fullscreen.spec.ts, frontend/apps/web_app/tests/real-inference-live-assistant-sheet.spec.ts, frontend/apps/web_app/tests/rich-sheet-live.spec.ts, frontend/apps/web_app/tests/projects-create-edit-files.spec.ts]
   - id: slides
     name: "Slides"
     kind: app
@@ -1325,6 +1391,18 @@ features:
     flags: ["platform:tasks"]
     release: unreleased
     surfaces: {web: implemented, apple: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
+  - id: task-inline-embeds
+    name: "Tasks as inline embeds"
+    kind: app
+    description: "The assistant creates a Task by writing a task block in its reply and edits it with versioned diffs; the card shows icon, title, due date and status, never raw ids."
+    specifications: [feature.task-inline-embeds]
+    flags: ["platform:tasks"]
+    release: unreleased
+    surfaces: {web: in_progress, apple: in_progress, cli: in_progress, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+    evidence:
+      web: "TaskEmbedPreview.svelte task card, TaskEmbedFullscreen.svelte with EmbedVersionTimeline; real-inference-task-inline-embeds.spec.ts"
+      apple: "AppSkillUseRenderer.swift task card rendering"
+      cli: "frontend/packages/openmates-cli/src/embedRenderers.ts task embed rendering"
   - id: travel
     name: "Travel"
     kind: app
@@ -1622,6 +1700,7 @@ features:
     release: v0.11.0-alpha
     surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: in_progress, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
     evidence:
+      cli: ".github/workflows/selfhost-smoke-rust.yml (image-mode update starts the AI routing worker)"
       tui: "frontend/packages/openmates-tui-native/src/server/*.rs (CLI `server` commands, not interactive UI)"
   - id: session-owner-consistency
     name: "Session Owner Consistency"
@@ -1655,6 +1734,7 @@ features:
     release: v0.10.0-alpha
     surfaces: {web: implemented, apple: implemented, watchos: implemented, cli: implemented, tui: implemented, rest_api: implemented, sdk_npm: implemented, sdk_pypi: implemented}
     evidence:
+      web: "Recent 100 chats at startup, full Personal account count, and on-demand older history."
       tui: "frontend/packages/openmates-tui-native/src/runtime_core_host.rs, session_runtime.rs, Refresh commands"
       sdk_pypi: "startup_sync.py, session.initial-startup-sync.v1"
   - id: ai-request-observability
@@ -1690,7 +1770,7 @@ features:
   - id: external-status-monitoring
     name: "External Status Monitoring And Public Status Page"
     kind: internal
-    description: "A small EU server outside our infrastructure checks production, publishes status.openmates.org and sends escalating alerts."
+    description: "External and host checks track production outages and short blips, send outage and recovery notices, and publish status.openmates.org."
     specifications: [architecture.external-status-monitoring]
     release: unverified
     surfaces: {web: not_planned, apple: not_planned, cli: not_planned, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
@@ -1710,6 +1790,13 @@ features:
     specifications: [architecture.test-orchestration, architecture.dev-run-routing]
     release: unverified
     surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: not_planned, sdk_npm: not_planned, sdk_pypi: not_planned}
+  - id: ai-test-users
+    name: "AI Test User Reports And Debug Chats"
+    kind: internal
+    description: "Daily AI test users report issues; one Discord message splits DEV and PRODUCTION issues, functional errors start debug chats, test reports send no emails."
+    specifications: [architecture.ai-test-users]
+    release: unverified
+    surfaces: {web: not_planned, apple: not_planned, cli: implemented, tui: not_planned, rest_api: implemented, sdk_npm: not_planned, sdk_pypi: not_planned}
   - id: surface-cli
     name: "CLI Surface"
     kind: surface

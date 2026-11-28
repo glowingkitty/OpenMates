@@ -1,0 +1,36 @@
+name: Core Compose drift
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install distribution test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y python3-pytest python3-yaml
+      - name: Check generated Compose and Celery consumers
+        run: |
+          /usr/bin/python3 scripts/sync_core_compose.py --check
+          /usr/bin/python3 -m pytest --noconftest -q backend/tests/test_core_compose_generation.py backend/tests/test_celery_queue_consumers.py
+      - name: Validate dev and self-host configurations with Docker Compose
+        run: |
+          fixture="$RUNNER_TEMP/core-compose"
+          mkdir -p "$fixture/backend/core"
+          printf 'GIT_WORK_DIR=%s\n' "$fixture" > "$fixture/.env"
+          cp backend/core/docker-compose{,.override,.selfhost}.yml "$fixture/backend/core/"
+          cd "$fixture"
+          docker compose --env-file .env -f backend/core/docker-compose.yml config --quiet
+          docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml config --quiet
+          docker compose --env-file .env -f backend/core/docker-compose.selfhost.yml config --quiet

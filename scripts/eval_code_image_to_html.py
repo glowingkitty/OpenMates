@@ -32,6 +32,8 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from scripts import notification_log  # noqa: E402 (repo path bootstrap)
 CLI_DIR = ROOT / "frontend" / "packages" / "openmates-cli"
 CLI_DIST = CLI_DIR / "dist" / "cli.js"
 PYTHON_SDK_PATH = ROOT / "packages" / "openmates-python"
@@ -629,7 +631,9 @@ def post_to_discord(summary: dict[str, Any], *, files: list[tuple[str, Path]], e
         },
     )
     with urllib.request.urlopen(request, timeout=60) as response:
-        return json.loads(response.read().decode("utf-8") or "{}")
+        payload = json.loads(response.read().decode("utf-8") or "{}")
+    notification_log.record_request(request, "eval_code_image_to_html")
+    return payload
 
 
 def write_summary(summary: dict[str, Any], output_dir: Path) -> Path:

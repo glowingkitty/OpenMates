@@ -43,6 +43,26 @@ final class NativeVoiceCallAppCoordinatorTests: XCTestCase {
         XCTAssertNotEqual(NativeVoiceCallCuePlayer.notes[.connected]?.map(\.frequency),
                           NativeVoiceCallCuePlayer.notes[.muted]?.map(\.frequency))
     }
+    // contract-test: supporting surface=gui.apple assertions=video-call.chat.fixed-binding,video-call.audio.single-owner
+    func testExplicitCallInAnotherChatEndsTheOldCallBeforeStartingTheReplacement() async {
+        let driver = AppCallDriver()
+        let coordinator = make(driver)
+        let first = driver.scope.chatID, second = UUID().uuidString
+        await coordinator.start(.existing(chatID: first))
+        XCTAssertFalse(coordinator.canReplaceCall(chatID: first))
+        XCTAssertTrue(coordinator.canReplaceCall(chatID: second))
+        await coordinator.start(.existing(chatID: first))
+        XCTAssertEqual(driver.starts, 1)
+        XCTAssertEqual(driver.hangups, 0)
+        driver.onHangup = { XCTAssertEqual(driver.starts, 1) }
+        await coordinator.start(.existing(chatID: second))
+        XCTAssertEqual(driver.hangups, 1)
+        XCTAssertEqual(driver.starts, 2)
+        XCTAssertEqual(coordinator.boundChatID, second)
+        XCTAssertTrue(coordinator.isActive)
+        driver.onHangup = nil
+        await coordinator.hangup()
+    }
     // contract-test: supporting surface=gui.apple assertions=video-call.chat.typed-input,video-call.chat.fixed-binding,video-call.privacy.first-call-warning,video-call.lifecycle.recovery-and-billing
     func testWireSubmissionDoesNotClearDraft() async throws {
         let driver = AppCallDriver(); var accepted = 0
@@ -315,7 +335,14 @@ private final class AppCallDriver: NativeVoiceCallAppDriving {
         if requireConsent {
             guard await consent?() == true else { throw NativeVoiceCallError.consentRequired }
         }
-        starts += 1; audioStarts += 1; state = .init(status: .live, scope: scope, callID: callID)
+        let chatID: String
+        switch destination {
+        case .existing(let id): chatID = id
+        case .newPersonal(let id, _): chatID = id.uuidString
+        }
+        let destinationScope = NativeVoiceCallScope(accountID: scope.accountID, profileID: scope.profileID,
+            workspaceGeneration: scope.workspaceGeneration, chatID: chatID, mateCategory: scope.mateCategory)
+        starts += 1; audioStarts += 1; state = .init(status: .live, scope: destinationScope, callID: callID)
         await emit(.state(state))
     }
     func sendText(_ text: String) async throws -> String { textSubmissions += 1; await duringSend?(); return messageID }

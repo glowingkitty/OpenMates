@@ -11,6 +11,8 @@ Also applies the approved retention rule (age by mtime, never while in use):
     CI_ARTIFACT_MAX_AGE_DAYS, unless a queued, running, preparing or otherwise
     non-terminal job in logs/ci-coordinator/queue.sqlite3 references them (the
     queue is opened read-only; an unreadable queue skips these categories);
+  * old screenshots and videos under dev proof directories; preserve receipts,
+    recent files, and captures from active jobs;
   * Rust target/ dirs of managed worktrees, ~/.cache/openmates-rust-* caches and
     other cargo target dirs ~/.cache/*-target unchanged for RUST_IDLE_HOURS,
     unless a cargo/rustc process uses them;
@@ -43,12 +45,16 @@ ROOT = Path(__file__).resolve().parents[1]
 TMP_MAX_AGE_DAYS = 3
 RECOVERY_MAX_AGE_DAYS = 14
 CI_ARTIFACT_MAX_AGE_DAYS = 3
+PROOF_MEDIA_MAX_AGE_DAYS = 14
+PROOF_MEDIA_SUFFIXES = {".webm", ".mp4", ".mov", ".mkv", ".png", ".jpg", ".jpeg"}
 RUST_IDLE_HOURS = 24
 CACHE_SCRATCH_MAX_AGE_DAYS = 3
 SESSION_SCRATCH_RE = re.compile(r"^[0-9a-f]{4}-[A-Za-z0-9._-]+$")
 # Sibling folders holding one-off worktree recovery archives (same retention).
 EXTRA_RECOVERY_DIRS = ("OpenMates-worktree-recovery-archives",)
 TERMINAL_JOB_STATES = ("success", "failure", "cancelled")
+# Exit status of an applied pass that still leaves less than the floor free.
+FLOOR_BREACH_EXIT = 2
 JOB_REFERENCE_COLUMNS = ("id", "source", "run_id", "prepared_run_id", "preparation_id",
                          "preparation_key", "candidate_tree", "candidate_base")
 CARGO_COMMANDS = frozenset({"cargo", "rustc", "rustdoc", "clippy-driver", "cargo-clippy"})
@@ -136,6 +142,22 @@ def _retention_candidates(repository: Path, cache_root: Path, now: float,
             for entry in base.iterdir():
                 if entry.is_dir() and not entry.is_symlink() and entry.name not in references:
                     found.append((entry, category, ci_cutoff, None))
+    if references is not None:
+        proof_cutoff = now - PROOF_MEDIA_MAX_AGE_DAYS * 86400
+        proof_roots = (repository / "test-results/recordings",
+                       repository.parent / ".openmates-runtime/product-stack/test-results")
+        for base in proof_roots:
+            if not base.is_dir() or base.resolve(strict=False) != base:
+                continue
+            for directory, folders, files in os.walk(base):
+                parent = Path(directory)
+                folders[:] = [name for name in folders
+                              if name not in references and not (parent / name).is_symlink()]
+                for name in files:
+                    path = parent / name
+                    if (path.suffix.lower() in PROOF_MEDIA_SUFFIXES and path.stem not in references
+                            and not path.is_symlink()):
+                        found.append((path, "proof_media", proof_cutoff, None))
     for worktree in sorted((repository / ".openmates-agent-worktrees").glob("agent-*")):
         target = worktree / "target"
         if target.is_dir() and not target.is_symlink():
@@ -151,21 +173,6 @@ def _retention_candidates(repository: Path, cache_root: Path, now: float,
             elif SESSION_SCRATCH_RE.match(entry.name):
                 found.append((entry, "cache_scratch", scratch_cutoff, None))
     return found
-
-
-def _tree_bytes(path: Path) -> int:
-    total = 0
-    pending = [path]
-    while pending:
-        current = pending.pop()
-        try:
-            info = current.lstat()
-            total += info.st_blocks * 512
-            if stat.S_ISDIR(info.st_mode):
-                pending.extend(current.iterdir())
-        except OSError:
-            continue
-    return total
 
 
 def _scan(path: Path, cutoff: float) -> tuple[bool, int]:
@@ -218,7 +225,8 @@ def _candidates(tmp_root: Path, recovery_root: Path, now: float, uid: int) -> li
 def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None = None,
         uid: int | None = None, in_use: list[str] | None = None,
         repository: Path | None = None, cache_root: Path | None = None,
-        cargo_paths: list[str] | None = None, budgets: bool = False) -> dict:
+        cargo_paths: list[str] | None = None, budgets: bool = False,
+        free_bytes: int | None = None) -> dict:
     now = time.time() if now is None else now
     uid = os.getuid() if uid is None else uid
     in_use = _in_use_paths(uid) if in_use is None else in_use
@@ -244,13 +252,7 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
                 for item in cargo):
             report["skipped"]["in_use"] += 1
             continue
-        if category in ("ci_run", "ci_candidate"):
-            # The directory's own mtime decides, as approved; size is for reporting.
-            stale, size = path.lstat().st_mtime <= cutoff, 0
-            if stale:
-                size = _tree_bytes(path)
-        else:
-            stale, size = _scan(path, cutoff)
+        stale, size = _scan(path, cutoff)
         if not stale:
             report["skipped"]["recent"] += 1
             continue
@@ -277,6 +279,21 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
         report["budgets"] = host_disk_budgets.enforce(repository, apply=apply, in_use=in_use, cargo=cargo,
                                                       references=references, now=now)
         report["reclaimed_bytes"] += report["budgets"]["reclaimed_bytes"]
+    if repository is not None:
+        # The floor check (TASK-5181): a pass that leaves less than the 10 GiB floor
+        # fails, so the coordinator records it, retries after its backoff and shows it.
+        try:
+            from scripts import resource_budget
+        except ModuleNotFoundError:
+            import resource_budget  # main() puts scripts/ on sys.path
+
+        measured = Path(repository)
+        while not measured.exists() and measured != measured.parent:
+            measured = measured.parent  # same filesystem as the repository would be on
+        free = shutil.disk_usage(measured).free if free_bytes is None else free_bytes
+        report["free_after"] = free
+        report["floor_breached"] = free < resource_budget.MIN_FREE
+        report["below_cleanup_target"] = free < resource_budget.CLEANUP_TARGET_FREE
     return report
 
 
@@ -312,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     report = run(args.tmp_root, recovery, apply=args.apply, repository=repository, budgets=True)
     print(json.dumps(report, indent=1))
-    return 0
+    return FLOOR_BREACH_EXIT if args.apply and report.get("floor_breached") else 0
 
 
 if __name__ == "__main__":

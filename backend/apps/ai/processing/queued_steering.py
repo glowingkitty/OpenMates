@@ -1,4 +1,4 @@
-"""Preflight and claim a queued steer at a completed tool-batch boundary."""
+"""Preflight and claim a queued steer at a safe model-dispatch boundary."""
 
 import logging
 import json
@@ -101,6 +101,8 @@ async def _defer_steer(cache, directus, request: AskSkillRequest, row: dict,
     new_revision = revision
     new_mode = member.get("queue_mode") or "steer"
     async with cache.queued_message_edit_lock(request.chat_id):
+        if not await cache.can_claim_queued_steer(request.chat_id, task_id):
+            return
         fresh = await cache.get_queued_message_member(request.chat_id, request.user_id, message_id)
         if fresh and fresh["raw"] == row["raw"]:
             persisted = None
@@ -252,12 +254,14 @@ async def consume_safe_queued_steer(
     base_instructions: dict, skill_config_dict: Optional[dict],
     cache: Any, directus: Any, encryption: Any, secrets: Any,
     discovered_apps: dict, excluded_ids: set[str],
+    active_input_target: Optional[tuple[str, Optional[str]]] = None,
 ) -> Optional[AIHistoryMessage]:
     """Return one newly claimed user turn, or leave it queued for normal handoff."""
     if not cache or not directus or not encryption or not secrets or not skill_config_dict:
         return None
+    target_filter = {"active_input_target": active_input_target} if active_input_target else {}
     row = await cache.peek_steer_queued_message(
-        request.chat_id, request.user_id, exclude_ids=excluded_ids,
+        request.chat_id, request.user_id, exclude_ids=excluded_ids, **target_filter,
     )
     if not row:
         return None
@@ -287,6 +291,8 @@ async def consume_safe_queued_steer(
         return None
     try:
         queued = AskSkillRequest.model_validate(member)
+        from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
+        await require_active_voice_dispatch(cache, queued)
         latest = queued.message_history[-1]
         if (latest.role != "user" or latest.message_id != message_id
                 or not isinstance(latest.content, str) or not latest.content.strip()
@@ -312,9 +318,12 @@ async def consume_safe_queued_steer(
 
     storage_unavailable = False
     async with cache.queued_message_edit_lock(request.chat_id) as lock:
+        if not await cache.can_claim_queued_steer(request.chat_id, task_id):
+            return None
         fresh = await cache.get_queued_message_member(request.chat_id, request.user_id, message_id)
         if not fresh or fresh["raw"] != row["raw"]:
             return None
+        await require_active_voice_dispatch(cache, queued)
         revision = int(member.get("queue_revision") or 1)
         if not request.is_incognito:
             status = await directus.chat.mark_queued_message_started(
@@ -357,17 +366,23 @@ async def consume_safe_queued_steer(
                         await cache.pause_queued_message_revisions(request.chat_id)
                 return None
             if not request.is_incognito and status.get("messages_v") is not None:
-                await cache.mark_sync_message_processing(
-                    request.user_id, request.chat_id, message_id,
-                    revision, status["messages_v"],
-                )
+                try:
+                    await cache.mark_sync_message_processing(
+                        request.user_id, request.chat_id, message_id,
+                        revision, status["messages_v"],
+                    )
+                except Exception:
+                    logger.exception("Could not refresh sync state for claimed steer %s", message_id)
     if storage_unavailable:
         await _defer_steer(cache, directus, request, row, task_id, "storage_unavailable")
         return None
-    await _queue_event(cache, request, "queued_message_steered", {
-        "message_id": message_id, "task_id": task_id,
-        "queue_revision": revision,
-    })
+    try:
+        await _queue_event(cache, request, "queued_message_steered", {
+            "message_id": message_id, "task_id": task_id,
+            "queue_revision": revision,
+        })
+    except Exception:
+        logger.exception("Could not publish claimed steer %s", message_id)
     return AIHistoryMessage(
         role="user", message_id=message_id, content=latest.content,
         created_at=latest.created_at, sender_name="user",

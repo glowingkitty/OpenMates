@@ -9,6 +9,18 @@ from typing import Dict, Any, Optional, List
 logger = logging.getLogger(__name__)
 
 
+def _created_at(event: Dict[str, Any]) -> datetime:
+    """Parse an event's ISO created_at (stored by record_health_event as a string)."""
+    parsed = datetime.fromisoformat(str(event["created_at"]).replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+def _events_since(events: List[Dict[str, Any]], since_timestamp: int) -> List[Dict[str, Any]]:
+    """Keep events at or after since_timestamp; Directus cannot range-filter the string field."""
+    since_dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
+    return [event for event in events if _created_at(event) >= since_dt]
+
+
 class HealthStatusUnavailable(RuntimeError):
     """The prior durable status could not be read; this is not empty history."""
 
@@ -169,10 +181,8 @@ class HealthEventMethods:
                 filters.append(f'filter[service_type][_eq]={service_type}')
             if service_id:
                 filters.append(f'filter[service_id][_eq]={service_id}')
-            if since_timestamp:
-                # Convert Unix timestamp to ISO format for Directus
-                since_dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
-                filters.append(f'filter[created_at][_gte]={since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}')
+            # created_at is a string field in Directus, which rejects _gte/_lt
+            # (HTTP 400); the time bound is applied after the newest-first read.
             
             # Clamp limit
             limit = min(max(1, limit), 1000)
@@ -193,6 +203,8 @@ class HealthEventMethods:
             if response.status_code == 200:
                 data = response.json()
                 events = data.get("data", [])
+                if since_timestamp:
+                    events = _events_since(events, since_timestamp)
                 logger.debug(f"[HEALTH_EVENT] Retrieved {len(events)} health events")
                 return events
             else:
@@ -223,9 +235,7 @@ class HealthEventMethods:
             filters = ['filter[new_status][_eq]=unhealthy']
             if service_type:
                 filters.append(f'filter[service_type][_eq]={service_type}')
-            if since_timestamp:
-                since_dt = datetime.fromtimestamp(since_timestamp, tz=timezone.utc)
-                filters.append(f'filter[created_at][_gte]={since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")}')
+            # created_at is a Directus string field: bound it after the read.
             
             query_parts = [
                 'limit=1000',
@@ -245,6 +255,8 @@ class HealthEventMethods:
             
             data = response.json()
             events = data.get("data", [])
+            if since_timestamp:
+                events = _events_since(events, since_timestamp)
             
             # Aggregate by service
             services: Dict[str, Dict[str, Any]] = {}
@@ -299,10 +311,10 @@ class HealthEventMethods:
             from datetime import timedelta
             
             cutoff_dt = datetime.now(timezone.utc) - timedelta(days=retention_days)
-            cutoff_iso = cutoff_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
             
-            # First, get the IDs of events to delete
-            url = f"{self.ds.base_url}/items/health_events?filter[created_at][_lt]={cutoff_iso}&limit=1000&fields=id"
+            # First, get the IDs of events to delete: oldest first, bounded
+            # here because Directus rejects _lt on the string created_at field.
+            url = f"{self.ds.base_url}/items/health_events?sort=created_at&limit=1000&fields=id,created_at"
             
             response = await self.ds._make_api_request("GET", url)
             
@@ -311,7 +323,10 @@ class HealthEventMethods:
                 return -1
             
             data = response.json()
-            events = data.get("data", [])
+            events = [
+                event for event in data.get("data", [])
+                if _created_at(event) < cutoff_dt
+            ]
             
             if not events:
                 logger.info(f"[HEALTH_EVENT] No events older than {retention_days} days to clean up")

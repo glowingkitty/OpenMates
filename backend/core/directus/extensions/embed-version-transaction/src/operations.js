@@ -1,6 +1,7 @@
 /* Atomic publication for opaque client-encrypted Project file revisions. */
 import { createHash, randomUUID } from 'node:crypto';
 import { assertServerOwnedRefresh, linksAdmitServerOwnedRefresh, validateServerOwnedRefresh } from './project-items.js';
+import { isLiveRevisionType, requireLegacyRevisionAllowed, requireRevisionCipherEpoch } from './team-key-rotation.js';
 
 const EMBEDS = 'embeds';
 const DIFFS = 'embed_diffs';
@@ -365,11 +366,11 @@ async function requireRegisteredChildWrite(trx, embedId, actor, payload) {
     fail(403, 'project_context_required');
   }
   if (chat.hashed_team_id) {
-    const membership = await trx(MEMBERSHIPS).where({
-      hashed_team_id: chat.hashed_team_id, hashed_user_id: actor, status: 'active',
-    }).forShare().first();
     const team = await trx(TEAMS).where({
       hashed_team_id: chat.hashed_team_id, status: 'active',
+    }).forShare().first();
+    const membership = await trx(MEMBERSHIPS).where({
+      hashed_team_id: chat.hashed_team_id, hashed_user_id: actor, status: 'active',
     }).forShare().first();
     if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
       fail(403, 'project_context_required');
@@ -420,14 +421,15 @@ async function requireLegacyChatWrite(trx, chat, actor) {
     if (chat.hashed_user_id !== actor) fail(403, 'chat_write_denied');
     return;
   }
-  const membership = await trx(MEMBERSHIPS).where({ hashed_team_id: chat.hashed_team_id,
-    hashed_user_id: actor, status: 'active' }).forShare().first();
   const team = await trx(TEAMS).where({ hashed_team_id: chat.hashed_team_id,
     status: 'active' }).forShare().first();
+  const membership = await trx(MEMBERSHIPS).where({ hashed_team_id: chat.hashed_team_id,
+    hashed_user_id: actor, status: 'active' }).forShare().first();
   if (!team || !membership
     || !(direct ? ['owner', 'admin', 'member', 'viewer'] : ['owner', 'admin', 'member']).includes(membership.role)) {
     fail(403, 'chat_write_denied');
   }
+  return team;
 }
 
 /* Internal-only encrypted history write. Use the edit transaction's same lock,
@@ -474,7 +476,7 @@ export async function writeLegacyEmbedDiff(database, raw) {
     if (chats.length !== 1 || (chats[0].hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)) {
       fail(403, 'chat_write_denied');
     }
-    await requireLegacyChatWrite(trx, chats[0], actor);
+    const team = await requireLegacyChatWrite(trx, chats[0], actor);
     const existing = await trx(DIFFS).where({ embed_id: embedId, version_number: version }).forUpdate().limit(2);
     if (existing.length > 1) fail(409, 'ambiguous_history');
     if (existing.length && (existing[0].hashed_user_id !== actor
@@ -483,9 +485,12 @@ export async function writeLegacyEmbedDiff(database, raw) {
       || (row.created_at != null && Number(existing[0].created_at) !== createdAt))) {
       fail(409, 'immutable_version_mismatch');
     }
-    if (!existing.length) await trx(DIFFS).insert({ id: randomUUID(), embed_id: embedId,
-      version_number: version, hashed_user_id: actor, encrypted_snapshot: snapshot,
-      encrypted_patch: patch, created_at: createdAt, has_snapshot: snapshot !== null, has_patch: patch !== null });
+    if (!existing.length) {
+      requireLegacyRevisionAllowed(team, embed);
+      await trx(DIFFS).insert({ id: randomUUID(), embed_id: embedId,
+        version_number: version, hashed_user_id: actor, encrypted_snapshot: snapshot,
+        encrypted_patch: patch, created_at: createdAt, has_snapshot: snapshot !== null, has_patch: patch !== null });
+    }
     return { embed_id: embedId, version_number: version, canonical_source: 'version_row',
       canonical_digest: sha256(JSON.stringify([snapshot, patch])), idempotent: existing.length === 1 };
   });
@@ -892,10 +897,10 @@ export async function writeLegacyEmbed(database, raw) {
             fail(403, 'canonical_metadata_scope_denied');
           }
           if (chat.hashed_team_id) {
-            const membership = await trx(MEMBERSHIPS).where({ hashed_team_id: chat.hashed_team_id,
-              hashed_user_id: actor, status: 'active' }).forShare().first();
             const team = await trx(TEAMS).where({ hashed_team_id: chat.hashed_team_id,
               status: 'active' }).forShare().first();
+            const membership = await trx(MEMBERSHIPS).where({ hashed_team_id: chat.hashed_team_id,
+              hashed_user_id: actor, status: 'active' }).forShare().first();
             if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
               fail(403, 'canonical_metadata_scope_denied');
             }
@@ -926,6 +931,15 @@ export async function writeLegacyEmbed(database, raw) {
       // retain the locked head's version. Explicit legacy null still means v1.
       const incomingVersion = 'version_number' in storedPayload
         ? logicalEmbedVersion(storedPayload.version_number, 400) : currentVersion;
+      const changesRevision = incomingVersion !== currentVersion
+        || ['encrypted_content', 'encrypted_text_preview', 'encrypted_diff'].some((field) =>
+          field in storedPayload && (storedPayload[field] ?? null) !== (embed[field] ?? null));
+      if (changesRevision) {
+        const team = embed.hashed_team_id && isLiveRevisionType(embed)
+          ? await trx(TEAMS).where({ hashed_team_id: embed.hashed_team_id, status: 'active' }).forShare().first()
+          : null;
+        requireLegacyRevisionAllowed(team, embed);
+      }
       // A typed recovery ACK binds this exact owner/chat/subject/version to the
       // ciphertext that was durably verified. A later legacy store_embed may
       // replay that ciphertext or update metadata, but must not silently
@@ -989,11 +1003,11 @@ export async function writeLegacyEmbed(database, raw) {
             fail(409, 'acknowledged_embed_revision_immutable');
           }
           if (embed.hashed_team_id) {
-            const member = await trx(MEMBERSHIPS).where({
-              hashed_team_id: embed.hashed_team_id, hashed_user_id: actor, status: 'active',
-            }).forShare().first();
             const team = await trx(TEAMS).where({
               hashed_team_id: embed.hashed_team_id, status: 'active',
+            }).forShare().first();
+            const member = await trx(MEMBERSHIPS).where({
+              hashed_team_id: embed.hashed_team_id, hashed_user_id: actor, status: 'active',
             }).forShare().first();
             if (!team || !member || !['owner', 'admin', 'member'].includes(member.role)) {
               fail(409, 'acknowledged_embed_revision_immutable');
@@ -1132,16 +1146,18 @@ async function authorize(trx, body) {
   const project = await trx(PROJECTS).where({ project_id: body.project_id }).forUpdate().first();
   if (!project || sha256(project.project_id) !== projectHash) fail(403, 'project_access_denied');
 
+  let team;
   if (teamHash) {
     if (project.hashed_team_id !== teamHash || project.hashed_user_id != null) fail(403, 'project_access_denied');
+    team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
     const membership = await trx(MEMBERSHIPS).where({
       hashed_team_id: teamHash,
       hashed_user_id: body.actor_user_hash,
       status: 'active',
-    }).first();
-    if (!membership || !['owner', 'admin', 'member'].includes(membership.role)) fail(403, 'project_access_denied');
-    const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).first();
-    if (!team) fail(403, 'project_access_denied');
+    }).forShare().first();
+    if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
+      fail(403, 'project_access_denied');
+    }
   } else if (project.hashed_user_id !== body.actor_user_hash || project.hashed_team_id != null) {
     fail(403, 'project_access_denied');
   }
@@ -1157,7 +1173,7 @@ async function authorize(trx, body) {
   if (item && body.create && item.project_item_id !== body.create.project_item_id) {
     fail(409, 'project_item_identity_mismatch');
   }
-  return { projectHash, teamHash, project, item };
+  return { projectHash, teamHash, team, project, item };
 }
 
 function historiesMatch(existing, proposed) {
@@ -1221,10 +1237,10 @@ export async function commitChatDiagramRevision(database, raw) {
     if (!chat || chat.storage_state === 'deleting'
       || (chat.hashed_team_id ?? null) !== teamHash) fail(403, 'chat_access_denied');
     if (teamHash) {
+      const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
       const membership = await trx(MEMBERSHIPS).where({
         hashed_team_id: teamHash, hashed_user_id: actor, status: 'active',
       }).forShare().first();
-      const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
       if (!team || !membership || !['owner', 'admin', 'member'].includes(membership.role)) {
         fail(403, 'chat_access_denied');
       }
@@ -1300,6 +1316,7 @@ export async function commitEmbedRevision(database, raw) {
         current_revision: receipt.committed_revision, idempotent: true,
       };
     }
+    if (scope.team?.rotation_pending) fail(409, 'team_key_rotation_pending');
 
     let embed = await trx(EMBEDS).where({ embed_id: body.embed_id }).forUpdate().first();
     if (!embed && !body.create) fail(404, 'embed_not_found');
@@ -1315,6 +1332,11 @@ export async function commitEmbedRevision(database, raw) {
       };
     }
     const newRevision = currentRevision + 1;
+    const nextHistory = body.history_rows.find((row) => row.version_number === newRevision);
+    const epochFramed = requireRevisionCipherEpoch(scope.team, embed?.encrypted_content, [
+      body.head.encrypted_content, body.head.encrypted_text_preview, body.head.encrypted_diff,
+      nextHistory.encrypted_snapshot, nextHistory.encrypted_patch,
+    ], true);
     if (!embed) {
       const initial = body.history_rows.find((row) => row.version_number === 1);
       if (!initial || !body.create) fail(400, 'invalid_create');
@@ -1384,7 +1406,12 @@ export async function commitEmbedRevision(database, raw) {
     if (Number(historyCount?.count ?? 0) !== newRevision) fail(409, 'incomplete_history');
 
     if (embed.id !== null) {
-      await trx(EMBEDS).where({ id: embed.id }).update({ ...body.head, version_number: newRevision });
+      const head = { ...body.head, version_number: newRevision };
+      if (epochFramed) {
+        head.encrypted_text_preview ??= null;
+        head.encrypted_diff ??= null;
+      }
+      await trx(EMBEDS).where({ id: embed.id }).update(head);
     }
     await trx(RECEIPTS).insert({
       id: randomUUID(), operation_id: body.operation_id, commit_identity: commitIdentity,

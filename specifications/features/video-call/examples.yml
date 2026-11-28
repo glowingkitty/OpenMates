@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.video-call@21
+specification: feature.video-call@27
 launch:
 - id: start-in-existing-chat
   given: Maya is signed in with enough credits and her ramen chat open.
@@ -13,6 +13,10 @@ binding:
   then: A pulsing handset-and-timer pill replaces the global brand immediately after the menu button; call messages still
     enter ramen while travel uses ordinary messaging. Pressing the pill returns to ramen, restores the brand and shows
     that call's strip without reconnecting.
+- id: start-a-call-in-another-chat
+  given: The ramen call is still active while Maya has the saved travel chat open.
+  when: She presses the call button in travel.
+  then: OpenMates ends the ramen call and opens one call bound to travel, with the ramen history preserved.
 call_strip:
 - id: inline-to-fixed-call-strip
   given: Maya is at the top of the ramen chat with its full header and an active call strip directly beneath it.
@@ -162,12 +166,12 @@ background_detection:
 - id: detector-fails-during-call
   given: A connected call is using local speech detection.
   when: The detector fails or stops returning fresh results.
-  then: The call continues with ordinary unmuted audio streaming and visible pricing. It does not claim to be idle, reopen
-    the microphone, start another paid call or let a late result change a later call.
+  then: The same call streams unmuted audio with a signal and pauses uploads after sustained digital silence. Visible
+    pricing, existing microphone permission and isolation from late results remain in effect.
 automatic_idle:
 - id: quiet-pause-and-short-resume
   given: Healthy local detection is ready in Maya's unmuted call.
-  when: She is silent for five seconds, then says a short Yes.
+  when: She is briefly silent, then says a short Yes.
   then: Microphone uploads pause once while the connection remains open. Yes resumes uploads with its first syllable
     preserved, exactly once, followed by subsequent audio in order; idle audio is never saved on disk.
 - id: manual-mute-wins
@@ -360,6 +364,13 @@ localized_waiting:
   when: The server starts processing her first German audio turn.
   then: A short sound and a neutral system voice saying "Dein Chat startet…" play at once, never a guessed Mate voice;
     no Mate acknowledgement follows, and the answer is spoken in the routed Mate's own voice.
+- id: web-categorized-feedback
+  given: Maya finishes a question or a request to do work in a web call with categorized feedback enabled.
+  when: Jev identifies the category and reply language before ordinary answer generation starts.
+  then: One of three prerecorded clips plays in the actual Mate's voice when routing has established it. If Jev times
+    out or selects none, there is no early category clip. If the routed answer model starts a thinking phase, a cached
+    thinking line still plays in that Mate's voice and reply language. Any microphone recapture of the line produces
+    no caller transcript. A later thinking phase can play a fresh variant.
 waiting_language:
 - id: unknown-language-stays-silent
   given: The turn language is unknown and the interface language has no recorded clips.
@@ -414,6 +425,25 @@ complete_turn:
   when: The final negation arrives in trailing transcript deltas.
   then: No booking is dispatched from the eager signal; the complete corrected request is admitted once after final-word
     collection.
+- id: end-before-provider-final
+  given: Maya asks to book a table for two, and local capture confirms the quiet tail after her request.
+  when: The service receives the last streamed words and confirms the request is complete before the provider sends a final transcript.
+  then: One ordinary chat turn starts from the streamed words, and duplicate endpoint messages cannot start another one.
+- id: verified-drain-during-pause
+  given: The caller pauses after a question and the provider delivers its final words for that quiet window.
+  when: The semantic decision confirms completion while the socket close handshake is still pending.
+  then: The question can enter chat immediately. A final frame from an older window cannot shorten the wait.
+audible_feedback:
+- id: quick-answer-in-a-connected-call
+  given: Maya is already in a call with a fast model and asks what the capital of France is.
+  when: Her final voiced sound ends.
+  then: Measure the time until she hears the answer. A preliminary clip does not satisfy the answer-time target.
+- id: long-recipe-build
+  given: A thinking Mate is creating a recipe app. Maya is listening with the screen off.
+  when: Reasoning begins and the code artifact later starts streaming.
+  then: Maya hears a localized thinking cue and an artifact-start cue. During a long quiet interval she can hear
+    a brief progress update. Her speech takes the floor immediately and the build continues. Chat history
+    shows her messages and the artifact while status audio stays in the call.
 migration_future_recording:
 - id: future-recording
   given: A future separately approved full recording mode captures a call.
@@ -443,12 +473,16 @@ migration_disconnect_settlement:
   when: The call disconnects unexpectedly.
   then: Received STT usage is settled once, completed reasoning/TTS retain their existing charges, saved chat survives
     and no new paid call starts.
+- id: two-hours-of-connected-silence
+  given: Maya finishes a spoken request and hears the reply.
+  when: She stays quiet for two hours and then speaks again.
+  then: The same call stays open without an inactivity warning or audio uploads. Transcription credits do not change during quiet. Her next words are captured from their beginning.
 migration_distinct_usage:
 - id: distinct-usage
   given: Maya sends 20 seconds of microphone audio and receives an Eleven v4 Turbo response whose incremental
     text appends contain 120 then 280 exact characters for one assistant message.
   when: The 400-character synthesis completes successfully, then duplicate settlement packets arrive.
-  then: The STT started-minute charge and ordinary model and skill charges settle separately. Call speech
+  then: The 20 seconds of forwarded STT audio cost five credits. Ordinary model and skill charges settle separately. Call speech
     charges sixteen credits once for all 400 submitted characters, attributed to ElevenLabs and Eleven v4
     Turbo; appends and duplicate settlement add no separate charge, with no connected-time fee.
 - id: call-failure-and-manual-speak
@@ -541,3 +575,17 @@ waiting_merge:
   given: Maya missed the assistant's last spoken answer.
   when: She says "sorry, can you say that again?".
   then: The stored last answer is played and shown again without a new model request and without credits.
+- id: speaker-echo-of-feedback
+  given: Maya is on speakers and the microphone picks up the Mate's prerecorded clip.
+  when: She stays quiet during the clip and then begins to speak independently.
+  then: Echo creates no user or hold turn. The clip yields to her speech and her words continue through the call.
+
+guest_speech_windows:
+- id: guest-speech-and-quiet
+  given: Maya accepts the notice and starts a call as a signed-out visitor.
+  when: She speaks one question and then stays quiet while waiting for the reply.
+  then: The call forwards her speech and its buffered edges, shows the streamed question once and settles provider work against the shared allowance. Quiet itself sends no audio and leaves the call open within its existing cap.
+- id: guest-asks-for-a-second
+  given: Maya is in a guest call with free allowance remaining.
+  when: She says "give me a second".
+  then: The fast intent check uses the guest allowance and the client plays the ready-made acknowledgment. This request starts no chat answer or speech synthesis.

@@ -48,7 +48,6 @@ from backend.shared.python_utils.learning_mode import (
 
 logger = logging.getLogger(__name__)
 
-DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 POSTPROCESSING_MODEL_ID = "google/gemini-3.5-flash-lite"
 
 
@@ -182,13 +181,6 @@ async def _postprocessing_decisions_with_jev(
         "answer_safety_scores": extract_answer_safety_scores(response),
         "top_recommended_apps_for_user": [app_id for probability, app_id in ranked_apps if probability >= 0.70][:5],
     }
-
-
-def _with_deepseek_utility_fallback(fallbacks: List[str]) -> List[str]:
-    """Keep same-model server recovery first, then add a cross-provider fallback."""
-    return [
-        fallback for fallback in fallbacks if fallback != DEEPSEEK_V4_FLASH_FALLBACK
-    ] + [DEEPSEEK_V4_FLASH_FALLBACK]
 
 
 def extract_available_skills(
@@ -1165,8 +1157,8 @@ async def translate_chat_summary(
     ]
 
     model_id = UTILITY_TRANSLATION_MODEL
-    translation_fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(model_id)
+    translation_fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
     )
 
     try:
@@ -1325,8 +1317,8 @@ async def translate_new_chat_suggestions(
     ]
 
     model_id = UTILITY_TRANSLATION_MODEL
-    translation_fallbacks = _with_deepseek_utility_fallback(
-        resolve_fallback_servers_from_provider_config(model_id)
+    translation_fallbacks = utility_model_fallbacks(
+        model_id, resolve_fallback_servers_from_provider_config(model_id)
     )
 
     try:

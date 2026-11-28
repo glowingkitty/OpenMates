@@ -318,6 +318,7 @@ async def _run_mocked_protocol_guard_main_processor(
     always_include_skills=None,
     on_tool_generation=None,
     encryption_service=None,
+    processor_overrides=None,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -337,7 +338,7 @@ async def _run_mocked_protocol_guard_main_processor(
     monkeypatch.setattr(
         main_processor,
         "StreamChunkType",
-        SimpleNamespace(THINKING="thinking", THINKING_SIGNATURE="signature", TEXT="text"),
+        SimpleNamespace(THINKING="thinking", THINKING_REDACTED="redacted", THINKING_SIGNATURE="signature", TEXT="text"),
     )
 
     # Every provider boundary is local in this loop fixture, including the
@@ -555,6 +556,7 @@ async def _run_mocked_protocol_guard_main_processor(
             cache_service=cache_service,
             user_overrides=(user_overrides_for_main if user_overrides_for_main is not None
                             else SimpleNamespace(skills=None, wikipedia_references=[])),
+            **(processor_overrides or {}),
         )
     ]
     return output, calls
@@ -596,6 +598,36 @@ async def test_argument_normalization_failure_returns_tool_error_without_dispatc
     assert decode(tool_results[0]["content"])["status"] == "error"
     assert "Malformed skill arguments" in tool_results[0]["content"]
     assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.audio.localized-waiting
+async def test_reasoning_restarts_after_visible_text_in_the_same_provider_stream(monkeypatch):
+    phases = []
+
+    async def announce():
+        phases.append("thinking")
+
+    class ProviderChunks:
+        def __iter__(self):
+            for phase, text in [
+                ("thinking", "First thought"), ("redacted", ""), ("thinking", "Same thought"),
+                ("text", "The first point. "), ("thinking", "Another thought"),
+                ("thinking", "Same new thought"), ("text", "The conclusion."),
+            ]:
+                if phase == "thinking" and text in {"First thought", "Another thought"}:
+                    assert len(phases) == (0 if text == "First thought" else 1)
+                chunk = main_processor.UnifiedStreamChunk()
+                chunk.type, chunk.content = phase, text
+                yield chunk
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [ProviderChunks()],
+        processor_overrides={"on_reasoning_dispatch": announce},
+    )
+
+    assert len(calls) == 1
+    assert phases == ["thinking", "thinking"]
+    assert "The conclusion." in "".join(chunk for chunk in output if isinstance(chunk, str))
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
@@ -713,6 +745,58 @@ async def test_queued_steer_joins_only_after_complete_tool_batch_and_is_not_repl
         "call-first", "call-second", "call-third",
     ]
     assert "Done." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.active-artifact
+async def test_recipe_corrections_stage_in_order_after_a_provider_cycle_without_tools(monkeypatch) -> None:
+    from backend.apps.ai.processing import queued_steering
+    from backend.apps.ai.processing.active_artifact_steering import ArtifactFile, ArtifactSnapshot
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    recipe = ArtifactSnapshot(
+        "existing-card", "task-1", "code", 1,
+        (ArtifactFile("recipe.html", "html", "<header style='background: blue'>Recipe</header>"),), {},
+    )
+    red = "Make the existing app header red."
+    font = "Use Lexend Deca in the same recipe app."
+    messages = iter([
+        AIHistoryMessage(role="user", message_id="red", content=red, created_at=2),
+        AIHistoryMessage(role="user", message_id="font", content=font, created_at=3),
+    ])
+
+    async def claim(**kwargs):
+        assert kwargs["active_input_target"] == ("task-1", None)
+        return next(messages, None)
+
+    monkeypatch.setattr(queued_steering, "consume_safe_queued_steer", claim)
+    working = "The current recipe app is ready."
+    replacement = "<header style='background:red;font-family:Lexend Deca'>Recipe</header>"
+    proposed = json.dumps({"files": [{"path": "recipe.html", "content": replacement}]})
+    read = AsyncMock(return_value=recipe)
+    publish = AsyncMock(return_value=True)
+    histories = []
+    cache_connection = asyncio.get_running_loop().create_future()
+    cache_connection.set_result(None)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[working], [proposed[:20], proposed[20:]]],
+        cache_service=SimpleNamespace(
+            client=cache_connection,
+            get_pending_app_settings_memories_request=AsyncMock(return_value=None),
+            peek_steer_queued_message=AsyncMock(return_value={"raw": "queue"}),
+        ),
+        request_overrides={"current_user_content": "Build a recipe app"},
+        processor_overrides={"read_steerable_artifact": read, "publish_artifact_revision": publish},
+        on_provider_call=lambda kwargs: histories.append(copy.deepcopy(kwargs["message_history"])),
+    )
+    assert len(calls) == 2
+    assert calls[1]["tool_choice"] == "none"
+    assert red not in [message["content"] for message in histories[0]]
+    assert [message["content"] for message in histories[1] if message.get("message_id") in {"red", "font"}] == [red, font]
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)).strip() == working
+    publish.assert_awaited_once()
+    old, draft = publish.await_args.args
+    assert old.embed_id == "existing-card"
+    assert old.replacement_files(draft)[0].content == replacement
 
 
 @pytest.fixture
@@ -3090,6 +3174,50 @@ async def test_jev_mercury_effort_caps_real_loop_before_reservation(monkeypatch,
     )
     assert len(calls) == 1
     assert events == [('reserve', cap), ('dispatch', cap)]
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.reasoning.preprocessor-recommendation,video-call.audio.localized-waiting
+async def test_verified_low_voice_main_applies_instant_only_before_model_fallback(monkeypatch):
+    providers = Path(__file__).resolve().parents[1] / "providers"
+    catalog = {provider: yaml.safe_load((providers / f"{provider}.yml").read_text())
+               for provider in ("inception", "google")}
+    monkeypatch.setattr(main_processor.config_manager, "_provider_configs", {
+        **main_processor.config_manager._provider_configs, **catalog,
+    })
+    mercury = "inception/mercury-3"
+    gemini = "google/gemini-3.8-flash"
+    failure = main_processor.AllServersFailedError(mercury, [mercury], "synthetic failure")
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[failure], ["Fallback answer."]],
+        request_overrides={"voice_mode": True, "_verified_live_voice_dispatch": True},
+        preprocessing_overrides={
+            "complexity": "low", "selected_main_llm_model_id": mercury,
+            "selected_secondary_model_id": gemini, "requested_reasoning_level": "LOW",
+            "voice_instant_route_proof": True,
+        },
+    )
+    assert [(call["model_id"], call["prefer_instant_voice"]) for call in calls] == [(mercury, True), (gemini, False)]
+    assert all(call["pre_dispatch_admission"] is not None for call in calls)
+    assert calls[1]["thinking_level"] == "LOW"
+    assert "Fallback answer." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=gui.web assertions=ai-model-routing.reasoning.preprocessor-recommendation
+async def test_verified_low_voice_main_returns_to_configured_effort_in_answer_recovery(monkeypatch):
+    provider = Path(__file__).resolve().parents[1] / "providers/inception.yml"
+    monkeypatch.setattr(main_processor.config_manager, "_provider_configs", {
+        **main_processor.config_manager._provider_configs, "inception": yaml.safe_load(provider.read_text()),
+    })
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{"fake_google_tool_call": "unavailable-tool"}], ["Recovered answer."]],
+        request_overrides={"voice_mode": True, "_verified_live_voice_dispatch": True},
+        preprocessing_overrides={
+            "complexity": "low", "selected_main_llm_model_id": "inception/mercury-3",
+            "voice_instant_route_proof": True,
+        },
+    )
+    assert [call["prefer_instant_voice"] for call in calls] == [True, False]
 
 
 # contract-test: supporting surface=rest_api assertions=ai-model-routing.reasoning.preprocessor-recommendation

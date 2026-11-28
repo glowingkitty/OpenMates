@@ -64,6 +64,8 @@ def get_skill_timeout(app_id: str, skill_id: str, arguments: Dict[str, Any]) -> 
     """
     # Public page reads include robots checks, bounded source retrieval and the
     # inherited output-safety scan before delivery of complete extracted text.
+    if (app_id, skill_id) == ("design", "author"):
+        return 135.0
     if (app_id, skill_id) == ("web", "read"):
         return 75.0
     # The assistant calls PDF skills while the upload's OCR task may still be
@@ -120,6 +122,7 @@ DEFAULT_SKILL_MAX_RETRIES = 1
 # Skills that must run exactly once per call (own fallback or non-idempotent side effects).
 NO_RETRY_SKILLS = frozenset({
     ("ai", "decide"),
+    ("design", "author"),
     ("web", "browse"),
     ("openmates", "start-chat"),
     ("openmates", "read-spawned-chat"),
@@ -668,11 +671,15 @@ async def execute_skill_with_multiple_requests(
             ("business", "search_investors"),
             ("business", "search_trademarks"),
             ("code", "run"),
+            # All requested copy and layout checks belong to one Design brief.
+            ("design", "author"),
             ("pdf", "read"),
             ("pdf", "view"),
             # One Check carries several sources and one Specification several
             # requirements and flows; splitting those lists breaks the definition.
+            # A Plan carries its whole assumptions list.
             ("plans", "check"),
+            ("plans", "create"),
             ("plans", "specification"),
         }
     ):

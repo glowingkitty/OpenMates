@@ -15,6 +15,7 @@ final class LocalizationManager: ObservableObject {
     private var translations: [String: Any] = [:]
     private var fallbackTranslations: [String: Any] = [:]
     private var loadedLocale: String?
+    private var languageRequest: (id: UUID, language: SupportedLanguage)?
 
     private init() {
         if let bundled = loadBundledJSON(locale: "en") {
@@ -27,31 +28,53 @@ final class LocalizationManager: ObservableObject {
     // MARK: - Language switching
 
     func setLanguage(_ language: SupportedLanguage) async {
-        guard language != currentLanguage || loadedLocale != language.code else { return }
-        isLoading = true
-
-        if language.code == "en" {
-            translations = fallbackTranslations
-        } else {
-            if let loaded = await fetchTranslations(locale: language.code) {
-                translations = loaded
-            } else if let bundled = loadBundledJSON(locale: language.code) {
-                translations = bundled
-            }
-        }
-
-        currentLanguage = language
-        isRTL = language.isRTL
-        loadedLocale = language.code
-
-        UserDefaults.standard.set(language.code, forKey: "app_language")
-        isLoading = false
+        await loadLanguage(language, useBundleWhileRefreshing: false)
     }
 
     func restoreSavedLanguage() async {
         if let saved = UserDefaults.standard.string(forKey: "app_language"),
            let language = SupportedLanguage.from(code: saved) {
-            await setLanguage(language)
+            await loadLanguage(language, useBundleWhileRefreshing: true)
+        }
+    }
+
+    private func loadLanguage(_ language: SupportedLanguage, useBundleWhileRefreshing: Bool) async {
+        guard !Task.isCancelled, languageRequest?.language != language,
+              language != currentLanguage || loadedLocale != language.code || languageRequest != nil else { return }
+        let request = UUID()
+        languageRequest = (request, language)
+        isLoading = true
+
+        if language == .en {
+            apply(fallbackTranslations, language: language)
+        } else {
+            if useBundleWhileRefreshing {
+                let bundled = loadBundledJSON(locale: language.code) ?? fallbackTranslations
+                apply(bundled, language: language)
+            }
+            let downloaded = await fetchTranslations(locale: language.code)
+            guard request == languageRequest?.id else { return }
+            if !Task.isCancelled {
+                if let downloaded {
+                    apply(downloaded, language: language)
+                } else if !useBundleWhileRefreshing {
+                    let bundled = loadBundledJSON(locale: language.code) ?? fallbackTranslations
+                    apply(bundled, language: language)
+                }
+            }
+        }
+
+        languageRequest = nil
+        isLoading = false
+    }
+
+    private func apply(_ dictionary: [String: Any], language: SupportedLanguage) {
+        translations = dictionary
+        loadedLocale = language.code
+        if currentLanguage != language {
+            currentLanguage = language
+            isRTL = language.isRTL
+            UserDefaults.standard.set(language.code, forKey: "app_language")
         }
     }
 
@@ -170,7 +193,9 @@ final class LocalizationManager: ObservableObject {
                   httpResponse.statusCode == 200 else { return nil }
             return try JSONSerialization.jsonObject(with: data) as? [String: Any]
         } catch {
-            print("[I18n] Failed to fetch \(locale): \(error)")
+            if !Task.isCancelled {
+                print("[I18n] Failed to fetch \(locale): \(error)")
+            }
             return nil
         }
     }

@@ -21,6 +21,7 @@
   let approval = $derived(derivePlanApproval(data));
   let progress = $derived(summarizeProgress(data.tasks));
   let checks = $derived(summarizeChecks(data.checks));
+  let progressPercent = $derived(progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100));
   let approvalLabel = $derived(approval.kind === 'approved' && approval.revisionNumber
     ? $text('plan_embeds.approval.approved', { values: { revision: approval.revisionNumber } })
     : $text(approval.kind === 'approved' ? 'plan_embeds.approval.approved_plain' : `plan_embeds.approval.${approval.kind}`));
@@ -35,6 +36,9 @@
 
   <section aria-label={$text('plan_embeds.section.tasks')} data-testid="chat-active-plan-tasks">
     <p class="heading">{$text('plan_embeds.section.tasks')}</p>
+    <div class="progress" data-testid="chat-active-plan-progress-bar" data-percent={progressPercent} role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPercent} aria-label={$text('plan_embeds.section.tasks')}>
+      <span class="bar" style:width="{progressPercent}%"></span>
+    </div>
     {#if data.tasks.length === 0}<p class="empty">{$text('plan_embeds.empty.tasks')}</p>{/if}
     <ul>
       {#each data.tasks as task (task.taskId)}
@@ -84,10 +88,13 @@
   .active-plan { display: grid; gap: var(--spacing-6); margin-top: var(--spacing-5); color: var(--color-font-primary); }
   .summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-3) var(--spacing-6); color: var(--color-font-secondary); font-size: var(--font-size-small, 0.875rem); }
   .heading { margin: 0 0 var(--spacing-3); font-weight: 700; }
+  .progress { height: 6px; margin-bottom: var(--spacing-4); border-radius: 999px; background: var(--color-grey-20); overflow: hidden; }
+  .bar { display: block; height: 100%; background: var(--color-button-primary); }
   .empty { margin: 0; color: var(--color-font-secondary); }
   ul { display: grid; gap: var(--spacing-3); margin: 0; padding: 0; list-style: none; }
   li { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-5); padding: var(--spacing-4) var(--spacing-5); border-radius: var(--radius-4, 18px); background: var(--color-grey-10); }
   li span:first-child { min-width: 0; overflow-wrap: anywhere; }
-  .chat-link { display: block; margin-top: var(--spacing-2); border: 0; padding: 0; background: none; color: var(--color-primary-start, var(--color-font-primary)); font: inherit; text-decoration: underline; cursor: pointer; }
+  .chat-link { display: block; margin-top: var(--spacing-2); border: 0; padding: 0; min-width: 0; height: auto; box-shadow: none; filter: none; background: none; color: var(--color-primary-start, var(--color-font-primary)); font: inherit; text-decoration: underline; cursor: pointer; }
+  .chat-link:hover, .chat-link:active, .chat-link:focus { box-shadow: none; filter: none; background: none; transform: none; }
   .open-plan { justify-self: start; border: 0; border-radius: 999px; background: var(--color-button-primary); color: var(--color-font-button); padding: 11px 16px; font: inherit; cursor: pointer; }
 </style>

@@ -199,10 +199,11 @@ def verify_guest_chat(api_url: str, _api_key: str) -> dict[str, Any]:
     }
 
 
-def scenario_failure(error: BaseException) -> dict[str, Any]:
+def scenario_failure(error: BaseException, started: float) -> dict[str, Any]:
     return {
         "status": "failed",
-        "error": str(error)[:900],
+        "error": redact_api_keys(str(error))[:900],
+        "duration_seconds": time.monotonic() - started,
     }
 
 
@@ -238,10 +239,11 @@ def main() -> int:
         checks.append(("guest_chat", verify_guest_chat))
 
     for name, fn in checks:
+        started = time.monotonic()
         try:
             scenarios[name] = fn(args.api_url, args.api_key)
         except Exception as exc:  # noqa: BLE001 - produce structured smoke output for notifications.
-            scenarios[name] = scenario_failure(exc)
+            scenarios[name] = scenario_failure(exc, started)
 
     failed = [name for name, result in scenarios.items() if result.get("status") != "passed"]
     payload = {

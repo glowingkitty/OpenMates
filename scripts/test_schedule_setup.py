@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
 
 
@@ -35,6 +36,27 @@ LEGACY_COMMAND_MARKERS = (
 )
 
 
+# Europe/Berlin is UTC+1 (CET) or UTC+2 (CEST).
+BERLIN_UTC_OFFSETS = (1, 2)
+# Berlin hours each production suite runs at. run_tests.py gates on the same
+# hours (PROD_FREE_HOURLY_START_HOUR..END_HOUR, PROD_PAID_CHAT_HOURS, PROD_APP_SKILL_HOURS).
+PROD_FREE_HOURLY_BERLIN_HOURS = range(6, 24)
+PROD_PAID_CHAT_BERLIN_HOURS = (7, 13, 19)
+PROD_APP_SKILL_BERLIN_HOURS = (9,)
+
+
+def berlin_hours_as_utc_cron(berlin_hours: Iterable[int]) -> str:
+    """Return the cron hour field that hits every Berlin hour in CET and CEST.
+
+    The host cron (Debian/Ubuntu cron 3.0) ignores CRON_TZ and always runs on
+    the system clock (UTC), so each Berlin hour is listed at both UTC offsets.
+    run_tests.py's Berlin-hour gate then skips the candidate that is off by one
+    hour, so each slot runs exactly once whatever the season (TASK-4996).
+    """
+    utc_hours = sorted({(hour - offset) % 24 for hour in berlin_hours for offset in BERLIN_UTC_OFFSETS})
+    return ",".join(str(hour) for hour in utc_hours)
+
+
 def managed_block(root: Path = PROJECT_ROOT) -> str:
     quoted_root = str(root)
     log_root = f"{quoted_root}/logs"
@@ -47,17 +69,19 @@ def managed_block(root: Path = PROJECT_ROOT) -> str:
         f"15 * * * * /usr/bin/python3 {quoted_root}/scripts/daily_ci_notification.py --send >> {log_root}/daily-tests-notification.log 2>&1",
         "# Hourly dev core journeys during the existing 08:00-18:00 UTC window.",
         "# CI migration HOLD --hourly-dev: legacy shared-runtime execution retired; explicit isolated coverage disposition pending.",
-        "CRON_TZ=Europe/Berlin",
+        "# Production slots are Europe/Berlin hours. This cron ignores CRON_TZ (system clock is UTC), so",
+        "# each slot is listed at both its CET and CEST UTC hour; run_tests.py's Berlin-hour gate keeps one.",
         "# Production monitoring is GitHub-hosted and independent of dev Docker state. prod_smoke_cron.py, not",
         "# run_tests.py: run_tests.py forwards to the isolated CI dispatcher, which has no prod modes.",
         "# Hourly prod reachability + guest chat that must get a reply, 06-23 Berlin (TASK-832). It only",
         "# dispatches the GitHub-hosted prod-smoke workflow; failures go to DISCORD_WEBHOOK_PROD_SMOKE and email.",
-        f"5 6-23 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
+        f"5 {berlin_hours_as_utc_cron(PROD_FREE_HOURLY_BERLIN_HOURS)} * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py free-hourly' >> {log_root}/hourly-prod-tests.log 2>&1",
+        "# Lightweight checks and rechecks of active incidents, gated by OPENMATES_PROD_UPTIME_ENABLED.",
+        f"*/5 * * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py monitor' >> {log_root}/production-uptime.log 2>&1",
         "# Signed-in prod chat 3x/day and CLI web search 1x/day with the dedicated prod smoke test account",
         "# (GitHub secret OPENMATES_TEST_ACCOUNT_API_KEY; about 2 and 10 credits per run).",
-        f"10 7,13,19 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",
-        f"15 9 * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py app-skill' >> {log_root}/prod-app-skill-tests.log 2>&1",
-        "CRON_TZ=UTC",
+        f"10 {berlin_hours_as_utc_cron(PROD_PAID_CHAT_BERLIN_HOURS)} * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py paid-chat' >> {log_root}/prod-paid-chat-tests.log 2>&1",
+        f"15 {berlin_hours_as_utc_cron(PROD_APP_SKILL_BERLIN_HOURS)} * * * bash -c 'set -a && . {quoted_root}/.env && set +a && cd {quoted_root} && /usr/bin/python3 scripts/prod_smoke_cron.py app-skill' >> {log_root}/prod-app-skill-tests.log 2>&1",
         END,
     ])
 

@@ -84,9 +84,11 @@ async def get_active_users_since(self, timestamp: int) -> int:
             "limit": 1,
             "meta": "filter_count",
             "filter": json.dumps({
-                "last_access": {
-                    "_gte": iso_date
-                }
+                "_and": [
+                    {"last_access": {"_gte": iso_date}},
+                    # Test accounts never count as active users.
+                    {"is_test_account": {"_neq": True}},
+                ]
             })
         }
         
@@ -138,7 +140,7 @@ async def get_completed_signups_count(self) -> int:
         url = f"{self.base_url}/users"
         params = {
             "limit": -1,  # Get all users (we'll filter in Python)
-            "fields": "id,last_opened,is_admin",
+            "fields": "id,last_opened,is_admin,is_test_account",
             "filter": json.dumps({
                 "_and": [
                     {
@@ -171,7 +173,7 @@ async def get_completed_signups_count(self) -> int:
             completed_count = 0
             for user in users:
                 # Skip admin users
-                if user.get("is_admin", False):
+                if user.get("is_admin", False) or user.get("is_test_account") is True:
                     continue
                 
                 last_opened = user.get("last_opened")

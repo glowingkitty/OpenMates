@@ -296,7 +296,7 @@ def test_real_chromium_render_contains_inline_green_and_red_changes(tmp_path: Pa
 
 # contract-test: tooling
 def test_requirement_examples_are_adjacent_in_generated_pdf(tmp_path: Path) -> None:
-    import fitz
+    import pymupdf as fitz
 
     current = bundle(tmp_path)
     for index, assertion in enumerate(current.specification["assertions"]):

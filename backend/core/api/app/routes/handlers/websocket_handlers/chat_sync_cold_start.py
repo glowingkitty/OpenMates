@@ -17,7 +17,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from backend.core.api.app.services.chat_sync_feed_service import socket_has_capability
+from backend.core.api.app.services.chat_sync_feed_service import opened_message_versions, socket_has_capability
 
 logger = logging.getLogger(__name__)
 COLD_START_PHASES = frozenset({"all", "phase2"})
@@ -61,6 +61,57 @@ async def _send_overview(feed: Any, manager: Any, cache_service: Any, directus_s
         {"type": "chat_overview_priority_ready",
          "payload": {**overview, "team_id": team_id, "context_epoch": context_epoch}},
         user_id, device_fingerprint_hash,
+    )
+
+
+async def send_opened_startup_shell(
+    feed: Any, manager: Any, cache: Any, directus: Any, user_id: str,
+    device_hash: str, team_id: str | None, context_epoch: Any,
+) -> None:
+    """Send scoped resume IDs and version hints without reading transcripts."""
+    from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (
+        _build_chat_details_from_directus_metadata,
+        _fetch_daily_inspirations,
+        _fetch_new_chat_suggestions,
+    )
+
+    opened = await feed.startup_opened(user_id, team_id)
+    last_opened = opened[0] if opened else None
+    await manager.send_personal_message(
+        {"type": "chat_startup_opened_ready", "payload": {
+            "chat_id": last_opened["id"] if last_opened else None,
+            "offline_chat_ids": [row["id"] for row in opened],
+            "messages_versions": opened_message_versions(opened),
+            "team_id": team_id,
+            "context_epoch": context_epoch,
+        }},
+        user_id, device_hash,
+    )
+    suggestions, inspirations = [], []
+    if not team_id:
+        suggestions, inspirations = await asyncio.gather(
+            _fetch_new_chat_suggestions(cache, directus, user_id),
+            _fetch_daily_inspirations(cache, directus, user_id),
+        )
+    await manager.send_personal_message(
+        {
+            "type": "phase_1_last_chat_ready",
+            "payload": {
+                "chat_id": last_opened["id"] if last_opened else None,
+                "chat_details": _build_chat_details_from_directus_metadata(
+                    last_opened, last_opened["id"],
+                ) if last_opened else None,
+                "messages": None,
+                "recent_chat_metadata": [],
+                "new_chat_suggestions": suggestions,
+                "daily_inspirations": inspirations,
+                "team_id": team_id,
+                "context_epoch": context_epoch,
+                "phase": "phase1",
+                "already_synced": False,
+            },
+        },
+        user_id, device_hash,
     )
 
 

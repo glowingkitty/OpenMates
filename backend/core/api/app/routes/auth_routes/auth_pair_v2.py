@@ -20,6 +20,7 @@ from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_common import read_ai_preferences_for_auth
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_cache_service, get_compliance_service, get_current_user, get_current_user_optional,
     get_directus_service, get_encryption_service,
@@ -505,6 +506,7 @@ async def complete(request: Request, response: Response, token: str, body: Compl
             language=user.get("language", "en"), darkmode=bool(user.get("darkmode")),
             user_email_salt=user.get("user_email_salt"),
             encrypted_settings=user.get("encrypted_settings"),
+            **await read_ai_preferences_for_auth(directus, user_id, user),
         )
         result = LoginResponse(success=True, message="Login successful", user=result_user,
             ws_token=create_ws_token(issued_token) if issued_token else None, pair_expires_at=deadline)

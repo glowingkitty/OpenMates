@@ -95,7 +95,7 @@ def test_ask_dry_run_format_has_no_option_list(root):
 def test_over_long_text_is_rejected_with_a_rewrite_instruction_not_truncated(root):
     long = "This sentence keeps going with more words than any push should hold. " * 3
     for make, limit in ((lambda t: done_args(summary=t), aq.discord_summary.SUMMARY_MAX),
-                        (lambda t: args(dry_run=True, question=t), aq.discord_summary.ASK_MAX)):
+                        (lambda t: args(dry_run=True, question=f"Use the region described here, {t}?"), aq.discord_summary.ASK_MAX)):
         with pytest.raises(aq.discord_summary.SummaryTooLong, match=f"under {limit} characters, one sentence"):
             aq.send(make(long), root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
 
@@ -126,11 +126,13 @@ def test_last_fallback_cuts_at_a_word_boundary_when_the_model_fails(root, monkey
     assert len(body) <= aq.discord_summary.SUMMARY_MAX and body.endswith("…") and not body.endswith(" …")
     assert set(body[:-1].split()) <= {"Billing", "retries", "ship", "on", "dev"}  # whole words only
 
-def test_model_answer_that_is_still_too_long_is_cut_instead(root, monkeypatch):
+def test_ask_shortener_cannot_turn_a_decision_into_a_statement(root, monkeypatch):
     monkeypatch.setattr(aq, "shorten_with_model", lambda text, limit: "word " * 60)
     aq.write_rejections(root, "chat-1", aq.ASK, aq.discord_summary.MAX_REJECTIONS)
-    text = aq.send(args(dry_run=True, question="Which region? " * 30), root, "chat-1", 1000.0)
-    assert len(text.partition(": ")[2]) <= aq.discord_summary.ASK_MAX
+    with pytest.raises(aq.QuestionError, match="Rewrite the ask"):
+        aq.send(args(dry_run=True, question="Select a region for " + "the archive " * 20 + "?"),
+                root, "chat-1", 1000.0)
+
 
 def test_shortener_gets_only_scrubbed_text(root, monkeypatch):
     seen = []
@@ -173,7 +175,7 @@ def test_long_titles_are_shortened_to_30_characters_without_task_ids(root, monke
     assert len(title) <= aq.discord_summary.TITLE_MAX and title.endswith("…") and "TASK" not in title
     assert aq.short_title("Billing fix") == "Billing fix"
 
-@pytest.mark.parametrize("make", [lambda text: done_args(summary=text), lambda text: args(dry_run=True, question=text)])
+@pytest.mark.parametrize("make", [lambda text: done_args(summary=text), lambda text: args(dry_run=True, question="Should I " + text + "?")])
 def test_both_formats_are_scrubbed(root, make):
     text = aq.send(make("Mail me@example.org, token sk-abcdefghijklmnopqrst, task " + "1b0f9375-84d4-4e0b-8f96-d677a4f1da2d"),
                    root, "chat-1", 1000.0, post=lambda **_: pytest.fail("posted"))
@@ -258,7 +260,7 @@ def test_assignment_keeps_the_name_and_drops_the_value():
 
 def test_long_push_is_split_into_parts_without_cutting_links(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
-    question = " ".join(f"Flow {n}: {PRESIGNED}" for n in range(5))
+    question = " ".join(f"Flow {n}: {PRESIGNED}" for n in range(5)) + " Which flow should we run?"
     sent = []
     text = aq.send(args(question=question), root, "chat-1", 1.0, post=lambda **kw: sent.append(kw) or {"message_id": "1"})
     parts = [call["payload"]["content"] for call in sent]
@@ -289,18 +291,27 @@ def test_post_marker_rate_limit_and_fallback_key(root, monkeypatch):
     assert sent[0]["webhook_url"] == "https://example.org/hook"
     marker = json.loads(aq.marker_path(root, "chat-1").read_text())
     assert marker["ts"] == 1000.0 and marker["question"] == "Which region?"
-    with pytest.raises(aq.QuestionError, match="20 minutes"):
-        aq.send(args(), root, "chat-1", 1100.0, post=post)
+    aq.send(args(), root, "chat-1", 1100.0, post=post)  # within 20 minutes: queued, not sent, not dropped
+    assert len(sent) == 1 and len(aq._queue_lines(root)) == 1
     aq.send(args(force=True), root, "chat-1", 1100.0, post=post)
     aq.send(args(), root, "chat-1", 1100.0 + aq.RATE_LIMIT_SECONDS + 1, post=post)
     assert len(sent) == 3
 
 
-def test_unconfirmed_delivery_fails_without_marker(root, monkeypatch):
+def test_unconfirmed_delivery_is_queued_and_flush_sends_it_later(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
-    with pytest.raises(aq.QuestionError, match="not confirmed"):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
-    assert not aq.marker_path(root, "chat-1").exists()
+    parsed = args()
+    aq.send(parsed, root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+    assert parsed.queued and aq.marker_path(root, "chat-1").exists() and not (root / aq.PUSH_LOG).exists()
+    (held,) = aq._queue_lines(root)
+    assert held["due"] == 1.0 + aq.QUEUE_RETRY_SECONDS and "not confirmed" in held["last_error"]
+    assert aq.flush(root, 2.0, post=lambda **_: pytest.fail("not due yet")) == []
+    assert aq.flush(root, 1.0 + aq.QUEUE_RETRY_SECONDS, post=lambda **_: None, sleep=lambda _: None) == []
+    assert aq._queue_lines(root)[0]["attempts"] == 1  # still unconfirmed: kept, retried later
+    sent = aq.flush(root, 1.0 + 2 * aq.QUEUE_RETRY_SECONDS, post=lambda **_: {"message_id": "1"})
+    assert len(sent) == 1 and sent[0].startswith("❓") and aq._queue_lines(root) == []
+    entry = json.loads((root / aq.PUSH_LOG).read_text().splitlines()[-1])
+    assert entry["source"] == "agent_question_queue" and entry["asks"] == "Which region?"
 
 def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
@@ -309,12 +320,11 @@ def test_transient_failure_is_retried_then_delivered(root, monkeypatch):
     assert waits == list(aq.RETRY_DELAYS) and not results
     assert aq.marker_path(root, "chat-1").exists()
 
-def test_gives_up_after_all_attempts(root, monkeypatch):
+def test_queues_after_all_attempts(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
     calls = []
-    with pytest.raises(aq.QuestionError, match="after 3 attempts"):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
-    assert len(calls) == 3
+    aq.send(args(), root, "chat-1", 1.0, post=lambda **_: calls.append(1), sleep=lambda _: None)
+    assert len(calls) == 3 and "after 3 attempts" in aq._queue_lines(root)[0]["last_error"]
 
 
 def test_delivered_push_is_logged_for_the_connector(root, monkeypatch):
@@ -335,9 +345,9 @@ def test_done_push_is_logged_and_rate_limited_apart_from_the_question(root, monk
     post = lambda **kw: sent.append(kw["payload"]["content"]) or {"message_id": "1"}  # noqa: E731 - test stub
     aq.send(args(), root, "chat-1", 1000.0, post=post)
     aq.send(done_args(dry_run=False), root, "chat-1", 1100.0, post=post)
-    with pytest.raises(aq.QuestionError, match="already sent a done push"):
-        aq.send(done_args(dry_run=False), root, "chat-1", 1200.0, post=post)
+    aq.send(done_args(dry_run=False), root, "chat-1", 1200.0, post=post)  # second ✅ within 20 min: queued
     assert [m[0] for m in sent] == [aq.ASK, aq.DONE]
+    assert aq._queue_lines(root)[0]["due"] == 1100.0 + aq.RATE_LIMIT_SECONDS
     kinds = [json.loads(line)["kind"] for line in (root / aq.PUSH_LOG).read_text().splitlines()]
     assert kinds == ["ask", "done"]
     assert json.loads(aq.marker_path(root, "chat-1").read_text())["kind"] == aq.DONE
@@ -349,6 +359,125 @@ def test_other_scripts_alerts_are_logged_without_a_kind(root):
 
 def test_failed_push_is_not_logged(root, monkeypatch):
     monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
-    with pytest.raises(aq.QuestionError):
-        aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
-    assert not (root / aq.PUSH_LOG).exists()
+    aq.send(args(), root, "chat-1", 1.0, post=lambda **_: None, sleep=lambda _: None)
+    assert not (root / aq.PUSH_LOG).exists()  # logged only once flush delivers it
+
+
+def test_urgent_question_is_never_held_by_the_rate_limit(root, monkeypatch):
+    """Owner, 23 Nov: an urgent production question was held by the 20-minute limit."""
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    sent = []
+    post = lambda **kw: sent.append(kw["payload"]["content"]) or {"message_id": "1"}  # noqa: E731 - test stub
+    aq.send(args(), root, "chat-1", 1000.0, post=post)
+    aq.send(args(urgent=True, question="Roll back the deploy?"), root, "chat-1", 1100.0, post=post)
+    aq.send(args(question="Production chats fail: restart the AI worker?"), root, "chat-1", 1200.0, post=post)
+    aq.send(args(question="Merge the release PR now?"), root, "chat-1", 1300.0, post=post)
+    assert len(sent) == 4 and aq._queue_lines(root) == []
+    aq.send(args(question="Which colour for the badge?"), root, "chat-1", 1400.0, post=post)
+    assert len(sent) == 4 and len(aq._queue_lines(root)) == 1  # not urgent: queued for later, not dropped
+
+
+def test_loop_brake_questions_are_deduplicated(root, monkeypatch):
+    import ci_triage_gate
+
+    chat = "e26fdb89-6448-4534-b9f5-0ac293c09896"
+    queue = root / "logs/ci-coordinator/queue.sqlite3"
+    brake = ci_triage_gate.register_brake(queue, chat, {"preview": ["a", "b", "c"]})
+    calls = []
+
+    def post(args, folder, chat_id, now):
+        calls.append(args.question)
+        aq._write_marker(folder, chat_id, args, args.question, aq.ASK, now)
+        return "accepted"
+
+    monkeypatch.setattr(aq, "send", post)
+    args = argparse.Namespace(command="ask", question="Retry the preview?", dry_run=False)
+    assert aq.send_with_loop_brake(args, root, chat) == "accepted"
+    assert ci_triage_gate.already_asked(root, chat, brake)
+    assert aq.send_with_loop_brake(args, root, chat) is None
+    assert calls == ["Retry the preview?"]
+
+
+
+@pytest.mark.parametrize(("question", "recommendation", "options", "error"), [
+    ("Done. Tests passed.", "yes", [], "Use done"),
+    ("Tests passed. Deploy now?", "yes", [], "Use done"),
+    ("Could you take a look", "yes", [], "one clear question"),
+    ("Any thoughts?", "yes", [], "needs a decision"),
+    ("Deploy now?", "", [], "recommendation or two"),
+    ("Deploy now?", "open the chat and answer", [], "recommendation or two"),
+    ("Deploy now?", "", ["yes", "yes"], "recommendation or two"),
+])
+def test_invalid_ask_never_posts(root, question, recommendation, options, error):
+    with pytest.raises(aq.QuestionError, match=error):
+        aq.send(args(question=question, recommendation=recommendation, option=options),
+                root, "chat-1", 1000, post=lambda **_: pytest.fail("posted"))
+    assert not aq.marker_path(root, "chat-1").exists()
+
+
+def test_options_are_visible_when_they_are_the_basis_for_the_decision(root):
+    message = aq.send(args(question="Which region?", recommendation="", option=["EU", "US"], dry_run=True),
+                      root, "chat-1", 1000)
+    assert message.startswith("❓") and message.endswith("Options: EU or US")
+
+
+def owner_reply(root, monkeypatch, text, *, chat="chat-1", sent=20, returned_chat=None):
+    path = root / "logs/claude-chat-lifecycle/connector-deliveries.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({chat: {"body": "[Connector receipt 0123456789abcdef] " + text, "sent_at": sent}}))
+    monkeypatch.setattr(aq.push_decision_guard.owner_message, "ask_broker", lambda _:
+                        f"VALID\nchat: {returned_chat or chat}\nsent: 1970-01-01T00:00:{sent:02}+00:00\ntext: {text}")
+
+
+@pytest.mark.parametrize(("question", "answer"), [
+    ("May I deploy the billing retry to dev?", "Approved. Deploy the billing retry to dev."),
+    ("Waive the billing browser verification?", "Waive billing browser verification for this task."),
+])
+def test_repeated_approval_or_waiver_is_refused(root, monkeypatch, question, answer):
+    owner_reply(root, monkeypatch, answer)
+    with pytest.raises(aq.QuestionError, match="already answered"):
+        aq.send(args(question=question), root, "chat-1", 100, post=lambda **_: pytest.fail("posted"))
+
+
+@pytest.mark.parametrize(("answer", "sender"), [
+    ("Approved. Deploy the billing retry to dev.", "chat-1"),
+    ("Approved. Deploy the billing retry to production.", "different-chat"),
+])
+def test_other_scope_or_chat_does_not_block_an_open_decision(root, monkeypatch, answer, sender):
+    owner_reply(root, monkeypatch, answer, returned_chat=sender)
+    msg = aq.send(args(question="May I deploy the billing retry to production?", dry_run=True), root, "chat-1", 100)
+    assert msg.startswith("❓")
+
+
+def test_queue_rechecks_a_decision_the_owner_answered_before_delivery(root, monkeypatch):
+    monkeypatch.setenv("DISCORD_WEBHOOK_AGENT_QUESTIONS", "https://example.org/hook")
+    question = "Which region?"
+    aq.record_push(root, "❓ Fix billing: Which region?", 10, chat_id="chat-1", asks=question,
+                   options=["EU", "US"], task_id="TASK-1", kind="ask")
+    aq.send(args(question=question), root, "chat-1", 15, post=lambda **_: None, sleep=lambda _: None)
+    owner_reply(root, monkeypatch, "EU")
+    assert aq.flush(root, 1000, post=lambda **_: pytest.fail("posted")) == []
+    assert not aq._queue_lines(root)
+    assert not aq.marker_path(root, "chat-1").exists()
+
+
+def test_finished_report_is_rejected_if_queued_as_a_question(root):
+    aq.enqueue(root, {"message": "❓ Fix billing: Tests passed.", "title": "Fix billing", "chat_id": "chat-1",
+                      "kind": "ask", "asks": "Tests passed.", "due": 10})
+    assert aq.flush(root, 20, post=lambda **_: pytest.fail("posted")) == []
+    assert not aq._queue_lines(root)
+
+
+def test_continuation_inherits_verified_authorization_for_the_same_scheduled_work(root, monkeypatch):
+    source = "a01837f9-6cc2-4c6c-9412-f7e767b58870"
+    successor = "b6bd3a83-7a55-42ae-9239-a39f68ad5806"
+    owner_reply(root, monkeypatch, "Make sure the 17:05 queued AI user-flow testing starts on Codex.", chat=source)
+    (root / "logs/claude-chat-lifecycle/handed_off.json").write_text(json.dumps({
+        source: {"successor": f"Codex work chat {successor}"},
+    }))
+    with pytest.raises(aq.QuestionError, match="already answered"):
+        aq.send(args(question="Can you requeue the timed-out 17:05 AI test investigation?"),
+                root, successor, 100, post=lambda **_: pytest.fail("posted"))
+    fresh = aq.send(args(question="Can you requeue the 19:00 AI test investigation?", dry_run=True),
+                    root, successor, 100)
+    assert fresh.startswith("❓")

@@ -2,12 +2,12 @@
 //! section 2). Pure `(method, path, body) -> (status, json)`, so it is testable
 //! without sockets. Errors never carry file contents or key material: details
 //! are fixed strings or stable codes.
+use super::super::{ProjectTree, Revision};
 use super::owner::RunUser;
 use crate::Error;
 use crate::work::sandbox_key::{
     CODE_BINDING_MISMATCH, CODE_EXPIRED, CODE_OPEN_FAILED, SandboxBinding, SandboxKeyPair,
 };
-use super::super::{ProjectTree, Revision};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use std::process::Command;
@@ -55,7 +55,11 @@ struct Fail {
 }
 
 fn fail(status: u16, code: &str, detail: &'static str) -> Fail {
-    Fail { status, code: code.to_owned(), detail }
+    Fail {
+        status,
+        code: code.to_owned(),
+        detail,
+    }
 }
 
 fn now_secs() -> i64 {
@@ -70,7 +74,10 @@ impl Host {
         let keypair = SandboxKeyPair::generate();
         Self {
             public_key: keypair.public_key_b64(),
-            state: Mutex::new(State { keypair: Some(keypair), tree: None }),
+            state: Mutex::new(State {
+                keypair: Some(keypair),
+                tree: None,
+            }),
             cfg,
         }
     }
@@ -80,7 +87,10 @@ impl Host {
         use sha2::{Digest, Sha256};
         let a = Sha256::digest(presented.unwrap_or("").as_bytes());
         let b = Sha256::digest(self.cfg.token.as_bytes());
-        let diff = a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y));
+        let diff = a
+            .iter()
+            .zip(b.iter())
+            .fold(0u8, |acc, (x, y)| acc | (x ^ y));
         diff == 0 && presented.is_some()
     }
 
@@ -112,7 +122,8 @@ impl Host {
             return Err(fail(405, "method_not_allowed", "wrong method"));
         }
         let args: Value = if method == "POST" {
-            serde_json::from_slice(body).map_err(|_| fail(400, "invalid_json", "body is not JSON"))?
+            serde_json::from_slice(body)
+                .map_err(|_| fail(400, "invalid_json", "body is not JSON"))?
         } else {
             Value::Null
         };
@@ -159,14 +170,21 @@ impl Host {
         let key = keypair
             .open_grant(sealed, &binding, now_secs())
             .map_err(|e| match e {
-                Error::Invalid(CODE_BINDING_MISMATCH) => {
-                    fail(409, CODE_BINDING_MISMATCH, "grant is bound to another sandbox")
-                }
+                Error::Invalid(CODE_BINDING_MISMATCH) => fail(
+                    409,
+                    CODE_BINDING_MISMATCH,
+                    "grant is bound to another sandbox",
+                ),
                 Error::Invalid(CODE_EXPIRED) => fail(409, CODE_EXPIRED, "grant expired"),
                 _ => fail(400, CODE_OPEN_FAILED, "grant could not be opened"),
             })?;
-        std::fs::create_dir_all(&self.cfg.project_dir)
-            .map_err(|_| fail(500, "project_dir_failed", "cannot create the Project directory"))?;
+        std::fs::create_dir_all(&self.cfg.project_dir).map_err(|_| {
+            fail(
+                500,
+                "project_dir_failed",
+                "cannot create the Project directory",
+            )
+        })?;
         if let Some(user) = &self.cfg.run_user {
             user.chown(&self.cfg.project_dir);
         }
@@ -281,7 +299,12 @@ impl Host {
         let git = |args: &[&str]| -> bool {
             Command::new("git")
                 .current_dir(dir)
-                .args(["-c", "user.name=OpenMates", "-c", "user.email=sandbox@localhost"])
+                .args([
+                    "-c",
+                    "user.name=OpenMates",
+                    "-c",
+                    "user.email=sandbox@localhost",
+                ])
                 .args(["-c", "safe.directory=*"])
                 .args(args)
                 .output()

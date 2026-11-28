@@ -115,7 +115,7 @@ def derive_display_text_from_embed_ref(embed_ref: str) -> str:
         ref,
     )
     if domain_match:
-        return f"according to {domain_match.group(1)}"
+        return domain_match.group(1)
 
     base = EMBED_REF_SUFFIX_PATTERN.sub("", ref).strip()
     base = re.sub(r"\s*\(\d+\)$", "", base).strip()
@@ -137,6 +137,9 @@ def derive_display_text_from_embed_ref(embed_ref: str) -> str:
 def derive_embed_display_title(child_decoded: Dict[str, Any], embed_ref: str) -> str:
     """Choose the best user-facing inline label from child embed content."""
     # Web attribution belongs in the sentence; full headlines remain in previews.
+    # The fallback is the bare domain: the model writes the connective ("laut",
+    # "according to") in the reply language, so an English prefix here would
+    # leak into non-English answers.
     # Keep non-web labels (files, images, travel, etc.) semantic and unchanged.
     if child_decoded.get("type") in {"website", "web_result", "web-website"}:
         url = string_value(child_decoded.get("url"))
@@ -145,7 +148,7 @@ def derive_embed_display_title(child_decoded: Dict[str, Any], embed_ref: str) ->
         except ValueError:
             domain = None
         if domain:
-            return f"according to {domain.removeprefix('www.')}"
+            return domain.removeprefix("www.")
         return derive_display_text_from_embed_ref(embed_ref)
     for key in (
         "title",

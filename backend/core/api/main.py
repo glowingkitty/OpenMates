@@ -965,6 +965,12 @@ async def lifespan(app: FastAPI):
     from backend.core.api.app.services.project_task_sync_service import ProjectTaskSyncService
     app.state.project_task_sync = ProjectTaskSyncService(app.state.directus_service, app.state.cache_service)
     app.state.project_task_sync_listener_task = asyncio.create_task(app.state.project_task_sync.listen())
+    from backend.core.api.app.services.live_items import LiveItemRelay
+    app.state.live_items = LiveItemRelay(app.state.directus_service, app.state.cache_service)
+    app.state.live_items_tasks = [
+        asyncio.create_task(app.state.live_items.listen()),
+        asyncio.create_task(app.state.live_items.flush_loop()),
+    ]
     from backend.core.api.app.services.chat_sync_feed_service import ChatSyncFeedService
     app.state.chat_sync_feed = ChatSyncFeedService(
         app.state.directus_service, app.state.cache_service, app.state.encryption_service,
@@ -1149,6 +1155,8 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for user updates cancelled")
 
+    for live_task in getattr(app.state, 'live_items_tasks', []):
+        live_task.cancel()
     if hasattr(app.state, 'project_task_sync_listener_task'):
         app.state.project_task_sync_listener_task.cancel()
         try:
@@ -1469,6 +1477,7 @@ def create_app() -> FastAPI:
     # API routers - explicitly included in schema (support API key authentication)
     from backend.core.api.app.routes import tasks_api
     from backend.core.api.app.routes import embeds_api
+    from backend.core.api.app.routes import embed_assistant_change_outcome
     from backend.core.api.app.routes import pdf_pages
     from backend.core.api.app.routes import profile_api
     app.include_router(settings.router, include_in_schema=False)  # Settings contain sensitive account actions; expose narrow API docs via dedicated routers only
@@ -1479,6 +1488,7 @@ def create_app() -> FastAPI:
     app.include_router(openai_compat.router, include_in_schema=True)  # OpenAI-compatible models/chat routes for external SDKs
     app.include_router(tasks_api.router, include_in_schema=True)  # Tasks API router - uses API key authentication for polling long-running tasks
     app.include_router(embeds_api.router, include_in_schema=True)  # Embeds API router - uses API key authentication for downloading embed files (images, etc.)
+    app.include_router(embed_assistant_change_outcome.router, include_in_schema=True)
     app.include_router(pdf_pages.router, include_in_schema=False)  # First-party on-demand PDF page renders (session auth only)
     app.include_router(generated_assets_api.router, include_in_schema=True)  # Short-lived decrypted download URLs for generated media assets
     app.include_router(design_icons.router, include_in_schema=True)  # Design app sanitized Iconify SVG fetch route

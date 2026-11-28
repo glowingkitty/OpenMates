@@ -21,13 +21,25 @@
 -->
 
 <script lang="ts">
+  import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
+  import EmbedIconButton from '../shared/EmbedIconButton.svelte';
+  import SheetFormattedGrid from './SheetFormattedGrid.svelte';
+  import SheetLiveGrid from './SheetLiveGrid.svelte';
+  import SheetLiveFormattingControls from './SheetLiveFormattingControls.svelte';
+  import { createSheetFormattingBridge } from './sheetFormattingBridge';
+  import { cellKey, type LiveSheetAddress } from './sheetLiveTypes';
+  import type { SheetFormatting } from './sheetFormattingTypes';
+  import LiveHeaderStatus from '../shared/LiveHeaderStatus.svelte';
+  import { isLiveCollaborationEnabled } from '../../../config/liveCollaborationFlag';
+  import type { LivePeer, LiveStatus } from '../../../services/live/liveItemTypes';
   import { text } from '@repo/ui';
   import { notificationStore } from '../../../stores/notificationStore';
   import { 
     parseSheetEmbedContent, 
     formatTableDimensions, 
     tableToTSV,
+    tableToCSV,
     tableToXlsx,
     colIndexToLetter,
     type TableCell,
@@ -205,6 +217,7 @@
   let parsedContent = $derived.by(() => parseSheetEmbedContent(piiProcessedTableContent, { title }));
   let renderTitle = $derived(parsedContent.title);
   let parsedTable = $derived(parsedContent.parsedTable);
+  let formatting = $derived(parsedContent.formatting);
   
   // ── Cell editing (inputs + formulas) ───────────────────────────────
   // Editing writes raw cell text (numbers or "=formulas") into the markdown
@@ -238,6 +251,49 @@
   }
 
   let finishingEdit = $state(false);
+  const liveMode = isLiveCollaborationEnabled();
+  let liveStatus = $state<LiveStatus>('saving');
+  let livePeers = $state<LivePeer[]>([]);
+  let bridge = $state.raw<ReturnType<typeof createSheetFormattingBridge> | null>(null);
+  let mergeStart = $state<LiveSheetAddress | null>(null);
+  let liveActive = $derived(liveMode && editMode && canEdit && !!embedId && !!bridge);
+  let showPlainGrid = $derived(!liveActive && (!formatting || (editMode && !liveMode)));
+
+  $effect(() => {
+    if (!liveMode || !embedId) return;
+    const id = embedId;
+    const next = createSheetFormattingBridge(id);
+    bridge = next;
+    const stop = next.client.on('liveVersion', (event) => {
+      if (event.itemId !== id) return;
+      localTable = event.text;
+      localVersion = event.version;
+      includedOriginalTableContent = null;
+    });
+    return () => { stop(); next.dispose(); };
+  });
+
+  function selectForFormatting(cell: LiveSheetAddress): boolean {
+    if (!bridge) return false;
+    bridge.select(cell);
+    if (!mergeStart) return false;
+    const anchor = mergeStart;
+    mergeStart = null;
+    if (anchor.rowId === cell.rowId && anchor.colId === cell.colId) return true;
+    const view = get(bridge.view);
+    if (!view) return true;
+    const rowOrder = [null, ...view.rows];
+    const rows = [rowOrder.indexOf(anchor.rowId), rowOrder.indexOf(cell.rowId)];
+    const cols = [view.cols.indexOf(anchor.colId), view.cols.indexOf(cell.colId)];
+    if (rows.includes(-1) || cols.includes(-1)) return true;
+    const start = { rowId: rowOrder[Math.min(...rows)], colId: view.cols[Math.min(...cols)] };
+    const end = { rowId: rowOrder[Math.max(...rows)], colId: view.cols[Math.max(...cols)] };
+    bridge.select(start);
+    void bridge.applyFormatting([{ kind: 'merge', start, end }]).catch(() => {
+      notificationStore.error($text('embeds.sheets.sheet.formatting_failed'));
+    });
+    return true;
+  }
 
   /**
    * The header Edit button: turns edit mode on; while editing it is the check
@@ -245,6 +301,12 @@
    * is saved as its own version; persistEdit reports failures) and leaves edit mode.
    */
   async function toggleEditMode() {
+    if (liveMode) {
+      editMode = !editMode;
+      mergeStart = null;
+      if (!editMode) bridge?.select(null);
+      return;
+    }
     if (!editMode) { editMode = true; activeCell = null; return; }
     commitCellEdit();
     activeCell = null;
@@ -432,7 +494,7 @@
   let statusText = $derived.by(() => {
     if (actualRowCount === 0 && actualColCount === 0) return '';
     const dims = formatTableDimensions(actualRowCount, actualColCount);
-    if (hasActiveFilters && filteredRowCount !== actualRowCount) {
+    if (showPlainGrid && hasActiveFilters && filteredRowCount !== actualRowCount) {
       return `${dims} (${filteredRowCount} shown)`;
     }
     return dims;
@@ -503,17 +565,30 @@
     return cells;
   }
   
-  /**
-   * Copy table as TSV to clipboard.
-   * TSV (tab-separated values) is what Excel and Google Sheets expect on paste.
-   * Uses the PII-processed display rows (originals or placeholders per piiRevealed).
-   */
+  function exportCells(includeAllFormattedRows = false) {
+    const view = liveActive && bridge ? get(bridge.view) : null;
+    const headers = view
+      ? view.cols.map(col => ({ content: view.headers[col] ?? '' }))
+      : parsedTable.headers;
+    const savedRows = showPlainGrid && !(includeAllFormattedRows && formatting) ? displayRows : parsedTable.rows;
+    const rows = view
+      ? view.rows.map(row => view.cols.map(col => ({ content: view.cells[cellKey(row, col)]?.display ?? '' })))
+      : savedRows;
+    const stripLinks = (cell: TableCell) => ({
+      ...cell, content: stripWikiLinks(stripEmbedLinks(cell.content)),
+    });
+    return {
+      headers: headers.map(stripLinks),
+      rows: rows.map(row => row.map(stripLinks)),
+      formatting: view ? view.formatting as SheetFormatting | undefined : formatting,
+    };
+  }
+
+  /** Copy the displayed values as TSV for pasting into a spreadsheet. */
   async function handleCopy() {
     try {
-      // Strip embed link markdown syntax before export so TSV contains clean text
-      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripWikiLinks(stripEmbedLinks(h.content)) }));
-      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripWikiLinks(stripEmbedLinks(cell.content)) })));
-      const tsv = tableToTSV(cleanHeaders, cleanRows);
+      const { headers, rows } = exportCells();
+      const tsv = tableToTSV(headers, rows);
       const clipResult = await copyToClipboard(tsv);
       if (!clipResult.success) throw new Error(clipResult.error || 'Copy failed');
       console.warn('[SheetEmbedFullscreen] Copied table as TSV to clipboard');
@@ -527,28 +602,26 @@
   /**
    * Download table as .xlsx file.
    * Generates a minimal Office Open XML workbook using zero external dependencies.
-   * When filters/sorting are active, exports only the visible rows.
+   * XLSX keeps the order of formatted sheets so A1 styles stay with their cells.
    */
-  async function handleDownload() {
+  async function handleDownload(fileType: 'xlsx' | 'csv' = 'xlsx') {
     try {
       const sheetName = renderTitle || 'Table';
-      // Strip embed link markdown syntax before export so XLSX contains clean text
-      const cleanHeaders = parsedTable.headers.map(h => ({ ...h, content: stripWikiLinks(stripEmbedLinks(h.content)) }));
-      const cleanRows = displayRows.map(row => row.map(cell => ({ ...cell, content: stripWikiLinks(stripEmbedLinks(cell.content)) })));
-      const blob = await tableToXlsx(cleanHeaders, cleanRows, sheetName);
+      const { headers, rows, formatting } = exportCells(fileType === 'xlsx');
+      const blob = fileType === 'csv'
+        ? new Blob([tableToCSV(headers, rows)], { type: 'text/csv;charset=utf-8' })
+        : await tableToXlsx(headers, rows, sheetName, formatting);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${renderTitle || 'table'}.xlsx`;
+      link.download = `${renderTitle || 'table'}.${fileType}`;
       document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      console.warn('[SheetEmbedFullscreen] Downloaded table as .xlsx');
-      notificationStore.success('Table downloaded as .xlsx');
+      try { link.click(); }
+      finally { link.remove(); setTimeout(() => URL.revokeObjectURL(url), 0); }
+      notificationStore.success($text('embeds.sheets.sheet.downloaded'));
     } catch (error) {
       console.error('[SheetEmbedFullscreen] Failed to download table:', error);
-      notificationStore.error('Failed to download table');
+      notificationStore.error($text('embeds.sheets.sheet.download_failed'));
     }
   }
 </script>
@@ -563,7 +636,7 @@
   embedHeaderSubtitle={statusText}
   {onClose}
   onCopy={handleCopy}
-  onDownload={handleDownload}
+  onDownload={() => handleDownload()}
   currentEmbedId={embedId}
   {hasPreviousEmbed}
   {hasNextEmbed}
@@ -581,6 +654,11 @@
   editTestId="sheet-edit-toggle"
   reportInMore={true}
 >
+  {#snippet headerActions()}
+    <EmbedIconButton icon="download" label={$text('embeds.sheets.sheet.download_csv')}
+      testId="sheet-download-csv" onclick={() => handleDownload('csv')} />
+  {/snippet}
+
   {#snippet content()}
     <div class="sheet-fullscreen" data-testid="sheet-fullscreen" data-edit-mode={editMode ? 'true' : 'false'}>
       <!-- PII reveal toggle bar — shown when the table contains PII placeholders -->
@@ -616,7 +694,7 @@
       
       <!-- Edit toggle lives in the shared top bar (round pen button before Share).
            The save status overlays the grid corner so it never shifts the table. -->
-      {#if canEdit}
+      {#if canEdit && !liveMode}
         {#if pendingSaves > 0}
           <span class="sheet-edit-status" data-testid="sheet-save-status" data-state="saving" role="status">{$text('common.save')}…</span>
         {:else}
@@ -625,7 +703,7 @@
       {/if}
 
       <!-- Filter action bar — only shown when filter is toggled on -->
-      {#if showFilters}
+      {#if showFilters && showPlainGrid}
         <div class="filter-bar">
           <div class="filter-bar-inner">
             {#each parsedTable.headers as header, i}
@@ -651,11 +729,20 @@
       {/if}
       
       <!-- Masks scrolled rows in the band behind the floating top bar, above the pinned header row -->
-      <div class="sheet-pin-cover" style:min-width="{gridWidthPx}px" aria-hidden="true"></div>
+      {#if showPlainGrid}
+        <div class="sheet-pin-cover" data-testid="sheet-pin-cover" style:min-width="{gridWidthPx}px" aria-hidden="true"></div>
+      {/if}
 
       <!-- Spreadsheet area — natural height; the fullscreen content area scrolls it -->
       <div class="spreadsheet-wrapper" bind:this={tableContainerEl}>
-        {#if parsedTable.headers.length > 0}
+        {#if liveActive && embedId && bridge}
+          <LiveHeaderStatus status={liveStatus} peers={livePeers} />
+          <SheetLiveFormattingControls {bridge} status={liveStatus} bind:mergeStart />
+          <SheetLiveGrid itemId={embedId} client={bridge.client} {projectId} teamId={teamId ?? undefined}
+            bind:status={liveStatus} bind:peers={livePeers} onFormatSelect={selectForFormatting} />
+        {:else if formatting && !showPlainGrid}
+          <SheetFormattedGrid table={parsedTable} {formatting} />
+        {:else if parsedTable.headers.length > 0}
           <table class="spreadsheet" bind:clientWidth={gridWidthPx}>
             <colgroup>
               <!-- Row-number gutter: fixed 40px -->
@@ -781,6 +868,14 @@
         currentVersion={versionNumber}
         currentContent={latestTableContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, table: content, version_number: newVersion })}
+        onRestoreVersion={liveMode && bridge ? async (_text, selectedVersion) => {
+          if (!bridge) throw new Error('live_restore_unavailable');
+          const restored = await bridge.restoreVersion(selectedVersion, versionNumber, { projectId, teamId: teamId ?? undefined });
+          localTable = restored.content;
+          localVersion = restored.version;
+          includedOriginalTableContent = null;
+          return restored;
+        } : undefined}
         onVersionSelect={(version, content) => {
           includedOriginalTableContent = content;
           console.log('[SheetEmbedFullscreen] Version selected:', version);
@@ -827,7 +922,7 @@
      sticky cover paints the surface colour over that band so scrolled rows never
      show above the pinned header. At scroll top it sits under the header row. */
   .sheet-fullscreen {
-    --sheet-pin-top: 64px;
+    --sheet-pin-top: var(--embed-header-overlay-height, 64px);
   }
   .sheet-pin-cover {
     position: sticky;

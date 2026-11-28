@@ -7,7 +7,7 @@
  * Spec: specifications/architecture/sync/specification.yml.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { pruneExpired, readChanges, readClock, readOverview } from './operations.js';
+import { pruneExpired, readChanges, readClock, readOpened, readOverview, readRecentModified } from './operations.js';
 
 const digest = value => createHash('sha256').update(value).digest();
 const NOTIFICATION = /^((?:personal|team|user):[0-9a-f]{64})\|(\d{1,19})$/;
@@ -108,5 +108,7 @@ export default {
     route(router, '/changes', body => readChanges(database, body), env, logger);
     route(router, '/clock', body => readClock(database, body), env, logger);
     route(router, '/overview', body => readOverview(database, body), env, logger);
+    route(router, '/opened', body => readOpened(database, body), env, logger);
+    route(router, '/recent-modified', body => readRecentModified(database, body), env, logger);
   },
 };

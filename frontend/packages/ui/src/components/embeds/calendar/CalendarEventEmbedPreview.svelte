@@ -65,7 +65,7 @@
   .calendar-event-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .5rem; width: 100%; height: 100%; min-height: 0; box-sizing: border-box; padding: 3.25rem .75rem .75rem 1rem; color: var(--color-font-primary); user-select: text; }
   .event-details { display: flex; flex-direction: column; justify-content: center; gap: .25rem; min-width: 0; overflow: hidden; }
   .event-title, .event-date, .all-day { flex-shrink: 0; }
-  .event-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: 1rem; font-weight: 600; line-height: 1.25; }
+  .event-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; word-break: normal; font-size: 1rem; font-weight: 600; line-height: 1.25; }
   .event-date { font-size: .875rem; line-height: 1.3; overflow-wrap: anywhere; }
   .all-day { font-size: .75rem; color: var(--color-font-secondary); }
   .event-week { min-width: 0; min-height: 0; height: 100%; container-type: inline-size; }

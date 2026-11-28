@@ -37,3 +37,19 @@ boundary_and_history:
   then: Both invocations fail consistently and saved service evidence remains readable.
   assertion_ids:
   - health-search-appointments.surface-parity
+live_search:
+- id: health-search-appointments-long-window
+  given: An installed appointment source has a suitable eye examination appointment in three weeks.
+  when: A person looks for an ophthalmologist within the next 30 days.
+  then: The slot can appear with its actual visit reason and booking details.
+  assertion_ids: [health-search-appointments.input.validated]
+- id: health-search-appointments-medication-intake
+  given: A psychiatrist lists a generic intake and a psychological therapist lists psychotherapy.
+  when: A person with an existing diagnosis asks to discuss medication.
+  then: The psychotherapy appointment is excluded and the generic intake is explicitly unverified for medication.
+  assertion_ids: [health-search-appointments.results.prescribing-evidence]
+- id: health-search-appointments-preferences
+  given: Two eligible eye exam slots differ in whether they explicitly offer a new-patient eye examination.
+  when: A person supplies this requirement for optional relevance ranking.
+  then: Ranking can promote the clearer match while keeping both original results and their booking facts.
+  assertion_ids: [health-search-appointments.results.optional-relevance]

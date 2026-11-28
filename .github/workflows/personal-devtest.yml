@@ -1,0 +1,174 @@
+name: Personal DevTest read-only timings
+on:
+  workflow_call:
+    inputs:
+      surface:
+        description: Client surface to measure
+        required: true
+        type: string
+      evidence_recipient:
+        description: Base64-encoded public PEM certificate for encrypted test evidence
+        required: true
+        type: string
+      local_build:
+        type: boolean
+        default: false
+      checkout_ref:
+        type: string
+        default: ''
+      source_commit:
+        type: string
+        default: ''
+      candidate_tree:
+        type: string
+        default: ''
+      candidate_owner:
+        type: string
+        default: ''
+      candidate_patch_sha256:
+        type: string
+        default: ''
+    secrets:
+      OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL:
+        required: true
+      OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD:
+        required: true
+      OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-devtest-read-only
+  cancel-in-progress: false
+
+jobs:
+  measure:
+    if: ${{ github.ref == 'refs/heads/dev' && github.repository == 'glowingkitty/OpenMates' }}
+    # The environment is restricted to dev. Only repository operators can
+    # set its exact reviewed identity and evidence recipient pin.
+    environment: ${{ inputs.candidate_tree != '' && 'personal-devtest-reviewed' || '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          persist-credentials: false
+      - name: Admit trusted source and verify the public evidence certificate
+        env:
+          DEVTEST_SURFACE: ${{ inputs.surface }}
+          DEVTEST_LOCAL_BUILD: ${{ inputs.local_build }}
+          DEVTEST_RECIPIENT: ${{ inputs.evidence_recipient }}
+          DEVTEST_REVIEW: ${{ vars.PERSONAL_DEVTEST_REVIEW }}
+          DEVTEST_BASE: ${{ inputs.checkout_ref }}
+          DEVTEST_SOURCE: ${{ inputs.source_commit }}
+          DEVTEST_TREE: ${{ inputs.candidate_tree }}
+          DEVTEST_OWNER: ${{ inputs.candidate_owner }}
+          DEVTEST_PATCH_SHA256: ${{ inputs.candidate_patch_sha256 }}
+        run: python3 tooling/scripts/ci_personal_devtest.py admit --tooling tooling
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        if: inputs.candidate_tree != ''
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          path: subject
+          persist-credentials: false
+      - name: Reconstruct exact detached reviewed subject source
+        if: inputs.candidate_tree != ''
+        run: python3 tooling/scripts/ci_personal_devtest.py reconstruct --subject subject
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        if: inputs.surface == 'web'
+        with:
+          package_json_file: tooling/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: inputs.surface == 'web'
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: tooling/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        if: inputs.surface == 'web'
+        working-directory: tooling
+      - run: pnpm exec playwright install --with-deps chromium
+        if: inputs.surface == 'web'
+        working-directory: tooling/frontend/apps/web_app
+      - name: Install candidate web build dependencies
+        if: inputs.surface == 'web' && inputs.candidate_tree != ''
+        working-directory: subject
+        run: pnpm install --frozen-lockfile
+      - name: Build and attest the runner-local web app
+        if: inputs.surface == 'web' && (inputs.candidate_tree != '' || inputs.local_build)
+        working-directory: ${{ inputs.candidate_tree != '' && 'subject' || 'tooling' }}
+        env:
+          VERCEL_GIT_COMMIT_REF: dev
+          VITE_API_URL: https://api.dev.openmates.org
+          VITE_API_URL_DEV: https://api.dev.openmates.org
+          VITE_ENV: development
+          NODE_OPTIONS: --max-old-space-size=6144
+          OPENMATES_PRIVATE_WEB_PREVIEW: http://127.0.0.1:5174
+        run: |
+          set -euo pipefail
+          umask 077
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          mkdir -p "$private"
+          node frontend/apps/web_app/scripts/vercel-build.mjs > "$private/web-build.log" 2>&1
+          pnpm --dir frontend/apps/web_app exec vite preview --host 127.0.0.1 --port 5174 --strictPort \
+            > "$private/web-preview.log" 2>&1 &
+          python3 ../tooling/scripts/ci_personal_devtest.py verify-web \
+            --web-output frontend/apps/web_app/.vercel/output/static
+      - name: Measure read-only web startup and existing chats
+        if: inputs.surface == 'web'
+        working-directory: tooling/frontend/apps/web_app
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: https://app.dev.openmates.org
+          OPENMATES_PRIVATE_WEB_PREVIEW: ${{ (inputs.candidate_tree != '' || inputs.local_build) && 'http://127.0.0.1:5174' || '' }}
+          OPENMATES_PRIVATE_ACCOUNT_TIMINGS: '1'
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          mkdir -p "$private"
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$private/results.json" pnpm exec playwright test tests/personal-devtest-chat-timings.spec.ts \
+            --retries=0 --workers=1 --reporter=json --output="$private/playwright" > "$private/runner.log" 2>&1 \
+            || { echo "Personal DevTest web benchmark failed. See encrypted evidence."; exit 1; }
+          jq -e '.stats.expected == 1 and .stats.unexpected == 0 and .stats.skipped == 0' "$private/results.json" >/dev/null
+      - name: Build the source-matched native terminal in release mode
+        if: inputs.surface == 'terminal'
+        working-directory: ${{ inputs.candidate_tree != '' && 'subject' || 'tooling' }}
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          cargo +1.98.1 build --release --locked -p openmates --bin openmates
+      - name: Measure read-only terminal startup and existing chats
+        if: inputs.surface == 'terminal'
+        env:
+          DEVTEST_BUILD_ROOT: ${{ inputs.candidate_tree != '' && 'subject' || 'tooling' }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_EMAIL }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_PASSWORD }}
+          OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY: ${{ secrets.OPENMATES_PERSONAL_TEST_ACOUNT_OTP_KEY }}
+        run: |
+          umask 077
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          mkdir -p "$private"
+          sha256sum "./$DEVTEST_BUILD_ROOT/target/release/openmates" | cut -d' ' -f1 > "$private/client-binary.sha256"
+          env -u PYTHONPATH -u PYTHONHOME python3 tooling/scripts/personal_devtest_terminal.py "./$DEVTEST_BUILD_ROOT/target/release/openmates" "$private" > "$private/runner.log" 2>&1 \
+            || { echo "Personal DevTest terminal benchmark failed. See encrypted evidence."; exit 1; }
+      - name: Encrypt private test logs, timings and recordings
+        if: always()
+        run: |
+          private="$RUNNER_TEMP/personal-devtest-evidence"
+          test -d "$private" || exit 0
+          umask 077
+          cp "$RUNNER_TEMP/personal-devtest-source.json" "$private/source.json"
+          tar -C "$private" -czf - . | openssl cms -encrypt -binary -aes-256-gcm -outform DER \
+            -out "$RUNNER_TEMP/personal-devtest-evidence.cms" "$RUNNER_TEMP/personal-devtest-recipient.pem"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: personal-devtest-encrypted-evidence
+          path: ${{ runner.temp }}/personal-devtest-evidence.cms
+          if-no-files-found: warn
+          retention-days: 7

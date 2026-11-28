@@ -4,6 +4,7 @@
 // ciphertext plus minimal metadata for filtering and scheduling.
 
 import { getApiEndpoint } from "../config/api";
+import { readonly, writable } from "svelte/store";
 import { computeSHA256 } from "../message_parsing/utils";
 import {
   decryptChatKeyWithMasterKey,
@@ -315,6 +316,8 @@ export interface ListUserTasksFilters {
 const taskBoardCache = new WorkspaceQueryCache<TasksBoardItem[]>({ ttlMs: 60_000, maxEntries: 32 });
 const taskEntityCache = new WorkspaceQueryCache<UserTaskViewModel>({ ttlMs: 60_000, maxEntries: 128 });
 const taskEligibilityCache = new WorkspaceQueryCache<boolean>({ ttlMs: 60_000, maxEntries: 1 });
+const taskPersistenceRevision = writable(0);
+export const assistantTaskPersistenceRevision = readonly(taskPersistenceRevision);
 const knownTaskFilters = new Map<string, ListUserTasksFilters>();
 const deletedTaskIds = new Set<string>();
 let knownTaskScope: string | null = null;
@@ -369,6 +372,15 @@ function forgetTask(taskId: string, expectedScope: string | null): void {
     if (list) taskBoardCache.set(key, list.filter((candidate) => candidate.task_id !== taskId));
     else taskBoardCache.invalidate(key);
   }
+}
+
+/** Drop stale Task views after the core verified an assistant write. */
+export function refreshTaskViewsAfterJob(ids: string[], scope: string | null): void {
+  ensureTaskScope();
+  if (!ids.length || !scope || scope !== getWorkspaceCacheIdentity()) return;
+  for (const id of ids) taskEntityCache.invalidate(id);
+  taskBoardCache.invalidate();
+  taskPersistenceRevision.update((revision) => revision + 1);
 }
 
 export function peekTaskBoardItems(filters: ListUserTasksFilters = {}): TasksBoardItem[] | undefined {

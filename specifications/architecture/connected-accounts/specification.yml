@@ -1,7 +1,7 @@
 schema_version: 1
 id: architecture.connected-accounts
 version: 2
-status: draft
+status: approved
 title: Connected Accounts
 summary: >
   One provider-neutral account and authorization contract serves Calendar, Code,
@@ -53,6 +53,33 @@ assertions:
       raw-provider-token substitute. SDK execution still requires the applicable
       first-party authorization; an existing account ID alone grants no access.
     depends_on: [examples.connection_surfaces]
+  - id: connected-accounts.settings.central-page
+    type: behavior
+    must: >
+      Settings > Account > Connected accounts is the one place to manage accounts. It
+      starts with an Add account button and lists one entry per connected provider
+      account across all apps, showing the provider logo, the account email (legacy
+      rows without an email show "Email not saved", the connect date and their status)
+      and when it was last used. An entry opens a sub-page with per-app permissions
+      (Calendar read, write, delete; Gmail read, drafts), last used, Reconnect and
+      Disconnect with a confirmation. One provider account serves several apps through
+      one row; adding an app's access merges into that row, never a second row.
+    depends_on: [examples.connection_surfaces]
+  - id: connected-accounts.settings.app-page-summary
+    type: behavior
+    must: >
+      An app's settings page only lists the connected accounts that app may use, with
+      a link to the central page. It offers no connect, reconnect, disconnect or manage
+      buttons of its own; with no account it shows one short line and the link.
+    depends_on: [examples.connection_surfaces]
+  - id: connected-accounts.connection.popup-sign-in
+    type: behavior
+    must: >
+      Provider sign-in opens in a popup or new tab so OpenMates stays open and updates
+      by itself when the connection completes. When a popup cannot open, the same-tab
+      redirect returns to exactly the settings page the user came from, with a clear
+      success or error message.
+    depends_on: [examples.connection_surfaces]
   - id: connected-accounts.connection.private-reusable
     type: privacy
     must: >
@@ -62,6 +89,15 @@ assertions:
       client-encrypted. OAuth uses explicit consent, owner-bound expiring single-use
       state and handoff, validated redirects, and PKCE where applicable. Request only
       needed provider scopes; adding capabilities requires consent when needed.
+      Google OAuth additionally requests the minimal identity scopes openid and
+      email so the connected account is labelled with its Google account email.
+      The email is read from the token response during the callback, passed only
+      inside the short-lived Vault-encrypted handoff as account_hint.label and
+      account_hint.account_email, never persisted or logged by the server; the
+      client stores it as the encrypted account label. A missing email never
+      fails the connection. One Google connection and OAuth client serve Calendar
+      and Mail (account_hint.app_id); Mail requests read and draft capabilities
+      only, never send.
       Preserve shipped encrypted account records through an explicit migration or
       normalization, never silently reinterpret their grants.
     depends_on: [models.AccountAuthorization, examples.connection]
@@ -102,6 +138,21 @@ assertions:
       new operations and queued retries, invalidates dependent authorizations, and
       removes stored credentials. Attempt provider revocation where supported and
       report failures honestly. Never imply revocation undoes completed side effects.
+    depends_on: [examples.lifecycle]
+  - id: connected-accounts.lifecycle.last-used
+    type: behavior
+    must: >
+      After the server mints a turn token ref for an account, the client records
+      the time as client-encrypted encrypted_last_used_at on that account, at most
+      once per 10 minutes per account. The server never writes or stores a
+      plaintext last-use time and refuses a plaintext last_used_at field.
+    depends_on: [examples.lifecycle]
+  - id: connected-accounts.lifecycle.reconnect-status
+    type: behavior
+    must: >
+      When the provider rejects the stored grant (invalid_grant), the server sets
+      the account's plaintext connector_status to reconnect_required; a client
+      reconnect update clears it.
     depends_on: [examples.lifecycle]
   - id: connected-accounts.workflows.simple-consent
     type: behavior

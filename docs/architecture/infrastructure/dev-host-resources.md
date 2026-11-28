@@ -71,18 +71,19 @@ only pane), empty tabs, and the `zellij:link` background plugin. On 2026-11-20 t
 thread had used 43 CPU hours; closing them took the server from about 110% CPU
 and 900 MB to 29% and 180 MB with every chat still running.
 
-Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle, a
-finished job's result before a timer, then by the chat's Task priority (hourly
-Tasks copy), and leaves `free_slots` (4) slots for new chats. A handoff waiter
-past its timeout shows as "timed out" (not STALLED) and is dropped 24 hours later;
-only timed-out disk, CI and background waiters count as stalled.
+Waking after a wait reopens at most `wake_batch` (3) closed chats per cycle.
+Finished job results go before timers, followed by the Task priority from the
+hourly cache. The lifecycle reserves `free_slots` (4) slots for new chats and can
+use one of those slots for recovery when no launch is queued. Running Codex
+panes receive ready results without consuming another slot. Idle Codex panes
+can release their process slot while a registered wait remains pending.
 
 Cap: at most `max_running` (20) chat processes. Beyond that the longest-idle
 chats are suspended, those without an open question first.
 `claude_dispatch.launch_claude_chat` (also used by the connector's `start_chat`)
 asks `claude_idle_chats.py admit` first. When there is no room, the chat waits in
-`logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The per-minute
-`claude_dispatch.py issues` run starts queued chats oldest first.
+`logs/claude-dispatch/pending/` and the caller gets `ChatQueued`. The lifecycle
+timer runs `claude_dispatch.py drain` to start queued chats oldest first.
 
 Settings: `logs/claude-chat-lifecycle/config.json` (keys as in `DEFAULTS`).
 Output: `status.json` (counts and the done list), `stopped.json` (stopped chats
@@ -90,6 +91,21 @@ with their resume command), `events.jsonl`. The connector reports archiving with
 `claude_idle_chats.py mark --session <id> --state archived`. The counts appear in
 the daily meeting briefing ("Chats waiting on you") and the connector's
 chat_changes.
+
+```sh
+./scripts/chat-recovery-watchdog-setup.sh
+python3 scripts/chat_recovery_watchdog.py --dry-run
+```
+
+The recovery watchdog checks every minute. It compares meaningful transcript steps
+with the clock. Recovery starts after 30 minutes without a step, 10 minutes for
+production release work, or 10 minutes when a connector message stays unseen.
+A second wake checks current context after two minutes for release work and five
+for other work. A stall that survives both attempts gets one Discord notice with
+the chat title, last step, attempted recovery and next action. Completed chats,
+waits for Marco and future timers stay quiet. The daily meeting briefing lists
+unresolved stalls and blocked waits. A registration with a full Task UUID checks
+that exact dependency when it completes or the deadline arrives.
 
 ### Only done, asking or waiting chats are closed (TASK-7707)
 
@@ -130,8 +146,8 @@ on 2026-11-15 were such leftovers of CI result downloads).
   zellij server, closed while waiting) is reopened with `claude --resume` and
   that line as its next message (`claude_dispatch.resume_chat`, tab `wake
   <id>`), within the cap of running chats. A busy chat is woken on a later
-  cycle, a chat whose last reply asks the owner something waits for the answer,
-  and an archived chat is never reopened. Each ready set is delivered once
+  cycle, and a chat that asks the owner for a decision waits for the answer.
+  Explicit recovery waiters can reopen an archived chat. Each ready set is delivered once
   (`waiter_wakes.json`); a failed reopen is retried and listed as stalled. A CI
   job that ended while its live chat was active again (its own background
   waiter brought the result) does not wake it twice. Events `waiter_woken` /
@@ -466,29 +482,20 @@ and probes text that stays unchanged for 10 min in an idle chat once
 (`verdict`: `typed`, `suggestion` or `unchecked`; `unsent_input` event for typed
 text). It never presses Enter.
 
-The connector (private, outside this repo) uses the same probe before typing:
-a suggestion never blocks a message; typed text is never merged with a new one.
-send_message `held=auto` replaces typed text older than 30 min (age from
-`inputs.json`, a copy is logged) and otherwise shows both texts for the caller to
-choose `replace` or `send_first`. host_status lists the typed entries as the queue
-of unsent messages.
+The private dev connector delivers ordinary `send_message` calls immediately.
+An explicit `run_at` still schedules a send. For Claude and Codex terminal
+chats, the connector submits any existing draft directly from the composer so
+wrapped and collapsed text is preserved. It clears a leftover copy of a message
+already confirmed in the same session. It interrupts the active turn and
+submits the new message as a separate prompt. For a closed chat it reopens the
+same session with the message.
 
-Deliveries to busy chats (2026-11-15, 76c8264a: a send sat in the box for 2 h;
-2026-11-17, f1250b91: "NOT confirmed" although the chat had queued it). Claude Code
-records a message taken into a busy chat's queue at once as a `queue-operation`
-`enqueue` record, and the `queued_command` attachment only when the current step ends;
-the connector reads both, and the "⎿  Queued" mark on screen. Escalation: (1) the
-message is typed and queued (Enter is pressed again while the text still sits in the
-box); (2) not queued or received within 60 s, the connector presses Esc and sends it as
-the chat's next prompt; (3) never while a risky step runs (the last tool call without a
-result, also inside a running sub-agent: deploy, git write, production SSH, migration,
-Vault write, file write). It waits until that step ended. A message that meets an open
-question dialog is held and typed when the dialog is answered. Replies start with
-Delivered, Queued, Delivered after interrupt, Waiting for a risky step, Held, NOT sent
-or Failed. Open and confirmed deliveries are kept in
-`logs/claude-chat-lifecycle/connector-deliveries.json` and re-checked by the broker
-every 10 s; host_status and chat_changes list them (undelivered with the text to
-resend, open, delivered with how). `watch` reads that file and records a chat whose
-box shows such a delivery as `typed` (source `connector`, age from when it was typed)
-even while the chat is busy, without probing it.
+The broker reports delivery only after the session transcript contains the
+marked message. Terminal submission, a native queue entry, and opening a tab
+are intermediate steps. If the session cannot take the message, the broker
+reports the failure and retries the stored delivery. A repository hook refusal
+is reported separately. The broker keeps receipts in
+`logs/claude-chat-lifecycle/connector-deliveries.json` and `host_status` and
+`chat_changes` show their latest state. `claude_chat_inputs.watch` uses the
+same file to identify input the connector already typed.
 

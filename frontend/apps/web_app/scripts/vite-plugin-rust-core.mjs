@@ -8,9 +8,12 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const VIRTUAL = 'virtual:openmates-rust-core-package';
 const INTERNAL = '\0' + VIRTUAL;
+const FIRST_SESSION_SOURCE = '/frontend/packages/ui/src/services/rustCore/originalFirstSessionSource.ts';
+const FIRST_SESSION_PROVIDER = fileURLToPath(new URL('../src/lib/rustCore/firstSessionProvider.ts', import.meta.url));
 const JAVASCRIPT = 'openmates_browser.js';
 const WASM = 'openmates_browser_bg.wasm';
 
@@ -65,6 +68,7 @@ export function rustCoreAssetsPlugin(env = process.env) {
 	const directory = rustCorePackageDirectory(env);
 	return {
 		name: 'openmates-rust-core-package',
+		enforce: 'pre',
 		// A flag-on production build without the package would compile the stub and
 		// only fail in the browser, so refuse it here.
 		config(_config, { command }) {
@@ -72,8 +76,11 @@ export function rustCoreAssetsPlugin(env = process.env) {
 				throw new Error('VITE_OPENMATES_RUST_CORE=1 requires OPENMATES_RUST_CORE_PKG (build it with build-rust-core-web.mjs)');
 			}
 		},
-		resolveId(id) {
-			return id === VIRTUAL ? INTERNAL : null;
+		resolveId(id, importer) {
+			if (id === VIRTUAL) return INTERNAL;
+			if (directory && env.VITE_OPENMATES_RUST_CORE === '1' && id === './firstSessionPlatform' &&
+				importer?.replaceAll('\\', '/').endsWith(FIRST_SESSION_SOURCE)) return FIRST_SESSION_PROVIDER;
+			return null;
 		},
 		load(id) {
 			return id === INTERNAL ? rustCoreModuleSource(directory) : null;

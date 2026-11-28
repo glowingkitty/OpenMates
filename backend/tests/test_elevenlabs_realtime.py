@@ -527,3 +527,17 @@ async def test_noop_followed_by_empty_drained_final_is_still_not_success(transpo
     socket.emit({"is_final": True})
     with pytest.raises(provider.ElevenLabsRealtimeError, match="unexpected_final"):
         await connection.receive()
+
+
+@pytest.mark.asyncio
+async def test_elevenlabs_speech_uses_the_scoped_proxy_without_changing_destination(transport, monkeypatch):
+    monkeypatch.setattr(provider, "isolated_voice_websocket_proxy", lambda: "http://runner-gateway:3128")
+    _, calls, _ = transport
+    connection = session()
+    await connection.open()
+    try:
+        url, options = calls[0]
+        assert url == provider.ELEVENLABS_REALTIME_URL
+        assert options["proxy"] == "http://runner-gateway:3128"
+    finally:
+        await connection.cancel()

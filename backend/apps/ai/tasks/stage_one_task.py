@@ -97,6 +97,7 @@ def eligible_for_routing_lane(request: dict) -> bool:
     ]
     return bool(request.get("user_id") and request.get("recovery_task_id")
                 and request.get("recovery_preflight_id") and not any(request.get(flag) for flag in (
+        "active_input_reply", "active_input_parallel_source",
         "is_external", "is_anonymous", "is_incognito", "is_sub_chat", "user_task_id",
         "is_sub_chat_continuation", "is_async_skill_continuation", "is_focus_mode_continuation",
         "is_app_settings_memories_continuation", "is_connected_account_permission_continuation",
@@ -188,7 +189,6 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
     started_at = time.monotonic()
     cache = await celery_config.get_worker_cache_service()
     secrets_manager = SecretsManager()
-    await secrets_manager.initialize()
     encryption = EncryptionService(cache_service=cache)
     directus = DirectusService(cache_service=cache, encryption_service=encryption)
     if not await _routing_authority_is_current(cache, directus, request, inference_task_id):
@@ -208,9 +208,10 @@ async def route_stage_one(request_data_dict: dict, skill_config_dict: dict,
             apps = await _fetch_and_cache_apps_metadata(cache, inference_task_id)
         return base, apps
 
-    # The context and public configuration reads begin only after the durable
-    # admission fence. Neither read authorizes a Project or an AI request.
+    # Vault health, public configuration and scoped context are independent
+    # reads after the durable admission fence. All must settle before routing.
     async with asyncio.TaskGroup() as reads:
+        reads.create_task(secrets_manager.initialize())
         config_task = reads.create_task(load_routing_configuration())
         transient = await restore_private_context_payload(request.model_dump())
         bind_restored_context_turn(request, transient)

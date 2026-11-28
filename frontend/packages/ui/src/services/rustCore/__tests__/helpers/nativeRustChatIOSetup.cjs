@@ -3,13 +3,18 @@
 // browser, IndexedDB, Worker, WASM, network or inference execution.
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{webcrypto}=require('node:crypto'),ts=require('typescript');
-const core=path.resolve(__dirname,'../..'),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'native-chat-io-pure-'));
-for(const n of ['ownedLocalReadProtocol','browserAdapters','profileCacheProtocol','workerHost','protocol','browserCacheProtocol','sendProtocol','savedReadProtocol','credentialCasProtocol','browserCredentialStorage','browserDraftProtocol','browserDraftTransport']) fs.writeFileSync(path.join(tmp,n+'.js'),ts.transpileModule(fs.readFileSync(path.join(core,n+'.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
-process.on('exit',()=>fs.rmSync(tmp,{recursive:true,force:true}));
+const core=path.resolve(__dirname,'../..'),tempRoot=fs.mkdtempSync(path.join(os.tmpdir(),'native-chat-io-pure-'));
+const tmp=path.join(tempRoot,'rustCore'),dbFixtures=path.join(tempRoot,'db');
+fs.mkdirSync(tmp);fs.mkdirSync(dbFixtures);
+const compile=(source,target)=>fs.writeFileSync(target,ts.transpileModule(fs.readFileSync(source,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText);
+compile(path.join(core,'../db/openedHistoryStorage.ts'),path.join(dbFixtures,'openedHistoryStorage.js'));
+for(const n of ['ownedLocalReadProtocol','browserAdapters','profileCacheProtocol','workerHost','protocol','socketFramesProtocol','browserCacheProtocol','sendProtocol','savedReadProtocol','credentialCasProtocol','browserCredentialStorage','browserDraftProtocol','browserDraftTransport']) compile(path.join(core,n+'.ts'),path.join(tmp,n+'.js'));
+process.on('exit',()=>fs.rmSync(tempRoot,{recursive:true,force:true}));
 const {loadAdapters,FixtureNativeEvent}=require('./nativeEventRealm.cjs');
 const api=loadAdapters(path.join(tmp,'browserAdapters.js'));
 loadAdapters(path.join(tmp,'browserDraftTransport.js'));
 const {BrowserCoreWorkerHost}=require(path.join(tmp,'workerHost.js'));
+const {DrainedSelectedColdReadCancellation}=require(path.join(tmp,'protocol.js'));
 const OWNER='11111111-1111-4111-8111-111111111111',CHAT='22222222-2222-4222-8222-222222222222';
 const held=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return{promise,resolve,reject};};
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
@@ -38,4 +43,4 @@ async function fixture({syntheticRestore=false}={}){
 }
 function connection(f,lease){const request=api.createRustChatOpenRequest(lease,f.factory);request.native('success');return request.result;}
 
-module.exports={api,BrowserCoreWorkerHost,fixture,connection,held,tick,Factory,Database,Tx,WorkerDouble,NativeDouble,OWNER,CHAT,tmp,core,ts,FixtureNativeEvent};
+module.exports={api,BrowserCoreWorkerHost,DrainedSelectedColdReadCancellation,fixture,connection,held,tick,Factory,Database,Tx,WorkerDouble,NativeDouble,OWNER,CHAT,tmp,core,ts,FixtureNativeEvent};

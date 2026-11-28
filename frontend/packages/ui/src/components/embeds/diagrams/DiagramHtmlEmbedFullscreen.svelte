@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { contentZoomSurface, type ZoomPoint } from '../../../actions/contentZoomSurface';
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
@@ -57,6 +58,7 @@
   let zoom = $state(1);
   let panX = $state(0);
   let panY = $state(0);
+  const panPointers = new Set<number>();
   let panPointer: { id: number; x: number; y: number } | null = null;
   let error = $state('');
   let historicalSelection = $state<{ version: number; source: string | null; failed?: boolean } | null>(null);
@@ -304,21 +306,39 @@
   function fit() { zoom = 1; panX = 0; panY = 0; }
   function zoomIn() { zoom = Math.min(5, Number((zoom * 1.25).toFixed(3))); }
   function zoomOut() { zoom = Math.max(0.25, Number((zoom / 1.25).toFixed(3))); }
+  function zoomAt(from: ZoomPoint, to: ZoomPoint, factor: number) {
+    const nextZoom = Math.min(5, Math.max(0.25, zoom * factor));
+    const nextScale = Math.min(5, Math.max(0.05, fittedScale * nextZoom));
+    const ratio = nextScale / scale;
+    panX = to.x - (from.x - left) * ratio - (dimensions.width - diagram.renderWidth * nextScale) / 2;
+    panY = to.y - (from.y - top) * ratio - (dimensions.height - presentationHeight * nextScale) / 2;
+    zoom = nextZoom;
+  }
+
+  function toggleGestureZoom(point: ZoomPoint) {
+    if (zoom > 1) fit();
+    else zoomAt(point, point, 2);
+  }
+
   function panStart(event: PointerEvent) {
     if (editing || event.button !== 0) return;
-    panPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    panPointers.add(event.pointerId);
+    panPointer = panPointers.size === 1 ? { id: event.pointerId, x: event.clientX, y: event.clientY } : null;
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
   }
   function panMove(event: PointerEvent) {
-    if (!panPointer || panPointer.id !== event.pointerId) return;
-    panX += event.clientX - panPointer.x;
-    panY += event.clientY - panPointer.y;
+    if (panPointers.size !== 1 || !panPointers.has(event.pointerId)) return;
+    if (panPointer?.id === event.pointerId) {
+      panX += event.clientX - panPointer.x;
+      panY += event.clientY - panPointer.y;
+    }
     panPointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
   }
   function panEnd(event: PointerEvent) {
-    if (panPointer?.id !== event.pointerId) return;
+    if (!panPointers.delete(event.pointerId)) return;
     panPointer = null;
-    (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
   }
 </script>
 
@@ -334,6 +354,7 @@
     <div class="diagram-fullscreen" data-testid="diagram-html-fullscreen" style:background-color={render.backgroundColor || undefined}>
       <div bind:this={viewport} class="canvas" role="group" aria-label={`${diagram.title} diagram`} data-testid="diagram-html-canvas" data-editing={editing} data-editor-ready={editorReady} data-layout-ready={layoutReady} data-historical={versionView.historical}
         style:--diagram-scale={scale} style:--diagram-pan-x={`${panX}px`} style:--diagram-pan-y={`${panY}px`} style:background-color={render.backgroundColor || undefined}
+        use:contentZoomSurface={editing ? null : { toggle: toggleGestureZoom, pinch: zoomAt }}
         onpointerdown={panStart} onpointermove={panMove} onpointerup={panEnd} onpointercancel={panEnd}>
         {#if diagram.status === 'processing'}
           <div class="state" data-testid="diagram-html-loading">{$text('diagrams.loading')}</div>

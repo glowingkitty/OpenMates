@@ -1,0 +1,70 @@
+schema_version: 1
+id: architecture.ai-test-users
+version: 1
+status: draft
+title: AI Test User Reports And Debug Chats
+summary: >
+  The daily AI test users (simulated people on the dev and production web app)
+  file their findings as issue reports. A run with issues or harness problems sends Marco one Discord alert
+  that separates DEV from PRODUCTION issues and says per issue whether a
+  debugging chat started. Clear functional errors start a chat by themselves,
+  subjective findings wait for his approval, and test-user reports never send
+  him issue emails (Marco's decisions, 20 and 23 Nov 2026).
+
+scope:
+  includes:
+    - The run's single Discord message (layout, counts, per-issue debug-chat status).
+    - Which issues start a debugging chat automatically, which wait for approval, and the duplicate check.
+    - Which judge findings are never defects (sticky or overlay elements while scrolling).
+    - Suppressing issue emails for reports filed by AI test-user accounts.
+  excludes:
+    - What a started investigation chat does (small-fix rule, docs/architecture/infrastructure/claude-dispatch.md).
+    - Persona selection, schedule, costs, signup and account deletion (docs/plans/regular-ai-test-users/plan.yml).
+
+assertions:
+  - id: ai-test-users.message.dev-production-issues
+    type: behavior
+    must: A scheduled run with issues or harness problems sends one Discord alert. Its first line counts the DEV and PRODUCTION issues, debugging chats started and issues waiting for approval. Its DEV and PRODUCTION sections list each issue title, environment, debug-chat status, report id and video link. A crash or timeout before the summary sends one plain alert. A clean scheduled run keeps its summary locally and sends no alert.
+    depends_on: [examples.run_message]
+  - id: ai-test-users.debug.functional-errors-start-chats
+    type: behavior
+    must: An issue that is a clear functional error (a console error or exception such as "RangeError Unknown node type listItem", a hang or timeout, raw JSON or code shown instead of an embed, a failed send, a crash or a broken flow) starts an investigation chat by itself, within the daily cap of three automatic chats; a subjective UI, design or wording finding, a slow but finished answer, or a finding the environment may explain never starts one and is listed for Marco's approval, and a chat for it starts only when he approves it.
+    depends_on: [examples.debug_routing]
+  - id: ai-test-users.debug.no-duplicate-chats
+    type: behavior
+    must: Before an automatic chat starts, open OpenMates Tasks, running Claude chats and the debugging chats the pipeline started in the last two days are checked for the same issue (its issue id, short id or a similar title); a match is linked in the message instead of starting a second chat, and when the open Tasks cannot be listed no chat starts and the message says why.
+    depends_on: [examples.debug_routing]
+  - id: ai-test-users.judge.sticky-overlay-not-a-defect
+    type: behavior
+    must: The AI test users' instructions state that a sticky or fixed header, top bar or overlay covering message content while the page scrolls is correct behavior and never a defect to report.
+    depends_on: [examples.debug_routing]
+  - id: ai-test-users.reports.no-issue-emails
+    type: privacy
+    must: A report filed by an AI test-user account, recognized on dev and production by the test-account label or by the account's server-side contact address (the AI test-user address pattern or a Mailosaur test inbox, never an address typed into the form), is still stored and listed in the run message but sends no "reported issue" email to Marco or the reporter, while every real user's report still emails him.
+    depends_on: [examples.issue_emails]
+
+applies_to:
+  rest_api:
+    required: true
+    role: POST /v1/settings/issues decides whether a report sends issue emails.
+  cli:
+    required: true
+    parity: canonical
+    role: scripts/ai_test_users.py (daily, message, debug) on the dev host is the canonical surface.
+  sdks:
+    required: false
+    role: Not an npm or pip SDK capability.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: No web or Apple product UI; the output is a Discord message.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [run_message, debug_routing, issue_emails]

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   getWebSocketUrl,
@@ -10,10 +10,20 @@ import {
 
 describe("Project file WebSocket capability", () => {
   afterEach(() => {
+    vi.unstubAllEnvs();
     setProjectFileJobsCapabilityEnabled(false);
     setChatMetadataRecoveryCapabilityEnabled(false);
     setRemoteCommandJobsCapabilityEnabled(false);
     setMemoryWriteJobsCapabilityEnabled(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.routing.active-work
+  it.each(["0", "1"])("advertises parallel chat presentation only in the updated Rust-core build (%s)", (build) => {
+    vi.stubEnv("VITE_OPENMATES_RUST_CORE", build);
+    const url = new URL(getWebSocketUrl("fixture-session", "fixture-token"));
+    const capabilities = url.searchParams.get("client_capabilities")?.split(",");
+    expect(capabilities).toContain("typed_recovery_outputs_v2");
+    expect(capabilities?.includes("parallel_chat_turns_v1")).toBe(build === "1");
   });
 
   // contract-test: supporting surface=gui.web assertions=app-memories.lifecycle.encrypted-crud

@@ -16,6 +16,8 @@ pub(super) const SNAPSHOT_FIELD: &str = "chat_sync_feed_v1";
 /// WebSocket `client_capabilities` entry that opts this socket into the feed.
 pub const CAPABILITY: &str = "chat_sync_feed_v1";
 const PAGE_LIMIT: u32 = 200;
+const STARTUP_RECENT_LIMIT: usize = 10;
+const STARTUP_RECENT_TIMEOUT: Duration = Duration::from_secs(4);
 const MAX_PAGES: usize = 50;
 const PAGE_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_CURSOR_LENGTH: usize = 160;
@@ -450,15 +452,26 @@ impl Client {
         }
     }
 
+    pub(super) fn cached_feed_last_opened_chat(&self) -> Option<String> {
+        self.chat_sync_feed.last_opened_chat_id.as_ref()
+            .filter(|id| !self.is_deleted_chat(id))
+            .cloned()
+    }
+
     /// The workspace overview in display order: due-soon items, the last opened
     /// chat, then parent chats (`overview::build_overview`). Saved items stay
     /// encrypted here; adapters decrypt them with the memories key to show titles.
     pub fn workspace_overview(&self, now_ms: i64, utc_offset_minutes: i32, saved_items: &[SavedItemInput]) -> WorkspaceOverview {
         let ranks: Vec<ChatRank> = self.chats.values().filter_map(ChatRank::from_row).collect();
         let state = &self.chat_sync_feed;
+        let opened = if self.startup_opened_policy_enabled {
+            self.cached_startup_chat_id()
+        } else {
+            state.last_opened_chat_id.clone()
+        };
         let inputs = OverviewInputs {
             chats: &ranks,
-            last_opened_chat_id: state.last_opened_chat_id.as_deref(),
+            last_opened_chat_id: opened.as_deref(),
             reminders: &state.reminders,
             saved_items,
             now_ms,
@@ -467,9 +480,130 @@ impl Client {
         };
         WorkspaceOverview {
             entries: super::overview::build_overview(&inputs),
-            last_opened_chat_id: state.last_opened_chat_id.clone(),
+            last_opened_chat_id: opened,
             due_soon_generated_at_ms: state.due_soon_generated_at,
         }
+    }
+
+    /// A first bounded metadata page can fill an admitted native Personal index.
+    pub(crate) fn needs_startup_recent_chats(&self) -> Result<bool> {
+        self.require_canonical_read_profile()?;
+        Ok(self.chats.len() < STARTUP_RECENT_LIMIT && self.team()?.is_none() && !self.browser_cookies())
+    }
+
+    /// Merge a bounded sidebar preview. The preview never grants an inventory
+    /// receipt, advances the feed cursor, or replaces an existing stronger row.
+    pub(crate) async fn cold_start_recent_chats(
+        &mut self,
+        cancel: &CancellationToken,
+    ) -> Result<Option<Vec<Item>>> {
+        if !self.needs_startup_recent_chats()? {
+            return Ok(None);
+        }
+        let path = format!("/v1/chats?limit={STARTUP_RECENT_LIMIT}");
+        let budget = crate::client::StartupForegroundBudget::new(STARTUP_RECENT_TIMEOUT, cancel);
+        use crate::startup_diagnostics::StartupPhase;
+        let response = self
+            .request_startup_first_party(Method::GET, &path, None, false, Some(&budget))
+            .await;
+        StartupPhase::ColdSidebarRequest.record(&response);
+        let response = match response {
+            Ok(Some(response)) => response,
+            Ok(None) => return Err(Error::Protocol),
+            // The normal sync can still use its own authorized transport.
+            Err(Error::Offline) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        self.require_canonical_read_profile()?;
+        let decoded = self.decode_recent_chat_rows(&response, STARTUP_RECENT_LIMIT);
+        StartupPhase::ColdSidebarDecode.record(&decoded);
+        let (rows, wrappers) = decoded?;
+        if self.chats.is_empty() {
+            self.chat_arrival_order = Some(Vec::with_capacity(rows.len()));
+        }
+        for (id, row) in rows {
+            if !self.chats.contains_key(&id) {
+                self.upsert_cached_row(&id, row);
+            }
+        }
+        for wrapper in wrappers {
+            if !self.wrappers.contains(&wrapper) {
+                self.wrappers.push(wrapper);
+            }
+        }
+        let items = self.render_chat_inventory_with_capability().await;
+        StartupPhase::ColdSidebarRender.record(&items);
+        items.map(Some)
+    }
+
+    pub(crate) async fn load_modified_chat_metadata_page(&mut self, offset: usize) -> Result<Vec<Item>> {
+        self.require_canonical_read_profile()?;
+        const PAGE_SIZE: usize = 20;
+        let route = self.scoped(&format!("/v1/chats?order=modified&limit={PAGE_SIZE}&offset={offset}"))?;
+        let response = self.request(Method::GET, &route, None).await?;
+        self.require_canonical_read_profile()?;
+        if self.operation_cancel.is_cancelled() {
+            return Err(Error::Cancelled);
+        }
+        let total = response["total_count"].as_u64().ok_or(Error::Protocol)?;
+        let (rows, wrappers) = self.decode_recent_chat_rows(&response, PAGE_SIZE)?;
+        self.recently_opened.metadata_offset = offset.saturating_add(PAGE_SIZE);
+        for (id, row) in rows {
+            if !self.is_deleted_chat(&id) {
+                self.upsert_cached_row(&id, row);
+            }
+        }
+        for wrapper in wrappers {
+            if !self.wrappers.contains(&wrapper) {
+                self.wrappers.push(wrapper);
+            }
+        }
+        self.chat_total_count = Some(total);
+        self.render_chat_inventory_with_capability().await
+    }
+
+    fn decode_recent_chat_rows(&self, response: &Value, limit: usize) -> Result<(Vec<(String, Value)>, Vec<Value>)> {
+        use crate::startup_diagnostics::StartupPhase;
+        let chats = response["chats"].as_array().ok_or_else(|| StartupPhase::ColdSidebarEnvelope.protocol())?;
+        if chats.len() > limit {
+            return Err(StartupPhase::ColdSidebarEnvelope.protocol());
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut rows = Vec::with_capacity(chats.len());
+        let mut wrappers = Vec::new();
+        for chat in chats {
+            let id = required(chat, "id").map_err(|_| StartupPhase::ColdSidebarId.protocol())?;
+            if !uuid::Uuid::parse_str(id).is_ok_and(|value| value.to_string() == id)
+                || !seen.insert(id)
+            {
+                return Err(StartupPhase::ColdSidebarId.protocol());
+            }
+            if self.is_deleted_chat(id) {
+                continue;
+            }
+            let hash = hashed(id);
+            let chat_wrappers = chat["chat_key_wrappers"].as_array()
+                .ok_or_else(|| StartupPhase::ColdSidebarWrappers.protocol())?;
+            for wrapper in chat_wrappers {
+                if wrapper["hashed_chat_id"].as_str() != Some(hash.as_str()) {
+                    return Err(StartupPhase::ColdSidebarWrappers.protocol());
+                }
+                wrappers.push(wrapper.clone());
+            }
+            let mut row = chat.as_object().ok_or(Error::Protocol)?.clone();
+            row.remove("chat_key_wrappers");
+            // The REST consumer shape sends Unix timestamps as strings. The
+            // shared list and cache use the same integers as the sync stream.
+            for field in ["created_at", "updated_at", "last_edited_overall_timestamp"] {
+                if let Some(Value::String(seconds)) = row.get_mut(field) {
+                    let timestamp = seconds.parse::<i64>()
+                        .map_err(|_| StartupPhase::ColdSidebarTimestamp.protocol())?;
+                    row.insert(field.into(), json!(timestamp));
+                }
+            }
+            rows.push((id.to_owned(), Value::Object(row)));
+        }
+        Ok((rows, wrappers))
     }
 
     /// `chats list` warm path: one feed catch-up over the cached index, then
@@ -527,9 +661,14 @@ impl Client {
     pub fn order_chat_list_items(&self, items: Vec<Item>, now_ms: i64, utc_offset_minutes: i32) -> Vec<Item> {
         let ranks: Vec<ChatRank> = self.chats.values().filter_map(ChatRank::from_row).collect();
         let state = &self.chat_sync_feed;
+        let opened = if self.startup_opened_policy_enabled {
+            self.cached_startup_chat_id()
+        } else {
+            state.last_opened_chat_id.clone()
+        };
         let order = super::overview::ordered_chat_ids(&OverviewInputs {
             chats: &ranks,
-            last_opened_chat_id: state.last_opened_chat_id.as_deref(),
+            last_opened_chat_id: opened.as_deref(),
             reminders: &state.reminders,
             saved_items: &[],
             now_ms,

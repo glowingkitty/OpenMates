@@ -364,7 +364,7 @@ def _run_pymupdf_ocr_sync(
     This function is designed to never raise: any per-page error results in
     an empty markdown entry so the pipeline can continue.
     """
-    import fitz  # type: ignore[import]  # pymupdf
+    import pymupdf as fitz  # type: ignore[import]  # the `fitz` alias prints a deprecation line to stdout
 
     logger.info(
         f"{log_prefix} [pymupdf] Extracting text from {len(pdf_bytes)} bytes via PyMuPDF"

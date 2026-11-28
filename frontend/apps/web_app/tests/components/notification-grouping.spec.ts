@@ -313,3 +313,19 @@ for (const selected of profiles) {
 		});
 	});
 }
+
+// contract-test: supporting surface=gui.web assertions=live-collab.offline.merge-on-reconnect
+test('the private copy warning keeps the download action visible on a phone', async ({ page }, testInfo) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/dev/preview/Notification?variant=privateCopy&theme=light&background=%23dbeafe&width=390&chrome=0');
+	await waitForComponentPreview(page);
+	await expect(page.getByText('Access was removed. You can download a private copy of your unsent edits.')).toBeVisible();
+	const download = page.getByRole('button', { name: 'Download private copy', exact: true });
+	await expect(download).toBeInViewport();
+	await testInfo.attach('private-copy-warning-phone', { body: await page.screenshot(), contentType: 'image/png' });
+	const invoked = page.evaluate(() => new Promise<void>((resolve) => {
+		window.addEventListener('openmates:preview-private-copy', () => resolve(), { once: true });
+	}));
+	await download.click();
+	await invoked;
+});

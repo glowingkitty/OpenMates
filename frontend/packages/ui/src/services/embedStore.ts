@@ -33,7 +33,7 @@ import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
-import { decodeToonInRust, openedEmbedField, RUST_TOON_INACTIVE, openStoredEmbedContent } from "./rustCore/embeds/embedDataClient";
+import { decodeToonInRust, openedEmbedField, RUST_TOON_INACTIVE, openStoredEmbedContent, openTeamChatEmbedContent } from "./rustCore/embeds/embedDataClient";
 import { workerEmbedKey } from "./rustCore/embeds/embedKeyClient";
 import { isTransientRustWorkerError } from "./rustCore/embeds/embedWriteSession";
 import {
@@ -1679,11 +1679,14 @@ export class EmbedStore {
     if (entry.encrypted_content) {
       try {
         const embedId = entry.embed_id || contentRef.replace("embed:", "");
-        const embedKey = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+        const teamContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          ? await openTeamChatEmbedContent(embedId, entry.encrypted_content, entry.hashed_chat_id, entry.version_number)
+          : null;
+        const embedKey = teamContent !== null ? null : import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
           ? await workerEmbedKey(embedId, entry.hashed_chat_id, entry, this, () => this.getEmbedKey(embedId, entry.hashed_chat_id))
           : await this.getEmbedKey(embedId, entry.hashed_chat_id);
 
-        if (embedKey) {
+        if (teamContent !== null || embedKey) {
           // Clean the base64 string before decryption (trim whitespace only).
           // NOTE: Do NOT apply decodeURIComponent here — encrypted base64 ciphertext
           // can contain '%XX' sequences (e.g. '%2F', '%3D') that decodeURIComponent
@@ -1693,14 +1696,14 @@ export class EmbedStore {
 
           // Compile-time flag (default builds keep only the TS call): the Rust
           // shared Worker `embedData` unit opens content, type and preview at once.
-          const decryptedContent = import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
+          const decryptedContent = teamContent ?? (embedKey && (import.meta.env.VITE_OPENMATES_RUST_CORE === "1"
             ? await openStoredEmbedContent(embedKey, entry, () =>
                 decryptWithEmbedKey(cleanedContent, embedKey, { embedId, fieldName: "encrypted_content" }))
             : await decryptWithEmbedKey(
             cleanedContent,
             embedKey,
             { embedId, fieldName: "encrypted_content" },
-          );
+          )));
           if (decryptedContent) {
             this.clearEmbedKeyPending(embedId);
             embed.content = decryptedContent;

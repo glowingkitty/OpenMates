@@ -1,0 +1,23 @@
+schema_version: 1
+specification: feature.shared-embed-fullscreen@1
+fullscreen:
+  - id: compact-identity
+    assertion_ids: [shared-embed-fullscreen.content]
+    given: A long-titled sheet is open at phone width.
+    when: The owner switches to edit and opens More.
+    then: The same compact header shows a truncated title and intact controls. More contains Report Issue.
+  - id: private-followup
+    assertion_ids: [shared-embed-fullscreen.followup]
+    given: The owner opens a stored Design and scrolls its content.
+    when: They submit a follow-up from the composer at the bottom.
+    then: The normal authorized chat path receives a reference to the open Design and the user's text. The saved Design stays client-side encrypted.
+  - id: article-reading-order
+    assertion_ids: [shared-embed-fullscreen.article]
+    given: The user opens a website result with a thumbnail from Web Search.
+    when: They read the heading, image and source button, then scroll down.
+    then: The fixed compact title fades in once the large heading leaves the scrollport.
+  - id: selected-embed-sharing
+    assertion_ids: [shared-embed-fullscreen.menu]
+    given: The owner opens a stored Code embed and chooses More.
+    when: They choose Share embed from the menu that retains Copy and Download.
+    then: The existing sharing flow opens for the selected embed and Report Issue stays available in More.

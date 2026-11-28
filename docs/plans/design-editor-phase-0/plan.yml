@@ -1,0 +1,18 @@
+schema_version: 2
+profile: concise
+id: design-editor-phase-0
+title: Design editor web preview and feasibility report
+status: implementing
+goal: "Phase 0 of a new Design editor embed for flyers, collages, social posts and UI mockups. This phase is only the visual UI plus a written report."
+task: b9ae351e-60db-4236-974c-967595d671c3
+scope:
+  in:
+    - Preview-only view and edit modes with five real documents, including a three-page mockup and a large layer stress fixture.
+    - Direct manipulation and layer controls in memory, with one active full-size artboard and thumbnails in the page chooser.
+    - A performance study, desktop and mobile visual evidence, dev preview deployment, and a report for owner review.
+  out:
+    - Production embed registration, persistence, generated designs, export, templates, a page strip, linked design components and real-time sync.
+verification:
+  - Run the focused Design preview browser spec on the candidate source. Review and deliver desktop and phone screenshots and video.
+  - Record cold paint, frame pacing and memory across layer counts, identifying the hardware or emulation profile and any unmeasured device.
+  - Publish the written report in the repository and Task, then verify the dev preview.

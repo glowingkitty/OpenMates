@@ -35,7 +35,7 @@ async function readRawImportedMessages(page: any, chatId: string): Promise<Array
 		openRequest.onerror = () => reject(openRequest.error);
 		openRequest.onsuccess = () => {
 			const db = openRequest.result;
-			const request = db.transaction('messages', 'readonly').objectStore('messages').getAll();
+			const request = db.transaction((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages'), 'readonly').objectStore((db.objectStoreNames.contains('saved_messages_v34') ? 'saved_messages_v34' : 'messages')).getAll();
 			request.onerror = () => reject(request.error);
 			request.onsuccess = () => {
 				resolve((request.result as Array<Record<string, unknown>>).filter((message) => message.chat_id === targetChatId));
@@ -55,6 +55,7 @@ async function openImportedChat(page: any, chatId: string): Promise<void> {
 }
 
 test.describe('Account Import V1 web flow', () => {
+	// contract-test: supporting surface=gui.web assertions=account-import.source.explicit-selection
 	test('shows explicit import source selection on mobile', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -89,6 +90,7 @@ test.describe('Account Import V1 web flow', () => {
 		await page.screenshot({ path: testInfo.outputPath('mobile-other-provider.png'), fullPage: true });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
 	test('imports Claude JSON through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -141,6 +143,7 @@ test.describe('Account Import V1 web flow', () => {
 		writePersistArtifacts(testInfo, calls, 'account-import-claude-persist.json');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.review.confirmed-results
 	test('fails closed when scanner infrastructure fails', async ({ page }: { page: any }) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -165,6 +168,7 @@ test.describe('Account Import V1 web flow', () => {
 		await expect(page.getByTestId('import-results-container')).toHaveCount(0);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
 	test('imports ChatGPT ZIP through scan and encrypted persistence', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -196,6 +200,7 @@ test.describe('Account Import V1 web flow', () => {
 		writePersistArtifacts(testInfo, calls, 'account-import-chatgpt-persist.json');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
 	test('imports visible OpenCode transcript text without private parts or file payloads', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -227,6 +232,7 @@ test.describe('Account Import V1 web flow', () => {
 		writePersistArtifacts(testInfo, calls, 'account-import-opencode-persist.json');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.review.confirmed-results
 	test('parses OpenMates Export V1 ZIP and reports skipped domains', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -247,6 +253,7 @@ test.describe('Account Import V1 web flow', () => {
 		writePersistArtifacts(testInfo, calls, 'account-import-openmates-persist.json');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.persistence.client-encrypted
 	test('imports strict generic Gemini JSON with encrypted provider identity and summary', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
@@ -307,6 +314,7 @@ test.describe('Account Import V1 web flow', () => {
 		writePersistArtifacts(testInfo, calls, 'account-import-gemini-persist.json');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=account-import.source.explicit-selection
 	test('renders Other imports as a generic AI assistant rather than a mate', async ({ page }: { page: any }) => {
 		test.setTimeout(180000);
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);

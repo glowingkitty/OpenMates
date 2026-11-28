@@ -81,6 +81,44 @@ def advance_dev(root: Path, relative_path: str, content: str) -> str:
     return git(root, "rev-parse", "HEAD")
 
 
+def test_generated_only_root_dirt_is_backed_up_and_never_blocks(lane_env):
+    sessions, root, _, _, _ = lane_env
+    locale = "frontend/packages/ui/src/i18n/locales/en.json"
+    path = root / locale
+    path.parent.mkdir(parents=True)
+    base = advance_dev(root, locale, '{"x":"base"}\n')
+    path.write_text('{"x":"staged"}\n')
+    git(root, "add", locale)
+    path.write_text('{"x":"worktree"}\n')
+    (root / "docs/migration/rust/overview.yml").write_text("generated drift\n")
+    sessions._enforce_control_plane_sync_ready(base)
+    assert git(root, "status", "--porcelain", "--untracked-files=no") == ""
+    assert path.read_text() == '{"x":"base"}\n'
+    backup, = (root / ".git/generated-deploy-recovery").iterdir()
+    assert (backup / "files" / locale).read_text() == '{"x":"worktree"}\n'
+    assert '{"x":"staged"}' in (backup / "index.patch").read_text()
+
+
+def test_source_edits_are_preserved_when_generated_files_are_also_dirty(lane_env):
+    sessions, root, _, base, _ = lane_env
+    (root / "docs/migration/rust/overview.yml").write_text("generated drift\n")
+    (root / "changed.txt").write_text("unfinished source\n")
+    with pytest.raises(RuntimeError, match="Canonical checkout has tracked changes"):
+        sessions._enforce_control_plane_sync_ready(base)
+    assert (root / "changed.txt").read_text() == "unfinished source\n"
+    assert (root / "docs/migration/rust/overview.yml").read_text() == "generated drift\n"
+
+
+def test_generated_locale_stage_manifest_matches_git_index(lane_env):
+    sessions, root, _, _, _ = lane_env
+    locale = "frontend/packages/ui/src/i18n/locales/en.json"
+    path = root / locale
+    path.parent.mkdir(parents=True)
+    advance_dev(root, locale, '{"x":"base"}\n')
+    path.write_text('{"x":"generated"}\n')
+    assert sessions._stage_generated_locales(root) == {locale: git(root, "rev-parse", f":{locale}")}
+
+
 @pytest.fixture
 def lane_env(monkeypatch, tmp_path):
     sessions = load_sessions_module()
@@ -412,3 +450,25 @@ def test_only_files_are_tracked_automatically_and_other_session_stays_advisory(m
     # Unrelated dirty files are not tracked: only the --only selection is.
     assert "unrelated.py" not in modified
     assert sessions._auto_track_only_files("abcd", {}, "default", ["x.py"], ["old.py"], {}) == ["old.py"]
+
+
+def test_deploy_regenerates_a_stale_agents_md(tmp_path):
+    """Owner, 23 Nov: AGENTS.md is regenerated in every deploy, so a CLAUDE.md change never leaves it stale."""
+    sessions = load_sessions_module()
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    (repo / ".claude").mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    git(repo, "config", "user.email", "tests@openmates.invalid")
+    git(repo, "config", "user.name", "OpenMates Tests")
+    (repo / "scripts" / "agents_md.py").write_text((SESSIONS_PATH.parent / "agents_md.py").read_text())
+    (repo / "CLAUDE.md").write_text("# Rules\n- one\n")
+    (repo / "AGENTS.md").write_text("stale\n")
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "fixture")
+    assert sessions._regenerate_agents_md(repo) == ["AGENTS.md"]
+    assert "- one" in (repo / "AGENTS.md").read_text()
+    git(repo, "commit", "-qm", "regenerated")
+    assert sessions._regenerate_agents_md(repo) == []
+    (repo / "scripts" / "agents_md.py").unlink()
+    assert sessions._regenerate_agents_md(repo) == []

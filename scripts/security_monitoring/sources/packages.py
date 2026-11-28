@@ -10,10 +10,13 @@ security-monitoring.sources.hourly-deterministic.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 import re
+import tomllib
 from typing import Any, Callable, Iterable, Mapping
 
-from security_monitoring.models import AdvisoryItem, Inventory
+from security_monitoring.inventory import EXECUTORCH_REPO, ONNX_REPO
+from security_monitoring.models import AdvisoryItem, Asset, Inventory
 from security_monitoring.sources.fetch import FetchError
 
 Fetch = Callable[[str, "dict[str, Any] | None"], Any]
@@ -26,6 +29,11 @@ OSV_ECOSYSTEMS = {"npm", "PyPI", "crates.io", "SwiftURL"}
 REPOSITORY = "glowingkitty/OpenMates"
 DEPENDABOT_ECOSYSTEMS = {"pip": "PyPI", "rust": "crates.io", "actions": "GitHub Actions", "swift": "SwiftURL",
                          "npm": "npm", "docker": "docker", "go": "Go"}
+TOKENIZERS_PACKAGE = "github.com/depasqualeorg/swift-tokenizers"
+# The Swift release 0.5.0 embeds the checksummed tokenizers-rust-0.5.0
+# XCFramework. Its Rust release tag is pinned here by commit.
+TOKENIZERS_RUST_REVISIONS = {"0.5.0": "b5d3e007d5d3de98eef1b750d68e880fae3dc425"}
+
 # Upstream repositories whose own GitHub security advisories we follow, and how
 # their package names map onto inventory assets ("*" maps every package).
 UPSTREAM_REPOSITORIES: dict[str, dict[str, tuple[str, str]]] = {
@@ -62,9 +70,17 @@ def _osv_severity(record: Mapping[str, Any]) -> str:
 
 def _osv_queries(inventory: Inventory) -> list[tuple[str, str, str]]:
     queries = {(asset.ecosystem, asset.name, asset.version) for asset in inventory.assets
-               if asset.usage == "used" and asset.kind == "package" and asset.version and asset.ecosystem in OSV_ECOSYSTEMS
-               and not (asset.ecosystem == "SwiftURL" and re.fullmatch(r"[0-9a-f]{7,40}", asset.version))}  # commit pins carry no version
+               if asset.usage == "used" and asset.kind == "package" and asset.version
+               and (asset.ecosystem in OSV_ECOSYSTEMS or (asset.ecosystem == "GitHub" and asset.name in {ONNX_REPO, EXECUTORCH_REPO}))}
     return sorted(queries)  # type: ignore[arg-type]  # version filtered non-empty above
+
+
+def _osv_request(ecosystem: str, name: str, version: str) -> dict[str, Any]:
+    if ecosystem == "SwiftURL" and re.fullmatch(r"[0-9a-f]{40}", version):
+        return {"commit": version}
+    if ecosystem == "GitHub":
+        return {"package": {"purl": f"pkg:github/{name.removeprefix('github.com/')}@v{version}"}}
+    return {"package": {"ecosystem": ecosystem, "name": name}, "version": version}
 
 
 def _osv_item(vuln_id: str, record: Mapping[str, Any] | None, hits: Iterable[tuple[str, str, str]],
@@ -98,7 +114,7 @@ def collect_osv(inventory: Inventory, fetch: Fetch) -> tuple[list[AdvisoryItem],
     modified: dict[str, str | None] = {}
     for start in range(0, len(queries), OSV_BATCH_SIZE):
         batch = queries[start:start + OSV_BATCH_SIZE]
-        body = {"queries": [{"package": {"ecosystem": eco, "name": name}, "version": version} for eco, name, version in batch]}
+        body = {"queries": [_osv_request(*query) for query in batch]}
         response = fetch(OSV_BATCH_URL, {"method": "POST", "json": body, "timeout": 90})
         results = response.get("results") if isinstance(response, dict) else None
         if not isinstance(results, list) or len(results) != len(batch):
@@ -124,6 +140,32 @@ def collect_osv(inventory: Inventory, fetch: Fetch) -> tuple[list[AdvisoryItem],
         partial = partial or "detail_fetch_failed"
     items = [_osv_item(vuln_id, records.get(vuln_id), hits[vuln_id], modified.get(vuln_id)) for vuln_id in ids]
     return items, partial
+
+
+def collect_tokenizers_rust(inventory: Inventory, fetch: Fetch) -> tuple[list[AdvisoryItem], str | None]:
+    """Surface advisories in the prebuilt Rust backend against its owning Swift package."""
+    package = next((asset for asset in inventory.assets if asset.name == TOKENIZERS_PACKAGE
+                    and asset.ecosystem == "SwiftURL" and asset.usage == "used"), None)
+    if package is None:
+        return [], None
+    revision = TOKENIZERS_RUST_REVISIONS.get(package.version or "")
+    if not revision:
+        return [], "unmapped_binary_release"
+    lock = fetch(f"https://raw.githubusercontent.com/DePasqualeOrg/swift-tokenizers/{revision}/rust/Cargo.lock",
+                 {"format": "text"})
+    dependencies = tuple(
+        Asset("package", "crates.io", dependency["name"], dependency["version"], package.environments, package.exposure)
+        for dependency in tomllib.loads(lock)["package"]
+        if dependency.get("source", "").startswith("registry+")
+    )
+    if not dependencies:
+        raise FetchError("malformed")
+    advisories, error = collect_osv(Inventory(inventory.generated_at, dependencies), fetch)
+    # Remediation must update the Swift binary package. Updating OpenMates' own
+    # lockfile would leave the third-party binary unchanged.
+    affected = ({"ecosystem": package.ecosystem, "name": package.name, "versions": [package.version],
+                 "origin": "osv_query"},)
+    return [replace(item, source="osv:tokenizers_rust", affected=affected) for item in advisories], error
 
 
 def _advisory_aliases(advisory: Mapping[str, Any]) -> tuple[str, ...]:

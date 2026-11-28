@@ -366,7 +366,7 @@ final class TeamWorkspaceContext: ObservableObject {
         context.hasAuthoritativeRoster = variant != "unknown" && variant != "loading"
         if ["joined", "offline", "single", "personal", "loadingJoined", "many"].contains(variant) {
             var roster = [("synthetic-home-one", "xHain"), ("synthetic-home-two", "OpenMates")]
-            if variant == "single" { roster = [("synthetic-home-one", "SocialHub")] }
+            if variant == "single" { roster = [("synthetic-home-one", "Garden Studio")] }
             if variant == "many" {
                 roster += (3...7).map { ("synthetic-home-\($0)", "Team \($0)") }
             }

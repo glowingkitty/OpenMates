@@ -50,11 +50,11 @@ impl BrowserOrdinaryLoginRetention{
 /// Worker-local, one-use profile. No field getters, Debug or serialization.
 #[wasm_bindgen]
 pub struct PreparedBrowserProfile { profile: BrowserProfileKey }
-#[cfg(feature="browser-metadata-prototype")]
-#[path="browser_first_session_restore.rs"]
+#[path = "browser_first_session_restore.rs"]
 mod first_session_restore;
-#[cfg(feature="browser-metadata-prototype")]
-pub use first_session_restore::{BrowserPreparedFirstSession,BrowserFirstSessionControlHandle,BrowserFirstSessionReceiptHandle};
+pub use first_session_restore::{
+    BrowserFirstSessionControlHandle, BrowserFirstSessionReceiptHandle, BrowserPreparedFirstSession,
+};
 
 #[wasm_bindgen]
 impl PreparedBrowserProfile {
@@ -685,6 +685,9 @@ mod tests {
 mod cache_operations;
 pub use cache_operations::{BrowserCachedReadPublication,BrowserCacheMonitor,BrowserIncomingPublication};
 
+#[path = "browser_task_jobs.rs"]
+mod task_jobs;
+
 #[path="browser_chat_frames.rs"]
 mod chat_frames;
 
@@ -707,6 +710,9 @@ pub use initial_sync::{BrowserInitialSyncStoreBootstrap,BrowserInitialSyncStoreD
 
 #[path="browser_embed_user_edit.rs"]
 mod embed_user_edit;
+// Submodule so the live-item exports reach the private core client.
+#[path="browser_live_item.rs"]
+mod live_item;
 // Submodule so the present-remote exports reach the private core client.
 #[path="browser_present_remote.rs"]
 mod present_remote;

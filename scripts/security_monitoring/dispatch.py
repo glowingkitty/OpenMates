@@ -546,6 +546,22 @@ def run_fix_batch(settings: Settings, *, deps: Deps | None = None, store: Store 
             store.close()
 
 
+def run_github_alerts(settings: Settings, *, store: Store | None = None, notifier: notify.Notifier | None = None,
+                      now: datetime | None = None, **kwargs: Any) -> dict[str, Any]:
+    """Refresh the GitHub Dependabot and secret scanning snapshot (github_alerts.run)."""
+    from security_monitoring import github_alerts
+
+    owned = store is None
+    store = store or Store.open(settings.state_db, dry_run=settings.dry_run)
+    try:
+        dispatcher = Dispatcher(settings=settings, store=store, deps=default_deps(),
+                                notifier=notifier or build_notifier(settings, store), now=now or datetime.now(timezone.utc))
+        return github_alerts.run(dispatcher, **kwargs)
+    finally:
+        if owned:
+            store.close()
+
+
 def run_image_report(settings: Settings, *, store: Store | None = None, notifier: notify.Notifier | None = None,
                      now: datetime | None = None, **kwargs: Any) -> dict[str, Any]:
     """Daily running-image scan and runtime version check (image_report.run_report)."""
@@ -580,4 +596,4 @@ def run_hourly(settings: Settings, *, deps: Deps | None = None, store: Store | N
             store.close()
 
 
-__all__ = ["Deps", "Dispatcher", "RunReport", "build_notifier", "default_deps", "run_fix_batch", "run_hourly", "run_image_report", "utc"]
+__all__ = ["Deps", "Dispatcher", "RunReport", "build_notifier", "default_deps", "run_fix_batch", "run_github_alerts", "run_hourly", "run_image_report", "utc"]

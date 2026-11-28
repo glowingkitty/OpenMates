@@ -177,6 +177,11 @@ impl DeckDocument {
         self.undo.can_redo()
     }
 
+    /// Shared replica for tagged transactions and live update observation.
+    pub(crate) fn document(&self) -> &Doc {
+        &self.doc
+    }
+
     /// Yjs v1 encoded state vector (what this replica has seen).
     pub fn state_vector(&self) -> Vec<u8> {
         self.doc.transact().state_vector().encode_v1()

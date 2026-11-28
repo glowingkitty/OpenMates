@@ -1,5 +1,19 @@
-from pydantic import BaseModel
-from typing import Optional
+from typing import Any, Mapping, Optional
+
+from pydantic import BaseModel, Field
+
+AI_MODEL_DEFAULT_FIELDS = (
+    "default_ai_model_simple",
+    "default_ai_model_complex",
+    "default_ai_model_most_demanding",
+)
+AI_PREFERENCE_FIELDS = (
+    *AI_MODEL_DEFAULT_FIELDS,
+    "default_app_skill_models",
+    "follow_up_suggestions_enabled",
+    "recommendations_enabled",
+)
+
 
 class UserResponse(BaseModel):
     id: Optional[str] = None # User's primary key (UUID)
@@ -41,6 +55,14 @@ class UserResponse(BaseModel):
     push_notification_preferences: Optional[dict] = None # e.g. {"aiResponses": true}
     push_notification_banner_shown: bool = False # Whether the "Enable push?" banner has been dismissed
     has_free_testing_credits_grant: bool = False # Whether this account already received a Free testing grant
+    # Server-side AI preferences. The server applies them on every request, so
+    # clients must receive them to show the same state ("Auto" = None).
+    default_ai_model_simple: Optional[str] = None
+    default_ai_model_complex: Optional[str] = None
+    default_ai_model_most_demanding: Optional[str] = None
+    default_app_skill_models: dict[str, str] = Field(default_factory=dict)
+    follow_up_suggestions_enabled: bool = True
+    recommendations_enabled: bool = True
     # Furry Mode is disabled until any furry art is made by human artists.
 
     class Config:
@@ -65,3 +87,18 @@ class UserResponse(BaseModel):
                 "user_email_salt": "email_salt_example"
             }
         }
+
+
+def ai_preference_fields(user_data: Mapping[str, Any]) -> dict[str, Any]:
+    """Saved AI preferences for a full UserResponse, read from cached or Directus user data.
+
+    Every login and session response must carry these: the server applies the
+    stored values to each request, so a response without them makes clients
+    show "Auto" while the server still routes to the saved model.
+    """
+    return {
+        **{field: user_data.get(field) for field in AI_MODEL_DEFAULT_FIELDS},
+        "default_app_skill_models": user_data.get("default_app_skill_models") or {},
+        "follow_up_suggestions_enabled": user_data.get("follow_up_suggestions_enabled") is not False,
+        "recommendations_enabled": user_data.get("recommendations_enabled") is not False,
+    }

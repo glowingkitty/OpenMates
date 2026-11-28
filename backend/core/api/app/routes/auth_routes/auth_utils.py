@@ -112,10 +112,13 @@ async def store_account_lifecycle_contact_email(
         logger.error("Failed to update account lifecycle contact email for user %s", user_id[:8])
         return False
 
+    # A parallel store for the same signup can win the insert; the unique
+    # hashed_email conflict is expected and resolved by the update below.
     success, result = await directus_service.create_item(
         ACCOUNT_CONTACT_EMAIL_COLLECTION,
         payload,
         admin_required=True,
+        expected_unique_conflict_field="hashed_email",
     )
     if success:
         logger.info("Stored account lifecycle contact email for user %s", user_id[:8])

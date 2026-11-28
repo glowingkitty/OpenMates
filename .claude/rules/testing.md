@@ -60,6 +60,10 @@ paths:
     daily spend, the credit balance (an estimate: E2B has no balance API) and
     the runway, and pushes "Feedback needed" below 30 days of runway. At the cap, cargo/vitest/Playwright
     runs wait in the E2B queue; the translation build runs locally instead.
+    `scripts/e2b_repo_run.py --repo PATH --sandbox-root DIR
+    [--revision REV] [--timeout S] -- CMD` runs CMD on one committed revision of any
+    local git repository in the same template, slot and budget and exits with
+    its status (no GitHub Actions, no host fallback).
     Remote-eligible runs never wait for host memory; real-inference browser
     proofs against the dev stack (`design_embroidery_web_real_test.py` and the
     real tests built on it) run there too, with the lease and draft guard on
@@ -157,7 +161,15 @@ it until you diagnose the cause (`ci_coordinator.py failures <ids>`,
 `test-failure-triager`, `e2e-test-investigator`) and pass
 `--after-triage "<cause found and what this run changes>"`
 (`scripts/ci_triage_gate.py`, notes in `logs/ci-coordinator/triage-notes.jsonl`,
-switch `logs/ci-coordinator/triage-gate.json`). Ask before unrelated infrastructure repair, uncertain expected
+switch `logs/ci-coordinator/triage-gate.json`). Loop brake (owner, 23 Nov): at
+the third identical failure in a row, Claude and Codex stop retrying. For
+coordinated CI, `wait` reports the brake and `submit` refuses even with
+`--after-triage`. For proofs outside the coordinator, compare the failure
+diagnostics yourself. Send Marco ONE ❓
+push (`agent_question.py ask`, the failure in one sentence plus your
+recommendation) and end the turn; resubmit only with `--after-owner-answer
+<receipt>` of his dev-connector answer, which `owner_message.py` must verify
+for this chat. Ask before unrelated infrastructure repair, uncertain expected
 behavior or material scope growth; keep the patch and evidence.
 
 ## E2E recording delivery (web, component, CLI)
@@ -190,7 +202,12 @@ behavior or material scope growth; keep the patch and evidence.
    `proof_video_audio.py mux-all <folder>` muxes it on the host. The spec audit
    asks for it; opt out only with `// proof-audio: not_required reason=<why>`.
    Check the sound is there: `proof_video_audio.py loudness <video>`.
-5. Keep Playwright video on for all attempts. CLI E2E needs real terminal
+5. Keep Playwright video on for all attempts: every Playwright run in GitHub CI
+   or E2B records one (`playwright.config.ts` refuses `PLAYWRIGHT_VIDEO_MODE=off`
+   under `CI`). A chat that ran Playwright (CI e2e/component/visual-smoke job or a
+   heavy_slot run) attaches the video to its push, whether or not anything was
+   deployed; `agent_question.py` refuses a screenshot alone (owner, 23 Nov).
+   Voice and audio flows attach the `*-with-audio.webm`. CLI E2E needs real terminal
    recordings (`cli-tui-proof-helpers.ts` / `cli_video_capture.py`). Dev-host
    real-inference recordings: `response_media.py <video> --output markdown`.
 6. Edited/captioned proof videos only when requested (`/create-demo-video`,

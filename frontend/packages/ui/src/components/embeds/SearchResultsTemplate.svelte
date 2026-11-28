@@ -34,7 +34,6 @@
   import { getLucideIcon } from '../../utils/categoryUtils';
   import EmbedLeafletMap from './EmbedLeafletMap.svelte';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
-  import AppsRequestComposer from '../apps/AppsRequestComposer.svelte';
   import { get } from 'svelte/store';
   import { activeTeamContext } from '../../stores/teamStore';
   import { notificationStore } from '../../stores/notificationStore';
@@ -515,12 +514,6 @@
       </div>
   {/snippet}
 
-  {#snippet followupComposer()}
-    <div class="result-followup">
-      <AppsRequestComposer presentation="embed" {appId} submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
-    </div>
-  {/snippet}
-
 {#snippet searchHeaderActions()}
   <div class="button-wrapper search-filter-button-wrapper">
     <button bind:this={filterButton} type="button" class="header-action" data-testid="search-template-filter-button" data-icon={filtersOpen ? 'close' : 'filter'}
@@ -535,6 +528,7 @@
 <svelte:window onresize={updateFilterPanelHeight} onpointerdown={dismissFilters} />
 
 <UnifiedEmbedFullscreen
+  headerKind="execution"
   escapeScope={{ consume: () => { if (!filtersOpen) return false; closeFilters(); return true; } }}
   headerPrimaryAction={!initialChildEmbedId ? searchHeaderActions : undefined}
   {testId}
@@ -575,8 +569,8 @@
   {onEmbedDataUpdated}
   {embedHeaderCta}
   embedHeaderContent={mapMarkers.length > 0 && !initialChildEmbedId ? mapHeader : undefined}
-  floatingBottom={true}
-  fixedBottom={!initialChildEmbedId ? followupComposer : undefined}
+  followupSubmit={!initialChildEmbedId ? submitFollowup : undefined}
+  followupSubmitting={submittingRequest}
 >
   {#snippet content(ctx)}
     {@const results = getResults(ctx)}

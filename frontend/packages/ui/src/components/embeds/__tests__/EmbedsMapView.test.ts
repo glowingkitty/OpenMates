@@ -6,7 +6,7 @@
 // Spec: docs/specs/embeds-map-view/spec.yml
 
 import { mount, tick, unmount } from "svelte";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userProfile } from "../../../stores/userProfile";
 import EmbedsMapView from "../EmbedsMapView.svelte";
 import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
@@ -42,6 +42,7 @@ const previewRegistryMocks = vi.hoisted(() => ({
 vi.mock("../../../services/embedResolver", () => embedResolverMocks);
 vi.mock("../../../services/embedStore", () => ({
   embedStore: {
+    get: vi.fn(async () => null),
     resolveByRefDeep: embedStoreMocks.resolveByRefDeep,
   },
   embedRefIndexVersion: {
@@ -66,6 +67,8 @@ async function flush(target?: HTMLElement): Promise<void> {
 
 describe("EmbedsMapView", () => {
   beforeEach(() => {
+    // jsdom has no ResizeObserver. Calendar measurements are covered in browser tests.
+    vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
     embedResolverMocks.resolveEmbed.mockReset();
     embedResolverMocks.decodeToonContent.mockReset();
     embedStoreMocks.resolveByRefDeep.mockReset();
@@ -353,6 +356,8 @@ describe("EmbedsMapView", () => {
     });
   });
 
+  afterEach(() => vi.unstubAllGlobals());
+
   // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it('removes the view when its last valid location disappears', async () => {
     let valid = true;
@@ -594,7 +599,7 @@ describe("EmbedsMapView", () => {
     const records: Record<string, Record<string, unknown>> = {
       overnight: { title: "Sunday overnight", departure: "2026-09-13T23:00:00+02:00", arrival: "2026-09-14T01:00:00+02:00", provider: "early" },
       midnight: { title: "Ends at midnight", date_start: "2026-09-20T23:00:00+02:00", date_end: "2026-09-21T00:00:00+02:00", provider: "early" },
-      later: { title: "October date only", date_start: "2026-10-01", provider: "later" },
+      later: { title: "October date only", date_start: "2026-10-01", date_end: "2026-10-02", provider: "later" },
     };
     embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => ref);
     embedResolverMocks.resolveEmbed.mockImplementation(async (ref: string) => ({ embed_id: ref, type: "events-event", status: "finished", content: ref }));
@@ -619,7 +624,10 @@ describe("EmbedsMapView", () => {
     await tick();
     // The event ending at Monday midnight creates no event in week 39.
     expect(week()).toContain("Week 40 2026");
-    expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain("October date only");
+    const allDayCards = [...target.querySelectorAll('[data-testid="embeds-results-view-calendar-date-only"]')];
+    expect(allDayCards.map(card => card.textContent)).toEqual([
+      expect.stringContaining("2026-10-01"), expect.stringContaining("2026-10-02"),
+    ]);
     expect(next().disabled).toBe(true);
     previous().click();
     await tick();

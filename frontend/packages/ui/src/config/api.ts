@@ -77,6 +77,13 @@ export function setPlanCreateRequestsCapabilityEnabled(enabled: boolean): void {
 
 // Assistant Memory writes (save_memory): enabled only while the Rust core job
 // runner is installed (assistantMemoryWrites.ts, flag-on builds).
+let taskUpdateJobsCapabilityEnabled = false;
+
+/** Advertise only while the browser's encrypted Task executor is installed. */
+export function setTaskUpdateJobsCapabilityEnabled(enabled: boolean): void {
+  taskUpdateJobsCapabilityEnabled = enabled;
+}
+
 let memoryWriteJobsCapabilityEnabled = false;
 
 export function setMemoryWriteJobsCapabilityEnabled(enabled: boolean): void {
@@ -150,6 +157,18 @@ export function isDevEnvironment(): boolean {
   return import.meta.env.VITE_ENV !== "production";
 }
 
+export const RUST_HISTORY_OPT_OUT_KEY = 'openmates_rust_core_history';
+
+/** Negotiate at socket creation, including sockets opened before the Worker is ready. */
+export function usesOpenedChatStartup(): boolean {
+  if (import.meta.env.VITE_OPENMATES_RUST_CORE !== '1' || typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(RUST_HISTORY_OPT_OUT_KEY) !== 'ts';
+  } catch {
+    return false;
+  }
+}
+
 // Helper to get WebSocket URL
 export function getWebSocketUrl(sessionId?: string, token?: string): string {
   const apiUrl = getApiUrl();
@@ -164,6 +183,7 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     params.push(`token=${encodeURIComponent(token)}`);
   }
   const clientCapabilities = [
+    ...(usesOpenedChatStartup() ? ["chat_startup_opened_v1"] : []),
     "canonical_embed_receipts_v1",
     "typed_recovery_outputs_v2",
     ...(chatMetadataRecoveryCapabilityEnabled ? ["chat_metadata_recovery"] : []),
@@ -171,9 +191,11 @@ export function getWebSocketUrl(sessionId?: string, token?: string): string {
     ...(remoteCommandJobsCapabilityEnabled ? ["remote_command_jobs"] : []),
     ...(projectCreateRequestsCapabilityEnabled ? ["project_create_requests"] : []),
     ...(planCreateRequestsCapabilityEnabled ? ["plan_create_requests"] : []),
+    ...(taskUpdateJobsCapabilityEnabled ? ["task_update_jobs"] : []),
     ...(memoryWriteJobsCapabilityEnabled ? ["memory_write_jobs"] : []),
     ...(chatOrchestrationJobsCapabilityEnabled ? ["chat_orchestration_jobs"] : []),
     "agentic-storage-v2",
+    ...(import.meta.env.VITE_OPENMATES_RUST_CORE === "1" ? ["parallel_chat_turns_v1"] : []),
   ];
   if (clientCapabilities.length > 0) {
     params.push(`client_capabilities=${clientCapabilities.join(",")}`);

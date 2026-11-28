@@ -6,6 +6,8 @@ import json
 import re
 from typing import Any
 
+from backend.apps.ai.utils.sheet_formatting import SHEET_FORMAT_PREFIX, SHEET_FORMAT_SUFFIX
+
 
 PROJECT_FILE_TOOL_TO_OPERATION = {
     "project_list_files": "list",
@@ -323,7 +325,23 @@ def _project_file_tools() -> list[dict[str, Any]]:
                         },
                         "patch": {
                             "type": "string",
-                            "description": "Unified diff against exactly expected_base.",
+                            "description": (
+                                "Unified diff against exactly expected_base. Start with --- and +++ file headers "
+                                "using the exact Project-relative path from project_read_text. Each hunk starts with "
+                                "@@ coordinates. Preserve the original lines and their indentation exactly. "
+                                "Use a no-newline marker for a final line that has no newline. "
+                                "Send the diff directly without a Markdown fence or git metadata. "
+                                "For an editable OpenMates Sheet, put formatting only in the final JSON comment, "
+                                f"for example {SHEET_FORMAT_PREFIX}"
+                                '{"cells":{"A2":{"bold":true,"backgroundColor":"#DBEAFE"}}}'
+                                f"{SHEET_FORMAT_SUFFIX}. A1 is the first heading, A2 is the first data cell, "
+                                "and the Markdown separator does not count as a row. Append the comment if "
+                                "absent, or merge the change into the existing comment. Keep all cell text "
+                                "identical for a formatting-only edit. HTML, Markdown emphasis and inline "
+                                "style comments inside cells would become literal cell values. If the final "
+                                "table row has no newline, remove it with the no-newline marker, then add "
+                                "the identical row followed by the formatting comment."
+                            ),
                         },
                         "source_id": source_property,
                     },

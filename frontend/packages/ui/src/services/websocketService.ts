@@ -1285,7 +1285,7 @@ class WebSocketService extends EventTarget {
       && (payload as Record<string, unknown>).voice_call_bootstrap === true;
     // Optional metadata contains the call transcript before client encryption.
     // Admin/debug console forwarding must never retain that payload.
-    const logMessage = voiceCallBootstrap ? { type } : type.startsWith("voice_metadata_")
+    const logMessage = voiceCallBootstrap || type.startsWith("task_update_job_") ? { type } : type.startsWith("voice_metadata_")
       ? summarizeIncomingMessageForLogging(message) : message;
     if (!this.isConnected()) {
       if (type !== "ping") {

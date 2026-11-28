@@ -21,6 +21,9 @@ from backend.shared.python_utils.chat_failure_notifications import (
 )
 from backend.shared.python_utils.team_log_correlation import team_correlation_fields
 from backend.shared.python_utils.ai_task_cancellation import cancellation_intent_key
+from backend.shared.python_utils.independent_chat_reply import (
+    completed_context_before_source, is_independent_reply, release_independent_reply, verify_independent_reply,
+)
 
 import logging
 import asyncio
@@ -1302,7 +1305,10 @@ async def _handoff_queued_after_task_failure(
         raise RequiredRecoveryOutputError("Failed predecessor has unreconciled queued edit")
     lease = None
     for _ in range(3):
-        lease = await cache_service.lease_queued_message_prefix(request_data.chat_id, limit=20)
+        lease = await cache_service.lease_queued_message_prefix(
+            request_data.chat_id, limit=20,
+            **({"worker_task_id": task_id} if getattr(request_data, "same_turn_batch_id", None) else {}),
+        )
         if lease:
             break
         empty_state = await cache_service.complete_active_ai_task_if_queue_empty(
@@ -1560,6 +1566,18 @@ async def _cleanup_on_task_failure(
     from backend.shared.python_utils.focus_continuation_history import focus_authority_root
     authority_task_id = focus_authority_root(request_data, task_id) if request_data else task_id
 
+    if request_data is not None and getattr(request_data, "active_input_parallel_source", None):
+        # This delivery never owned or drained the ordinary queue.
+        await release_independent_reply(cache_service, user_id=user_id, chat_id=chat_id, task_id=task_id)
+        try:
+            await _publish_typing_ended(
+                cache_service, task_id, chat_id, user_id, user_id_hash, message_id,
+                terminal_failure_code=terminal_failure_code,
+            )
+        except Exception:
+            logger.warning("%s Independent reply failure notice unavailable", log_prefix, exc_info=True)
+        return
+
     # Preserve accepted followers before releasing this task's chat fence.
     cleared = False
     try:
@@ -1571,6 +1589,12 @@ async def _cleanup_on_task_failure(
                 await _pause_consumed_steers_after_failure(
                     request_data, authority_task_id, cache_service, steer_directus,
                 )
+                if getattr(request_data, "same_turn_batch_id", None):
+                    from backend.apps.ai.processing.parked_steering import retire_parked_steers
+                    await retire_parked_steers(
+                        cache_service, user_id=user_id, chat_id=chat_id,
+                        batch_id=request_data.same_turn_batch_id,
+                    )
             finally:
                 if directus_service is None:
                     await steer_directus.close()
@@ -2826,6 +2850,8 @@ async def _async_process_ai_skill_ask_task(
     routing_fingerprint = (request_fingerprint(request_data.model_dump(mode="json"), skill_config.model_dump(mode="json"))
                            if stage_one_routing_ref else "")
     stage_one_snapshot = None
+    fixed_active_input_reply = False
+    independent_reply = False
     # Phase transition JSON is stored as an encrypted system message for chat UI.
     # The phase state is supplied separately, so these notices need no model role.
     request_data.message_history = filter_focus_phase_history(
@@ -2878,10 +2904,12 @@ async def _async_process_ai_skill_ask_task(
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
         from backend.shared.python_utils.voice_call_admission import require_active_voice_dispatch
-        await require_active_voice_dispatch(cache_service_instance, request_data)
+        voice_binding = await require_active_voice_dispatch(cache_service_instance, request_data)
+        request_data._voice_state_cues = bool(voice_binding and voice_binding.state_cues)
 
-        from backend.apps.ai.tasks.async_skill_continuation import claim_queued_turn_as_latest
-        await claim_queued_turn_as_latest(cache_service_instance, request_data)
+        if not getattr(request_data, "active_input_parallel_source", None):
+            from backend.apps.ai.tasks.async_skill_continuation import claim_queued_turn_as_latest
+            await claim_queued_turn_as_latest(cache_service_instance, request_data)
 
         from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
         await bind_focus_execution(cache_service_instance, request_data, task_id)
@@ -2960,7 +2988,7 @@ async def _async_process_ai_skill_ask_task(
             for field in PRIVATE_CONTEXT_FIELDS:
                 if field in {"async_tool_completion", "async_tool_history", "same_turn_request"}:
                     continue
-                setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+                setattr(request_data, field, transient.get(field, None if field in {"accepted_plan_context", "design_source"} else []))
 
         if request_data.same_turn_batch_id:
             from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery, _set_once, _key
@@ -3027,6 +3055,13 @@ async def _async_process_ai_skill_ask_task(
             )
 
         if request_data.is_sub_chat:
+            child_continuation = bool(
+                request_data.is_sub_chat_continuation
+                or request_data.is_focus_mode_continuation
+                or request_data.is_app_settings_memories_continuation
+                or request_data.is_connected_account_permission_continuation
+                or request_data.is_async_skill_continuation
+            )
             if not all((
                 request_data.orchestration_id,
                 request_data.root_chat_id,
@@ -3043,13 +3078,7 @@ async def _async_process_ai_skill_ask_task(
                     "child_chat_id": request_data.chat_id,
                     "dispatch_token": request_data.orchestration_dispatch_token,
                     "inference_task_id": task_id,
-                    "is_continuation": bool(
-                        request_data.is_sub_chat_continuation
-                        or request_data.is_focus_mode_continuation
-                        or request_data.is_app_settings_memories_continuation
-                        or request_data.is_connected_account_permission_continuation
-                        or request_data.is_async_skill_continuation
-                    ),
+                    "is_continuation": child_continuation,
                 },
             )
             if child_claim.get("depth") != request_data.sub_chat_depth:
@@ -3098,10 +3127,46 @@ async def _async_process_ai_skill_ask_task(
                     claim.get("state"),
                 )
                 return _recovery_unclaimed_result(claim)
-            await _ack_running_recovery_queue_prefix(
-                request_data, task_id,
-                cache_service_instance, directus_service_instance,
-            )
+            if getattr(request_data, "active_input_parallel_source", None):
+                if not await verify_independent_reply(cache_service_instance, request_data, task_id, claim):
+                    raise RequiredRecoveryOutputError("Independent reply lost its durable admission")
+                object.__setattr__(request_data, "_verified_independent_reply", True)
+                independent_reply = is_independent_reply(request_data)
+                # Use already-authorized conversation preceding the foreground,
+                # plus the independent request. Never include a pending draft.
+                user_message = next(
+                    item for item in reversed(request_data.message_history)
+                    if item.role == "user" and item.message_id == request_data.message_id
+                )
+                request_data.message_history = [*completed_context_before_source(
+                    request_data.message_history, source_message_id=request_data.active_input_parallel_source_message,
+                    message_id=request_data.message_id,
+                ), user_message]
+                request_data.current_chat_summary = None
+            else:
+                await _ack_running_recovery_queue_prefix(
+                    request_data, task_id, cache_service_instance, directus_service_instance,
+                )
+            if request_data.active_input_reply:
+                from backend.shared.python_utils.active_input_authority import verified_fixed_active_input_reply
+
+                fixed_active_input_reply = await verified_fixed_active_input_reply(
+                    cache_service_instance, request_data, task_id,
+                )
+
+        if ((request_data.team_id or request_data.is_incognito or request_data.recovery_task_id)
+                and not (request_data.is_external or request_data.is_anonymous)):
+            from backend.shared.python_utils.ai_task_cancellation import record_cancellation_scope
+            from backend.shared.python_utils.volatile_embed_authority import active_volatile_ai_context
+
+            volatile = active_volatile_ai_context.get() if request_data.is_incognito else None
+            if not request_data.is_incognito or (volatile and volatile.session_nonce):
+                await record_cancellation_scope(
+                    cache_service_instance, chat_id=request_data.chat_id, task_id=task_id,
+                    user_id=request_data.user_id, team_id=request_data.team_id,
+                    session_nonce=volatile.session_nonce if volatile else None,
+                    user_message_id=request_data.message_id if request_data.recovery_task_id else None,
+                )
 
         user_task_claimed = await _update_user_task_execution_state(
             request_data,
@@ -3155,6 +3220,13 @@ async def _async_process_ai_skill_ask_task(
         if isinstance(e, RequiredRecoveryOutputError):
             raise
         raise RuntimeError(f"Service initialization failed: {e}")
+
+    if independent_reply and await cache_service_instance.get(cancellation_intent_key(
+        request_data.user_id, request_data.chat_id, task_id,
+    )):
+        # Reuse the ordinary interrupted-turn sealing path if Stop won before
+        # the delivery began preprocessing.
+        raise SoftTimeLimitExceeded()
 
     # NOTE: Idempotency dedup is performed by `DedupedTask.__call__` (the
     # Celery base class hooked in via `task_cls=` on the Celery app, see
@@ -3258,6 +3330,13 @@ async def _async_process_ai_skill_ask_task(
         if not user_vault_key_id:
             logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
             raise RuntimeError("User vault key ID not found.")
+        if request_data.is_sub_chat and not child_continuation and not (
+            request_data.is_incognito or request_data.is_external or request_data.is_anonymous
+        ):
+            from backend.shared.python_utils.focus_continuation_history import admit_child_focus_source
+            await admit_child_focus_source(
+                cache_service_instance, encryption_service_instance, request_data, user_vault_key_id,
+            )
             
     elif not cache_service_instance:
         logger.error(f"[Task ID: {task_id}] CacheService not available.")
@@ -3269,23 +3348,26 @@ async def _async_process_ai_skill_ask_task(
     logger.info("[Task ID: %s] [PRE_MAIN] stage=user_cache elapsed_ms=%.1f",
                 task_id, (time.monotonic() - user_cache_started) * 1000)
 
-    delayed_first_turn_summary = _can_overlap_first_turn_reads(
+    skip_chat_enrichment = independent_reply or fixed_active_input_reply
+    delayed_first_turn_summary = not skip_chat_enrichment and _can_overlap_first_turn_reads(
         request_data, stage_one_snapshot, allow_pending_details=True,
     )
     summary_operation = None
-    if user_vault_key_id and not any(getattr(request_data, flag, False) for flag in (
-        "is_external", "is_incognito", "is_anonymous"
-    )) and not delayed_first_turn_summary:
+    if user_vault_key_id and not skip_chat_enrichment and not any(
+        getattr(request_data, flag, False) for flag in ("is_external", "is_incognito", "is_anonymous")
+    ) and not delayed_first_turn_summary:
         from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
         summary_operation = _time_setup_stage(
             "active_summary", task_id, mark_response_summary_active(request_data, task_id)
         )
-    artifact_operation = _time_setup_stage(
-        "artifact", task_id, _prepare_artifact_context(
-            request_data, task_id, cache_service_instance, encryption_service_instance,
-            directus_service_instance, user_vault_key_id,
-        ),
-    )
+    artifact_operation = None
+    if not skip_chat_enrichment:
+        artifact_operation = _time_setup_stage(
+            "artifact", task_id, _prepare_artifact_context(
+                request_data, task_id, cache_service_instance, encryption_service_instance,
+                directus_service_instance, user_vault_key_id,
+            ),
+        )
     async with _overlap_preparation(summary_operation) as active_summary_task, \
             _overlap_preparation(artifact_operation) as artifact_task:
         configs_started = time.monotonic()
@@ -3357,7 +3439,8 @@ async def _async_process_ai_skill_ask_task(
         logger.info("[Task ID: %s] [PRE_MAIN] stage=configs elapsed_ms=%.1f",
                     task_id, (time.monotonic() - configs_started) * 1000)
 
-        await artifact_task
+        if artifact_task:
+            await artifact_task
         if active_summary_task:
             await active_summary_task
 
@@ -3682,7 +3765,7 @@ async def _async_process_ai_skill_ask_task(
                 if request_data.user_id_hash and not request_data.is_external
                 else None
             )
-            is_new_chat_for_preprocessing = not request_data.chat_has_title
+            is_new_chat_for_preprocessing = not request_data.chat_has_title and not independent_reply
 
             # A continuation may carry an opaque reference created by the original
             # worker. Recheck the current Project focus before comparing contexts:
@@ -3720,7 +3803,40 @@ async def _async_process_ai_skill_ask_task(
                     "Same-turn routing snapshot expired; refusing to reroute the original tool turn"
                 )
             selected_app_ids = resume[1] if resume and resume[2] else None
-            if resume and not resume[2]:
+            if fixed_active_input_reply:
+                # A fixed reply uses no provider inference or private context.
+                # Keep the existing account/credit and client continuation gates.
+                from backend.apps.ai.processing.preprocessor import check_preprocessing_credits
+
+                await await_client_context_phase(
+                    cache_service=cache_service_instance, request=request_data,
+                    phase="details", encryption_service=encryption_service_instance,
+                )
+                credit_rejection = await check_preprocessing_credits(
+                    request_data, cache_service_instance, directus_service_instance,
+                    encryption_service_instance,
+                )
+                if credit_rejection is not None:
+                    preprocessing_result = credit_rejection
+                else:
+                    explicit_mate, _ = _resolve_explicit_mate(
+                        list(all_mates_configs or []), None, request_data.mate_id,
+                    )
+                    previous_category = next((
+                        message.category for message in reversed(request_data.message_history)
+                        if message.role == "assistant" and message.category
+                    ), "general_knowledge")
+                    mate = explicit_mate or next((
+                        item for item in all_mates_configs if item.category == previous_category
+                    ), None) or next((
+                        item for item in all_mates_configs if item.category == "general_knowledge"
+                    ), None)
+                    preprocessing_result = PreprocessingResult(
+                        can_proceed=True,
+                        category=mate.category if mate else "general_knowledge",
+                        selected_mate_id=mate.id if mate else None,
+                    )
+            elif resume and not resume[2]:
                 from backend.apps.ai.processing.preprocessor import check_preprocessing_credits
                 credit_rejection = await check_preprocessing_credits(
                     request_data, cache_service_instance, directus_service_instance,
@@ -3813,15 +3929,15 @@ async def _async_process_ai_skill_ask_task(
                             directus_service=directus_service_instance,
                             encryption_service=encryption_service_instance,
                             user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                            discovered_apps_metadata=discovered_apps_metadata,
+                            discovered_apps_metadata={} if independent_reply else discovered_apps_metadata,
                             user_overrides=user_overrides,
                             preprocessing_stream_channel=preprocessing_stream_channel,
                             is_new_chat=is_new_chat_for_preprocessing,
                             selected_app_ids=selected_app_ids,
-                            on_early_routing=publish_early_typing,
+                            on_early_routing=None if independent_reply else publish_early_typing,
                             precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
                             before_related_summary_read=before_related_summary_read if summary_task else None,
-                            on_metadata_context_ready=start_early_metadata,
+                            on_metadata_context_ready=None if independent_reply else start_early_metadata,
                         )
                         if summary_task:
                             if _can_defer_summary_join(
@@ -3858,7 +3974,7 @@ async def _async_process_ai_skill_ask_task(
             # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
             # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
             try:
-                if cache_service_instance and encryption_service_instance:
+                if not skip_chat_enrichment and cache_service_instance and encryption_service_instance:
                     # Reuse the request's private-history projection, which keeps
                     # restored Project file results out of debug cache entries.
                     message_history_serialized = (
@@ -3932,6 +4048,10 @@ async def _async_process_ai_skill_ask_task(
             # Note: We no longer handle harmful content rejection here.
             # Instead, we let it flow through to the stream consumer which will handle it properly
             # with the normal streaming flow, ensuring the frontend gets proper completion signals.
+        except SoftTimeLimitExceeded:
+            # Stop uses the same signal as the Celery soft deadline. The sync
+            # wrapper checks the cancellation intent before settling the turn.
+            raise
         except Exception as e:
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
             raise RuntimeError(f"Preprocessing failed: {e}") from e
@@ -3939,8 +4059,10 @@ async def _async_process_ai_skill_ask_task(
         try:
             # --- Billing preflight validation ---
             # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
-            # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
-            if preprocessing_result and preprocessing_result.can_proceed:
+            # Fixed replies never dispatch an answer model, so no provider price is needed.
+            if fixed_active_input_reply:
+                logger.info("[Task ID: %s] Fixed active-input reply has no model billing", task_id)
+            elif preprocessing_result and preprocessing_result.can_proceed:
                 try:
                     if not preprocessing_result.selected_main_llm_model_id:
                         raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
@@ -4008,7 +4130,8 @@ async def _async_process_ai_skill_ask_task(
             # Compress only after the exact answer model is known. Admin overrides still
             # take precedence, and any compression/provider failure remains non-fatal.
             if (
-                preprocessing_result
+                not skip_chat_enrichment
+                and preprocessing_result
                 and preprocessing_result.can_proceed
                 and preprocessing_result.selected_main_llm_model_id
                 and cache_service_instance
@@ -4050,7 +4173,7 @@ async def _async_process_ai_skill_ask_task(
                 preprocessing_result.rejection_reason != "insufficient_credits"
                 and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
             ) if preprocessing_result else True
-            if preprocessing_result and cache_service_instance and should_send_typing:
+            if preprocessing_result and cache_service_instance and should_send_typing and not independent_reply:
                 try:
                     # Use category from preprocessing_result for typing indicator
                     typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
@@ -4273,6 +4396,8 @@ async def _async_process_ai_skill_ask_task(
                     # This prevents typing indicators from popping up in the web app when a user makes an API call.
                     if not request_data.is_external:
                         async def seal_initial_metadata():
+                            if fixed_active_input_reply:
+                                return None
                             if early_metadata_task and preprocessing_result.can_proceed:
                                 try:
                                     generated = await early_metadata_task
@@ -4385,7 +4510,8 @@ async def _async_process_ai_skill_ask_task(
             from backend.apps.ai.processing.main_processor import (
                 _scoped_diffable_embed_prefetch, _scoped_context_summary_barrier,
             )
-            await require_active_voice_dispatch(cache_service_instance, request_data)
+            voice_binding = await require_active_voice_dispatch(cache_service_instance, request_data)
+            request_data._verified_live_voice_dispatch = voice_binding is not None
             with ai_phase_span("main"):
                 _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
                 pending_summary = next(iter(_owned_summary_tasks.get() or []), None)
@@ -4520,7 +4646,7 @@ async def _async_process_ai_skill_ask_task(
             # This caches the last 10 requests for debugging purposes (encrypted, 30-minute TTL)
             # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
             try:
-                if cache_service_instance and encryption_service_instance:
+                if not skip_chat_enrichment and cache_service_instance and encryption_service_instance:
                     # Safely serialize preprocessing_result to avoid serialization errors
                     # Use mode='json' for JSON-safe output, catching any serialization issues
                     preprocessing_result_dict = None
@@ -4605,6 +4731,10 @@ async def _async_process_ai_skill_ask_task(
             task_was_soft_limited = True # Set overall flag
             raise # Re-raise for sync wrapper to handle Celery state
         except Exception as e:
+            if _was_account_recovery_fenced(e):
+                # The sync wrapper settles this as revoked without accessing
+                # account data already removed by the deletion transaction.
+                raise
             # Check for revocation if an unexpected error occurs
             # Use .state == 'REVOKED' for checking revocation status
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -4612,7 +4742,7 @@ async def _async_process_ai_skill_ask_task(
                 task_was_revoked = True # Set overall flag
             else:
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
-            raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
+            raise RuntimeError(f"Main processing stream execution failed: {e}") from e
         finally:
             if debug_cache_task:
                 await _settle_optional_debug_cache(
@@ -4656,10 +4786,12 @@ async def _async_process_ai_skill_ask_task(
         await retain_focus_authority(cache_service_instance, request_data, task_id, skill_config.model_dump())
 
     # --- Queue Processing (after main processing, before post-processing) ---
-    # Process queued messages immediately after main processing completes
+    # Process queued messages immediately after main processing completes.
+    # Only a same-turn resume may lease corrections parked for its checkpoint.
+    parked_queue_owner = {"worker_task_id": task_id} if request_data.same_turn_batch_id else {}
     # This allows the next message to start processing while post-processing continues in parallel
     # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
-    if (cache_service_instance and not awaiting_focus_continuation
+    if (cache_service_instance and not independent_reply and not awaiting_focus_continuation
             and (not request_data.is_focus_mode_continuation
                  or await cache_service_instance.get_active_ai_task(request_data.chat_id) == authority_task_id)):
         # Check for queued messages and process them
@@ -4672,7 +4804,7 @@ async def _async_process_ai_skill_ask_task(
         queued_lease = None
         for _attempt in range(3):
             queued_lease = await cache_service_instance.lease_queued_message_prefix(
-                request_data.chat_id, limit=20,
+                request_data.chat_id, limit=20, **parked_queue_owner,
             )
             if queued_lease:
                 break
@@ -4692,7 +4824,7 @@ async def _async_process_ai_skill_ask_task(
             ):
                 raise RequiredRecoveryOutputError("Completed recovery task still owns its queued prefix")
             queued_lease = await cache_service_instance.lease_queued_message_prefix(
-                request_data.chat_id, limit=20,
+                request_data.chat_id, limit=20, **parked_queue_owner,
             )
             queued_messages = queued_lease["messages"] if queued_lease else []
         if queued_messages and queued_messages[0].get("recovery_task_id"):
@@ -4713,7 +4845,7 @@ async def _async_process_ai_skill_ask_task(
         ):
             # Our own batch: the next lease (if any) holds only real followers.
             queued_lease = await cache_service_instance.lease_queued_message_prefix(
-                request_data.chat_id, limit=20,
+                request_data.chat_id, limit=20, **parked_queue_owner,
             )
             queued_messages = queued_lease["messages"] if queued_lease else []
             if not queued_messages:
@@ -4832,6 +4964,9 @@ async def _async_process_ai_skill_ask_task(
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
                     current_user_content=combined_content,
+                    active_input_reply=queued_messages[0].get("active_input_reply"),
+                    active_input_steer_task_id=queued_messages[0].get("active_input_steer_task_id"),
+                    active_input_steer_batch_id=queued_messages[0].get("active_input_steer_batch_id"),
                     **queued_voice_delivery(queued_messages),
                     agentic_context_ref=queued_messages[-1].get("agentic_context_ref"),
                     agentic_context_request_id=queued_messages[-1].get("agentic_context_request_id"),
@@ -5083,7 +5218,8 @@ async def _async_process_ai_skill_ask_task(
         main_processor_debug_metadata.pop("_sub_chat_report_for_metadata", None)
         if request_data.is_sub_chat and isinstance(main_processor_debug_metadata, dict) else None
     ) or aggregated_final_response
-    if not task_was_soft_limited and postprocessing_response and not request_data.is_external:
+    if (not skip_chat_enrichment and not task_was_soft_limited and postprocessing_response
+            and not request_data.is_external):
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -5450,14 +5586,15 @@ async def _async_process_ai_skill_ask_task(
 
             logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
     else:
-        reason = "request is external" if request_data.is_external else "no response content or soft-limited"
+        reason = ("fixed active-input reply" if fixed_active_input_reply else
+                  "request is external" if request_data.is_external else "no response content or soft-limited")
         logger.info(f"[Task ID: {task_id}] Skipping post-processing (reason: {reason}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
 
     # --- Answer safety: every finished answer is checked together with its request ---
     # Runs for incognito and external requests too. Scores from the postprocessing
     # decision call are reused; otherwise one minimal call is made. A withdrawn
     # answer never gives the user a strike.
-    if (aggregated_final_response and not task_was_soft_limited
+    if (not fixed_active_input_reply and aggregated_final_response and not task_was_soft_limited
             and not (main_processor_debug_metadata or {}).get("answer_withdrawn")):
         from backend.apps.ai.processing import answer_safety
         from backend.apps.ai.tasks.stream_consumer import _assistant_message_id as _answer_message_id
@@ -5532,6 +5669,10 @@ async def _async_process_ai_skill_ask_task(
     if request_data.same_turn_batch_id:
         from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
         await release_same_turn_handoffs(request_data)
+    if independent_reply:
+        await release_independent_reply(
+            cache_service_instance, user_id=request_data.user_id, chat_id=request_data.chat_id, task_id=task_id,
+        )
     return _retain_main_processing_failure_category({
         "task_id": task_id,
         "status": final_status_message,

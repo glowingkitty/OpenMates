@@ -276,7 +276,11 @@ def build_web_app() -> dict:
                      "spec_assertions": extra["spec_assertions"], "spec_gaps": extra["spec_gaps"]})
         units.append(item)
     installed = sum(1 for u in units if u["status"] == "installed")
-    specs = sorted(p.name for p in (ROOT / legacy.WEB_SPECS).glob("web-rust-core-*.spec.ts"))
+    spec_root = ROOT / legacy.WEB_SPECS
+    core_specs = {path.name for path in spec_root.glob("web-rust-core-*.spec.ts")}
+    declared_specs = {spec for unit in units for spec in unit["e2e_specs"]}
+    available_specs = {path.relative_to(spec_root).as_posix() for path in spec_root.rglob("*.spec.ts")}
+    specs = sorted(core_specs | (declared_specs & available_specs))
     return {"schema_version": SCHEMA_VERSION, "area": "web_app",
             "sources": [str(legacy.UNIT_REGISTRY), str(legacy.UNIT_PROTOCOL), str(CURATED), str(LANES), str(CAPABILITIES)],
             "flag": {"env": "VITE_OPENMATES_RUST_CORE", "default": "off", "flag_off_behavior": "original TypeScript path, byte-identical build output (guarded in CI)"},

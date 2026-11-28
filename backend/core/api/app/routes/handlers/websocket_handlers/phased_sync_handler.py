@@ -41,7 +41,12 @@ from backend.core.api.app.routes.handlers.websocket_handlers.sync_visibility_fen
     _live_visible_sync_chat_ids,
     _live_visible_sync_chat_metadata,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.chat_sync_cold_start import begin_cold_start
+from backend.core.api.app.routes.handlers.websocket_handlers.chat_sync_cold_start import (
+    begin_cold_start, send_opened_startup_shell,
+)
+from backend.core.api.app.services.chat_sync_feed_service import (
+    ChatSyncFeedService, socket_uses_opened_startup,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.phase2_stale_draft_probe import (
     parse_stale_draft_probe, stale_draft_probe_fields,
 )
@@ -807,6 +812,12 @@ async def handle_phased_sync_request(
                 device_fingerprint_hash, team_id, context_epoch, sync_phase,
             )
 
+            startup_feed = None
+            if socket_uses_opened_startup(websocket, team_id):
+                startup_feed = getattr(websocket.app.state, "chat_sync_feed", None)
+                if startup_feed is None:
+                    raise RuntimeError("Opened-chat startup service unavailable")
+
             # Track sent embed IDs across all phases to prevent duplicates
             # Embeds can be shared across chats in different phases
             sent_embed_ids: set = set()
@@ -814,11 +825,17 @@ async def handle_phased_sync_request(
             # Phase 1a: Metadata for last-opened + selected recent parent chats (instant)
             # Returns list of chat IDs so Phase 1b can fetch their content
             phase1_chat_ids: List[str] = []
-            if sync_phase == "phase1" or sync_phase == "all":
-                phase1_chat_ids = await _handle_phase1_sync(
-                    manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                    client_chat_versions, client_chat_ids, sent_embed_ids, team_id, context_epoch
-                )
+            if sync_phase in {"phase1", "all"}:
+                if startup_feed is not None:
+                    await send_opened_startup_shell(
+                        startup_feed, manager, cache_service, directus_service, user_id,
+                        device_fingerprint_hash, team_id, context_epoch,
+                    )
+                else:
+                    phase1_chat_ids = await _handle_phase1_sync(
+                        manager, cache_service, directus_service, user_id, device_fingerprint_hash,
+                        client_chat_versions, client_chat_ids, sent_embed_ids, team_id, context_epoch,
+                    )
 
             if sync_phase == "all":
                 startup_phase_tasks = []
@@ -840,6 +857,7 @@ async def handle_phased_sync_request(
                         refresh_chat_ids,
                         context_epoch,
                         stale_draft_probe_ids=stale_draft_probe_ids,
+                        **({"startup_feed": startup_feed} if startup_feed is not None and not refresh_chat_ids else {}),
                     )
                 )
                 await asyncio.gather(*startup_phase_tasks)
@@ -864,6 +882,7 @@ async def handle_phased_sync_request(
                         refresh_chat_ids,
                         context_epoch,
                         stale_draft_probe_ids=stale_draft_probe_ids,
+                        **({"startup_feed": startup_feed} if startup_feed is not None and not refresh_chat_ids else {}),
                     )
 
             # Phase 3: explicit/offline prefetch only. Do not run it during the
@@ -1682,6 +1701,7 @@ async def _handle_phase2_sync(
     refresh_chat_ids: Optional[List[str]] = None,
     context_epoch: Optional[int] = None,
     stale_draft_probe_ids: Optional[Dict[str, int]] = None,
+    startup_feed: ChatSyncFeedService | None = None,
 ):
     """
     Phase 2: Metadata-only for 100 chats (no messages, no embeds).
@@ -1697,107 +1717,118 @@ async def _handle_phase2_sync(
     phase2_start = time.perf_counter()
 
     try:
-        total_chat_count = await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
-        all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id,
-            limit=100,
-            team_id=team_id,
-        )
-        logger.info(
-            "Phase 2: Retrieved %d scoped Directus chat rows (total: %d, team_scope=%s)",
-            len(all_recent_chats or []),
-            total_chat_count,
-            "team" if team_id else "personal",
-        )
+        if startup_feed is not None:
+            recent_rows, total_chat_count = await startup_feed.recent_modified(
+                user_id, team_id, STARTUP_METADATA_PARENT_CHAT_LIMIT, 0,
+            )
+            all_recent_chats = [{
+                "chat_details": row,
+                "user_encrypted_draft_content": row.get("encrypted_draft_md"),
+                "user_draft_version_db": row.get("draft_v", 0),
+            } for row in recent_rows]
+            draft_chat_ids = [row["id"] for row in recent_rows]
+        else:
+            total_chat_count = await directus_service.chat.get_user_chat_count(user_id, team_id=team_id)
+            all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                user_id,
+                limit=100,
+                team_id=team_id,
+            )
+            logger.info(
+                "Phase 2: Retrieved %d scoped Directus chat rows (total: %d, team_scope=%s)",
+                len(all_recent_chats or []),
+                total_chat_count,
+                "team" if team_id else "personal",
+            )
 
-        draft_only_added = 0
-        draft_chat_ids = []
-        cache_draft_chat_ids = []
-        try:
-            existing_chat_ids = {
-                str(wrapper.get("chat_details", {}).get("id"))
-                for wrapper in all_recent_chats
-                if wrapper.get("chat_details", {}).get("id")
-            }
-            cache_draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+            draft_only_added = 0
+            draft_chat_ids = []
+            cache_draft_chat_ids = []
             try:
-                persisted_drafts = {} if team_id else await directus_service.chat.get_all_user_drafts(user_id)
-            except Exception as persisted_draft_error:
-                logger.warning(
-                    "Phase 2: Persisted draft discovery unavailable for user %s: %s",
-                    user_id,
-                    persisted_draft_error,
-                    exc_info=True,
-                )
-                persisted_drafts = {}
-            draft_chat_ids = list(dict.fromkeys([*cache_draft_chat_ids, *persisted_drafts]))
-            draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
-            draft_only_chat_ids = [
-                chat_id for chat_id in draft_chat_ids if chat_id not in existing_chat_ids
-            ]
-            # Persisted drafts may also belong to chats outside the recent window.
-            # Load their existing encrypted metadata in one batch, preserving keys
-            # and message versions instead of replacing real chats with empty shells.
-            existing_draft_chat_metadata = {}
-            if draft_only_chat_ids:
-                metadata_rows = await directus_service.get_items(
-                    "chats",
-                    params={
-                        "filter[id][_in]": ",".join(draft_only_chat_ids),
-                        "fields": CORE_CHAT_FIELDS_FOR_WARMING + ",hashed_team_id",
-                        "limit": -1,
-                    },
-                    admin_required=True,
-                    raise_on_error=True,
-                )
-                existing_draft_chat_metadata = {
-                    row["id"]: row for row in metadata_rows or []
+                existing_chat_ids = {
+                    str(wrapper.get("chat_details", {}).get("id"))
+                    for wrapper in all_recent_chats
+                    if wrapper.get("chat_details", {}).get("id")
                 }
-                visible_draft_rows = await filter_direct_chat_metadata(
-                    directus_service, list(existing_draft_chat_metadata.values()), user_id, team_id,
-                )
-                existing_draft_chat_metadata = {row["id"]: row for row in visible_draft_rows}
-                owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
-                team_hash = hashlib.sha256(team_id.encode()).hexdigest() if team_id else None
+                cache_draft_chat_ids = [] if team_id else await cache_service.get_all_user_draft_chat_ids(user_id)
+                try:
+                    persisted_drafts = {} if team_id else await directus_service.chat.get_all_user_drafts(user_id)
+                except Exception as persisted_draft_error:
+                    logger.warning(
+                        "Phase 2: Persisted draft discovery unavailable for user %s: %s",
+                        user_id,
+                        persisted_draft_error,
+                        exc_info=True,
+                    )
+                    persisted_drafts = {}
+                draft_chat_ids = list(dict.fromkeys([*cache_draft_chat_ids, *persisted_drafts]))
+                draft_chat_ids = list(dict.fromkeys([*draft_chat_ids, *(refresh_chat_ids or [])]))
                 draft_only_chat_ids = [
-                    chat_id for chat_id in draft_only_chat_ids
-                    if (not team_id and chat_id not in existing_draft_chat_metadata)
-                    or (
-                        chat_id in existing_draft_chat_metadata and (
-                            existing_draft_chat_metadata[chat_id].get("hashed_team_id") == team_hash
-                            if team_id else (
-                                existing_draft_chat_metadata[chat_id].get("hashed_user_id") == owner_hash
-                                and not existing_draft_chat_metadata[chat_id].get("hashed_team_id")
+                    chat_id for chat_id in draft_chat_ids if chat_id not in existing_chat_ids
+                ]
+                # Persisted drafts may also belong to chats outside the recent window.
+                # Load their existing encrypted metadata in one batch, preserving keys
+                # and message versions instead of replacing real chats with empty shells.
+                existing_draft_chat_metadata = {}
+                if draft_only_chat_ids:
+                    metadata_rows = await directus_service.get_items(
+                        "chats",
+                        params={
+                            "filter[id][_in]": ",".join(draft_only_chat_ids),
+                            "fields": CORE_CHAT_FIELDS_FOR_WARMING + ",hashed_team_id",
+                            "limit": -1,
+                        },
+                        admin_required=True,
+                        raise_on_error=True,
+                    )
+                    existing_draft_chat_metadata = {
+                        row["id"]: row for row in metadata_rows or []
+                    }
+                    visible_draft_rows = await filter_direct_chat_metadata(
+                        directus_service, list(existing_draft_chat_metadata.values()), user_id, team_id,
+                    )
+                    existing_draft_chat_metadata = {row["id"]: row for row in visible_draft_rows}
+                    owner_hash = hashlib.sha256(user_id.encode()).hexdigest()
+                    team_hash = hashlib.sha256(team_id.encode()).hexdigest() if team_id else None
+                    draft_only_chat_ids = [
+                        chat_id for chat_id in draft_only_chat_ids
+                        if (not team_id and chat_id not in existing_draft_chat_metadata)
+                        or (
+                            chat_id in existing_draft_chat_metadata and (
+                                existing_draft_chat_metadata[chat_id].get("hashed_team_id") == team_hash
+                                if team_id else (
+                                    existing_draft_chat_metadata[chat_id].get("hashed_user_id") == owner_hash
+                                    and not existing_draft_chat_metadata[chat_id].get("hashed_team_id")
+                                )
                             )
                         )
-                    )
-                ]
-            draft_only_wrappers = await _build_phase2_draft_only_wrappers(
-                cache_service,
-                directus_service,
-                user_id,
-                draft_only_chat_ids,
-                persisted_drafts=persisted_drafts,
-                existing_chat_metadata=existing_draft_chat_metadata,
-            )
-            for draft_wrapper in draft_only_wrappers:
-                draft_chat_id = draft_wrapper["chat_details"]["id"]
-                all_recent_chats.append(draft_wrapper)
-                existing_chat_ids.add(draft_chat_id)
-                draft_only_added += 1
-                await cache_service.add_chat_to_ids_versions(
+                    ]
+                draft_only_wrappers = await _build_phase2_draft_only_wrappers(
+                    cache_service,
+                    directus_service,
                     user_id,
-                    draft_chat_id,
-                    draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
+                    draft_only_chat_ids,
+                    persisted_drafts=persisted_drafts,
+                    existing_chat_metadata=existing_draft_chat_metadata,
                 )
-        except Exception as draft_only_error:
-            logger.warning(
-                "Phase 2: Draft-only metadata discovery failed for user %s: %s",
-                user_id,
-                draft_only_error,
-                exc_info=True,
-            )
-        logger.info("Phase 2: Added %d draft-only metadata entries", draft_only_added)
+                for draft_wrapper in draft_only_wrappers:
+                    draft_chat_id = draft_wrapper["chat_details"]["id"]
+                    all_recent_chats.append(draft_wrapper)
+                    existing_chat_ids.add(draft_chat_id)
+                    draft_only_added += 1
+                    await cache_service.add_chat_to_ids_versions(
+                        user_id,
+                        draft_chat_id,
+                        draft_wrapper["chat_details"]["last_edited_overall_timestamp"],
+                    )
+            except Exception as draft_only_error:
+                logger.warning(
+                    "Phase 2: Draft-only metadata discovery failed for user %s: %s",
+                    user_id,
+                    draft_only_error,
+                    exc_info=True,
+                )
+            logger.info("Phase 2: Added %d draft-only metadata entries", draft_only_added)
 
         all_recent_chats, tombstoned_chat_ids = await _filter_tombstoned_chat_wrappers(
             cache_service,
@@ -1820,19 +1851,24 @@ async def _handle_phase2_sync(
             ],
         )
         if durable_fenced_chat_ids:
-            all_recent_chats = [
-                wrapper for wrapper in all_recent_chats
-                if str(wrapper.get("chat_details", {}).get("id")) not in durable_fenced_chat_ids
-            ]
-            tombstoned_chat_ids.update(durable_fenced_chat_ids)
-        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids
+            remaining_recent_chats = []
+            for wrapper in all_recent_chats:
+                chat_id = str(wrapper.get("chat_details", {}).get("id"))
+                if chat_id in durable_fenced_chat_ids:
+                    tombstoned_chat_ids.add(chat_id)
+                else:
+                    remaining_recent_chats.append(wrapper)
+            all_recent_chats = remaining_recent_chats
+        # A durable fence for a client-only chat is deletion evidence. The
+        # authoritative server count already omits it.
+        all_tombstoned_chat_ids = tombstoned_chat_ids | client_tombstoned_chat_ids | durable_fenced_chat_ids
         if tombstoned_chat_ids:
             total_chat_count = max(0, total_chat_count - len(tombstoned_chat_ids))
             logger.info(
                 "Phase 2: Suppressed %d tombstoned chats from stale Directus metadata",
                 len(tombstoned_chat_ids),
             )
-        explicit_client_tombstones = client_tombstoned_chat_ids - tombstoned_chat_ids
+        explicit_client_tombstones = all_tombstoned_chat_ids - tombstoned_chat_ids
         if explicit_client_tombstones:
             logger.info(
                 "Phase 2: Emitting %d explicit client tombstone deletions",

@@ -1,0 +1,12 @@
+# Pretalx conference schedules (official public schedule API).
+provider_id: pretalx
+name: Pretalx
+description: Public conference schedules through the official Pretalx API.
+logo_svg: icons/calendar.svg
+region: EU
+privacy_policy: https://pretalx.com/p/privacy/
+no_api_key: true
+rate_limits:
+  default:
+    requests_per_second: 2
+    requests_per_day: null

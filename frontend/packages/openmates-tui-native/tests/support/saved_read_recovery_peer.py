@@ -237,6 +237,11 @@ class CliPeer(EssentialPeer):
                 "app_settings_memories_sync_ready",
             }:
                 payload = {**payload, "inventory_request_id": request_id}
+            if kind == "phase_2_last_20_chats_ready" and "authoritative" not in payload:
+                # This synthetic peer sends the entire fixture inventory.
+                ids = [row["chat_details"]["id"] for row in payload["chats"]]
+                payload = {**payload, "authoritative": True, "authoritative_chat_ids": ids,
+                           "total_chat_count": len(ids)}
             for frame, counter in (
                 ("phase_2_last_20_chats_ready", "inventory_syncs"),
                 ("recovery_outputs_discovery_complete", "inventory_discovery"),

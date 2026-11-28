@@ -16,7 +16,6 @@
 <script lang="ts">
   import { saveAppsSearchWithNotice } from '../../../services/appsWorkspaceLibraryService';
   import { getContext } from 'svelte';
-  import AppsRequestComposer from '../../apps/AppsRequestComposer.svelte';
   import { get } from 'svelte/store';
   import { activeTeamContext } from '../../../stores/teamStore';
   import { authStore } from '../../../stores/authState';
@@ -175,12 +174,12 @@
   {navigateDirection}
   {showChatButton}
   {onShowChat}
+  headerKind="execution"
+  followupSubmit={submitFollowup}
+  followupSubmitting={submittingRequest}
 >
-  {#snippet fixedBottom()}
-    <AppsRequestComposer appId="maps" submitting={submittingRequest} placeholder={$text('apps_workspace.followup_placeholder')} onSubmit={submitFollowup} />
-    {#if requestError}<p role="alert">{$text('apps_workspace.request_error')}</p>{/if}
-  {/snippet}
   {#snippet content()}
+    {#if requestError}<p role="alert">{$text('apps_workspace.request_error')}</p>{/if}
     <div class="maps-search-fullscreen-body">
       <div class="maps-search-actions">
         <button type="button" onclick={() => toolbarAction('save')}>{$text('apps_workspace.save_search')}</button>

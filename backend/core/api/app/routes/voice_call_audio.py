@@ -1,12 +1,12 @@
 """Microphone audio forwarding for a voice call, off the call's event loop.
 
 The call loop reads client events and provider transcript events. Forwarding a
-frame can wait on the per-minute credit check, the provider write and the
-per-minute charge; done inline, that wait also froze transcript delivery and the
+frame can wait on the credit check, the provider write and
+settlement; done inline, that wait also froze transcript delivery and the
 reading of later frames (live transcript slowed, then cut off, from the second
 turn on). Frames therefore go through a bounded, ordered queue to one writer
 task. Billing order per frame is unchanged: credits are checked before a frame
-that starts a new minute reaches the provider, and accepted audio is charged
+that increases accrued credits reaches the provider, and accepted audio is charged
 after the write, so no unaffordable audio is ever forwarded.
 
 Logs carry only sizes and timings, never audio or transcript text.
@@ -60,12 +60,14 @@ class MicAudioForwarder:
         self._accepted, self._progress = accepted, progress
         self._queue: asyncio.Queue[object] = asyncio.Queue(maxsize=MAX_QUEUED_FRAMES + 2)
         self.queued_bytes = 0
+        self.queued_frames = 0
         self.task: asyncio.Task[None] = asyncio.create_task(self._run())
 
     def push(self, data: str, size: int) -> None:
         if self._queue.qsize() >= MAX_QUEUED_FRAMES:
             raise AudioForwardingStalled("Voice audio forwarding stalled")
         self.queued_bytes += size
+        self.queued_frames += 1
         self._queue.put_nowait(_Frame(data, size, time.monotonic()))
 
     def end(self) -> None:

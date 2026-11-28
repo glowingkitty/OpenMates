@@ -14,6 +14,8 @@ from typing import Any, Optional
 
 import httpx
 
+from backend.shared.python_utils.notification_spool import spool_notification
+
 from backend.core.api.app.services.operational_monitoring import resolve_operations_discord_destination
 
 DEGRADED_SERVICES_REPORT_LOOKBACK_HOURS = 24
@@ -170,6 +172,7 @@ async def send_discord_degraded_report(content: str, webhook_url: str) -> None:
     async with httpx.AsyncClient(timeout=DEGRADED_SERVICES_DISCORD_TIMEOUT_SECONDS) as client:
         response = await client.post(webhook_url, json={"content": content})
         response.raise_for_status()
+        spool_notification("degraded_services_report", content)
 
 
 async def collect_recent_degraded_log_rows(

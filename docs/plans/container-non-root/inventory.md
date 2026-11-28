@@ -1,0 +1,155 @@
+# Container user inventory
+
+Baseline on 25 November 2026. Dev entries with a numeric process UID came from
+`docker inspect` and `docker top` on the running dev stack. Production, upload,
+preview and self-host entries describe the tracked Compose manifests and image
+recipes. Upstream defaults for images absent from dev come from their registry
+image configuration. Confirm the deployed digests and process UIDs during the
+normal release. Root in this inventory means UID 0 inside the container.
+
+## OpenMates images
+
+| Dockerfile | Where used | Baseline startup and service user |
+| --- | --- | --- |
+| `backend/core/api/Dockerfile` | Dev and production source-build API, isolated CI API and helper jobs | Root at startup and in Uvicorn on dev. Check the Vault handoff, logs, recommendation data and dev bind mounts. |
+| `backend/core/api/Dockerfile.selfhost` | Published self-host API and standard workers | API starts as root. Worker Compose sets root for startup before dropping to the Celery account. |
+| `backend/core/api/Dockerfile.celery` | Source-build workers and scheduler | Image defaults to `celeryuser`. Dev worker services override root for startup, then run Python at UID 1000. Scheduler starts at UID 1000. |
+| `backend/core/api/Dockerfile.docs` | Source-build docs worker | Image defaults to `celeryuser`. Dev overrides root for startup, then runs Python at UID 1000. |
+| `backend/core/api/Dockerfile.docs.selfhost` | Published docs worker | Image defaults to `celeryuser`. Verify the inherited worker Compose settings during release. |
+| `backend/core/directus/Dockerfile` | CMS in core, self-host and isolated CI | Starts as root to fix the upload directory owner, then runs Directus at UID 1000 on dev. |
+| `backend/core/directus/setup/Dockerfile` | One-shot CMS setup in source-build core and isolated CI | Root. Reads mounted SQL and schema files and talks to CMS and Postgres. |
+| `backend/core/directus/Dockerfile.setup.selfhost` | Published one-shot CMS setup | Root. Schema and migrations ship in the image. |
+| `backend/core/vault/setup/Dockerfile` | One-shot Vault setup in core and self-host | Root. The setup writes the private Vault handoff volume and may update a mounted dotenv file. |
+| `backend/upload/Dockerfile` | Upload source-build, self-host and isolated CI | Root. Reads a private Vault token handoff and serves port 8000. |
+| `backend/upload/vault/Dockerfile` | One-shot Vault setup for upload and self-host | Root. Writes the private upload Vault handoff volume. |
+| `backend/preview/Dockerfile` | Preview source-build and self-host | `preview` (UID 1000). Cache volume needs to be writable by that account. Serves port 8080. |
+| `backend/admin_sidecar/Dockerfile` | Core, upload and preview maintenance | Root in the image. Docker socket group and checkout access need verification in all three manifests. Docker socket access conveys host Docker authority independently of the sidecar UID. |
+| `frontend/apps/web_app/Dockerfile` | Docker core/self-host frontend | Root in the serving stage. Serves static assets on port 5173. |
+| `backend/engineering_control_plane/Dockerfile` | Dev engineering control plane API | Python runs as root on dev. The separate Compose service has no application volume. |
+| `backend/status/Dockerfile` | Legacy standalone status app, never deployed | Root. SQLite is on a named volume under `/app/data`. |
+| `deployment/status_server/Dockerfile` | Published status server | `status` (UID 10001). Gatus listens on 8080 and Caddy uses `CAP_NET_BIND_SERVICE` for 80 and 443. |
+| `scripts/ci_schema_image.Dockerfile` | Published Postgres schema carrier for isolated CI | Inherits root startup from Postgres, which then drops to the Postgres account. |
+| `openmates-ci-formula-worker:local` | Optional isolated formula-worker test profile | Compose specifies UID/GID 65532, a read-only filesystem and no added capabilities. The profile references a formula-worker recipe absent from the baseline checkout. |
+
+## Upstream runtime images
+
+| Image | Where used | Baseline |
+| --- | --- | --- |
+| `postgres:13-alpine`, `postgres:16-alpine` | Core CMS, isolated CI and engineering control plane | Image defaults to root for initialization. Dev Postgres processes run at UID 70. |
+| `hashicorp/vault:1.19` | Core, upload, self-host and isolated CI | On dev, root entrypoint remains as PID 1 and Vault runs at UID 100. Verify the data directory and memory-lock capability before changing the entrypoint UID. |
+| `docker.dragonflydb.io/dragonflydb/dragonfly` | Core cache and self-host | On dev, root tini remains PID 1 and Dragonfly runs at UID 999. Verify the cache volume before changing startup UID. |
+| `public.ecr.aws/zinclabs/openobserve:v0.70.0-rc3` | Core monitoring and self-host | Root startup and process on dev. Uses a persistent data volume. |
+| `grafana/promtail:3.4.2` / `:3.2.1` | Core log collection and self-host | Root process on dev. Reads Docker logs via the socket and reads the API log bind mount. |
+| `prom/prometheus:v3.2.1`, `prom/node-exporter:v1.9.1`, `prom/alertmanager:v0.31.1` / `:v0.33.1` | Core and self-host monitoring | Upstream non-root defaults. Verify host mount readability for node exporter and volume ownership for Prometheus before restarting. |
+| `gcr.io/cadvisor/cadvisor:v0.47.2` / `:v0.49.1` | Core and self-host monitoring | Root/privileged host collector in tracked configuration. Requires access to host cgroups, devices and container statistics. |
+| `python:3.13-slim` | Core App Packages runner | Compose overrides the base root user with UID/GID 65534. Confirmed on dev. |
+| `clamav/clamav-debian` | Upload and isolated CI | Root startup. The init process prepares signature storage. Confirm the daemon UID for the deployed digest during release. |
+| `redis:7-alpine` | Isolated CI cache | Image starts as root and the Redis entrypoint drops privileges. |
+| `axllent/mailpit:v1.27.4`, `chrislusf/seaweedfs` | Isolated CI mail and object storage fixtures | Both images default to root and the CI Compose profile uses that default. |
+| `mcr.microsoft.com/playwright:v1.49.0-jammy` | Legacy standalone Playwright Compose | Root image default. |
+| `amazon/aws-cli:2.27.50` | Production backup transport | Root image default. Runs as a short-lived command. Backup and restore drill also reuse Vault and Postgres; the Vault file archive helper needs direct access to the private files and the restore helper preserves their ownership. |
+| `aquasec/trivy` | Dev security scanner | Root image default. Mounted source scans need read-only access. |
+
+The Python and Node base images and the status server's Gatus and Caddy build
+stages supply binaries or build dependencies. The rows above record the final
+stage that runs in each environment.
+
+## Verified changes
+
+- CI schema carrier, dev commits `6e3fe61` and `ef9727d`. The pinned Postgres
+  base restored a compressed SQL fixture in a fresh local volume as UID/GID 70.
+  The CI publisher passed both clean restore checks after the CI database
+  mount allowed Docker to inherit the image's empty, Postgres-owned directory.
+  [Publisher run](https://github.com/glowingkitty/OpenMates/actions/runs/45585889954).
+- Engineering control plane API, Dockerfile in dev commit `8de5100`. All 34
+  control-plane tests passed. The recreated live container has a single
+  UID 10001 process and reports database readiness with no writable application
+  volume. The dev rollout reused the cached image and enforced the new UID
+  through Compose in dev commit `504c3f7`.
+- Engineering control plane PostgreSQL starts as `postgres` (UID/GID 70).
+  A disposable database initialized and passed a SQL write/read with the
+  same image and UID. The live PostgreSQL container restarted with its existing
+  volume and both PostgreSQL and the engineering API returned to healthy
+  (dev commit `2d8bd4b`).
+- Directus, dev commit `98e2e3b`. All 29 runtime verifier tests passed.
+  Dev reused its cached image with Compose running the startup script as
+  `node`. Docker reports a healthy container, UID 1000 for each CMS process
+  and a writable existing upload directory. The API health endpoint returned
+  HTTP 200.
+- Core Postgres, dev commit `086b8be`. All generated Compose manifests retain
+  the existing data volume. The dev database reports healthy and its
+  processes run as UID/GID 70. Directus reported healthy and API health
+  returned HTTP 200 after recreation.
+- Docker web app. The published dev image served its static application on
+  port 5173 with UID/GID 1000 in a network-isolated dev smoke. The Dockerfile
+  now sets the same user by default (dev commit `365cc0d`).
+- Preview was already non-root. The published dev image started with its
+  default user, ran all processes as UID 1000, returned HTTP 200 on port 8080
+  and could write to a fresh cache volume. This used a disposable dev container.
+- Source-built CMS setup. UID/GID 10002 read the mounted schema and migration
+  files with a read-only filesystem. The setup process exited successfully on
+  a restored disposable schema and Directus health passed. A separate empty
+  database run reached schema writes before the local time limit. The focused
+  mount test passed. Two unrelated permission-matrix assertions already
+  failed on the unchanged baseline (dev commit `12cec9f`).
+- Published CMS setup. The published dev image started as UID 10002 and could
+  read the packaged schema and SQL on a read-only filesystem. Its Dockerfile
+  sets the same default user as the source-built variant. Trivy now scanned
+  all 18 tracked Dockerfiles, including the custom self-host recipe names
+  (dev commit `a68bc28`).
+- Legacy status app. The backend started as UID 10004 on port 8000, created
+  and wrote its SQLite database in a directory owned by that UID, and
+  returned HTTP 200 in a disposable dev container with no external network.
+  The Dockerfile now prepares that data directory for its dedicated user
+  (dev commit `a00a385`).
+- Upload Vault setup. The actual setup code ran as UID 10003 against a fresh
+  disposable Vault, including the existing on-failure startup retry and
+  recovery after Vault restarted with its persisted data. The app token and
+  unseal key kept mode 0600, and the separate app handoff had a scoped token
+  and no root token (dev commit `94e749b`).
+- Core Vault. A disposable Vault initialized, restarted and unsealed with the
+  existing data volume as UID 100. The live dev rollout reported healthy
+  with all Vault processes at UID 100. API health returned HTTP 200 (dev
+  commit `9215795`).
+- Core Vault setup prepares the application handoff for UID/GID 1000 while
+  keeping the file modes. An isolated fresh setup and rerun passed, the
+  non-root reader could use the scoped token from a read-only mount, and the
+  administrative root token was absent from the handoff. The one-shot setup
+  needs ownership privileges to prepare files for the application and
+  synchronize the mounted operator dotenv file.
+- Dev API. The live API runs at UID/GID 1000 with the dev checkout's
+  supplemental group. Two tracked Python files in the mounted checkout
+  needed group read access. Vault validation, the configured writable
+  mounts, Docker health and `/v1/health` all passed (dev commit `f320ea0`).
+  The source Dockerfile now defaults to its UID 1000 account. Its account and
+  directory commands passed against its Python base. The dev rollout used
+  the cached image with the explicit Compose identity (dev commit `df84b51`).
+- Upload Vault. The matching Vault image initialized and restarted as the
+  upstream UID 100 with its existing fixture volume. The unprivileged setup
+  job restored Vault readiness and its scoped upload handoff. The upload
+  Compose templates use this identity in the normal release.
+- Shared Celery image. All 15 dev service containers, including the beat
+  scheduler, and their running processes use UID 1000. The worker read its
+  scoped Vault handoff and answered a broker ping. Twenty-two Compose and
+  image packaging tests passed (dev commit `45b4969`).
+- Document worker. Every process in the live dev container uses UID 1000
+  from startup. The worker read its Vault handoff, verified its writable
+  paths and answered a broker ping. API health remained HTTP 200 after
+  the restart. Twenty-two focused tests passed (dev commit `a837797`).
+- Admin sidecar. An isolated dev run of the prior published image under the
+  mounted checkout owner's non-root UID passed health, writable Git home
+  and a read-only Docker request with the socket group. The Dockerfile now
+  defaults to UID 10005, and the release manifests specify the socket group
+  or mounted checkout identity as needed. Ten sidecar tests passed.
+- ClamAV. The upload role's stable Debian image ran the upstream entrypoint
+  and scanner as UID/GID 1000 on disposable dev. The entrypoint inherited
+  the correct owner on a fresh signature volume. Readiness and a real
+  benign-file scan passed. The normal release verifies signature updates.
+- Promtail. The live dev process runs as UID/GID 10006 with the Docker
+  socket and core log groups. It could read both mounts, returned HTTP 200
+  on its readiness endpoint, and reported delivered log entries with zero
+  dropped entries after recreation (dev commit `51ae534`).
+- Dragonfly. Both the entrypoint and daemon use UID/GID 999 on dev. The
+  rollout kept the running image digest and recovered a synthetic test key
+  from the existing volume snapshot. Authenticated cache and API health
+  passed (dev commit `609e0a5`).
