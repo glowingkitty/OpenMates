@@ -37,6 +37,7 @@ struct ProjectsWorkspaceView: View {
 
     @State private var projectChatLimit = 24
     @StateObject private var checksHost = ProjectChecksHost()
+    @StateObject private var specificationsHost = ProjectSpecificationsHost()
     @State private var selectedTab: ProjectWorkspaceTab = .overview
     @State private var currentFolderID: String?
     @State private var virtualPath: String?
@@ -142,6 +143,20 @@ struct ProjectsWorkspaceView: View {
             if let project = store.selectedProject, selectedTab == .overview {
                 ProjectCheckDetailSheet(model: checksModel(project))
             }
+        }
+        .overlay {
+            if let project = store.selectedProject, selectedTab == .overview {
+                ProjectSpecificationReader(model: specificationsModel(project))
+            }
+        }
+    }
+
+    private func specificationsModel(_ project: ProjectWorkspaceProject) -> ProjectSpecificationsModel {
+        specificationsHost.model(projectId: project.id, teamId: project.teamId) {
+            #if DEBUG
+            if ProjectSpecificationsPreviewLoader.enabled { return ProjectSpecificationsPreviewLoader() }
+            #endif
+            return CoreProjectSpecifications()
         }
     }
 
@@ -778,6 +793,7 @@ struct ProjectsWorkspaceView: View {
                     }.accessibilityIdentifier("project-chats-section")
                 }
             }
+            ProjectSpecificationsPanel(model: specificationsModel(project), width: width)
             ProjectChecksPanel(model: checksModel(project), width: width)
             switch store.readme {
             case .loading:

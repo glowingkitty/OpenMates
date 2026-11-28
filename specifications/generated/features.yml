@@ -16,8 +16,8 @@ summary:
       implemented: 19
       not_planned: 20
     apple:
-      tested: 14
-      partial: 36
+      tested: 13
+      partial: 37
       failing: 5
       not_run: 2
       implemented: 39
@@ -25602,21 +25602,23 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     apple:
-      status: tested
+      status: partial
       source: tests
       intent: implemented
       assertions:
         passing: 2
         failing: 0
-        not_run: 0
+        not_run: 3
         missing: 0
-        counted: 2
+        counted: 5
       key_tests: []
       e2e_tests:
       - apple/OpenMatesUITests/MermaidDiagramParityUITests.swift
+      - apple/OpenMatesUITests/ProjectSpecificationsUITests.swift
       key_unit_tests:
+      - apple/OpenMatesTests/ProjectSpecificationsModelTests.swift
       - apple/OpenMatesTests/MermaidDiagramParityTests.swift
-      unit_test_files: 1
+      unit_test_files: 2
       platforms:
       - ios
       - ipados

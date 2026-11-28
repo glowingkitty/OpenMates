@@ -19,7 +19,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Web | 4 | 0 | 21 | 54 | 14 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 2 | 39 | 7 | 6 | 0 | 23 |
+| Apple | 0 | 13 | 37 | 5 | 2 | 39 | 7 | 6 | 0 | 23 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 33 |
 | TUI | 2 | 0 | 0 | 13 | 3 | 57 | 9 | 0 | 0 | 48 |
@@ -254,7 +254,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | [Daily Test Orchestration And Recovery](#test-orchestration) | — | — |  | not run 0/8 | — | — | — | — | on (no flag) | on (no flag) | unverified |
 | [External Status Monitoring And Public Status Page](#external-status-monitoring) | — | — |  | — | — | partial 2/11 | — | — | on (no flag) | on (no flag) | unverified |
 | [Operational Monitoring And Operator Alerts](#operational-monitoring) | **live** 1/1 | — |  | not run 0/17 | — | **FAIL** 2/17 | — | — | on (no flag) | on (no flag) | untagged-main |
-| [Specifications](#specifications) | partial 6/18 | tested 2/2 |  | impl | — | partial 3/18 | — | — | on (no flag) | on (no flag) | v0.19.0 |
+| [Specifications](#specifications) | partial 6/18 | partial 2/5 |  | impl | — | partial 3/18 | — | — | on (no flag) | on (no flag) | v0.19.0 |
 
 ## Surfaces
 
@@ -2877,7 +2877,7 @@ Specifications are versioned, approval-bound definitions of durable product trut
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
 | Web | partial 6/18 | 6 pass · 0 fail · 0 not run · 12 no test | [plan-skill-embeds.spec.ts](../../frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts)<br>[spec-sub-chat-links.spec.ts](../../frontend/apps/web_app/tests/components/spec-sub-chat-links.spec.ts)<br>[specification-embed.spec.ts](../../frontend/apps/web_app/tests/components/specification-embed.spec.ts)<br>[specification-fullscreen.spec.ts](../../frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts)<br>[project-specifications-web-flow.spec.ts](../../frontend/apps/web_app/tests/project-specifications-web-flow.spec.ts) |
-| Apple | tested 2/2 | 2 pass · 0 fail · 0 not run · 0 no test | [MermaidDiagramParityUITests.swift](../../apple/OpenMatesUITests/MermaidDiagramParityUITests.swift)<br>1 unit test file(s), e.g. [MermaidDiagramParityTests.swift](../../apple/OpenMatesTests/MermaidDiagramParityTests.swift) |
+| Apple | partial 2/5 | 2 pass · 0 fail · 3 not run · 0 no test | [MermaidDiagramParityUITests.swift](../../apple/OpenMatesUITests/MermaidDiagramParityUITests.swift)<br>[ProjectSpecificationsUITests.swift](../../apple/OpenMatesUITests/ProjectSpecificationsUITests.swift)<br>2 unit test file(s), e.g. [ProjectSpecificationsModelTests.swift](../../apple/OpenMatesTests/ProjectSpecificationsModelTests.swift), [MermaidDiagramParityTests.swift](../../apple/OpenMatesTests/MermaidDiagramParityTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 18 no test | — |
 | TUI | — | — | — |
 | REST API | partial 3/18 | 3 pass · 0 fail · 6 not run · 9 no test | [specifications-api-flow.spec.ts](../../frontend/apps/web_app/tests/specifications-api-flow.spec.ts)<br>5 unit test file(s), e.g. [test_user_specifications.py](../../backend/tests/test_user_specifications.py), [operations.test.js](../../backend/core/directus/extensions/specification-transaction/test/operations.test.js) |

@@ -4551,6 +4551,34 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func createProjectDocument(projectId: String, teamId: String?, kind: String, name: String, folderId: String?, cancellation: CoreCancellation?) async throws  -> CreatedProjectDocumentRecord
     
     /**
+     * Approve exactly one revision; refused when `content_hash` is not the
+     * commitment of that revision.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Conflict` on a hash mismatch;
+     * `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectSpecificationApprove(projectId: String, teamId: String?, specificationId: String, revisionId: String, contentHash: String, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * One Specification at a revision (`revision_id` nil: the current one)
+     * with its revision history and approval state.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectSpecificationOpen(projectId: String, teamId: String?, specificationId: String, revisionId: String?, cancellation: CoreCancellation?) async throws  -> ProjectSpecificationOpenedRecord
+    
+    /**
+     * The Specifications of a Project as list cards. `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectSpecificationsList(projectId: String, teamId: String?, cancellation: CoreCancellation?) async throws  -> [ProjectSpecificationListItemRecord]
+    
+    /**
      * One page of the Project timeline, newest first (`limit` 1..=100).
      * `before` is the previous page's `next_cursor`; `team_id` is the Team of
      * a Team Project, nil for Personal. Runs on the actor.
@@ -6819,6 +6847,76 @@ open func createProjectDocument(projectId: String, teamId: String?, kind: String
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeCreatedProjectDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Approve exactly one revision; refused when `content_hash` is not the
+     * commitment of that revision.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Conflict` on a hash mismatch;
+     * `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectSpecificationApprove(projectId: String, teamId: String?, specificationId: String, revisionId: String, contentHash: String, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_specification_approve(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(specificationId),FfiConverterString.lower(revisionId),FfiConverterString.lower(contentHash),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One Specification at a revision (`revision_id` nil: the current one)
+     * with its revision history and approval state.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectSpecificationOpen(projectId: String, teamId: String?, specificationId: String, revisionId: String?, cancellation: CoreCancellation?)async throws  -> ProjectSpecificationOpenedRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_specification_open(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(specificationId),FfiConverterOptionString.lower(revisionId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectSpecificationOpenedRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The Specifications of a Project as list cards. `team_id` is the Team of
+     * a Team Project, nil for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectSpecificationsList(projectId: String, teamId: String?, cancellation: CoreCancellation?)async throws  -> [ProjectSpecificationListItemRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_specifications_list(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeProjectSpecificationListItemRecord.lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -14297,6 +14395,874 @@ public func FfiConverterTypeProjectCommitRestoreRecord_lift(_ buf: RustBuffer) t
 #endif
 public func FfiConverterTypeProjectCommitRestoreRecord_lower(_ value: ProjectCommitRestoreRecord) -> RustBuffer {
     return FfiConverterTypeProjectCommitRestoreRecord.lower(value)
+}
+
+
+/**
+ * One chapter of a document.
+ */
+public struct ProjectSpecificationChapterRecord: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var introduction: String
+    public var requirementIds: [String]
+    public var flowIds: [String]
+    public var modelIds: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, introduction: String, requirementIds: [String], flowIds: [String], modelIds: [String]) {
+        self.id = id
+        self.title = title
+        self.introduction = introduction
+        self.requirementIds = requirementIds
+        self.flowIds = flowIds
+        self.modelIds = modelIds
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationChapterRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationChapterRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationChapterRecord {
+        return
+            try ProjectSpecificationChapterRecord(
+                id: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                introduction: FfiConverterString.read(from: &buf), 
+                requirementIds: FfiConverterSequenceString.read(from: &buf), 
+                flowIds: FfiConverterSequenceString.read(from: &buf), 
+                modelIds: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationChapterRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.introduction, into: &buf)
+        FfiConverterSequenceString.write(value.requirementIds, into: &buf)
+        FfiConverterSequenceString.write(value.flowIds, into: &buf)
+        FfiConverterSequenceString.write(value.modelIds, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationChapterRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationChapterRecord {
+    return try FfiConverterTypeProjectSpecificationChapterRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationChapterRecord_lower(_ value: ProjectSpecificationChapterRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationChapterRecord.lower(value)
+}
+
+
+/**
+ * The readable document of one revision.
+ */
+public struct ProjectSpecificationDocumentRecord: Equatable, Hashable {
+    public var title: String
+    public var project: String
+    public var category: String
+    public var summary: String
+    public var outcome: String
+    /**
+     * `product`, `design`, `technical` or `""`.
+     */
+    public var role: String
+    public var scopeIncluded: [String]
+    public var scopeExcluded: [String]
+    public var assumptions: [String]
+    public var designDecisions: [String]
+    public var chapters: [ProjectSpecificationChapterRecord]
+    public var requirements: [ProjectSpecificationRequirementRecord]
+    public var flows: [ProjectSpecificationFlowRecord]
+    public var models: [ProjectSpecificationModelRecord]
+    public var related: [ProjectSpecificationRelatedRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(title: String, project: String, category: String, summary: String, outcome: String, 
+        /**
+         * `product`, `design`, `technical` or `""`.
+         */role: String, scopeIncluded: [String], scopeExcluded: [String], assumptions: [String], designDecisions: [String], chapters: [ProjectSpecificationChapterRecord], requirements: [ProjectSpecificationRequirementRecord], flows: [ProjectSpecificationFlowRecord], models: [ProjectSpecificationModelRecord], related: [ProjectSpecificationRelatedRecord]) {
+        self.title = title
+        self.project = project
+        self.category = category
+        self.summary = summary
+        self.outcome = outcome
+        self.role = role
+        self.scopeIncluded = scopeIncluded
+        self.scopeExcluded = scopeExcluded
+        self.assumptions = assumptions
+        self.designDecisions = designDecisions
+        self.chapters = chapters
+        self.requirements = requirements
+        self.flows = flows
+        self.models = models
+        self.related = related
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationDocumentRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationDocumentRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationDocumentRecord {
+        return
+            try ProjectSpecificationDocumentRecord(
+                title: FfiConverterString.read(from: &buf), 
+                project: FfiConverterString.read(from: &buf), 
+                category: FfiConverterString.read(from: &buf), 
+                summary: FfiConverterString.read(from: &buf), 
+                outcome: FfiConverterString.read(from: &buf), 
+                role: FfiConverterString.read(from: &buf), 
+                scopeIncluded: FfiConverterSequenceString.read(from: &buf), 
+                scopeExcluded: FfiConverterSequenceString.read(from: &buf), 
+                assumptions: FfiConverterSequenceString.read(from: &buf), 
+                designDecisions: FfiConverterSequenceString.read(from: &buf), 
+                chapters: FfiConverterSequenceTypeProjectSpecificationChapterRecord.read(from: &buf), 
+                requirements: FfiConverterSequenceTypeProjectSpecificationRequirementRecord.read(from: &buf), 
+                flows: FfiConverterSequenceTypeProjectSpecificationFlowRecord.read(from: &buf), 
+                models: FfiConverterSequenceTypeProjectSpecificationModelRecord.read(from: &buf), 
+                related: FfiConverterSequenceTypeProjectSpecificationRelatedRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationDocumentRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.project, into: &buf)
+        FfiConverterString.write(value.category, into: &buf)
+        FfiConverterString.write(value.summary, into: &buf)
+        FfiConverterString.write(value.outcome, into: &buf)
+        FfiConverterString.write(value.role, into: &buf)
+        FfiConverterSequenceString.write(value.scopeIncluded, into: &buf)
+        FfiConverterSequenceString.write(value.scopeExcluded, into: &buf)
+        FfiConverterSequenceString.write(value.assumptions, into: &buf)
+        FfiConverterSequenceString.write(value.designDecisions, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationChapterRecord.write(value.chapters, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationRequirementRecord.write(value.requirements, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationFlowRecord.write(value.flows, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationModelRecord.write(value.models, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationRelatedRecord.write(value.related, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationDocumentRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationDocumentRecord {
+    return try FfiConverterTypeProjectSpecificationDocumentRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationDocumentRecord_lower(_ value: ProjectSpecificationDocumentRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationDocumentRecord.lower(value)
+}
+
+
+/**
+ * One field of a data model.
+ */
+public struct ProjectSpecificationFieldRecord: Equatable, Hashable {
+    public var name: String
+    public var fieldType: String
+    public var description: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(name: String, fieldType: String, description: String) {
+        self.name = name
+        self.fieldType = fieldType
+        self.description = description
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationFieldRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationFieldRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationFieldRecord {
+        return
+            try ProjectSpecificationFieldRecord(
+                name: FfiConverterString.read(from: &buf), 
+                fieldType: FfiConverterString.read(from: &buf), 
+                description: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationFieldRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.name, into: &buf)
+        FfiConverterString.write(value.fieldType, into: &buf)
+        FfiConverterString.write(value.description, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationFieldRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationFieldRecord {
+    return try FfiConverterTypeProjectSpecificationFieldRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationFieldRecord_lower(_ value: ProjectSpecificationFieldRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationFieldRecord.lower(value)
+}
+
+
+/**
+ * One flow or edge case.
+ */
+public struct ProjectSpecificationFlowRecord: Equatable, Hashable {
+    public var id: String
+    public var title: String
+    public var kind: String
+    public var steps: [String]
+    public var requiredCheckRefs: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, title: String, kind: String, steps: [String], requiredCheckRefs: [String]) {
+        self.id = id
+        self.title = title
+        self.kind = kind
+        self.steps = steps
+        self.requiredCheckRefs = requiredCheckRefs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationFlowRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationFlowRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationFlowRecord {
+        return
+            try ProjectSpecificationFlowRecord(
+                id: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                steps: FfiConverterSequenceString.read(from: &buf), 
+                requiredCheckRefs: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationFlowRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterSequenceString.write(value.steps, into: &buf)
+        FfiConverterSequenceString.write(value.requiredCheckRefs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationFlowRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationFlowRecord {
+    return try FfiConverterTypeProjectSpecificationFlowRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationFlowRecord_lower(_ value: ProjectSpecificationFlowRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationFlowRecord.lower(value)
+}
+
+
+/**
+ * One Specification card in a Project's list.
+ */
+public struct ProjectSpecificationListItemRecord: Equatable, Hashable {
+    /**
+     * Specification id.
+     */
+    public var specificationId: String
+    /**
+     * Decrypted head title.
+     */
+    public var title: String
+    /**
+     * Document category, `""` when unset.
+     */
+    public var kind: String
+    /**
+     * `approved` when the current revision is approved, else `draft`.
+     */
+    public var status: String
+    /**
+     * Number of the current revision.
+     */
+    public var revisionNumber: UInt64
+    /**
+     * Unix seconds, 0 when unknown.
+     */
+    public var updatedAt: UInt64
+    /**
+     * Number of requirements of the current revision.
+     */
+    public var requirementCount: UInt64
+    /**
+     * Requirements with proof state `passed`.
+     */
+    public var proofPassed: UInt64
+    /**
+     * Requirements with proof state `open`.
+     */
+    public var proofOpen: UInt64
+    /**
+     * Requirements with proof state `stale`.
+     */
+    public var proofStale: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Specification id.
+         */specificationId: String, 
+        /**
+         * Decrypted head title.
+         */title: String, 
+        /**
+         * Document category, `""` when unset.
+         */kind: String, 
+        /**
+         * `approved` when the current revision is approved, else `draft`.
+         */status: String, 
+        /**
+         * Number of the current revision.
+         */revisionNumber: UInt64, 
+        /**
+         * Unix seconds, 0 when unknown.
+         */updatedAt: UInt64, 
+        /**
+         * Number of requirements of the current revision.
+         */requirementCount: UInt64, 
+        /**
+         * Requirements with proof state `passed`.
+         */proofPassed: UInt64, 
+        /**
+         * Requirements with proof state `open`.
+         */proofOpen: UInt64, 
+        /**
+         * Requirements with proof state `stale`.
+         */proofStale: UInt64) {
+        self.specificationId = specificationId
+        self.title = title
+        self.kind = kind
+        self.status = status
+        self.revisionNumber = revisionNumber
+        self.updatedAt = updatedAt
+        self.requirementCount = requirementCount
+        self.proofPassed = proofPassed
+        self.proofOpen = proofOpen
+        self.proofStale = proofStale
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationListItemRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationListItemRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationListItemRecord {
+        return
+            try ProjectSpecificationListItemRecord(
+                specificationId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                revisionNumber: FfiConverterUInt64.read(from: &buf), 
+                updatedAt: FfiConverterUInt64.read(from: &buf), 
+                requirementCount: FfiConverterUInt64.read(from: &buf), 
+                proofPassed: FfiConverterUInt64.read(from: &buf), 
+                proofOpen: FfiConverterUInt64.read(from: &buf), 
+                proofStale: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationListItemRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.specificationId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterUInt64.write(value.revisionNumber, into: &buf)
+        FfiConverterUInt64.write(value.updatedAt, into: &buf)
+        FfiConverterUInt64.write(value.requirementCount, into: &buf)
+        FfiConverterUInt64.write(value.proofPassed, into: &buf)
+        FfiConverterUInt64.write(value.proofOpen, into: &buf)
+        FfiConverterUInt64.write(value.proofStale, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationListItemRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationListItemRecord {
+    return try FfiConverterTypeProjectSpecificationListItemRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationListItemRecord_lower(_ value: ProjectSpecificationListItemRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationListItemRecord.lower(value)
+}
+
+
+/**
+ * One data model.
+ */
+public struct ProjectSpecificationModelRecord: Equatable, Hashable {
+    public var id: String
+    public var description: String
+    public var fields: [ProjectSpecificationFieldRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, description: String, fields: [ProjectSpecificationFieldRecord]) {
+        self.id = id
+        self.description = description
+        self.fields = fields
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationModelRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationModelRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationModelRecord {
+        return
+            try ProjectSpecificationModelRecord(
+                id: FfiConverterString.read(from: &buf), 
+                description: FfiConverterString.read(from: &buf), 
+                fields: FfiConverterSequenceTypeProjectSpecificationFieldRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationModelRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.description, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationFieldRecord.write(value.fields, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationModelRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationModelRecord {
+    return try FfiConverterTypeProjectSpecificationModelRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationModelRecord_lower(_ value: ProjectSpecificationModelRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationModelRecord.lower(value)
+}
+
+
+/**
+ * One Specification opened at a revision, with its history.
+ */
+public struct ProjectSpecificationOpenedRecord: Equatable, Hashable {
+    public var specificationId: String
+    public var document: ProjectSpecificationDocumentRecord
+    /**
+     * Newest first.
+     */
+    public var revisions: [ProjectSpecificationRevisionRecord]
+    public var currentRevisionId: String
+    public var viewedRevisionId: String
+    public var viewedContentHash: String
+    /**
+     * `draft` (never approved), `approved` (current revision approved) or
+     * `stale` (an older revision is the approved one).
+     */
+    public var approvalState: String
+    public var approvedRevisionId: String?
+    /**
+     * Unix seconds of the latest approval.
+     */
+    public var approvedAt: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(specificationId: String, document: ProjectSpecificationDocumentRecord, 
+        /**
+         * Newest first.
+         */revisions: [ProjectSpecificationRevisionRecord], currentRevisionId: String, viewedRevisionId: String, viewedContentHash: String, 
+        /**
+         * `draft` (never approved), `approved` (current revision approved) or
+         * `stale` (an older revision is the approved one).
+         */approvalState: String, approvedRevisionId: String?, 
+        /**
+         * Unix seconds of the latest approval.
+         */approvedAt: UInt64?) {
+        self.specificationId = specificationId
+        self.document = document
+        self.revisions = revisions
+        self.currentRevisionId = currentRevisionId
+        self.viewedRevisionId = viewedRevisionId
+        self.viewedContentHash = viewedContentHash
+        self.approvalState = approvalState
+        self.approvedRevisionId = approvedRevisionId
+        self.approvedAt = approvedAt
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationOpenedRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationOpenedRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationOpenedRecord {
+        return
+            try ProjectSpecificationOpenedRecord(
+                specificationId: FfiConverterString.read(from: &buf), 
+                document: FfiConverterTypeProjectSpecificationDocumentRecord.read(from: &buf), 
+                revisions: FfiConverterSequenceTypeProjectSpecificationRevisionRecord.read(from: &buf), 
+                currentRevisionId: FfiConverterString.read(from: &buf), 
+                viewedRevisionId: FfiConverterString.read(from: &buf), 
+                viewedContentHash: FfiConverterString.read(from: &buf), 
+                approvalState: FfiConverterString.read(from: &buf), 
+                approvedRevisionId: FfiConverterOptionString.read(from: &buf), 
+                approvedAt: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationOpenedRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.specificationId, into: &buf)
+        FfiConverterTypeProjectSpecificationDocumentRecord.write(value.document, into: &buf)
+        FfiConverterSequenceTypeProjectSpecificationRevisionRecord.write(value.revisions, into: &buf)
+        FfiConverterString.write(value.currentRevisionId, into: &buf)
+        FfiConverterString.write(value.viewedRevisionId, into: &buf)
+        FfiConverterString.write(value.viewedContentHash, into: &buf)
+        FfiConverterString.write(value.approvalState, into: &buf)
+        FfiConverterOptionString.write(value.approvedRevisionId, into: &buf)
+        FfiConverterOptionUInt64.write(value.approvedAt, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationOpenedRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationOpenedRecord {
+    return try FfiConverterTypeProjectSpecificationOpenedRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationOpenedRecord_lower(_ value: ProjectSpecificationOpenedRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationOpenedRecord.lower(value)
+}
+
+
+/**
+ * A link to another Specification of the same split project.
+ */
+public struct ProjectSpecificationRelatedRecord: Equatable, Hashable {
+    public var title: String
+    public var role: String
+    public var relation: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(title: String, role: String, relation: String) {
+        self.title = title
+        self.role = role
+        self.relation = relation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationRelatedRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationRelatedRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationRelatedRecord {
+        return
+            try ProjectSpecificationRelatedRecord(
+                title: FfiConverterString.read(from: &buf), 
+                role: FfiConverterString.read(from: &buf), 
+                relation: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationRelatedRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.role, into: &buf)
+        FfiConverterString.write(value.relation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRelatedRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationRelatedRecord {
+    return try FfiConverterTypeProjectSpecificationRelatedRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRelatedRecord_lower(_ value: ProjectSpecificationRelatedRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationRelatedRecord.lower(value)
+}
+
+
+/**
+ * One requirement with its optional proof projection.
+ */
+public struct ProjectSpecificationRequirementRecord: Equatable, Hashable {
+    public var id: String
+    public var statement: String
+    public var appliesTo: [String]
+    public var example: String
+    /**
+     * `passed`, `open` or `stale`, nil without a proof projection.
+     */
+    public var proofState: String?
+    public var proofTitle: String?
+    public var proofExplanation: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, statement: String, appliesTo: [String], example: String, 
+        /**
+         * `passed`, `open` or `stale`, nil without a proof projection.
+         */proofState: String?, proofTitle: String?, proofExplanation: String?) {
+        self.id = id
+        self.statement = statement
+        self.appliesTo = appliesTo
+        self.example = example
+        self.proofState = proofState
+        self.proofTitle = proofTitle
+        self.proofExplanation = proofExplanation
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationRequirementRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationRequirementRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationRequirementRecord {
+        return
+            try ProjectSpecificationRequirementRecord(
+                id: FfiConverterString.read(from: &buf), 
+                statement: FfiConverterString.read(from: &buf), 
+                appliesTo: FfiConverterSequenceString.read(from: &buf), 
+                example: FfiConverterString.read(from: &buf), 
+                proofState: FfiConverterOptionString.read(from: &buf), 
+                proofTitle: FfiConverterOptionString.read(from: &buf), 
+                proofExplanation: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationRequirementRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.statement, into: &buf)
+        FfiConverterSequenceString.write(value.appliesTo, into: &buf)
+        FfiConverterString.write(value.example, into: &buf)
+        FfiConverterOptionString.write(value.proofState, into: &buf)
+        FfiConverterOptionString.write(value.proofTitle, into: &buf)
+        FfiConverterOptionString.write(value.proofExplanation, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRequirementRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationRequirementRecord {
+    return try FfiConverterTypeProjectSpecificationRequirementRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRequirementRecord_lower(_ value: ProjectSpecificationRequirementRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationRequirementRecord.lower(value)
+}
+
+
+/**
+ * One entry of the revision history.
+ */
+public struct ProjectSpecificationRevisionRecord: Equatable, Hashable {
+    public var revisionId: String
+    public var revisionNumber: UInt64
+    /**
+     * Unix seconds, 0 when unknown.
+     */
+    public var createdAt: UInt64
+    public var summary: String
+    /**
+     * `approved`, `draft` (current, unapproved) or `superseded`.
+     */
+    public var status: String
+    /**
+     * Commitment to the exact document text.
+     */
+    public var contentHash: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(revisionId: String, revisionNumber: UInt64, 
+        /**
+         * Unix seconds, 0 when unknown.
+         */createdAt: UInt64, summary: String, 
+        /**
+         * `approved`, `draft` (current, unapproved) or `superseded`.
+         */status: String, 
+        /**
+         * Commitment to the exact document text.
+         */contentHash: String) {
+        self.revisionId = revisionId
+        self.revisionNumber = revisionNumber
+        self.createdAt = createdAt
+        self.summary = summary
+        self.status = status
+        self.contentHash = contentHash
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectSpecificationRevisionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectSpecificationRevisionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectSpecificationRevisionRecord {
+        return
+            try ProjectSpecificationRevisionRecord(
+                revisionId: FfiConverterString.read(from: &buf), 
+                revisionNumber: FfiConverterUInt64.read(from: &buf), 
+                createdAt: FfiConverterUInt64.read(from: &buf), 
+                summary: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                contentHash: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectSpecificationRevisionRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.revisionId, into: &buf)
+        FfiConverterUInt64.write(value.revisionNumber, into: &buf)
+        FfiConverterUInt64.write(value.createdAt, into: &buf)
+        FfiConverterString.write(value.summary, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterString.write(value.contentHash, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRevisionRecord_lift(_ buf: RustBuffer) throws -> ProjectSpecificationRevisionRecord {
+    return try FfiConverterTypeProjectSpecificationRevisionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectSpecificationRevisionRecord_lower(_ value: ProjectSpecificationRevisionRecord) -> RustBuffer {
+    return FfiConverterTypeProjectSpecificationRevisionRecord.lower(value)
 }
 
 
@@ -28259,6 +29225,206 @@ fileprivate struct FfiConverterSequenceTypeProjectCheckSourceResultRecord: FfiCo
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationChapterRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationChapterRecord]
+
+    public static func write(_ value: [ProjectSpecificationChapterRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationChapterRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationChapterRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationChapterRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationChapterRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationFieldRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationFieldRecord]
+
+    public static func write(_ value: [ProjectSpecificationFieldRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationFieldRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationFieldRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationFieldRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationFieldRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationFlowRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationFlowRecord]
+
+    public static func write(_ value: [ProjectSpecificationFlowRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationFlowRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationFlowRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationFlowRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationFlowRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationListItemRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationListItemRecord]
+
+    public static func write(_ value: [ProjectSpecificationListItemRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationListItemRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationListItemRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationListItemRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationListItemRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationModelRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationModelRecord]
+
+    public static func write(_ value: [ProjectSpecificationModelRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationModelRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationModelRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationModelRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationModelRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationRelatedRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationRelatedRecord]
+
+    public static func write(_ value: [ProjectSpecificationRelatedRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationRelatedRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationRelatedRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationRelatedRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationRelatedRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationRequirementRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationRequirementRecord]
+
+    public static func write(_ value: [ProjectSpecificationRequirementRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationRequirementRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationRequirementRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationRequirementRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationRequirementRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectSpecificationRevisionRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectSpecificationRevisionRecord]
+
+    public static func write(_ value: [ProjectSpecificationRevisionRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectSpecificationRevisionRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectSpecificationRevisionRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectSpecificationRevisionRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectSpecificationRevisionRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeProjectTimelineCommitFileRecord: FfiConverterRustBuffer {
     typealias SwiftType = [ProjectTimelineCommitFileRecord]
 
@@ -30181,6 +31347,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_create_project_document() != 934) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_specification_approve() != 16404) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_specification_open() != 8272) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_specifications_list() != 55412) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_timeline() != 41623) {

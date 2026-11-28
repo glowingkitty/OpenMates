@@ -41,6 +41,8 @@ mod project_documents;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_checks;
 #[cfg(not(target_arch = "wasm32"))]
+mod project_specifications;
+#[cfg(not(target_arch = "wasm32"))]
 mod project_timeline;
 #[cfg(not(target_arch = "wasm32"))]
 mod project_ops;
@@ -106,6 +108,11 @@ pub use project_timeline::{project_timeline, restore_project_commit};
 #[cfg(not(target_arch = "wasm32"))]
 pub use project_checks::{
     project_check_confirm_human, project_check_show, project_check_start_run, project_checks_list,
+};
+/// Project Specifications: list, open with revisions, approve one revision.
+#[cfg(not(target_arch = "wasm32"))]
+pub use project_specifications::{
+    project_specification_approve, project_specification_open, project_specifications_list,
 };
 /// Undo an assistant-created Project; run or inspect a Project source.
 #[cfg(not(target_arch = "wasm32"))]

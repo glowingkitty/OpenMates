@@ -26,6 +26,7 @@ mod view_chat_actions;
 mod view_consent;
 mod view_project_files;
 mod view_project_checks;
+mod view_project_specifications;
 mod view_project_timeline;
 mod view_projects;
 mod view_queued_revision;
@@ -157,6 +158,14 @@ pub use view_projects::{
 pub use view_project_checks::{
     ProjectCheckDetailRecord, ProjectCheckHeadRecord, ProjectCheckRevisionRecord,
     ProjectCheckRunRecord, ProjectCheckSourceRecord, ProjectCheckSourceResultRecord,
+};
+/// Project Specifications list, open with revisions and approval (`view_project_specifications`).
+pub use view_project_specifications::{
+    ProjectSpecificationChapterRecord, ProjectSpecificationDocumentRecord,
+    ProjectSpecificationFieldRecord, ProjectSpecificationFlowRecord,
+    ProjectSpecificationListItemRecord, ProjectSpecificationModelRecord,
+    ProjectSpecificationOpenedRecord, ProjectSpecificationRelatedRecord,
+    ProjectSpecificationRequirementRecord, ProjectSpecificationRevisionRecord,
 };
 pub use view_project_timeline::{
     ProjectCommitRestoreRecord, ProjectTimelineCommitFileRecord, ProjectTimelineCommitRecord,

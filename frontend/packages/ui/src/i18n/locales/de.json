@@ -27300,6 +27300,57 @@
       "subtitle_no_project": {
         "text": "{category} · Spezifikation"
       },
+      "outcome": {
+        "text": "Ergebnis"
+      },
+      "scope": {
+        "text": "Umfang & Grenzen"
+      },
+      "included": {
+        "text": "Enthalten"
+      },
+      "excluded": {
+        "text": "Außerhalb des Umfangs"
+      },
+      "other_requirements": {
+        "text": "Weitere Anforderungen"
+      },
+      "requirements": {
+        "text": "Anforderungen"
+      },
+      "user_flows": {
+        "text": "Nutzerabläufe"
+      },
+      "edge_cases": {
+        "text": "Sonderfälle"
+      },
+      "models": {
+        "text": "Relevante Modelle"
+      },
+      "applies_to": {
+        "text": "Gilt für:"
+      },
+      "example_and_id": {
+        "text": "Beispiel & Anforderungs-ID"
+      },
+      "proof_passed": {
+        "text": "Belegt durch Check"
+      },
+      "proof_stale": {
+        "text": "Beleg muss erneuert werden"
+      },
+      "proof_open": {
+        "text": "Noch zu belegen in"
+      },
+      "proof_none_title": {
+        "text": "einem verknüpften Check"
+      },
+      "proof_none_explanation": {
+        "text": "Noch kein Check hat diese Anforderung belegt."
+      },
+      "flow_steps": {
+        "text": "Schritte"
+      },
       "assumptions": {
         "text": "Offene Annahmen"
       },

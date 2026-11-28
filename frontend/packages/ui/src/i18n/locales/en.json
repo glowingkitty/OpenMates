@@ -28276,6 +28276,57 @@
       "subtitle_no_project": {
         "text": "{category} · Specification"
       },
+      "outcome": {
+        "text": "Outcome"
+      },
+      "scope": {
+        "text": "Scope & boundaries"
+      },
+      "included": {
+        "text": "Included"
+      },
+      "excluded": {
+        "text": "Outside this scope"
+      },
+      "other_requirements": {
+        "text": "Other requirements"
+      },
+      "requirements": {
+        "text": "Requirements"
+      },
+      "user_flows": {
+        "text": "User flows"
+      },
+      "edge_cases": {
+        "text": "Edge cases"
+      },
+      "models": {
+        "text": "Relevant models"
+      },
+      "applies_to": {
+        "text": "Applies to:"
+      },
+      "example_and_id": {
+        "text": "Example & requirement ID"
+      },
+      "proof_passed": {
+        "text": "Proven in check"
+      },
+      "proof_stale": {
+        "text": "Proof needs refresh"
+      },
+      "proof_open": {
+        "text": "To be proven in"
+      },
+      "proof_none_title": {
+        "text": "a linked Check"
+      },
+      "proof_none_explanation": {
+        "text": "No Check has proven this requirement yet."
+      },
+      "flow_steps": {
+        "text": "Steps"
+      },
       "assumptions": {
         "text": "Open assumptions"
       },
