@@ -540,6 +540,15 @@ impl LiveSession {
     }
 }
 
+impl LiveSession {
+    /// The materialized text form of an open item (document HTML, sheet or code text), as
+    /// written into a stored version; `None` when the item is not open or has no content yet.
+    /// Lets shells without a Yjs mirror render the current content.
+    pub fn text_of(&self, item_id: &str) -> Option<String> {
+        self.slots.get(item_id)?.item.as_ref()?.text_form().ok()
+    }
+}
+
 fn checkpoint_request(item_id: &str, slot: &Slot) -> Option<CheckpointRequest> {
     let text = slot.item.as_ref()?.text_form().ok()?;
     Some(CheckpointRequest {

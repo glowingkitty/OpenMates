@@ -230,6 +230,7 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         self.activeSyncState = syncState
         activeConnectionKey = nextKey
         shouldReconnect = true
+        CoreLiveItems.shared.attach(socket: self)
         connectionState = .connecting
         retryRequiresAdmission = false
         socketTimings = WebSocketTimingWindow()
@@ -840,6 +841,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Message routing
 
     private func routeMessage(_ msg: WSInboundParsed, raw: Data) {
+        if CoreLiveItems.routes(msg.type) {
+            CoreLiveItems.shared.receive(type: msg.type, raw: raw)
+            return
+        }
         AssistantSpeechAppRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         ProjectWorkspaceReviewRuntime.shared.receive(type: msg.type, fields: msg.fields, from: self)
         if msg.type == "error" {

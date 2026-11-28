@@ -80,3 +80,24 @@ fn legacy_content_field_is_replaced_in_place() {
 fn refuses_a_head_that_is_not_an_object() {
     assert!(content_with_text("plain text", "x", 2).is_err());
 }
+
+#[test]
+fn code_edit_content_replaces_code_fields_and_keeps_the_rest() {
+    let text = code_edit_content(
+        r#"{"type":"code","language":"rust","code":"old","line_count":1,"content_hash":"x","version_number":1}"#,
+        "a\nb\n",
+        2,
+    )
+    .expect("object head encodes");
+    let value = crate::toon_decode::decode(&text).expect("valid TOON").to_json_value();
+    assert_eq!(value["language"], "rust");
+    assert_eq!(value["code"], "a\nb\n");
+    assert_eq!(value["line_count"], 2);
+    assert_eq!(value["version_number"], 2);
+    assert_eq!(value["content_hash"], super::super::content_hash("a\nb\n"));
+}
+
+#[test]
+fn code_edit_content_refuses_a_non_object_head() {
+    assert!(code_edit_content("[1,2]", "x", 2).is_err());
+}

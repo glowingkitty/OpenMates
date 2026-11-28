@@ -113,6 +113,50 @@ pub(crate) fn content_with_text(
     toon_encode::encode_fields(&ordered).map(Zeroizing::new)
 }
 
+/// Lines of an edited code file as the web code editor counts them
+/// (`countCodeLines` in `codeEmbedContent.ts`): CR/CRLF as LF, one trailing
+/// newline ignored, empty text is 0.
+fn edited_line_count(code: &str) -> usize {
+    let normalized = code.replace("\r\n", "\n").replace('\r', "\n");
+    let trimmed = normalized.strip_suffix('\n').unwrap_or(&normalized);
+    if trimmed.is_empty() {
+        0
+    } else {
+        trimmed.split('\n').count()
+    }
+}
+
+/// The head content a user edit of a code embed saves as version `version`
+/// (`spec: specifications/features/embed-user-edits`, `edit.next-version`):
+/// the current content object (`head_plain`, TOON or JSON) with `code`,
+/// `line_count`, `content_hash` (SHA-256 hex of the code) and
+/// `version_number` replaced, other fields kept in stored order, TOON-encoded.
+/// Mirrors web `CodeEmbedFullscreen.svelte` `saveEdit` + `saveContentEdit`;
+/// the core commit then version-checks and encrypts it.
+///
+/// # Errors
+/// `Protocol` when the head content is not an object; the TOON encoder's
+/// errors.
+pub fn code_edit_content(head_plain: &str, code: &str, version: u64) -> Result<Zeroizing<String>> {
+    let mut fields = decode_content_fields(head_plain).ok_or(Error::Protocol)?;
+    for (key, value) in [
+        ("code", json!(code)),
+        ("line_count", json!(edited_line_count(code))),
+        ("content_hash", json!(super::content_hash(code))),
+        ("version_number", json!(version)),
+    ] {
+        match fields.iter_mut().find(|(existing, _)| existing == key) {
+            Some(entry) => entry.1 = value,
+            None => fields.push((key.to_owned(), value)),
+        }
+    }
+    let ordered: Vec<(&str, Value)> = fields
+        .iter()
+        .map(|(key, value)| (key.as_str(), value.clone()))
+        .collect();
+    toon_encode::encode_fields(&ordered).map(Zeroizing::new)
+}
+
 #[cfg(test)]
 #[path = "file_text_content_tests.rs"]
 mod file_text_content_tests;

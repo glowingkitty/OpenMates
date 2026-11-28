@@ -763,6 +763,7 @@ final class AuthManager: ObservableObject {
         EmbedKeyManager.shared.clearAll()
         SpotlightIndexer.shared.removeAllItems()
         CoreCeremonySession.reset()
+        CoreLiveItems.shared.reset()
         Self.clearCachedUser()
         PairSessionDeadlineStore.clear()
         PairPendingAckStore.clear()

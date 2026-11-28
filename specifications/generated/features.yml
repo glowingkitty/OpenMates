@@ -19,9 +19,10 @@ summary:
       tested: 14
       partial: 36
       failing: 5
+      not_run: 1
       implemented: 39
       in_progress: 7
-      planned: 8
+      planned: 7
       not_planned: 23
     watchos:
       tested: 7
@@ -5046,14 +5047,16 @@ features:
       assertions:
         passing: 6
         failing: 0
-        not_run: 0
-        missing: 7
+        not_run: 1
+        missing: 6
         counted: 13
       key_tests: []
-      e2e_tests: []
+      e2e_tests:
+      - apple/OpenMatesUITests/CodeEmbedEditUITests.swift
       key_unit_tests:
       - apple/OpenMatesTests/CoreEmbedVersionsTests.swift
-      unit_test_files: 1
+      - apple/OpenMatesTests/CodeEmbedEditModelTests.swift
+      unit_test_files: 2
       platforms:
       - ios
       - ipados
@@ -6293,19 +6296,20 @@ features:
       - frontend/packages/ui/src/services/rustCore/__tests__/deckDocumentSharedUnit.test.ts
       unit_test_files: 6
     apple:
-      status: planned
-      source: intent
+      status: not_run
+      source: tests
       intent: planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 2
         missing: 0
-        counted: 0
+        counted: 2
       key_tests: []
       e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      key_unit_tests:
+      - apple/OpenMatesTests/CoreLiveItemsTests.swift
+      unit_test_files: 1
       platforms:
       - ios
       - ipados
@@ -9143,7 +9147,7 @@ features:
       - apple/OpenMatesTests/EmbedShareSettingsParityTests.swift
       - apple/OpenMatesTests/AppDeepLinkRoutingTests.swift
       - apple/OpenMatesTests/AuthSecurityParityTests.swift
-      unit_test_files: 14
+      unit_test_files: 17
       platforms:
       - ios
       - ipados

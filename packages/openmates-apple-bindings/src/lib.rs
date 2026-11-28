@@ -34,12 +34,15 @@ mod view_core;
 mod view_draft_versions;
 mod view_drafts;
 mod view_embed_enhance;
+mod view_live_item;
 mod view_embed_message_version;
 mod view_embeds;
 mod view_progressive_svg;
 mod view_body_embeds;
 mod view_search;
 mod view_embed_progress;
+mod view_code_embed_edit;
+mod view_connected_accounts;
 mod view_embed_version_content;
 mod view_memory_draft_diff;
 mod view_remote_commands;
@@ -117,6 +120,11 @@ pub use view_http::{HttpFieldRecord, HttpRequestRecord, HttpResponseRecord};
 /// The shared Daily Inspiration snapshot selection presented to Apple.
 pub use view_inspiration_snapshot::select_personalized_inspiration_snapshot;
 pub use view_legacy::LegacySocketGrantRecord;
+/// Live collaboration items: the session object, its foreign traits and events (`view_live_item`).
+pub use view_live_item::{
+    LiveItemEventRecord, LiveItemListener, LiveItemSender, LiveItemSession, LiveOutboxReadRecord,
+    LiveOutboxStorage, LiveOutboxWriteRecord, LiveRestoreRecord, live_is_frame,
+};
 pub use view_login::PairChallengeRecord;
 pub use view_login_migration::{LoginRecord, PasswordMigrationRecord};
 pub use view_login_passkey::PasskeyChallengeRecord;

@@ -95,6 +95,7 @@ mod commits;
 pub use commits::*;
 mod commit_history;
 mod file_text_content;
+pub use file_text_content::code_edit_content;
 pub(crate) use file_text_content::{
     content_with_text, decode_content_fields, line_count, version_text,
 };

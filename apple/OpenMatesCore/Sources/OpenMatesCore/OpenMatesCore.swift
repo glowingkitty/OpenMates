@@ -1721,6 +1721,1204 @@ public func FfiConverterTypeImageEnhanceWaker_lower(_ value: ImageEnhanceWaker) 
 
 
 /**
+ * Receives live events in order on a core thread; it must not block.
+ */
+public protocol LiveItemListener: AnyObject, Sendable {
+    
+    /**
+     * One event.
+     */
+    func onLiveEvent(event: LiveItemEventRecord) 
+    
+}
+/**
+ * Receives live events in order on a core thread; it must not block.
+ */
+open class LiveItemListenerImpl: LiveItemListener, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_liveitemlistener(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_liveitemlistener(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * One event.
+     */
+open func onLiveEvent(event: LiveItemEventRecord)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveitemlistener_on_live_event(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeLiveItemEventRecord_lower(event),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLiveItemListener {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLiveItemListener = UniffiVTableCallbackInterfaceLiveItemListener(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLiveItemListener.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LiveItemListener: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLiveItemListener.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LiveItemListener: handle missing in uniffiClone")
+            }
+        },
+        onLiveEvent: { (
+            uniffiHandle: UInt64,
+            event: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeLiveItemListener.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.onLiveEvent(
+                     event: try FfiConverterTypeLiveItemEventRecord_lift(event)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLiveItemListener> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLiveItemListener>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLiveItemListener() {
+    uniffi_openmates_apple_bindings_fn_init_callback_vtable_liveitemlistener(UniffiCallbackInterfaceLiveItemListener.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveItemListener: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LiveItemListener>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LiveItemListener
+
+    public static func lift(_ handle: UInt64) throws -> LiveItemListener {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LiveItemListenerImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LiveItemListener) -> UInt64 {
+         if let rustImpl = value as? LiveItemListenerImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveItemListener {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LiveItemListener, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemListener_lift(_ handle: UInt64) throws -> LiveItemListener {
+    return try FfiConverterTypeLiveItemListener.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemListener_lower(_ value: LiveItemListener) -> UInt64 {
+    return FfiConverterTypeLiveItemListener.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Sends outgoing live frames on the authenticated `/v1/ws` socket. Swift implements it
+ * with `sendUnownedFrame`. Called on a core thread; it must return at once.
+ */
+public protocol LiveItemSender: AnyObject, Sendable {
+    
+    /**
+     * Queue one frame `{"type": message_type, "payload": <payload_json>}`; `false` when
+     * the socket is closed or the frame could not be queued (the core retries on reconnect).
+     */
+    func sendFrame(messageType: String, payloadJson: String)  -> Bool
+    
+}
+/**
+ * Sends outgoing live frames on the authenticated `/v1/ws` socket. Swift implements it
+ * with `sendUnownedFrame`. Called on a core thread; it must return at once.
+ */
+open class LiveItemSenderImpl: LiveItemSender, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_liveitemsender(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_liveitemsender(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Queue one frame `{"type": message_type, "payload": <payload_json>}`; `false` when
+     * the socket is closed or the frame could not be queued (the core retries on reconnect).
+     */
+open func sendFrame(messageType: String, payloadJson: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveitemsender_send_frame(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(messageType),
+        FfiConverterString.lower(payloadJson),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLiveItemSender {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLiveItemSender = UniffiVTableCallbackInterfaceLiveItemSender(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLiveItemSender.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LiveItemSender: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLiveItemSender.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LiveItemSender: handle missing in uniffiClone")
+            }
+        },
+        sendFrame: { (
+            uniffiHandle: UInt64,
+            messageType: RustBuffer,
+            payloadJson: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<Int8>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Bool in
+                guard let uniffiObj = try? FfiConverterTypeLiveItemSender.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.sendFrame(
+                     messageType: try FfiConverterString.lift(messageType),
+                     payloadJson: try FfiConverterString.lift(payloadJson)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterBool.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLiveItemSender> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLiveItemSender>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLiveItemSender() {
+    uniffi_openmates_apple_bindings_fn_init_callback_vtable_liveitemsender(UniffiCallbackInterfaceLiveItemSender.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveItemSender: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LiveItemSender>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LiveItemSender
+
+    public static func lift(_ handle: UInt64) throws -> LiveItemSender {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LiveItemSenderImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LiveItemSender) -> UInt64 {
+         if let rustImpl = value as? LiveItemSenderImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveItemSender {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LiveItemSender, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemSender_lift(_ handle: UInt64) throws -> LiveItemSender {
+    return try FfiConverterTypeLiveItemSender.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemSender_lower(_ value: LiveItemSender) -> UInt64 {
+    return FfiConverterTypeLiveItemSender.lower(value)
+}
+
+
+
+
+
+
+/**
+ * One signed-in user's live collaboration replica on this device. Create one per
+ * signed-in session, after `ViewModelCore` is signed in; calls queue on the core actor and
+ * fail with `EmbedEditError` (`Unavailable` carrying the core's stable `live_*` code,
+ * `Authentication`, `Offline`, ...). Events arrive on the listener, never as return values.
+ */
+public protocol LiveItemSessionProtocol: AnyObject, Sendable {
+    
+    /**
+     * Applies one typed operation (`ops_json`: sheet, deck, code).
+     *
+     * # Errors
+     * `Unavailable { live_invalid_update }` for a malformed operation, plus `live_*`.
+     */
+    func applyOp(itemId: String, opJson: String) async throws 
+    
+    /**
+     * Applies a local Yjs update (documents and code text).
+     *
+     * # Errors
+     * `Unavailable { live_invalid_update | live_* }` and the actor errors.
+     */
+    func applyUpdate(itemId: String, bytes: Data) async throws 
+    
+    /**
+     * Closes an item (writes the pending checkpoint).
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+    func close(itemId: String) async throws 
+    
+    /**
+     * Feeds one server frame (`live_item_state`, `live_item_update_ack`, `live_item_update`,
+     * `live_item_snapshot_available`, `live_item_presence`, `live_item_refused`,
+     * `embed_assistant_*`). `false` when it was not a live frame.
+     *
+     * # Errors
+     * `Unavailable { protocol }` for a payload that is not JSON, plus `live_*`.
+     */
+    func onFrame(messageType: String, payloadJson: String) async throws  -> Bool
+    
+    /**
+     * Opens and subscribes an item. `kind`: `doc`, `sheet`, `code` or `deck`; `project_id`
+     * and `team_id` are the scope the embed is shown in. Its state arrives as events.
+     *
+     * # Errors
+     * `Unavailable { live_unknown_kind | live_* }` and the actor errors.
+     */
+    func `open`(itemId: String, kind: String, projectId: String?, teamId: String?) async throws 
+    
+    /**
+     * Restores an older version on the open item and returns its new checkpoint.
+     *
+     * # Errors
+     * `Unavailable { live_restore_stale | live_restore_checkpoint_failed | live_* }`.
+     */
+    func restoreVersion(itemId: String, source: Int64, head: Int64) async throws  -> LiveRestoreRecord
+    
+    /**
+     * Reports the socket state: resubscribes and resends the outbox on connect.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+    func setConnected(connected: Bool) async throws 
+    
+    /**
+     * Sets local presence (JSON object); sealed in the core and relayed.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+    func setPresence(itemId: String, presenceJson: String) async throws 
+    
+    /**
+     * The materialized text of an open item (document HTML, sheet or code text); `nil`
+     * when it is not open or empty. Non-blocking apart from a running call.
+     */
+    func textOf(itemId: String)  -> String?
+    
+    /**
+     * Periodic tick (every 2 seconds while an item is open): presence expiry and due
+     * checkpoints.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+    func tick() async throws 
+    
+    /**
+     * Handles an editor Undo when the assistant authored the latest change: `true` when
+     * the assistant's change was undone.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+    func undoLatestAssistant(itemId: String) async throws  -> Bool
+    
+}
+/**
+ * One signed-in user's live collaboration replica on this device. Create one per
+ * signed-in session, after `ViewModelCore` is signed in; calls queue on the core actor and
+ * fail with `EmbedEditError` (`Unavailable` carrying the core's stable `live_*` code,
+ * `Authentication`, `Offline`, ...). Events arrive on the listener, never as return values.
+ */
+open class LiveItemSession: LiveItemSessionProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_liveitemsession(self.handle, $0) }
+    }
+    /**
+     * A session for `user_id` (contributor of stored versions) using `core`'s signed-in
+     * client, sending frames through `sender`, persisting the outbox in `storage`.
+     */
+public convenience init(core: ViewModelCore, userId: String, sender: LiveItemSender, storage: LiveOutboxStorage, listener: LiveItemListener) {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_constructor_liveitemsession_new(
+        FfiConverterTypeViewModelCore_lower(core),
+        FfiConverterString.lower(userId),
+        FfiConverterTypeLiveItemSender_lower(sender),
+        FfiConverterTypeLiveOutboxStorage_lower(storage),
+        FfiConverterTypeLiveItemListener_lower(listener),uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_liveitemsession(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Applies one typed operation (`ops_json`: sheet, deck, code).
+     *
+     * # Errors
+     * `Unavailable { live_invalid_update }` for a malformed operation, plus `live_*`.
+     */
+open func applyOp(itemId: String, opJson: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_apply_op(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId),FfiConverterString.lower(opJson)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Applies a local Yjs update (documents and code text).
+     *
+     * # Errors
+     * `Unavailable { live_invalid_update | live_* }` and the actor errors.
+     */
+open func applyUpdate(itemId: String, bytes: Data)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_apply_update(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId),FfiConverterData.lower(bytes)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Closes an item (writes the pending checkpoint).
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+open func close(itemId: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_close(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Feeds one server frame (`live_item_state`, `live_item_update_ack`, `live_item_update`,
+     * `live_item_snapshot_available`, `live_item_presence`, `live_item_refused`,
+     * `embed_assistant_*`). `false` when it was not a live frame.
+     *
+     * # Errors
+     * `Unavailable { protocol }` for a payload that is not JSON, plus `live_*`.
+     */
+open func onFrame(messageType: String, payloadJson: String)async throws  -> Bool  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_on_frame(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(messageType),FfiConverterString.lower(payloadJson)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_i8,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_i8,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Opens and subscribes an item. `kind`: `doc`, `sheet`, `code` or `deck`; `project_id`
+     * and `team_id` are the scope the embed is shown in. Its state arrives as events.
+     *
+     * # Errors
+     * `Unavailable { live_unknown_kind | live_* }` and the actor errors.
+     */
+open func `open`(itemId: String, kind: String, projectId: String?, teamId: String?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_open(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId),FfiConverterString.lower(kind),FfiConverterOptionString.lower(projectId),FfiConverterOptionString.lower(teamId)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Restores an older version on the open item and returns its new checkpoint.
+     *
+     * # Errors
+     * `Unavailable { live_restore_stale | live_restore_checkpoint_failed | live_* }`.
+     */
+open func restoreVersion(itemId: String, source: Int64, head: Int64)async throws  -> LiveRestoreRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_restore_version(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId),FfiConverterInt64.lower(source),FfiConverterInt64.lower(head)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeLiveRestoreRecord_lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Reports the socket state: resubscribes and resends the outbox on connect.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+open func setConnected(connected: Bool)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_set_connected(
+                        self.uniffiCloneHandle(),FfiConverterBool.lower(connected)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Sets local presence (JSON object); sealed in the core and relayed.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+open func setPresence(itemId: String, presenceJson: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_set_presence(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId),FfiConverterString.lower(presenceJson)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * The materialized text of an open item (document HTML, sheet or code text); `nil`
+     * when it is not open or empty. Non-blocking apart from a running call.
+     */
+open func textOf(itemId: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveitemsession_text_of(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(itemId),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Periodic tick (every 2 seconds while an item is open): presence expiry and due
+     * checkpoints.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+open func tick()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_tick(
+                        self.uniffiCloneHandle()
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+    /**
+     * Handles an editor Undo when the assistant authored the latest change: `true` when
+     * the assistant's change was undone.
+     *
+     * # Errors
+     * `Unavailable { live_* }` and the actor errors.
+     */
+open func undoLatestAssistant(itemId: String)async throws  -> Bool  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_liveitemsession_undo_latest_assistant(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(itemId)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_i8,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_i8,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_i8,
+            liftFunc: FfiConverterBool.lift,
+            errorHandler: FfiConverterTypeEmbedEditError_lift
+        )
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveItemSession: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = LiveItemSession
+
+    public static func lift(_ handle: UInt64) throws -> LiveItemSession {
+        return LiveItemSession(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: LiveItemSession) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveItemSession {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LiveItemSession, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemSession_lift(_ handle: UInt64) throws -> LiveItemSession {
+    return try FfiConverterTypeLiveItemSession.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemSession_lower(_ value: LiveItemSession) -> UInt64 {
+    return FfiConverterTypeLiveItemSession.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Opaque durable storage for the sealed update queue, backed by Swift's encrypted store.
+ * It never sees item keys or plaintext; calls are synchronous and must return quickly.
+ */
+public protocol LiveOutboxStorage: AnyObject, Sendable {
+    
+    /**
+     * Keys beginning with `prefix`; `None` when storage failed.
+     */
+    func keys(prefix: String)  -> [String]?
+    
+    /**
+     * The record under `key`.
+     */
+    func read(key: String)  -> LiveOutboxReadRecord
+    
+    /**
+     * Replace (`next` set) or delete (`next` nil) the record only if it still holds
+     * `expected` (`nil`: absent).
+     */
+    func compareAndPut(key: String, expected: String?, next: String?)  -> LiveOutboxWriteRecord
+    
+}
+/**
+ * Opaque durable storage for the sealed update queue, backed by Swift's encrypted store.
+ * It never sees item keys or plaintext; calls are synchronous and must return quickly.
+ */
+open class LiveOutboxStorageImpl: LiveOutboxStorage, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_openmates_apple_bindings_fn_clone_liveoutboxstorage(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_openmates_apple_bindings_fn_free_liveoutboxstorage(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Keys beginning with `prefix`; `None` when storage failed.
+     */
+open func keys(prefix: String) -> [String]?  {
+    return try!  FfiConverterOptionSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveoutboxstorage_keys(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(prefix),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * The record under `key`.
+     */
+open func read(key: String) -> LiveOutboxReadRecord  {
+    return try!  FfiConverterTypeLiveOutboxReadRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveoutboxstorage_read(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Replace (`next` set) or delete (`next` nil) the record only if it still holds
+     * `expected` (`nil`: absent).
+     */
+open func compareAndPut(key: String, expected: String?, next: String?) -> LiveOutboxWriteRecord  {
+    return try!  FfiConverterTypeLiveOutboxWriteRecord_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_method_liveoutboxstorage_compare_and_put(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(key),
+        FfiConverterOptionString.lower(expected),
+        FfiConverterOptionString.lower(next),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLiveOutboxStorage {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLiveOutboxStorage = UniffiVTableCallbackInterfaceLiveOutboxStorage(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeLiveOutboxStorage.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface LiveOutboxStorage: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeLiveOutboxStorage.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface LiveOutboxStorage: handle missing in uniffiClone")
+            }
+        },
+        keys: { (
+            uniffiHandle: UInt64,
+            prefix: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String]? in
+                guard let uniffiObj = try? FfiConverterTypeLiveOutboxStorage.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.keys(
+                     prefix: try FfiConverterString.lift(prefix)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionSequenceString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        read: { (
+            uniffiHandle: UInt64,
+            key: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> LiveOutboxReadRecord in
+                guard let uniffiObj = try? FfiConverterTypeLiveOutboxStorage.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.read(
+                     key: try FfiConverterString.lift(key)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeLiveOutboxReadRecord_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        compareAndPut: { (
+            uniffiHandle: UInt64,
+            key: RustBuffer,
+            expected: RustBuffer,
+            next: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> LiveOutboxWriteRecord in
+                guard let uniffiObj = try? FfiConverterTypeLiveOutboxStorage.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.compareAndPut(
+                     key: try FfiConverterString.lift(key),
+                     expected: try FfiConverterOptionString.lift(expected),
+                     next: try FfiConverterOptionString.lift(next)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeLiveOutboxWriteRecord_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLiveOutboxStorage> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLiveOutboxStorage>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitLiveOutboxStorage() {
+    uniffi_openmates_apple_bindings_fn_init_callback_vtable_liveoutboxstorage(UniffiCallbackInterfaceLiveOutboxStorage.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveOutboxStorage: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LiveOutboxStorage>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = LiveOutboxStorage
+
+    public static func lift(_ handle: UInt64) throws -> LiveOutboxStorage {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return LiveOutboxStorageImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: LiveOutboxStorage) -> UInt64 {
+         if let rustImpl = value as? LiveOutboxStorageImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveOutboxStorage {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: LiveOutboxStorage, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxStorage_lift(_ handle: UInt64) throws -> LiveOutboxStorage {
+    return try FfiConverterTypeLiveOutboxStorage.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxStorage_lower(_ value: LiveOutboxStorage) -> UInt64 {
+    return FfiConverterTypeLiveOutboxStorage.lower(value)
+}
+
+
+
+
+
+
+/**
  * The core instance. Create one per account process; drop shuts the runtime
  * down without blocking the caller.
  */
@@ -2928,7 +4126,8 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * call), `text_preview` the new preview when the type keeps one,
      * `operation_id` the idempotency key of a resend of the same edit
      * (`nil`: fresh). The head is the core's cached head (fetched once when
-     * not cached). Writes the chat's `embed_updated` event when the embed
+     * not cached); `base_version` (when set) is the version the edit was
+     * made on and a newer head is a `VersionConflict`. Writes the chat's `embed_updated` event when the embed
      * has a chat (`event`).
      *
      * # Errors
@@ -2936,7 +4135,7 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
      * `AccessDenied`, `Validation`, `Refused`, `KeyUnavailable`, `Offline`,
      * `SessionExpired`, `Cancelled`, `Transport`.
      */
-    func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, cancellation: CoreCancellation?) async throws  -> EmbedRevisionOutcomeRecord
+    func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, baseVersion: Int64?, cancellation: CoreCancellation?) async throws  -> EmbedRevisionOutcomeRecord
     
     /**
      * The version history of `embed_id` with who made each version
@@ -4694,7 +5893,8 @@ open func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version
      * call), `text_preview` the new preview when the type keeps one,
      * `operation_id` the idempotency key of a resend of the same edit
      * (`nil`: fresh). The head is the core's cached head (fetched once when
-     * not cached). Writes the chat's `embed_updated` event when the embed
+     * not cached); `base_version` (when set) is the version the edit was
+     * made on and a newer head is a `VersionConflict`. Writes the chat's `embed_updated` event when the embed
      * has a chat (`event`).
      *
      * # Errors
@@ -4702,12 +5902,12 @@ open func embedVersionContent(embedId: String, scope: EmbedScopeRecord?, version
      * `AccessDenied`, `Validation`, `Refused`, `KeyUnavailable`, `Offline`,
      * `SessionExpired`, `Cancelled`, `Transport`.
      */
-open func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, cancellation: CoreCancellation?)async throws  -> EmbedRevisionOutcomeRecord  {
+open func commitEmbedEdit(embedId: String, scope: EmbedScopeRecord, content: String, textPreview: String?, operationId: String?, baseVersion: Int64?, cancellation: CoreCancellation?)async throws  -> EmbedRevisionOutcomeRecord  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_openmates_apple_bindings_fn_method_viewmodelcore_commit_embed_edit(
-                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterString.lower(content),FfiConverterOptionString.lower(textPreview),FfiConverterOptionString.lower(operationId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                        self.uniffiCloneHandle(),FfiConverterString.lower(embedId),FfiConverterTypeEmbedScopeRecord_lower(scope),FfiConverterString.lower(content),FfiConverterOptionString.lower(textPreview),FfiConverterOptionString.lower(operationId),FfiConverterOptionInt64.lower(baseVersion),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
                 )
             },
             pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
@@ -10708,6 +11908,75 @@ public func FfiConverterTypeLegacySocketGrantRecord_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypeLegacySocketGrantRecord_lower(_ value: LegacySocketGrantRecord) -> RustBuffer {
     return FfiConverterTypeLegacySocketGrantRecord.lower(value)
+}
+
+
+/**
+ * A restored version: its new checkpoint number and text.
+ */
+public struct LiveRestoreRecord: Equatable, Hashable {
+    /**
+     * Version written by the restore.
+     */
+    public var version: Int64
+    /**
+     * Restored text form.
+     */
+    public var content: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Version written by the restore.
+         */version: Int64, 
+        /**
+         * Restored text form.
+         */content: String) {
+        self.version = version
+        self.content = content
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LiveRestoreRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveRestoreRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveRestoreRecord {
+        return
+            try LiveRestoreRecord(
+                version: FfiConverterInt64.read(from: &buf), 
+                content: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LiveRestoreRecord, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.version, into: &buf)
+        FfiConverterString.write(value.content, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveRestoreRecord_lift(_ buf: RustBuffer) throws -> LiveRestoreRecord {
+    return try FfiConverterTypeLiveRestoreRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveRestoreRecord_lower(_ value: LiveRestoreRecord) -> RustBuffer {
+    return FfiConverterTypeLiveRestoreRecord.lower(value)
 }
 
 
@@ -20745,6 +22014,278 @@ public func FfiConverterTypeListCompletenessRecord_lower(_ value: ListCompletene
 
 
 /**
+ * One live event for Swift.
+ */
+
+public enum LiveItemEventRecord: Equatable, Hashable {
+    
+    /**
+     * Plain Yjs v1 update bytes for a document or code item.
+     */
+    case remoteUpdate(
+        /**
+         * Item id.
+         */itemId: String, 
+        /**
+         * Update bytes.
+         */bytes: Data
+    )
+    /**
+     * Any other event: `liveView`, `livePresence`, `liveStatus`, `livePrivateCopy`,
+     * `liveVersion` with the core's camelCase JSON payload (`session_wire`).
+     */
+    case named(
+        /**
+         * Event name.
+         */name: String, 
+        /**
+         * JSON object text.
+         */payloadJson: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LiveItemEventRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveItemEventRecord: FfiConverterRustBuffer {
+    typealias SwiftType = LiveItemEventRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveItemEventRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .remoteUpdate(itemId: try FfiConverterString.read(from: &buf), bytes: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 2: return .named(name: try FfiConverterString.read(from: &buf), payloadJson: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LiveItemEventRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .remoteUpdate(itemId,bytes):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(itemId, into: &buf)
+            FfiConverterData.write(bytes, into: &buf)
+            
+        
+        case let .named(name,payloadJson):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(name, into: &buf)
+            FfiConverterString.write(payloadJson, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemEventRecord_lift(_ buf: RustBuffer) throws -> LiveItemEventRecord {
+    return try FfiConverterTypeLiveItemEventRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveItemEventRecord_lower(_ value: LiveItemEventRecord) -> RustBuffer {
+    return FfiConverterTypeLiveItemEventRecord.lower(value)
+}
+
+
+
+/**
+ * Result of reading one opaque outbox record.
+ */
+
+public enum LiveOutboxReadRecord: Equatable, Hashable {
+    
+    /**
+     * No record under the key.
+     */
+    case missing
+    /**
+     * The stored text.
+     */
+    case found(
+        /**
+         * Stored value.
+         */value: String
+    )
+    /**
+     * Storage failed (distinct from absence).
+     */
+    case unavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LiveOutboxReadRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveOutboxReadRecord: FfiConverterRustBuffer {
+    typealias SwiftType = LiveOutboxReadRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveOutboxReadRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .missing
+        
+        case 2: return .found(value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .unavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LiveOutboxReadRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .missing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .found(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case .unavailable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxReadRecord_lift(_ buf: RustBuffer) throws -> LiveOutboxReadRecord {
+    return try FfiConverterTypeLiveOutboxReadRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxReadRecord_lower(_ value: LiveOutboxReadRecord) -> RustBuffer {
+    return FfiConverterTypeLiveOutboxReadRecord.lower(value)
+}
+
+
+
+/**
+ * Result of a compare-and-put on an outbox record.
+ */
+
+public enum LiveOutboxWriteRecord: Equatable, Hashable {
+    
+    /**
+     * The record was replaced or removed.
+     */
+    case written
+    /**
+     * The stored bytes differ from `expected`: nothing was changed.
+     */
+    case conflict
+    /**
+     * Storage failed.
+     */
+    case unavailable
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension LiveOutboxWriteRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLiveOutboxWriteRecord: FfiConverterRustBuffer {
+    typealias SwiftType = LiveOutboxWriteRecord
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LiveOutboxWriteRecord {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .written
+        
+        case 2: return .conflict
+        
+        case 3: return .unavailable
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: LiveOutboxWriteRecord, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .written:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .conflict:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unavailable:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxWriteRecord_lift(_ buf: RustBuffer) throws -> LiveOutboxWriteRecord {
+    return try FfiConverterTypeLiveOutboxWriteRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLiveOutboxWriteRecord_lower(_ value: LiveOutboxWriteRecord) -> RustBuffer {
+    return FfiConverterTypeLiveOutboxWriteRecord.lower(value)
+}
+
+
+
+/**
  * The shell's answer to a machine Project confirmation card.
  */
 
@@ -26863,6 +28404,70 @@ public func bodyMayShowEmbed(embedRef: String?, typeName: String?) -> Bool  {
 })
 }
 /**
+ * The TOON string to save when `code` replaces the code of the embed whose
+ * content object is `current_content` (JSON or TOON), as version
+ * `version_number`.
+ *
+ * # Errors
+ * `Validation { invalid_head }` when `current_content` is not an object,
+ * `version_number` is below 1, or the encoder refuses a field.
+ */
+public func codeEmbedEditContent(currentContent: String, code: String, versionNumber: Int64)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeEmbedEditError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_code_embed_edit_content(
+        FfiConverterString.lower(currentContent),
+        FfiConverterString.lower(code),
+        FfiConverterInt64.lower(versionNumber),uniffiCallStatus
+    )
+})
+}
+/**
+ * Merge plan of an update that adds an app to an existing account row
+ * (`merge_account_update_json`): the plaintext texts to re-encrypt.
+ *
+ * # Errors
+ * `Invalid { message: "protocol" }` for a malformed envelope or plaintext.
+ */
+public func connectedAccountMergeUpdate(inputJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_connected_account_merge_update(
+        FfiConverterString.lower(inputJson),uniffiCallStatus
+    )
+})
+}
+/**
+ * Ordered encrypt/hash steps of a new connected-account row from an OAuth
+ * handoff (`oauth_row_plan_json`; input and output JSON as documented there).
+ *
+ * # Errors
+ * `Invalid { message: "protocol" }` for a malformed envelope.
+ */
+public func connectedAccountOauthRowPlan(inputJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_connected_account_oauth_row_plan(
+        FfiConverterString.lower(inputJson),uniffiCallStatus
+    )
+})
+}
+/**
+ * Storage guard over the finished row's serialized JSON: `{"kind":"ok"}` or
+ * the `forbidden` outcome when a plaintext-only field would be stored.
+ *
+ * # Errors
+ * None today; the `Result` keeps the binding signature uniform.
+ */
+public func connectedAccountStorageGuard(serialized: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCoreError_lift) {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_connected_account_storage_guard(
+        FfiConverterString.lower(serialized),uniffiCallStatus
+    )
+})
+}
+/**
  * Resolve the version of `embed_id` each of `messages` (chat order, up to and
  * including the asking message) shows. `versions_page_json` is the
  * `GET /v1/embeds/{id}/versions` page (`{"versions": [...]}`) when the head
@@ -26941,6 +28546,18 @@ public func selectPersonalizedInspirationSnapshot(payload: Data, nowSeconds: Dou
     uniffi_openmates_apple_bindings_fn_func_select_personalized_inspiration_snapshot(
         FfiConverterData.lower(payload),
         FfiConverterDouble.lower(nowSeconds),uniffiCallStatus
+    )
+})
+}
+/**
+ * Whether `message_type` is a live frame the core consumes (`live_item_*`,
+ * `embed_assistant_*`). Feed those frames, and only those, to `LiveItemSession.onFrame`.
+ */
+public func liveIsFrame(messageType: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_openmates_apple_bindings_fn_func_live_is_frame(
+        FfiConverterString.lower(messageType),uniffiCallStatus
     )
 })
 }
@@ -27319,6 +28936,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_func_body_may_show_embed() != 36607) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_func_code_embed_edit_content() != 34129) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_connected_account_merge_update() != 60805) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_connected_account_oauth_row_plan() != 59193) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_connected_account_storage_guard() != 49538) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_func_embed_versions_by_message() != 51637) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27335,6 +28964,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_select_personalized_inspiration_snapshot() != 45763) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_func_live_is_frame() != 58148) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_func_context_entry_notice() != 3233) {
@@ -27568,7 +29200,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_embed_version_content() != 32178) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_commit_embed_edit() != 32110) {
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_commit_embed_edit() != 6705) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_embed_version_history() != 16223) {
@@ -27733,6 +29365,54 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_method_imageenhancewaker_notify_frame() != 22400) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemlistener_on_live_event() != 51636) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsender_send_frame() != 19423) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_apply_op() != 62833) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_apply_update() != 60393) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_close() != 35338) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_on_frame() != 24933) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_open() != 40713) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_restore_version() != 49148) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_set_connected() != 31890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_set_presence() != 24150) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_text_of() != 43987) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_tick() != 16866) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveitemsession_undo_latest_assistant() != 25945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveoutboxstorage_keys() != 4958) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveoutboxstorage_read() != 11102) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_liveoutboxstorage_compare_and_put() != 7105) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_method_corechatsearchindex_chat_count() != 39420) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27775,6 +29455,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_openmates_apple_bindings_checksum_constructor_imageenhancewaker_new() != 49111) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_openmates_apple_bindings_checksum_constructor_liveitemsession_new() != 22385) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_openmates_apple_bindings_checksum_constructor_corechatsearchindex_new() != 11853) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27787,6 +29470,9 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitCoreListener()
     uniffiCallbackInitCredentialStore()
+    uniffiCallbackInitLiveItemListener()
+    uniffiCallbackInitLiveItemSender()
+    uniffiCallbackInitLiveOutboxStorage()
     uniffiCallbackInitViewListener()
     return InitializationResult.ok
 }()

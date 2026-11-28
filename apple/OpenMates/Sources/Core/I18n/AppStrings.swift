@@ -218,6 +218,8 @@ enum AppStrings {
     static var settings: String { L("common.settings") }
     static var cancel: String { L("common.cancel") }
     static var save: String { L("common.save") }
+    static var embedEditConflict: String { L("embed_user_edits.edit_conflict") }
+    static var embedEditFailed: String { L("embed_user_edits.edit_failed") }
     static var saveDraft: String { L("common.save_draft") }
     static var done: String { L("common.done") }
     static var delete: String { L("common.delete") }
@@ -861,6 +863,19 @@ enum AppStrings {
     static var privacyConnectedAccountsLoadError: String { L("settings.privacy.connected_accounts.load_error") }
     static var privacyConnectedAccountsList: String { L("settings.privacy.connected_accounts.accounts") }
     static var privacyProviderGoogleCalendar: String { L("settings.privacy.connected_accounts.provider_google_calendar") }
+    static var connectedAccountsAdd: String { L("settings.app_store.connected_accounts.central.add_account") }
+    static var connectedAccountsProviderGoogle: String { L("settings.app_store.connected_accounts.central.provider_google") }
+    static var connectedAccountsProviderFigma: String { L("settings.app_store.connected_accounts.central.provider_figma") }
+    static var connectedAccountsAccessCalendar: String { L("settings.app_store.connected_accounts.central.access_calendar") }
+    static var connectedAccountsAccessGmail: String { L("settings.app_store.connected_accounts.central.access_gmail") }
+    static var connectedAccountsAddError: String { L("settings.app_store.connected_accounts.central.add_error") }
+    static var connectedAccountsDisconnected: String { L("settings.app_store.connected_accounts.central.disconnected") }
+    static var connectedAccountsReconnectError: String { L("settings.app_store.connected_accounts.central.reconnect_error") }
+    static var connectedAccountsDisconnect: String { L("settings.app_store.connected_accounts.card.disconnect") }
+    static var connectedAccountsDisconnectConfirmButton: String { L("settings.app_store.connected_accounts.card.disconnect_confirm_button") }
+    static var connectedAccountsDisconnectError: String { L("settings.app_store.connected_accounts.card.disconnect_error") }
+    static var connectedAccountsFinalizeError: String { L("settings.privacy.connected_accounts.finalize_error") }
+    static func connectedAccountsDisconnectConfirm(_ provider: String) -> String { LocalizationManager.shared.text("settings.app_store.connected_accounts.card.disconnect_confirm", replacements: ["provider": provider]) }
     static var privacyCapabilityRead: String { L("settings.app_store.connected_accounts.capability_read") }
     static var privacyCapabilityWrite: String { L("settings.app_store.connected_accounts.capability_write") }
     static var privacyMapsLocation: String { L("settings.privacy.maps_location") }

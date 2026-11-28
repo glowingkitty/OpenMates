@@ -110,7 +110,10 @@ struct EmbedFullscreenContainer: View {
     @State private var moreActionsOpen = false
     @State private var hostingViews: [String: HostingDomainView] = [:]
     @StateObject private var versionHistory = EmbedVersionHistoryController()
-    @StateObject private var versionEdits = EmbedVersionEditModel(client: CoreEmbedVersions.live())
+    @StateObject private var versionEdits = EmbedVersionEditModel(client: EmbedFullscreenContainer.versionsClient())
+    @StateObject private var codeEdit = CodeEmbedEditModel(client: EmbedFullscreenContainer.versionsClient())
+    /// The code saved by an edit in this fullscreen, shown until the embed record is refreshed.
+    @State private var savedCode: [String: (code: String, version: Int64)] = [:]
     @ObservedObject private var historyWorkspace = TeamWorkspaceContext.shared
     @StateObject private var codeRunViewModel = CodeRunViewModel()
     @StateObject private var imageDownloadController = ImageOriginalDownloadController()
@@ -420,6 +423,7 @@ struct EmbedFullscreenContainer: View {
                             || NativeEmbedDownload.hasSource(embed)
                             || ImageOriginalDownloadController.canDownload(data: imageDownloadData(for: embed))),
                         showRun: isCodeRunnable,
+                        edit: codeEditAction(for: embed),
                         runActive: codeRunViewModel.isActive,
                         showPreview: isCodePreviewable,
                         previewActive: codePreviewActive,
@@ -505,7 +509,10 @@ struct EmbedFullscreenContainer: View {
             presentation: headerPresentation ?? travelHeaderPresentation(for: embed),
             contentUnderlapsCTA: healthMapHeaderUnderlap(for: embed) > 0,
             mailPIIMappings: currentPIIMappings,
-            mailPIIRevealed: isPIIRevealed
+            mailPIIRevealed: isPIIRevealed,
+            savedCodeLineCount: savedCode[embed.id].map {
+                $0.code.split(separator: "\n", omittingEmptySubsequences: false).count
+            }
         )
         .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("embed-fullscreen-coordinate")) } action: { headerFrame = $0 }
         .zIndex(2)
@@ -555,6 +562,14 @@ struct EmbedFullscreenContainer: View {
                 EmbedHistoricalVersionContent(history: versionHistory)
             } else if let contentOverride {
                 contentOverride
+            } else if codeEdit.isEditing, isCodeEmbed {
+                CodeEmbedEditor(model: codeEdit)
+            } else if let saved = savedCode[embed.id] {
+                // The saved version renders through the regular highlighted code view.
+                CodeEmbedRenderer(data: savedCodeData(saved.code, for: embed), embed: embed, embedId: embed.id,
+                                  chatId: chatId, mode: .fullscreen)
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("code-saved-text")
             } else {
                 EmbedContentView(
             embed: embed,
@@ -752,12 +767,55 @@ struct EmbedFullscreenContainer: View {
             return EmbedEditPlace(projectId: context?.projectID, projectTeamId: context?.teamID,
                                   readOnly: context == nil || recipientView)
         }
-        guard let chatId, !chatId.isEmpty else { return EmbedEditPlace(readOnly: true) }
         #if DEBUG
+        // UI-test runs with the local fake client edit a stored personal Project file.
+        if DevPreviewEmbedVersions.enabled { return EmbedEditPlace(projectId: DevPreviewEmbedVersions.projectId) }
         if chatId == "dev-embed-preview-chat" { return EmbedEditPlace(readOnly: true) }
         #endif
+        guard let chatId, !chatId.isEmpty else { return EmbedEditPlace(readOnly: true) }
         return EmbedEditPlace(chatId: chatId, chatTeamId: OfflineStore.shared.loadChat(id: chatId)?.teamId,
                               readOnly: recipientView)
+    }
+
+    /// The core's version client; debug preview runs with `--ui-test-code-edit-versions` use a local fake.
+    private static func versionsClient() -> EmbedVersionsCoreClient? {
+        #if DEBUG
+        if DevPreviewEmbedVersions.enabled { return DevPreviewEmbedVersions.shared }
+        #endif
+        return CoreEmbedVersions.live()
+    }
+
+    /// The code payload of a just-saved version, until the embed record is refreshed.
+    private func savedCodeData(_ code: String, for embed: EmbedRecord) -> [String: AnyCodable] {
+        var data: [String: AnyCodable] = ["code": AnyCodable(code),
+                                          "line_count": AnyCodable(code.split(separator: "\n", omittingEmptySubsequences: false).count)]
+        if let payload = embed.codePayload {
+            data["language"] = AnyCodable(payload.language)
+            if let filename = payload.filename { data["filename"] = AnyCodable(filename) }
+        }
+        return data
+    }
+
+    /// Web `canEdit` for a stored Project code file; nil hides the header button.
+    private func codeEditAction(for embed: EmbedRecord) -> CodeEmbedEditHeaderAction? {
+        guard isCodeEmbed, let payload = embed.codePayload,
+              CodeEmbedEditModel.canEdit(availability: versionEdits.availability, finished: embed.status == .finished,
+                                         isRemotePreview: originalFileActions != nil,
+                                         hasPII: !currentPIIMappings.isEmpty || hasPIIMappings),
+              case .available(let scope) = versionEdits.availability else { return nil }
+        return CodeEmbedEditHeaderAction(isEditing: codeEdit.isEditing, isSaving: codeEdit.isSaving) {
+            if !codeEdit.isEditing {
+                codeEdit.begin(code: savedCode[embed.id]?.code ?? payload.code)
+                return
+            }
+            let base = Int64(savedCode[embed.id]?.version ?? Int64(currentVersionNumber(for: embed)))
+            let content = (rawData(for: embed) ?? [:]).mapValues { $0.value }
+            Task {
+                guard let version = await codeEdit.save(embedId: embed.id, scope: scope, baseVersion: base, currentContent: content) else { return }
+                savedCode[embed.id] = (codeEdit.draft, version)
+                NotificationCenter.default.post(name: .embedVersionHeadChanged, object: nil, userInfo: ["embedId": embed.id])
+            }
+        }
     }
 
     private func openVersionEdits(for embed: EmbedRecord) async {
@@ -1168,6 +1226,7 @@ private struct EmbedFullscreenTopBar: View {
     let showShare: Bool
     let showDownload: Bool
     let showRun: Bool
+    var edit: CodeEmbedEditHeaderAction? = nil
     let runActive: Bool
     let showPreview: Bool
     let previewActive: Bool
@@ -1209,6 +1268,10 @@ private struct EmbedFullscreenTopBar: View {
         var values: [Action] = []
         if let enhance {
             values.append(.init(id: "enhance", icon: "sparkles", label: enhance.label, active: enhance.running, perform: enhance.perform))
+        }
+        if let edit {
+            values.append(.init(id: "edit", icon: edit.isEditing ? "check" : "edit", label: edit.isEditing ? AppStrings.save : AppStrings.edit,
+                                active: edit.isEditing, perform: edit.perform))
         }
         if showCopy { values.append(.init(id: "copy", icon: "copy", label: AppStrings.copy, perform: onCopy)) }
         if showDownload { values.append(.init(id: "download", icon: "download", label: downloadLabel, perform: onDownload)) }
@@ -1308,7 +1371,7 @@ private struct EmbedFullscreenTopBar: View {
             if action.id != "more" { moreOpen = false }
             action.perform()
         }.focused($focusedActionID, equals: action.id)
-            .disabled((action.id == "download" && downloadDisabled) || (action.id == "enhance" && enhance?.disabled == true))
+            .disabled((action.id == "download" && downloadDisabled) || (action.id == "enhance" && enhance?.disabled == true) || (action.id == "edit" && edit?.isSaving == true))
             .modifier(EmbedEnhanceStateValue(state: action.id == "enhance" ? enhance?.state : nil))
             .accessibilityIdentifier(action.id.hasPrefix("hosting-view-") ? action.id : action.id == "download" ? downloadIdentifier : "embed-\(action.id)-button")
     }
@@ -1432,6 +1495,8 @@ struct EmbedFullscreenHeader: View {
     var contentUnderlapsCTA = false
     var mailPIIMappings: [PIIMapping] = []
     var mailPIIRevealed = false
+    /// Line count of a code version saved in this view, until the record refreshes.
+    var savedCodeLineCount: Int? = nil
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var measuredCTAHeight: CGFloat = 44
@@ -1862,9 +1927,10 @@ struct EmbedFullscreenHeader: View {
             return embed.rawData?["focus_mode_name"]?.value as? String
         }
         if let payload = embed.codePayload {
-            let lineText = payload.lineCount == 1 ? "line" : "lines"
+            let lineCount = savedCodeLineCount ?? payload.lineCount
+            let lineText = lineCount == 1 ? "line" : "lines"
             let language = payload.languageDisplayName
-            return language.isEmpty ? "\(payload.lineCount) \(lineText)" : "\(payload.lineCount) \(lineText), \(language)"
+            return language.isEmpty ? "\(lineCount) \(lineText)" : "\(lineCount) \(lineText), \(language)"
         }
         if let table = sheetTable {
             return table.dimensionsText
