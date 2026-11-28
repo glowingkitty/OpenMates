@@ -799,6 +799,12 @@ final class ChatViewModel: ObservableObject {
     private var embedContentBatchRequest: (chatId: String, generation: Int, scope: UUID,
         id: UUID, task: Task<ChatContentBatchPayload, Error>)?
     private let contentBatchFetcher: (@MainActor (String) async throws -> ChatContentBatchPayload)?
+    /// Required embeds that stayed unresolved after the last fetch for a chat
+    /// (for example one that never decrypts). Without it every embed event and
+    /// reconnect refetched, decrypted and persisted the whole chat's embeds again.
+    private var settledEmbedFetch: (chatId: String, unresolved: Set<String>, at: TimeInterval)?
+    private var embedRefreshDebounce: Task<Void, Never>?
+    static let settledEmbedFetchRetrySeconds: TimeInterval = 30
     private let messageWindowFetcher: @MainActor (String, String?, ChatMessageWindowQuery) async throws -> ChatMessageWindowPage
     var olderMessagesTask: Task<Void, Never>?
     private(set) var loadGeneration = 0
@@ -3018,11 +3024,35 @@ final class ChatViewModel: ObservableObject {
         }
         embedRefreshObserver = NotificationCenter.default.addObserver(
             forName: .embedRefreshNeeded, object: nil, queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
+            let target = Self.embedUpdateTarget(notification.userInfo?["raw"] as? Data)
             Task { @MainActor [weak self] in
                 guard let self, self.chat?.id == chatId else { return }
-                await self.loadEmbeds(for: self.messages.map(\.id))
+                self.receiveEmbedRefresh(target, chatId: chatId)
             }
+        }
+    }
+
+    /// Which chat and embed an embed event names, when its payload says so.
+    nonisolated static func embedUpdateTarget(_ raw: Data?) -> (chatId: String?, embedId: String?) {
+        guard let raw, let object = try? JSONSerialization.jsonObject(with: raw) as? [String: Any] else { return (nil, nil) }
+        let payload = (object["payload"] ?? object["data"]) as? [String: Any] ?? object
+        return (payload["chat_id"] as? String ?? payload["hashed_chat_id"] as? String,
+                payload["embed_id"] as? String)
+    }
+
+    /// Events for other chats are ignored; a burst for this chat becomes one load.
+    func receiveEmbedRefresh(_ target: (chatId: String?, embedId: String?), chatId: String) {
+        if let eventChat = target.chatId, eventChat != chatId,
+           eventChat != ChatKeyWrapperRecord.hashedChatId(for: chatId) { return }
+        if let embedId = target.embedId, settledEmbedFetch?.chatId == chatId {
+            settledEmbedFetch?.unresolved.remove(embedId)
+        }
+        embedRefreshDebounce?.cancel()
+        embedRefreshDebounce = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled, let self, self.chat?.id == chatId else { return }
+            await self.loadEmbeds(for: self.messages.map(\.id))
         }
     }
 
@@ -3499,6 +3529,13 @@ final class ChatViewModel: ObservableObject {
             print("[ChatViewModel][embeds] chat=\(chatId.prefix(8)) skip fetch; required already loaded=\(requiredEmbedIds.count)")
             return
         }
+        let unresolvedEmbedIds = Self.unresolvedRequiredEmbedIds(requiredEmbedIds, records: embedRecords)
+        if !forceFetch, !hasUnresolvedCompositeParent,
+           Self.isSettledEmbedFetch(settledEmbedFetch, chatId: chatId, unresolved: unresolvedEmbedIds,
+                                    now: ProcessInfo.processInfo.systemUptime) {
+            NativeSyncPerfLog.info("phase=loadEmbedsSettled chat=\(chatId.prefix(8)) unresolved=\(unresolvedEmbedIds.count)")
+            return
+        }
         do {
             if remoteHistory?.chatId == chatId {
                 try await loadBoundedRemoteEmbeds(requiredEmbedIds, chatId: chatId, generation: generation)
@@ -3524,6 +3561,8 @@ final class ChatViewModel: ObservableObject {
             EmbedMediaOfflineCache.prefetchEmbeds(decrypted)
             let childLinked = decrypted.filter { $0.parentEmbedId != nil || !$0.childEmbedIds.isEmpty }.count
             let rawCount = decrypted.filter { $0.rawData != nil }.count
+            settledEmbedFetch = (chatId, Self.unresolvedRequiredEmbedIds(requiredEmbedIds, records: embedRecords),
+                                 ProcessInfo.processInfo.systemUptime)
             NativeSyncPerfLog.info(
                 "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(fetchedEmbeds.count) related=\(relatedEmbeds.count) keys=\(batch.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
             )
@@ -3674,6 +3713,25 @@ final class ChatViewModel: ObservableObject {
         }
 
         return result
+    }
+
+    /// Required embeds that are missing, not hydrated or not decrypted.
+    static func unresolvedRequiredEmbedIds(_ ids: Set<String>, records: [String: EmbedRecord]) -> Set<String> {
+        ids.filter { id in
+            guard let record = records[id] else { return true }
+            return embedRecordRequiresHydration(record)
+                || (record.rawData == nil && (record.encryptedContent != nil || record.encryptedType != nil))
+        }
+    }
+
+    /// A fetch already ran for exactly these unresolved embeds and the server
+    /// had nothing more; refetch only after an update for one of them or the
+    /// retry interval (keys can arrive later).
+    static func isSettledEmbedFetch(_ settled: (chatId: String, unresolved: Set<String>, at: TimeInterval)?,
+                                    chatId: String, unresolved: Set<String>, now: TimeInterval) -> Bool {
+        guard let settled, settled.chatId == chatId, !unresolved.isEmpty,
+              now - settled.at < settledEmbedFetchRetrySeconds else { return false }
+        return unresolved.isSubset(of: settled.unresolved)
     }
 
     static func hasUndecryptedRequiredEmbed(

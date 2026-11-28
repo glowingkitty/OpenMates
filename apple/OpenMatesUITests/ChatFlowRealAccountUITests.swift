@@ -740,6 +740,8 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                              "--ui-test-read-only-performance", "--ui-test-startup-chat-readiness"])
         try preparePersonalAccountStartupBenchmark(in: app, credentials: credentials)
         let authenticatedProbe = personalDevStartupAccountProbe(in: app)
+        // Before the timed samples so its settle wait does not skew them.
+        try attachContinuationDiagnostics(in: app, name: "Personal DevTest continue row after sign-in")
 
         // Keep all launch samples and their attachments even when an
         // independent transcript or reconciliation assertion fails.
@@ -879,9 +881,20 @@ final class ChatFlowRealAccountUITests: XCTestCase {
                     + "Message rows: \(messages.count), transcript present: \(transcript.exists)")
             return nil
         }
-        try attachStartupTimings("Personal DevTest first-content timings \(sample)", [
+        var firstContent: [String: [Int]] = [
             "select_to_visible_message_ms": [startupElapsedMS(since: selection)],
-        ])
+        ]
+        // In-app frames: the row's tap handler to the first committed message
+        // frame of that chat, free of accessibility snapshot latency.
+        let probe = personalDevStartupAccountProbe(in: app)
+        let selectionMS = Int(selection * 1_000)
+        let tap = Self.startupProbeInteger("tap-uptime-ms", probe: probe)
+        let readable = Self.startupProbeInteger("tap-readable-uptime-ms", probe: probe)
+        if tap >= selectionMS {
+            firstContent["select_to_app_tap_ms"] = [tap - selectionMS]
+            if readable >= tap { firstContent["app_tap_to_readable_frame_ms"] = [readable - tap] }
+        }
+        try attachStartupTimings("Personal DevTest first-content timings \(sample)", firstContent)
         try recordCoreWindowStartupTimings(in: app, since: selection, name: "Personal DevTest selected window \(sample)",
                                            metricPrefix: "select_to", requireDeliberateOpen: true)
         return chatID
@@ -963,7 +976,9 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             metrics["cached_process_launch_to_app_entry_ms"] = [entry - launchMS]
             for (field, metric) in [
                 ("app-init-finished-uptime-ms", "app_entry_to_init_finished_ms"),
+                ("root-task-started-uptime-ms", "app_entry_to_root_task_started_ms"),
                 ("core-start-invoked-uptime-ms", "app_entry_to_core_start_invoked_ms"),
+                ("main-shell-init-uptime-ms", "app_entry_to_main_shell_init_ms"),
                 ("cached-chat-list-received-uptime-ms", "app_entry_to_cached_chat_list_received_ms"),
                 ("cached-profile-ready-uptime-ms", "app_entry_to_cached_profile_ready_ms"),
                 ("cached-scope-activated-uptime-ms", "app_entry_to_cached_scope_activated_ms"),
@@ -974,6 +989,18 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             ] {
                 let uptime = Self.startupProbeInteger(field, probe: probe)
                 if uptime >= entry { metrics[metric] = [uptime - entry] }
+            }
+            let processStart = Self.startupProbeInteger("process-start-uptime-ms", probe: probe)
+            if processStart > 0, processStart <= entry {
+                metrics["process_start_to_app_entry_ms"] = [entry - processStart]
+                let rowFrame = Self.startupProbeInteger("first-row-frame-uptime-ms", probe: probe)
+                let messageFrame = Self.startupProbeInteger("first-message-frame-uptime-ms", probe: probe)
+                if rowFrame >= processStart { metrics["process_start_to_first_row_frame_ms"] = [rowFrame - processStart] }
+                if messageFrame >= processStart {
+                    metrics["process_start_to_first_message_frame_ms"] = [messageFrame - processStart]
+                }
+                let content = [rowFrame, messageFrame].filter { $0 >= processStart && $0 <= (beforeSelection ?? Int.max) }
+                if let first = content.min() { metrics["process_start_to_first_content_frame_ms"] = [first - processStart] }
             }
             for (field, metric) in [
                 ("scope-setup-ms", "offline_scope_setup_ms"),
@@ -1089,6 +1116,23 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     private func startupElapsedMS(since start: TimeInterval) -> Int {
         Int((ProcessInfo.processInfo.systemUptime - start) * 1_000)
+    }
+
+    /// Device report: the start screen's Continue row showed 2 cards. The app's
+    /// DEBUG probe reports, as counts only, which candidates each filter dropped.
+    private func attachContinuationDiagnostics(in app: XCUIApplication, name: String) throws {
+        let probe = app.descendants(matching: .any).matching(identifier: "welcome-continuation-diagnostics").firstMatch
+        guard probe.waitForExistence(timeout: 10) else {
+            try attachStartupTimings(name, ["continue_probe_missing": [1]])
+            return
+        }
+        Thread.sleep(forTimeInterval: 5) // let visible metadata decryption settle
+        var metrics: [String: [Int]] = [:]
+        for pair in ((probe.value as? String) ?? "").split(separator: " ") {
+            let parts = pair.split(separator: "=")
+            if parts.count == 2, let value = Int(parts[1]) { metrics["continue_\(parts[0])"] = [value] }
+        }
+        try attachStartupTimings(name, metrics)
     }
 
     private func attachStartupTimings(_ name: String, _ metrics: [String: [Int]]) throws {

@@ -207,13 +207,12 @@ final class NativeVoiceCallSpeechEngineOutput: NativeVoiceCallSpeechSink {
         }
         scheduledEnd += frames; scheduledFrames += frames; outstanding += 1
         let token = generation
-        node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            Task { @MainActor in
-                guard let self, self.generation == token else { return }
-                self.outstanding = max(0, self.outstanding - 1)
-                if self.finished, self.outstanding == 0 { self.complete() }
-            }
-        }
+        node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack,
+                            completionHandler: NativeAudioCallbacks.playedBack { [weak self] in
+            guard let self, self.generation == token else { return }
+            self.outstanding = max(0, self.outstanding - 1)
+            if self.finished, self.outstanding == 0 { self.complete() }
+        })
         if !started {
             started = true
             node.play()

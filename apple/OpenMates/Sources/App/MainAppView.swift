@@ -295,6 +295,9 @@ struct WorkflowCompletionPersonalHandoff {
 }
 
 struct MainAppView: View {
+    /// One shared 25 s heartbeat. Created in `body`, the timer was rebuilt and
+    /// resubscribed on every shell invalidation (device lag report, build 100).
+    private static let lifecycleHeartbeat = Timer.publish(every: 25, on: .main, in: .common).autoconnect()
     let launchCommand: AppWindowLaunchCommand?
 
     private static let encryptedUserStorageRetryLimit = 3
@@ -459,6 +462,9 @@ struct MainAppView: View {
 
     init(launchCommand: AppWindowLaunchCommand? = nil) {
         self.launchCommand = launchCommand
+        #if DEBUG
+        NativeStartupBenchmark.mark(.mainShellInit)
+        #endif
     }
 
     #if DEBUG
@@ -1320,7 +1326,7 @@ struct MainAppView: View {
         }
         .onChange(of: scenePhase, scenePhaseDidChange)
         .onChange(of: wsManager.connectionState, websocketConnectionStateDidChange)
-        .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Self.lifecycleHeartbeat) { _ in
             guard isAuthenticated, didBootstrapAuthenticatedSession,
                   wsManager.connectionState == .connected else { return }
             #if os(macOS)
@@ -4494,6 +4500,9 @@ struct MainAppView: View {
                     apiBaseURL: ServerProfile.current().apiBaseURL, teamID: teamContext.teamID), teamID: teamContext.teamID)
             return
         }
+        #if DEBUG
+        NativeStartupBenchmark.chatTapped(chat.id)
+        #endif
         chatInputFocusRequest = 0
         presentChatRoute(chat.id)
         searchSelection = nil
@@ -10640,7 +10649,44 @@ struct NewChatWelcomeView: View {
             containerSize: containerSize, onOpenChat: openWelcomeContinuationCard, onShowChatActions: onShowChatActions,
             embedRecords: welcomeContinueEmbedRecords, inspirations: rowInspirations,
             onOpenInspiration: { createChatWith(message: $0.text) }, actions: rowActions)
+        #if DEBUG
+            .overlay { continuationDiagnosticsProbe }
+        #endif
     }
+
+    #if DEBUG
+    /// UI-test-only counts explaining which start-row candidates were dropped
+    /// (device report: "Continue" showed 2 cards). Counts only, never titles or ids.
+    @ViewBuilder private var continuationDiagnosticsProbe: some View {
+        if ProcessInfo.processInfo.arguments.contains("--ui-test-read-only-performance") {
+            Color.clear.frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("welcome-continuation-diagnostics")
+                .accessibilityValue(continuationDiagnostics)
+        }
+    }
+
+    private var continuationDiagnostics: String {
+        let scoped = chats.filter { $0.teamId == composerSearchTeam.teamID }
+        let preview: (String) -> String? = { welcomeDraftService.displayDraftPreviews[$0] }
+        let eligible = scoped.filter { WelcomeScreenState.isContinuationEligible($0, draftPreview: preview($0.id)) }
+        let cut = WelcomeScreenState.recentChats(from: scoped, excluding: resumeChat?.id, activeChatId: activeChatID,
+                                                 draftPreview: preview)
+        let notReady = cut.filter { !WelcomeScreenState.isContinuationPreviewReady($0, draftPreview: preview($0.id)) }
+        func count(_ rows: [Chat], _ test: (Chat) -> Bool) -> Int { rows.filter(test).count }
+        return [
+            "chats=\(chats.count)", "scoped=\(scoped.count)", "eligible=\(eligible.count)", "cut=\(cut.count)",
+            "notReady=\(notReady.count)", "resume=\(resumeChat == nil ? 0 : 1)", "cards=\(shownChatCards.count)",
+            "nrNoMessagesV=\(count(notReady) { ($0.messagesV ?? 0) == 0 })",
+            "nrNoLastVisible=\(count(notReady) { $0.lastVisibleMessageId == nil })",
+            "nrUntitled=\(count(notReady) { ($0.title ?? "").trimmingCharacters(in: .whitespaces).isEmpty || $0.title?.lowercased() == "untitled chat" })",
+            "nrEncryptedTitle=\(count(notReady) { $0.encryptedTitle?.isEmpty == false })",
+            "nrDraft=\(count(notReady) { $0.hasNonEmptyDraft == true })",
+            "eligibleNoMessagesV=\(count(eligible) { ($0.messagesV ?? 0) == 0 })",
+            "eligibleUntitled=\(count(eligible) { ($0.title ?? "").isEmpty || $0.title?.lowercased() == "untitled chat" })",
+        ].joined(separator: " ")
+    }
+    #endif
 
     private var startScreenSuggestionTexts: [String] {
         StartScreenSuggestions.visibleTexts(from: rankedSuggestions(suggestions).map(\.text))

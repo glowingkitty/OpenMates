@@ -257,6 +257,51 @@ final class ChatWindowLoadingTests: XCTestCase {
         XCTAssertEqual(requests, 1, "A full table is not fetched again")
     }
 
+    // Device report (build 100): one embed that never hydrated made every embed
+    // event and reconnect refetch, decrypt and persist the whole chat again.
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testUnresolvedEmbedIsNotRefetchedUntilItChangesOrTheRetryInterval() async throws {
+        let chatId = "sheet-chat"
+        let shell = EmbedRecord(id: "sheet-ref", type: "sheet", status: .finished,
+            data: .raw(["row_count": AnyCodable(2)]), parentEmbedId: nil, appId: "sheets", skillId: "sheet",
+            embedIds: nil, hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatId), createdAt: nil)
+        XCTAssertTrue(ChatViewModel.embedRecordRequiresHydration(shell))
+        var requests = 0
+        let model = ChatViewModel(contentBatchFetcher: { id in
+            requests += 1
+            return self.sheetBatch(chatId: id, record: shell)
+        })
+        let message = Message(id: "sheet-message", chatId: chatId, role: .assistant,
+            content: "[[embed:sheet-ref]]", encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil, appId: "sheets", isStreaming: false,
+            embedRefs: [EmbedRef(id: shell.id, type: "sheet", status: "finished", data: nil)])
+        model.seedIsolatedHistory(chat: makeChat(id: chatId, title: "Sheet", updatedAt: message.createdAt, messagesV: 1),
+                                  messages: [message], embeds: [shell])
+        for _ in 0..<4 { await model.retryVisibleEmbedHydration() }
+        XCTAssertEqual(requests, 1, "Repeated hydration of the same unresolved embed reuses the settled fetch")
+
+        model.receiveEmbedRefresh((chatId: "other-chat", embedId: shell.id), chatId: chatId)
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(requests, 1, "An embed event of another chat does not reload this chat")
+
+        for _ in 0..<5 { model.receiveEmbedRefresh((chatId: chatId, embedId: shell.id), chatId: chatId) }
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(requests, 2, "A burst of updates for the unresolved embed becomes one refetch")
+
+        XCTAssertTrue(ChatViewModel.isSettledEmbedFetch((chatId, [shell.id], 100), chatId: chatId,
+                                                        unresolved: [shell.id], now: 110))
+        XCTAssertFalse(ChatViewModel.isSettledEmbedFetch((chatId, [shell.id], 100), chatId: chatId,
+                                                         unresolved: [shell.id], now: 100 + ChatViewModel.settledEmbedFetchRetrySeconds),
+                       "Keys can arrive later, so the settled state expires")
+        XCTAssertFalse(ChatViewModel.isSettledEmbedFetch((chatId, [shell.id], 100), chatId: chatId,
+                                                         unresolved: [shell.id, "new-embed"], now: 110),
+                       "A newly referenced embed is fetched")
+        let event = try JSONSerialization.data(withJSONObject: ["type": "embed_update",
+            "payload": ["chat_id": chatId, "embed_id": shell.id]])
+        XCTAssertEqual(ChatViewModel.embedUpdateTarget(event).chatId, chatId)
+        XCTAssertEqual(ChatViewModel.embedUpdateTarget(event).embedId, shell.id)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence,chat-navigation.open.local-first-coherent
     func testSheetHydrationCoalescesAndRejectsStaleChatGenerationOrAccount() async throws {
         for invalidation in ["none", "chat", "generation", "account"] {

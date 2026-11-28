@@ -60,12 +60,11 @@ final class AssistantSpeechAudioPlayer {
             try await withCheckedThrowingContinuation { continuation in
                 completion = continuation
                 guard !Task.isCancelled else { finish(CancellationError()); return }
-                node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-                    Task { @MainActor in
-                        guard let self, self.generation == token else { return }
-                        self.finish()
-                    }
-                }
+                node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack,
+                                    completionHandler: NativeAudioCallbacks.playedBack { [weak self] in
+                    guard let self, self.generation == token else { return }
+                    self.finish()
+                })
                 node.play()
                 prefetchTask = Task { [weak self] in
                     guard let self else { return }

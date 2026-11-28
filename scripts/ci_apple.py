@@ -483,7 +483,8 @@ def sample_app_process(folder: Path, stop) -> None:
     Only the second distinct process (the first cached relaunch after sign-in)
     is sampled, so the other launches keep undisturbed timings; that launch is
     left out of the medians. The host `sample` tool captures every thread's
-    stacks of a macOS process inside the hosted runner's virtual machine,
+    stacks of a macOS process inside the hosted runner's virtual machine (as
+    root, since the unsigned CI app lacks get-task-allow),
     where Time Profiler gets no CPU samples and cannot see Simulator apps; a
     Simulator launch is logged as unprofiled. The text call tree stays in the
     private evidence; failures are logged beside it.
@@ -508,8 +509,13 @@ def sample_app_process(folder: Path, stop) -> None:
             if is_simulator_process(found[0]):
                 log.write("simulator process: no stack sampler available on the hosted runner\n")
                 return
-            step = ["sample", found[0], str(APP_PROFILE_SECONDS), str(APP_SAMPLE_INTERVAL_MS),
-                    "-mayDie", "-file", str(folder / f"launch-pid{found[0]}.sample.txt")]
+            output = folder / f"launch-pid{found[0]}.sample.txt"
+            # The CI build is unsigned, so the app has no get-task-allow
+            # entitlement: as the runner user `sample` attaches but records an
+            # empty call graph. Root (passwordless sudo on hosted runners) can
+            # read the threads of this non-hardened, ad-hoc signed app.
+            step = ["sudo", "-n", "sample", found[0], str(APP_PROFILE_SECONDS),
+                    str(APP_SAMPLE_INTERVAL_MS), "-mayDie", "-file", str(output)]
             log.write("sample start\n")
             log.flush()
             try:
@@ -519,6 +525,8 @@ def sample_app_process(folder: Path, stop) -> None:
                 log.write(f"sample timeout after {APP_PROFILE_STEP_TIMEOUT_SECONDS}s\n")
                 return
             log.write(f"sample exit {done.returncode}\n{done.stderr[-2000:]}\n")
+            threads = output.read_text(errors="replace").count("Thread_") if output.exists() else 0
+            log.write(f"sampled threads {threads}\n")
         return
 
 

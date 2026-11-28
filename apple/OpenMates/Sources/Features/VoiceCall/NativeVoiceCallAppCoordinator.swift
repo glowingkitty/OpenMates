@@ -420,9 +420,10 @@ final class NativeVoiceCallCuePlayer: NativeVoiceCallCuePlaying {
         engine.connect(node, to: engine.mainMixerNode, format: format)
         do { try engine.start() } catch { return } // Blocked local audio never blocks the call.
         self.engine = engine; self.node = node
-        node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack) { [weak self] _ in
-            Task { @MainActor in if self?.generation == token { self?.stop() } }
-        }
+        node.scheduleBuffer(buffer, completionCallbackType: .dataPlayedBack,
+                            completionHandler: NativeAudioCallbacks.playedBack { [weak self] in
+            if self?.generation == token { self?.stop() }
+        })
         node.play()
     }
     private func stop() {

@@ -432,6 +432,9 @@ enum ComposerAcceptedSendSnapshotPolicy {
 }
 
 struct ChatView: View {
+    /// One shared 25 s heartbeat. Created in `body`, the timer was rebuilt and
+    /// resubscribed on every shell invalidation (device lag report, build 100).
+    private static let lifecycleHeartbeat = Timer.publish(every: 25, on: .main, in: .common).autoconnect()
     #if DEBUG
     var isolatedHistory = false
     #endif
@@ -1090,7 +1093,7 @@ struct ChatView: View {
                 reportFinalVisibleMessages(latestVisibleMessageIds)
             }
         }
-        .onReceive(Timer.publish(every: 25, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Self.lifecycleHeartbeat) { _ in
             reportFinalVisibleMessages(latestVisibleMessageIds)
         }
         .onDisappear(perform: handleDisappear)
@@ -6254,6 +6257,7 @@ struct MessageBubble: View {
         .accessibilityLabel(semanticAccessibilityLabel(presentation))
         #if DEBUG
         .accessibilityValue(parityRenderManifestValue(presentation))
+        .onAppear { if !isSystem { NativeStartupBenchmark.messageAppeared(chatID: chatId) } }
         #endif
     }
 }

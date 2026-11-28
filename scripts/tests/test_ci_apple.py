@@ -345,9 +345,9 @@ def _run_sampler(tmp_path, monkeypatch, process_command):
 
 def test_profiler_samples_only_the_first_cached_macos_relaunch(tmp_path, monkeypatch):
     commands, log = _run_sampler(tmp_path, monkeypatch, "/tmp/D/OpenMates.app/Contents/MacOS/OpenMates -x\n")
-    assert len(commands) == 1 and commands[0][:2] == ["sample", "22"]
+    assert len(commands) == 1 and commands[0][:4] == ["sudo", "-n", "sample", "22"]
     assert commands[0][-1].endswith("launch-pid22.sample.txt")
-    assert "sample exit 0" in log
+    assert "sample exit 0" in log and "sampled threads 0" in log
 
 
 def test_profiler_logs_simulator_launches_as_unprofiled(tmp_path, monkeypatch):

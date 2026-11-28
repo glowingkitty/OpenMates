@@ -56,6 +56,41 @@ final class VoiceCallMediaStagePreviewUITests: XCTestCase {
         attach("Call media stage single result")
     }
 
+    #if os(iOS)
+    // Starts the production call audio on the Simulator microphone and speaker:
+    // permission, voice-chat session, voice-processing engine, microphone and
+    // playback taps, a played buffer. Build 100 crashed here on the first audio
+    // callback (main-actor closures run on AVFoundation's audio threads).
+    // contract-test: supporting surface=gui.apple assertions=video-call.audio.single-owner
+    func testStartingCallAudioRunsAudioCallbacksWithoutCrashing() {
+        addUIInterruptionMonitor(withDescription: "Microphone permission") { alert in
+            let allow = alert.buttons.matching(NSPredicate(format: "label IN %@", ["Allow", "OK"])).firstMatch
+            guard allow.exists else { return false }
+            allow.tap(); return true
+        }
+        let app = launch("native-voice-call-audio-engine", component: "composer")
+        let status = element(app, "voice-call-audio-engine-status")
+        XCTAssertTrue(status.waitForExistence(timeout: 10))
+        app.tap() // delivers a pending permission alert to the monitor
+        let settled = NSPredicate { _, _ in
+            let label = status.label
+            return label.hasPrefix("running ") || label.hasPrefix("failed")
+        }
+        expectation(for: settled, evaluatedWith: status)
+        waitForExpectations(timeout: 30)
+        attach("Call audio engine after start: \(status.label)")
+        XCTAssertEqual(app.state, .runningForeground, "Starting call audio must not crash the app")
+        XCTAssertTrue(status.label.hasPrefix("running "), "Call audio started: \(status.label)")
+        // A buffer was scheduled on the running engine without a crash. The
+        // simulator on a hosted CI machine does not render output, so the
+        // played-back completion may stay pending; the label records which.
+        // NativeVoiceCallMeterTests runs that completion off the main thread.
+        XCTAssertTrue(status.label.contains("playback "), "Playback was scheduled: \(status.label)")
+        XCTAssertTrue(status.label.contains("with microphone input"),
+                      "Microphone tap callbacks ran on the audio thread: \(status.label)")
+    }
+    #endif
+
     private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
@@ -65,9 +100,9 @@ final class VoiceCallMediaStagePreviewUITests: XCTestCase {
         attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
 
-    private func launch(_ variant: String) -> XCUIApplication {
+    private func launch(_ variant: String, component: String = "message") -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["--dev-preview", "message", "--dev-preview-variant", variant,
+        app.launchArguments = ["--dev-preview", component, "--dev-preview-variant", variant,
             "--dev-preview-theme", "light", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "dev-preview-root").firstMatch
