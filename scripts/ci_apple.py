@@ -31,6 +31,14 @@ version the release Mac builds with), never on the shared dev host.
                passing ones too, so a UI change has its result video; larger runs keep
                only the recordings of failed tests.
 
+Rounds (ci_coordinator.py): at most 5 Apple jobs run at once (GitHub Free's macOS limit);
+the rest wait in the coordinator. With the `apple-shared-build` speedup, the first Xcode job
+of one owner's round on one source is the producer: it builds (CI_APPLE_PHASE=build), the
+workflow uploads the products, then it runs its own tests (CI_APPLE_PHASE=test). That
+owner's other apple-unit/apple-ui jobs on the same source get the products
+(CI_APPLE_PRODUCTS_IN), verified against their own source and build identity, and run only
+`xcodebuild test-without-building`; anything missing or different makes them build here.
+
 Every step records a result row through ci_rust_checks so the coordinator and
 `ci_coordinator.py result` show failing excerpts without opening Actions logs.
 """
@@ -214,8 +222,14 @@ def core_plan(root: Path, results: Path) -> list[Step]:
     ]
 
 
-def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = False) -> list[Step]:
-    """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests."""
+def xcode_plan(
+    mode: str, results: Path, specs: list[str], *, benchmark: bool = False, xctestrun: Path | None = None,
+) -> list[Step]:
+    """Ordered steps for the Xcode lanes: generated inputs, then the build or the selected tests.
+
+    `xctestrun` is the built .xctestrun of verified shared build products (see
+    restore_shared_products): the job then tests those products and compiles nothing.
+    """
     build_only = mode == "apple-build"
     only = [] if build_only else [UNIT_TARGET] if specs == [ALL] else specs
     startup_platform = startup_benchmark_platform(specs) if benchmark and mode == "apple-ui" else None
@@ -260,7 +274,7 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         "-resultBundlePath", str(results / RESULT_BUNDLES["apple-build"]),
         "-IDEBuildingContinueBuildingAfterErrors=YES", *settings,
     ]
-    steps: list[Step] = [(BUILD_STEP, build, {}, "")]
+    steps: list[Step] = [] if xctestrun else [(BUILD_STEP, build, {}, "")]
     products = results / "DerivedData" / "Build" / "Products"
     if mac_startup:
         steps.append((
@@ -308,7 +322,10 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         # would run Xcode's own unpatched one.
         source = (
             ["-xctestrun", str(products / RECORDED_XCTESTRUN), "-destination", destination]
-            if recorded else shared
+            if recorded
+            else ["-xctestrun", str(xctestrun), "-destination", destination]
+            if xctestrun
+            else shared
         )
         test = [
             "xcodebuild", "test-without-building", *source,
@@ -323,7 +340,12 @@ def xcode_plan(mode: str, results: Path, specs: list[str], *, benchmark: bool = 
         for selector in only:
             test += ["-only-testing", selector]
         # Build settings belong to the scheme run; the patched .xctestrun carries the built ones.
-        steps.append((f"xcodebuild test {' '.join(only)}"[:160], test + ([] if recorded else settings), {}, ""))
+        steps.append((
+            f"xcodebuild test {' '.join(only)}"[:160],
+            test + ([] if recorded or xctestrun else settings),
+            {},
+            "",
+        ))
     return [
         (
             "design tokens and locales",
@@ -473,6 +495,80 @@ def collect_app_samples(folder: Path, home: Path | None = None, temp_glob: str =
     (folder / "sampler.log").write_text(f"app sample files {len(found)}\n")
 
 
+# Build once, test many (ci_coordinator.py): the first Xcode job of one owner's round on one
+# source publishes its build products; that owner's other apple-unit/apple-ui jobs on the same
+# source test them instead of compiling the same tree again. The producer runs in two phases
+# (CI_APPLE_PHASE=build, then =test) so the workflow uploads the products between them.
+PRODUCTS_FORMAT = 1
+PRODUCTS_ARCHIVE = "products.tar"
+PRODUCTS_MANIFEST = "apple-products.json"
+REUSE_STEP = "reuse shared build products"
+PHASE_STATE = "phase-results.json"
+SHARE_MODES = ("apple-unit", "apple-ui")
+
+
+def build_identity(mode: str, specs: list[str]) -> str:
+    """Digest of the build command with this job's output folder blanked out.
+
+    Two jobs share products only when they would run exactly this build: same scheme,
+    destination, configuration and settings. The private benchmark never shares.
+    """
+    import hashlib
+
+    marker = Path("/__results__")
+    build = next(cmd for name, cmd, _, _ in xcode_plan(mode, marker, specs) if name == BUILD_STEP)
+    normalized = [arg.replace(str(marker), "<results>") for arg in build]
+    return hashlib.sha256(json.dumps(normalized).encode()).hexdigest()
+
+
+def source_identity(root: Path) -> dict:
+    import subprocess
+
+    def git(*args: str) -> str:
+        return subprocess.check_output(["git", *args], cwd=root, text=True).strip()
+
+    return {"source_commit": git("rev-parse", "HEAD"), "tree": git("rev-parse", "HEAD^{tree}")}
+
+
+def pack_shared_products(root: Path, out: Path, mode: str, specs: list[str], dest: Path) -> None:
+    """Archive the built products (symlinks and modes kept) with the identity they were built for."""
+    import subprocess
+
+    dest.mkdir(parents=True, exist_ok=True)
+    build_dir = out / "DerivedData" / "Build"
+    subprocess.run(["tar", "-cf", str(dest / PRODUCTS_ARCHIVE), "-C", str(build_dir), "Products"], check=True)
+    manifest = {"format": PRODUCTS_FORMAT, "build": build_identity(mode, specs), **source_identity(root)}
+    (dest / PRODUCTS_MANIFEST).write_text(json.dumps(manifest, indent=2))
+    size = (dest / PRODUCTS_ARCHIVE).stat().st_size
+    print(f"shared build products: {size / 1e9:.2f} GB for {manifest['source_commit']}", flush=True)
+
+
+def restore_shared_products(root: Path, out: Path, mode: str, specs: list[str], folder: Path) -> tuple[Path | None, str]:
+    """Unpack verified shared products into this job's DerivedData; (built .xctestrun, note).
+
+    Returns (None, reason) whenever the products are missing or were built for another
+    source or build, so the job builds itself exactly as before; a mismatch is never used.
+    """
+    import subprocess
+
+    manifest_path = folder / PRODUCTS_MANIFEST
+    if not manifest_path.is_file() or not (folder / PRODUCTS_ARCHIVE).is_file():
+        return None, "shared build products were not downloaded; building here"
+    manifest = json.loads(manifest_path.read_text())
+    expected = {"format": PRODUCTS_FORMAT, "build": build_identity(mode, specs), **source_identity(root)}
+    mismatched = sorted(key for key, value in expected.items() if manifest.get(key) != value)
+    if mismatched:
+        return None, f"shared build products differ in {', '.join(mismatched)}; building here"
+    build_dir = out / "DerivedData" / "Build"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["tar", "-xf", str(folder / PRODUCTS_ARCHIVE), "-C", str(build_dir)], check=True)
+    products = build_dir / "Products"
+    built = [p for p in sorted(products.glob("*.xctestrun")) if p.name != RECORDED_XCTESTRUN]
+    if len(built) != 1:
+        return None, f"shared build products hold {len(built)} .xctestrun files; building here"
+    return built[0], f"tests the products built for {manifest['source_commit']} by the round's first job"
+
+
 def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
     specs = validate_specs(mode, specs)
     benchmark = os.environ.get("CI_APPLE_PRIVATE_STARTUP") == "1"
@@ -485,12 +581,65 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
     if benchmark and not all(credentials.values()):
         raise ValueError("The private Apple startup lane requires repository test credentials")
 
-    import ci_rust_checks as checks
-
     out = root / "test-results" / mode
     out.mkdir(parents=True, exist_ok=True)
     os.environ["RUST_CI_RESULTS"] = str(out / "rows")
-    plan = core_plan(root, out) if mode == "apple-core" else xcode_plan(mode, out, specs, benchmark=benchmark)
+    phase = os.environ.get("CI_APPLE_PHASE", "")
+    shared_in = os.environ.get("CI_APPLE_PRODUCTS_IN", "")
+    shared_out = os.environ.get("CI_APPLE_PRODUCTS_OUT", "")
+    if phase not in ("", "build", "test") or (phase and mode not in XCODE_MODES):
+        raise ValueError("CI_APPLE_PHASE must be build or test, and only for an Xcode lane")
+    if (shared_in or shared_out) and (benchmark or mode == "apple-core" or (shared_in and mode not in SHARE_MODES)):
+        raise ValueError("Shared build products are only for ordinary Xcode lanes")
+    xctestrun = None
+    if shared_in and phase != "test":
+        started = time.monotonic()
+        xctestrun, note = restore_shared_products(root, out, mode, specs, Path(shared_in))
+        print(f"::notice title={REUSE_STEP}::{note}", flush=True)
+        results.append({
+            "suite": f"{mode}:{REUSE_STEP}", "target": specs[0], "command": REUSE_STEP,
+            "exit_code": 0, "seconds": round(time.monotonic() - started, 1), "diagnostics": 0,
+            "failures": [], **({} if xctestrun else {"skipped": note}),
+        })
+    if mode == "apple-core":
+        plan = core_plan(root, out)
+    else:
+        plan = xcode_plan(mode, out, specs, benchmark=benchmark, xctestrun=xctestrun)
+    if phase:
+        # The producer's two phases: the build (generated inputs and the build step), and
+        # after the workflow uploaded the products, the rest of the same plan.
+        cut = next(i for i, step in enumerate(plan) if step[0] == BUILD_STEP) + 1
+        state = out / PHASE_STATE
+        if phase == "build":
+            stopped = execute(root, out, results, mode, specs, plan[:cut], benchmark, credentials)
+            state.write_text(json.dumps({"results": results, "stopped": stopped}))
+            if not stopped and results and results[-1]["exit_code"] == 0 and shared_out:
+                import subprocess
+
+                try:
+                    pack_shared_products(root, out, mode, specs, Path(shared_out))
+                except (OSError, subprocess.CalledProcessError) as exc:
+                    # This job's own tests still run; the round's other jobs then build
+                    # themselves because no products were published.
+                    print(f"::warning title=shared build products::not published: {exc}", flush=True)
+            return
+        saved = json.loads(state.read_text())
+        results.extend(saved["results"])
+        if saved.get("error"):
+            raise ValueError(saved["error"])
+        if not saved["stopped"]:
+            execute(root, out, results, mode, specs, plan[cut:], benchmark, credentials)
+        return
+    execute(root, out, results, mode, specs, plan, benchmark, credentials)
+
+
+def execute(
+    root: Path, out: Path, results: list[dict], mode: str, specs: list[str],
+    plan: list[Step], benchmark: bool, credentials: dict[str, str],
+) -> bool:
+    """Run the steps in order, appending result rows; True when a failure ended the lane."""
+    import ci_rust_checks as checks
+
     for name, command, extra_env, skip in plan:
         if skip:
             print(f"::notice title={name}::{skip}", flush=True)
@@ -510,7 +659,7 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
                 "command": "xcodebuild test-without-building", "exit_code": code,
                 "seconds": round(time.monotonic() - started, 1), "diagnostics": 0, "failures": [],
             })
-            break
+            return False
         saved = {key: os.environ.get(key) for key in extra_env}
         os.environ.update(extra_env)
         try:
@@ -540,7 +689,8 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
             }
         )
         if mode in XCODE_MODES and code != 0 and not (mode == "apple-build" and name == BUILD_STEP):
-            break  # the test run cannot proceed without its generated inputs or its build
+            return True  # the test run cannot proceed without its generated inputs or its build
+    return False
 
 
 def main() -> None:
@@ -555,6 +705,13 @@ def main() -> None:
         run(root, results, mode, json.loads(os.environ["CI_SPECS_JSON"]))
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         error = str(exc)  # reported in the result payload, never swallowed
+    if os.environ.get("CI_APPLE_PHASE") == "build":
+        # The test phase writes the one result payload, including a build-phase error.
+        if error:
+            state = root / "test-results" / mode / PHASE_STATE
+            state.parent.mkdir(parents=True, exist_ok=True)
+            state.write_text(json.dumps({"results": results, "stopped": True, "error": error}))
+        raise SystemExit(0)
     payload = {
         "source_commit": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=root, text=True

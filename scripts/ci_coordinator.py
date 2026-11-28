@@ -43,6 +43,20 @@ MAX_OCCUPANCY_REQUESTS = 80
 ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex", "rust-check"})
 APPLE_MODES = frozenset({"apple-core", "apple-build", "apple-unit", "apple-ui"})  # macos-26 runners, never lightweight
+# GitHub Free runs at most 5 macOS jobs at once (docs.github.com/en/actions/reference/limits).
+# Apple jobs beyond it wait here, undispatched, so owner fairness applies to them, a newer
+# candidate supersedes an older queued one (supersede_pending) and they hold no Linux slot.
+MAX_MACOS = 5
+APPLE_BUILD_MODES = frozenset({"apple-build", "apple-unit", "apple-ui"})
+# Build once, test many: one owner's apple-unit/apple-ui jobs on one source test the build
+# products of that source's first Xcode job (the producer) instead of compiling it again.
+APPLE_SHARE_MODES = frozenset({"apple-unit", "apple-ui"})
+APPLE_SHARED_BUILD = "apple-shared-build"  # ci_speedups switch for the coordinator side
+APPLE_PRODUCTS = "apple-products"  # workflow input flag and artifact name of the producer
+APPLE_SHARE_WAIT_SECONDS = 75 * 60  # a producer without products by then releases its consumers
+# A chat submits a round's unit and UI jobs in separate calls; a new Xcode job waits this
+# long for its siblings before it is dispatched, so one of them builds for all.
+APPLE_ROUND_WINDOW_SECONDS = 60
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
@@ -275,8 +289,21 @@ def _speedups_input(job: dict) -> dict:
     names.discard(PREPARED_RUST_CORE)
     if prepared_web_rust_core(job):
         names.add(PREPARED_RUST_CORE)
+    # Coordinator-side switch only; the workflow sees whether this job publishes products.
+    names.discard(APPLE_SHARED_BUILD)
+    if job.get("apple_producer") == "self":
+        names.add(APPLE_PRODUCTS)
     value = ",".join(sorted(names))
     return {"ci_speedups": value} if value else {}
+
+
+def _apple_shared_build_enabled(owner: str) -> bool:
+    """Whether this owner's Apple rounds build once and test many (ci_speedups switch)."""
+    try:
+        from scripts import ci_speedups
+    except ModuleNotFoundError:
+        import ci_speedups
+    return APPLE_SHARED_BUILD in ci_speedups.enabled(str(owner or ""))
 
 
 class GitHubError(RuntimeError):
@@ -420,7 +447,16 @@ class GitHub:
                         occupancy["selfhosted"] += 1
                     elif "self-hosted" not in labels:
                         occupancy["hosted"] += 1
+                        if any(str(label).startswith("macos") for label in labels):
+                            occupancy["macos"] = occupancy.get("macos", 0) + 1
         return occupancy
+
+    def has_artifact(self, run_id: int, name: str) -> bool:
+        """True when the run holds an unexpired artifact of that name (also while it runs)."""
+        listing = self.request(
+            f"repos/{self.repo}/actions/runs/{int(run_id)}/artifacts?name={name}&per_page=10"
+        )
+        return any(not item.get("expired") for item in listing.get("artifacts", []))
 
     def prepare_dispatch(self, job: dict) -> dict:
         """Resolve private capabilities before recording any remote send intent."""
@@ -516,6 +552,11 @@ class GitHub:
                         else {}
                     ),
                     "proof_video_profile": job.get("proof_profile", ""),
+                    **(
+                        {"prepared_run_id": str(job["prepared_run_id"])}
+                        if job["mode"] in APPLE_SHARE_MODES and job.get("prepared_run_id")
+                        else {}
+                    ),
                     **_speedups_input(job),
                     **(
                         {"web_rust_core": "true"}
@@ -629,6 +670,9 @@ class Queue:
                 "OPENMATES_CI_LIGHTWEIGHT_RESERVE", min(1, self.max_active - 1)
             )
         )
+        self.max_macos = int(os.environ.get("OPENMATES_CI_MAX_MACOS", MAX_MACOS))
+        if not 1 <= self.max_macos <= 50:
+            raise ValueError("macOS CI capacity must be between 1 and 50")
         self.max_selfhosted = int(
             max_selfhosted
             if max_selfhosted is not None
@@ -686,6 +730,8 @@ class Queue:
                 "web_rust_core": "INTEGER NOT NULL DEFAULT 0",
                 "e2b_runner": "TEXT NOT NULL DEFAULT ''",
                 "force_e2b": "INTEGER NOT NULL DEFAULT 0",
+                # '' undecided, 'self' producer, 'solo' builds itself, else the producer's id.
+                "apple_producer": "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -1407,6 +1453,60 @@ class Queue:
             owners[job["owner"]] = owners.get(job["owner"], 0) + 1
             time.sleep(1)
 
+    def hold_for_shared_apple_build(self, db, github, job, now, seen) -> bool:
+        """True while this queued Apple test job waits for its round's shared build products.
+
+        A consumer is an apple-unit/apple-ui job of the producer's owner, source and tree.
+        It is dispatched with the producer's run id once that run published its products;
+        when the producer fails to publish (build error, cancel, timeout) it builds itself.
+        `seen` caches artifact lookups per producer run within one tick.
+        """
+        role = job.get("apple_producer") or ""
+        if role in ("self", "solo") or job.get("prepared_run_id"):
+            return False
+        if role:
+            producer = db.execute("SELECT * FROM jobs WHERE id=?", (role,)).fetchone()
+        else:
+            producer = db.execute(
+                "SELECT * FROM jobs WHERE owner=? AND source=? AND candidate_tree=? AND apple_producer='self' AND proof_profile='' AND id<>? AND created>=? ORDER BY created DESC LIMIT 1",
+                (job["owner"], job["source"], job["candidate_tree"], job["id"], now - APPLE_SHARE_WAIT_SECONDS),
+            ).fetchone()
+            if producer is None:
+                return False
+            db.execute("UPDATE jobs SET apple_producer=? WHERE id=?", (producer["id"], job["id"]))
+            job["apple_producer"] = producer["id"]
+
+        def build_here(reason):
+            db.execute(
+                "UPDATE jobs SET apple_producer='solo',phase=?,phase_updated=? WHERE id=?",
+                (reason, now, job["id"]),
+            )
+            job["apple_producer"] = "solo"
+            return False
+
+        if producer is None:
+            return build_here("shared Apple build unavailable; building itself")
+        run_id = producer["run_id"]
+        if run_id and producer["phase"] != "GitHub runner queue" and hasattr(github, "has_artifact"):
+            if run_id not in seen:
+                seen[run_id] = github.has_artifact(run_id, APPLE_PRODUCTS)
+            if seen[run_id]:
+                job["prepared_run_id"] = run_id
+                db.execute(
+                    "UPDATE jobs SET prepared_run_id=?,ready_at=COALESCE(ready_at,?) WHERE id=?",
+                    (run_id, now, job["id"]),
+                )
+                return False
+        if producer["state"] in TERMINAL or (
+            producer["sent"] and now - producer["sent"] > APPLE_SHARE_WAIT_SECONDS
+        ):
+            return build_here("shared Apple build published no products; building itself")
+        db.execute(
+            "UPDATE jobs SET phase='waiting for the shared Apple build',phase_updated=? WHERE id=?",
+            (now, job["id"]),
+        )
+        return True
+
     def tick(self, github, now=None):
         now = time.time() if now is None else now
         with self.path.with_suffix(".lock").open("a") as lock:
@@ -1557,6 +1657,7 @@ class Queue:
                         )
                     ]
                     pending = []
+                    artifacts_seen = {}
                     for job in current:
                         if job["state"] != "queued":
                             continue
@@ -1594,6 +1695,25 @@ class Queue:
                                 "UPDATE jobs SET prepared_run_id=?,ready_at=COALESCE(ready_at,?) WHERE id=?",
                                 (producer["run_id"], now, job["id"]),
                             )
+                        if (
+                            job["mode"] in APPLE_SHARE_MODES
+                            and not job["proof_profile"]
+                            and self.hold_for_shared_apple_build(db, github, job, now, artifacts_seen)
+                        ):
+                            continue
+                        if (
+                            job["mode"] in APPLE_BUILD_MODES
+                            and not job["proof_profile"]
+                            and not job.get("apple_producer")
+                            and not job.get("prepared_run_id")
+                            and now - float(job["created"]) < APPLE_ROUND_WINDOW_SECONDS
+                            and _apple_shared_build_enabled(job["owner"])
+                        ):
+                            db.execute(
+                                "UPDATE jobs SET phase='collecting the Apple round',phase_updated=? WHERE id=?",
+                                (now, job["id"]),
+                            )
+                            continue
                         pending.append(job)
                     db.commit()
                     if any(job["mode"] in {"component", "e2e", "visual-smoke"} for job in pending):
@@ -1604,6 +1724,11 @@ class Queue:
                     local = {"hosted": 0, "selfhosted": 0, "e2b": 0}
                     for job in active_jobs:
                         local[runner_class(job)] += reservations[job["id"]]
+                    macos = sum(
+                        reservations[job["id"]]
+                        for job in active_jobs
+                        if job["mode"] in APPLE_MODES and runner_class(job) == "hosted"
+                    )
                     # One owner-wide snapshot per two minutes avoids per-caller polling.
                     # A failed or stale discovery never grants new slots.
                     snapshot = json.loads(self.metadata(db, "account_occupancy", "{}"))
@@ -1629,6 +1754,7 @@ class Queue:
                     # With nothing ready to admit, only reconcile existing jobs.
                     # The next admission always refreshes absent/stale occupancy.
                     external = {kind: snapshot.get(kind, 0) for kind in local}
+                    macos += int(snapshot.get("macos", 0) or 0)
                     owners = {}
                     for job in active_jobs:
                         owners[job["owner"]] = (
@@ -1654,6 +1780,12 @@ class Queue:
                                 if runner_class(job) == "selfhosted"
                                 else self.max_active
                             )
+                            # GitHub runs at most max_macos macOS jobs; more would only queue there.
+                            and not (
+                                job["mode"] in APPLE_MODES
+                                and runner_class(job) == "hosted"
+                                and macos >= self.max_macos
+                            )
                             # The daily batch is capped even when slots are idle.
                             and not (
                                 job["owner"] == DAILY_OWNER
@@ -1678,6 +1810,33 @@ class Queue:
                             ),
                         )
                         pending.remove(job)
+                        if (
+                            job["mode"] in APPLE_BUILD_MODES
+                            and not job["proof_profile"]
+                            and not job.get("apple_producer")
+                            and not job.get("e2b_runner")
+                        ):
+                            siblings = [
+                                other
+                                for other in pending
+                                if other["owner"] == job["owner"]
+                                and other["source"] == job["source"]
+                                and other["candidate_tree"] == job["candidate_tree"]
+                                and other["mode"] in APPLE_SHARE_MODES
+                                and not other["proof_profile"]
+                                and not other.get("apple_producer")
+                                and not other.get("prepared_run_id")
+                            ]
+                            if not _apple_shared_build_enabled(job["owner"]):
+                                siblings = []
+                            job["apple_producer"] = "self" if siblings else "solo"
+                            db.execute(
+                                "UPDATE jobs SET apple_producer=? WHERE id=?",
+                                (job["apple_producer"], job["id"]),
+                            )
+                            for other in siblings:
+                                # They test this job's products once it published them.
+                                pending.remove(other)
                         dispatch_job = job
                         if hasattr(github, "prepare_dispatch"):
                             try:
@@ -1708,6 +1867,8 @@ class Queue:
                         )
                         db.commit()
                         local[runner_class(job)] += 1
+                        if job["mode"] in APPLE_MODES and runner_class(job) == "hosted":
+                            macos += 1
                         owners[job["owner"]] = owners.get(job["owner"], 0) + 1
                         if job["owner"] == DAILY_OWNER and runner_class(job) == "hosted":
                             daily_hosted += 1

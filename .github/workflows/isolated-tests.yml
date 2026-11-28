@@ -1612,12 +1612,56 @@ jobs:
           openssl_bin="$(brew --prefix openssl@3)/bin/openssl"
           printf '%s' "${EVIDENCE_PROFILE#apple-startup:}" | "$openssl_bin" base64 -d -A > "$RUNNER_TEMP/apple-evidence-recipient.pem"
           "$openssl_bin" x509 -in "$RUNNER_TEMP/apple-evidence-recipient.pem" -checkend 0 -noout
+      # Build once, test many (ci_coordinator.py, ci_apple.py): one owner's other unit/UI jobs
+      # on the same source test the first job's build products instead of compiling it again.
+      # `prepared_run_id` names that producer run; ci_apple.py verifies source and build
+      # identity and builds here itself when anything is missing or differs.
+      - name: Restore the round's shared build products
+        id: shared_products
+        if: >-
+          inputs.prepared_run_id != '' && (inputs.mode == 'apple-unit' || inputs.mode == 'apple-ui') &&
+          !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        continue-on-error: true
+        timeout-minutes: 10
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: apple-products
+          path: ${{ runner.temp }}/apple-products-in
+          run-id: ${{ inputs.prepared_run_id }}
+          github-token: ${{ github.token }}
+      # The producer: build first, publish the products, then run its own tests.
+      - name: Build Apple products for the round
+        if: >-
+          contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+          inputs.mode != 'apple-core' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 70
+        run: python3 ../tooling/scripts/ci_apple.py
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PHASE: build
+          CI_APPLE_PRODUCTS_OUT: ${{ runner.temp }}/apple-products-out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: >-
+          contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+          inputs.mode != 'apple-core' && !startsWith(inputs.proof_video_profile, 'apple-startup:')
+        timeout-minutes: 15
+        with:
+          # Unsigned Debug simulator products of public source; consumers read them within the hour.
+          name: apple-products
+          retention-days: 1
+          compression-level: 1
+          path: ${{ runner.temp }}/apple-products-out/
+          if-no-files-found: ignore
       - name: Run Apple lane
         if: "!startsWith(inputs.proof_video_profile, 'apple-startup:')"
         timeout-minutes: ${{ inputs.mode != 'apple-core' && 110 || 90 }}
         run: python3 ../tooling/scripts/ci_apple.py
         env:
           PYTHONPATH: ${{ github.workspace }}/tooling/scripts
+          CI_APPLE_PHASE: >-
+            ${{ contains(inputs.ci_speedups, 'apple-products') && inputs.prepared_run_id == '' &&
+            inputs.mode != 'apple-core' && 'test' || '' }}
+          CI_APPLE_PRODUCTS_IN: ${{ steps.shared_products.outcome == 'success' && format('{0}/apple-products-in', runner.temp) || '' }}
       - name: Run private Apple startup benchmark
         if: startsWith(inputs.proof_video_profile, 'apple-startup:')
         timeout-minutes: 110

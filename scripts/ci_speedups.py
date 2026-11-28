@@ -32,7 +32,8 @@ from pathlib import Path
 # browser-cache: restore Playwright browsers from a cache keyed on the Playwright version.
 # prepared-rust-core: the prepare job ships the Rust-core web build; consumers skip rebuilds.
 # e2b-template: E2B overflow jobs start from a prepared dependency template (scripts/ci_e2b_template.py).
-KNOWN = frozenset({"wasm-cache", "browser-cache", "prepared-rust-core", "e2b-template"})
+# apple-shared-build: one owner's Apple unit/UI jobs on one source test the first Xcode job's build products.
+KNOWN = frozenset({"wasm-cache", "browser-cache", "prepared-rust-core", "e2b-template", "apple-shared-build"})
 ROOT = Path(__file__).resolve().parents[1]
 
 
