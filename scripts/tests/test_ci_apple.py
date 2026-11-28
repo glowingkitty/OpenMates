@@ -320,8 +320,7 @@ def test_only_private_startup_builds_with_the_release_optimizer():
     assert not any(setting in ordinary for setting in ci_apple.OPTIMIZED_BENCHMARK_SETTINGS)
 
 
-def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
-    import json
+def _run_sampler(tmp_path, monkeypatch, process_command):
     import subprocess
 
     pids = iter(["11", "11", "22", "33"])
@@ -335,17 +334,26 @@ def test_profiler_traces_only_the_first_cached_relaunch(tmp_path, monkeypatch):
         if command[0] == "pgrep":
             return subprocess.CompletedProcess(command, 0, stdout=next(pids) + "\n")
         if command[0] == "ps":
-            return subprocess.CompletedProcess(
-                command, 0, stdout="/Users/x/Library/Developer/CoreSimulator/Devices/D/OpenMates.app/OpenMates -x\n")
-        if command[:3] == ["xcrun", "simctl", "list"]:
-            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(
-                {"devices": {"ios": [{"udid": "SIM-1", "state": "Booted"}, {"udid": "SIM-2", "state": "Shutdown"}]}}))
+            return subprocess.CompletedProcess(command, 0, stdout=process_command)
         commands.append(command)
         return subprocess.CompletedProcess(command, 0, stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     ci_apple.sample_app_process(tmp_path / "samples", Stop())
-    assert [command[2] for command in commands] == ["record", "export", "export"]
-    assert commands[0][commands[0].index("--device") + 1] == "SIM-1"
-    assert "--all-processes" in commands[0] and "--attach" not in commands[0]
-    assert (tmp_path / "samples" / "sampler.log").read_text().count("exit 0") == 3
+    return commands, (tmp_path / "samples" / "sampler.log").read_text()
+
+
+def test_profiler_samples_only_the_first_cached_macos_relaunch(tmp_path, monkeypatch):
+    commands, log = _run_sampler(tmp_path, monkeypatch, "/tmp/D/OpenMates.app/Contents/MacOS/OpenMates -x\n")
+    assert len(commands) == 1 and commands[0][:2] == ["sample", "22"]
+    assert commands[0][-1].endswith("launch-pid22.sample.txt")
+    assert "sample exit 0" in log
+
+
+def test_profiler_logs_simulator_launches_as_unprofiled(tmp_path, monkeypatch):
+    commands, log = _run_sampler(
+        tmp_path, monkeypatch, "/Users/x/Library/Developer/CoreSimulator/Devices/D/OpenMates.app/OpenMates -x\n")
+    assert commands == []
+    assert "no stack sampler" in log
+
+

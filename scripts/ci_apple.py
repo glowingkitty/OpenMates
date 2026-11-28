@@ -40,7 +40,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import shutil
 import sys
 import time
 from pathlib import Path
@@ -82,6 +81,7 @@ OPTIMIZED_BENCHMARK_SETTINGS = (
 # spends startup. The host `sample` tool records no frames of Simulator apps.
 APP_PROFILE_SECONDS = 15
 APP_PROFILE_STEP_TIMEOUT_SECONDS = 600
+APP_SAMPLE_INTERVAL_MS = 1
 APP_SAMPLE_POLL_SECONDS = 0.1
 APP_SAMPLED_PROCESS = 2
 # XCUITest spawns the app suspended and resumes it itself; attaching the
@@ -468,38 +468,25 @@ def run_private_benchmark(root: Path, command: list[str], output: Path, credenti
         credential_file.unlink()
 
 
-def profiler_target_arguments(pid: str, log) -> list[str]:
-    """Return the xctrace target for one launched app process.
-
-    xctrace cannot resolve a Simulator app pid on the host, so a pid that runs
-    inside CoreSimulator is recorded as every process on its booted device; the
-    export keeps the process column to select the app afterwards.
-    """
+def is_simulator_process(pid: str) -> bool:
+    """Whether a launched app pid runs inside CoreSimulator rather than on the host."""
     import subprocess
 
     command = subprocess.run(["ps", "-p", pid, "-o", "command="], capture_output=True,
                              text=True, check=False).stdout
-    if "/CoreSimulator/" not in command:
-        log.write("target host pid\n")
-        return ["--attach", pid]
-    listing = subprocess.run(["xcrun", "simctl", "list", "devices", "booted", "-j"],
-                             capture_output=True, text=True, check=False).stdout
-    booted = [device["udid"] for devices in json.loads(listing or "{}").get("devices", {}).values()
-              for device in devices if device.get("state") == "Booted"]
-    log.write(f"target simulator, booted devices {len(booted)}\n")
-    if len(booted) != 1:
-        return ["--attach", pid]
-    return ["--device", booted[0], "--all-processes"]
+    return "/CoreSimulator/" in command
 
 
 def sample_app_process(folder: Path, stop) -> None:
-    """Record a Time Profiler trace of exactly one launched OpenMates app process.
+    """Sample the call stacks of exactly one launched macOS OpenMates app process.
 
-    The macOS app and the iOS Simulator app are both host processes. Only the
-    second distinct process (the first cached relaunch after sign-in) is
-    profiled, so the other launches keep undisturbed timings; that launch is
-    left out of the medians. The trace and its exported time-profile table
-    stay in the private evidence; failures are logged beside them.
+    Only the second distinct process (the first cached relaunch after sign-in)
+    is sampled, so the other launches keep undisturbed timings; that launch is
+    left out of the medians. The host `sample` tool captures every thread's
+    stacks of a macOS process inside the hosted runner's virtual machine,
+    where Time Profiler gets no CPU samples and cannot see Simulator apps; a
+    Simulator launch is logged as unprofiled. The text call tree stays in the
+    private evidence; failures are logged beside it.
     """
     import subprocess
 
@@ -517,35 +504,21 @@ def sample_app_process(folder: Path, stop) -> None:
             continue
         if stop.wait(APP_PROFILE_ATTACH_DELAY_SECONDS):
             return
-        trace = folder / f"launch-pid{found[0]}.trace"
         with (folder / "sampler.log").open("a") as log:
-            target = profiler_target_arguments(found[0], log)
-        steps = [
-            ["xcrun", "xctrace", "record", "--template", "Time Profiler", *target,
-             "--time-limit", f"{APP_PROFILE_SECONDS}s", "--output", str(trace), "--no-prompt"],
-            ["xcrun", "xctrace", "export", "--input", str(trace), "--toc",
-             "--output", str(folder / "toc.xml")],
-            ["xcrun", "xctrace", "export", "--input", str(trace), "--xpath",
-             '/trace-toc/run[@number="1"]/data/table[@schema="time-profile"]',
-             "--output", str(folder / "time-profile.xml")],
-        ]
-        with (folder / "sampler.log").open("a") as log:
-            for step in steps:
-                log.write(f"{step[2]} start\n")
-                log.flush()
-                # Recording every process of the Simulator device takes minutes to
-                # finalize on the hosted runner; a timeout is logged, never silent.
-                try:
-                    done = subprocess.run(step, capture_output=True, text=True, check=False,
-                                          timeout=APP_PROFILE_STEP_TIMEOUT_SECONDS)
-                except subprocess.TimeoutExpired:
-                    log.write(f"{step[2]} timeout after {APP_PROFILE_STEP_TIMEOUT_SECONDS}s\n")
-                    log.flush()
-                    break
-                log.write(f"{step[2]} exit {done.returncode}\n{done.stderr[-2000:]}\n")
-                log.flush()
-        # The exported table holds every sampled stack; the raw bundle is large.
-        shutil.rmtree(trace, ignore_errors=True)
+            if is_simulator_process(found[0]):
+                log.write("simulator process: no stack sampler available on the hosted runner\n")
+                return
+            step = ["sample", found[0], str(APP_PROFILE_SECONDS), str(APP_SAMPLE_INTERVAL_MS),
+                    "-mayDie", "-file", str(folder / f"launch-pid{found[0]}.sample.txt")]
+            log.write("sample start\n")
+            log.flush()
+            try:
+                done = subprocess.run(step, capture_output=True, text=True, check=False,
+                                      timeout=APP_PROFILE_STEP_TIMEOUT_SECONDS)
+            except subprocess.TimeoutExpired:
+                log.write(f"sample timeout after {APP_PROFILE_STEP_TIMEOUT_SECONDS}s\n")
+                return
+            log.write(f"sample exit {done.returncode}\n{done.stderr[-2000:]}\n")
         return
 
 
@@ -621,7 +594,6 @@ def run(root: Path, results: list[dict], mode: str, specs: list[str]) -> None:
 
 def main() -> None:
     """Runner entrypoint: execute the mode and write the coordinator's ci-results.json."""
-    import json
     import subprocess
 
     root = Path.cwd()
