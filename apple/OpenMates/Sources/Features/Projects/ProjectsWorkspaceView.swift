@@ -36,6 +36,7 @@ struct ProjectsWorkspaceView: View {
     var onReportIssue: (String) -> Void = { _ in }
 
     @State private var projectChatLimit = 24
+    @StateObject private var checksHost = ProjectChecksHost()
     @State private var selectedTab: ProjectWorkspaceTab = .overview
     @State private var currentFolderID: String?
     @State private var virtualPath: String?
@@ -137,6 +138,20 @@ struct ProjectsWorkspaceView: View {
         .overlay { OMSheet(isPresented: $showCreateProject, title: AppStrings.projectNew) { createProjectSheet } }
         .overlay { OMSheet(isPresented: $showCreateFolder, title: AppStrings.projectCreateFolder) { createFolderSheet } }
         .overlay { OMSheet(isPresented: $editingMetadata, title: AppStrings.projectEdit) { metadataSheet } }
+        .overlay {
+            if let project = store.selectedProject, selectedTab == .overview {
+                ProjectCheckDetailSheet(model: checksModel(project))
+            }
+        }
+    }
+
+    private func checksModel(_ project: ProjectWorkspaceProject) -> ProjectChecksModel {
+        checksHost.model(projectId: project.id, teamId: project.teamId) {
+            #if DEBUG
+            if ProjectChecksPreviewLoader.enabled { return ProjectChecksPreviewLoader() }
+            #endif
+            return CoreProjectChecks()
+        }
     }
 
     private var workspaceWithFileActions: some View {
@@ -763,6 +778,7 @@ struct ProjectsWorkspaceView: View {
                     }.accessibilityIdentifier("project-chats-section")
                 }
             }
+            ProjectChecksPanel(model: checksModel(project), width: width)
             switch store.readme {
             case .loading:
                 ProgressView(AppStrings.projectOverviewLoading)

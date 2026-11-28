@@ -4503,6 +4503,42 @@ public protocol ViewModelCoreProtocol: AnyObject, Sendable {
     func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellation: CoreCancellation?) async throws  -> MemoryDocumentRecord
     
     /**
+     * Record the human decision (`confirmed`, `rejected`, `blocked`,
+     * `waived`) of a pending human source, with an optional note.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for an unknown decision;
+     * `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectCheckConfirmHuman(projectId: String, teamId: String?, checkId: String, runId: String, bindingId: String, decision: String, note: String?, cancellation: CoreCancellation?) async throws 
+    
+    /**
+     * One Check with its current revision, latest run, per-source results and
+     * stale flag.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectCheckShow(projectId: String, teamId: String?, checkId: String, cancellation: CoreCancellation?) async throws  -> ProjectCheckDetailRecord
+    
+    /**
+     * Start a run on the Check's current revision; returns the run id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectCheckStartRun(projectId: String, teamId: String?, checkId: String, cancellation: CoreCancellation?) async throws  -> String
+    
+    /**
+     * The Checks of a Project as full records (one call). `team_id` is the Team of a Team Project, nil
+     * for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+    func projectChecksList(projectId: String, teamId: String?, cancellation: CoreCancellation?) async throws  -> [ProjectCheckDetailRecord]
+    
+    /**
      * Create a new empty Project file of `kind` (`document`, `sheet`,
      * `slides`, `code`) named `name` in `folder_id` (the Project root when
      * `None`). `team_id` is the Team of a Team Project, `None` for Personal.
@@ -6665,6 +6701,98 @@ open func updateMemoryDocument(id: String, fields: MemoryFieldsRecord, cancellat
             completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
             freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeMemoryDocumentRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Record the human decision (`confirmed`, `rejected`, `blocked`,
+     * `waived`) of a pending human source, with an optional note.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Invalid` for an unknown decision;
+     * `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectCheckConfirmHuman(projectId: String, teamId: String?, checkId: String, runId: String, bindingId: String, decision: String, note: String?, cancellation: CoreCancellation?)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_check_confirm_human(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(checkId),FfiConverterString.lower(runId),FfiConverterString.lower(bindingId),FfiConverterString.lower(decision),FfiConverterOptionString.lower(note),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_void,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_void,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * One Check with its current revision, latest run, per-source results and
+     * stale flag.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectCheckShow(projectId: String, teamId: String?, checkId: String, cancellation: CoreCancellation?)async throws  -> ProjectCheckDetailRecord  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_check_show(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(checkId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeProjectCheckDetailRecord_lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * Start a run on the Check's current revision; returns the run id.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectCheckStartRun(projectId: String, teamId: String?, checkId: String, cancellation: CoreCancellation?)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_check_start_run(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterString.lower(checkId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeCoreError_lift
+        )
+}
+    
+    /**
+     * The Checks of a Project as full records (one call). `team_id` is the Team of a Team Project, nil
+     * for Personal. Runs on the actor.
+     *
+     * # Errors
+     * `Authentication` when signed out; `Forbidden`; `Offline`; `Cancelled`.
+     */
+open func projectChecksList(projectId: String, teamId: String?, cancellation: CoreCancellation?)async throws  -> [ProjectCheckDetailRecord]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_openmates_apple_bindings_fn_method_viewmodelcore_project_checks_list(
+                        self.uniffiCloneHandle(),FfiConverterString.lower(projectId),FfiConverterOptionString.lower(teamId),FfiConverterOptionTypeCoreCancellation.lower(cancellation)
+                )
+            },
+            pollFunc: ffi_openmates_apple_bindings_rust_future_poll_rust_buffer,
+            completeFunc: ffi_openmates_apple_bindings_rust_future_complete_rust_buffer,
+            freeFunc: ffi_openmates_apple_bindings_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeProjectCheckDetailRecord.lift,
             errorHandler: FfiConverterTypeCoreError_lift
         )
 }
@@ -13436,6 +13564,660 @@ public func FfiConverterTypeProbeRecord_lift(_ buf: RustBuffer) throws -> ProbeR
 #endif
 public func FfiConverterTypeProbeRecord_lower(_ value: ProbeRecord) -> RustBuffer {
     return FfiConverterTypeProbeRecord.lower(value)
+}
+
+
+/**
+ * One Check with its current revision and latest run.
+ */
+public struct ProjectCheckDetailRecord: Equatable, Hashable {
+    /**
+     * Head of the Check.
+     */
+    public var check: ProjectCheckHeadRecord
+    /**
+     * Current revision.
+     */
+    public var revision: ProjectCheckRevisionRecord
+    /**
+     * Latest run; nil when never run.
+     */
+    public var latestRun: ProjectCheckRunRecord?
+    /**
+     * Aggregate of the latest run when it is for the current revision, else
+     * `never_run`.
+     */
+    public var aggregate: String
+    /**
+     * True when runs exist but none for the current revision, or the core
+     * flags the latest run as stale.
+     */
+    public var stale: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Head of the Check.
+         */check: ProjectCheckHeadRecord, 
+        /**
+         * Current revision.
+         */revision: ProjectCheckRevisionRecord, 
+        /**
+         * Latest run; nil when never run.
+         */latestRun: ProjectCheckRunRecord?, 
+        /**
+         * Aggregate of the latest run when it is for the current revision, else
+         * `never_run`.
+         */aggregate: String, 
+        /**
+         * True when runs exist but none for the current revision, or the core
+         * flags the latest run as stale.
+         */stale: Bool) {
+        self.check = check
+        self.revision = revision
+        self.latestRun = latestRun
+        self.aggregate = aggregate
+        self.stale = stale
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckDetailRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckDetailRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckDetailRecord {
+        return
+            try ProjectCheckDetailRecord(
+                check: FfiConverterTypeProjectCheckHeadRecord.read(from: &buf), 
+                revision: FfiConverterTypeProjectCheckRevisionRecord.read(from: &buf), 
+                latestRun: FfiConverterOptionTypeProjectCheckRunRecord.read(from: &buf), 
+                aggregate: FfiConverterString.read(from: &buf), 
+                stale: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckDetailRecord, into buf: inout [UInt8]) {
+        FfiConverterTypeProjectCheckHeadRecord.write(value.check, into: &buf)
+        FfiConverterTypeProjectCheckRevisionRecord.write(value.revision, into: &buf)
+        FfiConverterOptionTypeProjectCheckRunRecord.write(value.latestRun, into: &buf)
+        FfiConverterString.write(value.aggregate, into: &buf)
+        FfiConverterBool.write(value.stale, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckDetailRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckDetailRecord {
+    return try FfiConverterTypeProjectCheckDetailRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckDetailRecord_lower(_ value: ProjectCheckDetailRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckDetailRecord.lower(value)
+}
+
+
+/**
+ * One Check in a Project's list.
+ */
+public struct ProjectCheckHeadRecord: Equatable, Hashable {
+    /**
+     * Check id.
+     */
+    public var checkId: String
+    /**
+     * `active` or `archived`.
+     */
+    public var status: String
+    /**
+     * Id of the current revision.
+     */
+    public var currentRevisionId: String
+    /**
+     * Number of the current revision (1-based).
+     */
+    public var currentRevisionNumber: UInt64
+    /**
+     * Decrypted title.
+     */
+    public var title: String
+    /**
+     * Decrypted description, if any.
+     */
+    public var description: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Check id.
+         */checkId: String, 
+        /**
+         * `active` or `archived`.
+         */status: String, 
+        /**
+         * Id of the current revision.
+         */currentRevisionId: String, 
+        /**
+         * Number of the current revision (1-based).
+         */currentRevisionNumber: UInt64, 
+        /**
+         * Decrypted title.
+         */title: String, 
+        /**
+         * Decrypted description, if any.
+         */description: String?) {
+        self.checkId = checkId
+        self.status = status
+        self.currentRevisionId = currentRevisionId
+        self.currentRevisionNumber = currentRevisionNumber
+        self.title = title
+        self.description = description
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckHeadRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckHeadRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckHeadRecord {
+        return
+            try ProjectCheckHeadRecord(
+                checkId: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                currentRevisionId: FfiConverterString.read(from: &buf), 
+                currentRevisionNumber: FfiConverterUInt64.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                description: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckHeadRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.checkId, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterString.write(value.currentRevisionId, into: &buf)
+        FfiConverterUInt64.write(value.currentRevisionNumber, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.description, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckHeadRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckHeadRecord {
+    return try FfiConverterTypeProjectCheckHeadRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckHeadRecord_lower(_ value: ProjectCheckHeadRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckHeadRecord.lower(value)
+}
+
+
+/**
+ * The current revision of a Check.
+ */
+public struct ProjectCheckRevisionRecord: Equatable, Hashable {
+    /**
+     * Revision id.
+     */
+    public var revisionId: String
+    /**
+     * Revision number (1-based).
+     */
+    public var revisionNumber: UInt64
+    /**
+     * Whether a pass needs a deterministic source.
+     */
+    public var requiresDeterministic: Bool
+    /**
+     * Sources in definition order.
+     */
+    public var sources: [ProjectCheckSourceRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Revision id.
+         */revisionId: String, 
+        /**
+         * Revision number (1-based).
+         */revisionNumber: UInt64, 
+        /**
+         * Whether a pass needs a deterministic source.
+         */requiresDeterministic: Bool, 
+        /**
+         * Sources in definition order.
+         */sources: [ProjectCheckSourceRecord]) {
+        self.revisionId = revisionId
+        self.revisionNumber = revisionNumber
+        self.requiresDeterministic = requiresDeterministic
+        self.sources = sources
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckRevisionRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckRevisionRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckRevisionRecord {
+        return
+            try ProjectCheckRevisionRecord(
+                revisionId: FfiConverterString.read(from: &buf), 
+                revisionNumber: FfiConverterUInt64.read(from: &buf), 
+                requiresDeterministic: FfiConverterBool.read(from: &buf), 
+                sources: FfiConverterSequenceTypeProjectCheckSourceRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckRevisionRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.revisionId, into: &buf)
+        FfiConverterUInt64.write(value.revisionNumber, into: &buf)
+        FfiConverterBool.write(value.requiresDeterministic, into: &buf)
+        FfiConverterSequenceTypeProjectCheckSourceRecord.write(value.sources, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckRevisionRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckRevisionRecord {
+    return try FfiConverterTypeProjectCheckRevisionRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckRevisionRecord_lower(_ value: ProjectCheckRevisionRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckRevisionRecord.lower(value)
+}
+
+
+/**
+ * The latest run of a Check.
+ */
+public struct ProjectCheckRunRecord: Equatable, Hashable {
+    /**
+     * Run id.
+     */
+    public var runId: String
+    /**
+     * Revision the run was made against.
+     */
+    public var checkRevisionId: String
+    /**
+     * Server run status.
+     */
+    public var status: String
+    /**
+     * Aggregate of the source results (`passed`, `failed`,
+     * `waiting_for_confirmation`, ...); equals `status` when unknown.
+     */
+    public var aggregateStatus: String
+    /**
+     * True when a passed run no longer matches the current revision.
+     */
+    public var stale: Bool
+    /**
+     * Unix seconds.
+     */
+    public var createdAt: UInt64
+    /**
+     * Unix seconds; nil while running.
+     */
+    public var finishedAt: UInt64?
+    /**
+     * Decrypted run summary, if any.
+     */
+    public var summary: String?
+    /**
+     * One result per reported source.
+     */
+    public var sourceResults: [ProjectCheckSourceResultRecord]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Run id.
+         */runId: String, 
+        /**
+         * Revision the run was made against.
+         */checkRevisionId: String, 
+        /**
+         * Server run status.
+         */status: String, 
+        /**
+         * Aggregate of the source results (`passed`, `failed`,
+         * `waiting_for_confirmation`, ...); equals `status` when unknown.
+         */aggregateStatus: String, 
+        /**
+         * True when a passed run no longer matches the current revision.
+         */stale: Bool, 
+        /**
+         * Unix seconds.
+         */createdAt: UInt64, 
+        /**
+         * Unix seconds; nil while running.
+         */finishedAt: UInt64?, 
+        /**
+         * Decrypted run summary, if any.
+         */summary: String?, 
+        /**
+         * One result per reported source.
+         */sourceResults: [ProjectCheckSourceResultRecord]) {
+        self.runId = runId
+        self.checkRevisionId = checkRevisionId
+        self.status = status
+        self.aggregateStatus = aggregateStatus
+        self.stale = stale
+        self.createdAt = createdAt
+        self.finishedAt = finishedAt
+        self.summary = summary
+        self.sourceResults = sourceResults
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckRunRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckRunRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckRunRecord {
+        return
+            try ProjectCheckRunRecord(
+                runId: FfiConverterString.read(from: &buf), 
+                checkRevisionId: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                aggregateStatus: FfiConverterString.read(from: &buf), 
+                stale: FfiConverterBool.read(from: &buf), 
+                createdAt: FfiConverterUInt64.read(from: &buf), 
+                finishedAt: FfiConverterOptionUInt64.read(from: &buf), 
+                summary: FfiConverterOptionString.read(from: &buf), 
+                sourceResults: FfiConverterSequenceTypeProjectCheckSourceResultRecord.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckRunRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.runId, into: &buf)
+        FfiConverterString.write(value.checkRevisionId, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterString.write(value.aggregateStatus, into: &buf)
+        FfiConverterBool.write(value.stale, into: &buf)
+        FfiConverterUInt64.write(value.createdAt, into: &buf)
+        FfiConverterOptionUInt64.write(value.finishedAt, into: &buf)
+        FfiConverterOptionString.write(value.summary, into: &buf)
+        FfiConverterSequenceTypeProjectCheckSourceResultRecord.write(value.sourceResults, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckRunRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckRunRecord {
+    return try FfiConverterTypeProjectCheckRunRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckRunRecord_lower(_ value: ProjectCheckRunRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckRunRecord.lower(value)
+}
+
+
+/**
+ * One source of a revision.
+ */
+public struct ProjectCheckSourceRecord: Equatable, Hashable {
+    /**
+     * Stable id of the source inside the Check (`s1`, ...).
+     */
+    public var bindingId: String
+    /**
+     * `e2e`, `static_analysis`, `ai_evaluation`, `human_confirmation`, ...
+     */
+    public var kind: String
+    /**
+     * `required` or `supporting`.
+     */
+    public var role: String
+    /**
+     * Decrypted source title.
+     */
+    public var title: String
+    /**
+     * Test path, selector, AI question or human instruction.
+     */
+    public var reference: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Stable id of the source inside the Check (`s1`, ...).
+         */bindingId: String, 
+        /**
+         * `e2e`, `static_analysis`, `ai_evaluation`, `human_confirmation`, ...
+         */kind: String, 
+        /**
+         * `required` or `supporting`.
+         */role: String, 
+        /**
+         * Decrypted source title.
+         */title: String, 
+        /**
+         * Test path, selector, AI question or human instruction.
+         */reference: String) {
+        self.bindingId = bindingId
+        self.kind = kind
+        self.role = role
+        self.title = title
+        self.reference = reference
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckSourceRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckSourceRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckSourceRecord {
+        return
+            try ProjectCheckSourceRecord(
+                bindingId: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                role: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                reference: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckSourceRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.bindingId, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterString.write(value.role, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterString.write(value.reference, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckSourceRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckSourceRecord {
+    return try FfiConverterTypeProjectCheckSourceRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckSourceRecord_lower(_ value: ProjectCheckSourceRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckSourceRecord.lower(value)
+}
+
+
+/**
+ * The result of one source in a run.
+ */
+public struct ProjectCheckSourceResultRecord: Equatable, Hashable {
+    /**
+     * Source this result belongs to.
+     */
+    public var bindingId: String
+    /**
+     * Server status: `pending`, `passed`, `failed`, `waived`, ...
+     */
+    public var status: String
+    /**
+     * Status to show: pending becomes `waiting_for_confirmation` (human
+     * source) or `queued`, waived `passed`, skipped `cancelled`, blocked
+     * `error`; otherwise the server status.
+     */
+    public var displayStatus: String
+    /**
+     * Human decision (`confirmed`, `rejected`, `blocked`, `waived`), if any.
+     */
+    public var humanDecision: String?
+    /**
+     * Decrypted detail or note.
+     */
+    public var detail: String?
+    /**
+     * Embed holding the test result, if any.
+     */
+    public var testResultEmbedId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Source this result belongs to.
+         */bindingId: String, 
+        /**
+         * Server status: `pending`, `passed`, `failed`, `waived`, ...
+         */status: String, 
+        /**
+         * Status to show: pending becomes `waiting_for_confirmation` (human
+         * source) or `queued`, waived `passed`, skipped `cancelled`, blocked
+         * `error`; otherwise the server status.
+         */displayStatus: String, 
+        /**
+         * Human decision (`confirmed`, `rejected`, `blocked`, `waived`), if any.
+         */humanDecision: String?, 
+        /**
+         * Decrypted detail or note.
+         */detail: String?, 
+        /**
+         * Embed holding the test result, if any.
+         */testResultEmbedId: String?) {
+        self.bindingId = bindingId
+        self.status = status
+        self.displayStatus = displayStatus
+        self.humanDecision = humanDecision
+        self.detail = detail
+        self.testResultEmbedId = testResultEmbedId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProjectCheckSourceResultRecord: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProjectCheckSourceResultRecord: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProjectCheckSourceResultRecord {
+        return
+            try ProjectCheckSourceResultRecord(
+                bindingId: FfiConverterString.read(from: &buf), 
+                status: FfiConverterString.read(from: &buf), 
+                displayStatus: FfiConverterString.read(from: &buf), 
+                humanDecision: FfiConverterOptionString.read(from: &buf), 
+                detail: FfiConverterOptionString.read(from: &buf), 
+                testResultEmbedId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProjectCheckSourceResultRecord, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.bindingId, into: &buf)
+        FfiConverterString.write(value.status, into: &buf)
+        FfiConverterString.write(value.displayStatus, into: &buf)
+        FfiConverterOptionString.write(value.humanDecision, into: &buf)
+        FfiConverterOptionString.write(value.detail, into: &buf)
+        FfiConverterOptionString.write(value.testResultEmbedId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckSourceResultRecord_lift(_ buf: RustBuffer) throws -> ProjectCheckSourceResultRecord {
+    return try FfiConverterTypeProjectCheckSourceResultRecord.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProjectCheckSourceResultRecord_lower(_ value: ProjectCheckSourceResultRecord) -> RustBuffer {
+    return FfiConverterTypeProjectCheckSourceResultRecord.lower(value)
 }
 
 
@@ -26344,6 +27126,30 @@ fileprivate struct FfiConverterOptionTypeMemoryFieldsRecord: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeProjectCheckRunRecord: FfiConverterRustBuffer {
+    typealias SwiftType = ProjectCheckRunRecord?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeProjectCheckRunRecord.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeProjectCheckRunRecord.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeProjectTimelineCommitRecord: FfiConverterRustBuffer {
     typealias SwiftType = ProjectTimelineCommitRecord?
 
@@ -27370,6 +28176,81 @@ fileprivate struct FfiConverterSequenceTypePiiMappingRecord: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePiiMappingRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectCheckDetailRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectCheckDetailRecord]
+
+    public static func write(_ value: [ProjectCheckDetailRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectCheckDetailRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectCheckDetailRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectCheckDetailRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectCheckDetailRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectCheckSourceRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectCheckSourceRecord]
+
+    public static func write(_ value: [ProjectCheckSourceRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectCheckSourceRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectCheckSourceRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectCheckSourceRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectCheckSourceRecord.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProjectCheckSourceResultRecord: FfiConverterRustBuffer {
+    typealias SwiftType = [ProjectCheckSourceResultRecord]
+
+    public static func write(_ value: [ProjectCheckSourceResultRecord], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProjectCheckSourceResultRecord.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProjectCheckSourceResultRecord] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProjectCheckSourceResultRecord]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProjectCheckSourceResultRecord.read(from: &buf))
         }
         return seq
     }
@@ -29285,6 +30166,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_update_memory_document() != 35185) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_check_confirm_human() != 4377) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_check_show() != 25529) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_check_start_run() != 43972) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_project_checks_list() != 1774) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_openmates_apple_bindings_checksum_method_viewmodelcore_create_project_document() != 934) {

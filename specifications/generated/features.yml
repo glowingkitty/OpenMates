@@ -19,10 +19,10 @@ summary:
       tested: 14
       partial: 36
       failing: 5
-      not_run: 1
+      not_run: 2
       implemented: 39
       in_progress: 7
-      planned: 7
+      planned: 6
       not_planned: 23
     watchos:
       tested: 7
@@ -4611,19 +4611,21 @@ features:
       key_unit_tests: []
       unit_test_files: 0
     apple:
-      status: planned
-      source: intent
+      status: not_run
+      source: tests
       intent: planned
       assertions:
         passing: 0
         failing: 0
-        not_run: 0
+        not_run: 4
         missing: 0
-        counted: 0
+        counted: 4
       key_tests: []
-      e2e_tests: []
-      key_unit_tests: []
-      unit_test_files: 0
+      e2e_tests:
+      - apple/OpenMatesUITests/ProjectChecksUITests.swift
+      key_unit_tests:
+      - apple/OpenMatesTests/ProjectChecksModelTests.swift
+      unit_test_files: 1
       platforms:
       - ios
       - ipados

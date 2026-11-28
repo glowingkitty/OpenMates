@@ -25,6 +25,7 @@ mod view_call_source;
 mod view_chat_actions;
 mod view_consent;
 mod view_project_files;
+mod view_project_checks;
 mod view_project_timeline;
 mod view_projects;
 mod view_queued_revision;
@@ -151,6 +152,11 @@ pub use view_projects::{
     GitLandOutcomeRecord, GitLandResultRecord, GitStatusOutcomeRecord, GitStatusRecord,
     RemoteCommandOutcomeRecord, RemoteCommandRecord, RemoteCommandResultRecord,
     RemoteRefusalRecord,
+};
+/// Project Checks list, detail, run and human confirmation (`view_project_checks`).
+pub use view_project_checks::{
+    ProjectCheckDetailRecord, ProjectCheckHeadRecord, ProjectCheckRevisionRecord,
+    ProjectCheckRunRecord, ProjectCheckSourceRecord, ProjectCheckSourceResultRecord,
 };
 pub use view_project_timeline::{
     ProjectCommitRestoreRecord, ProjectTimelineCommitFileRecord, ProjectTimelineCommitRecord,

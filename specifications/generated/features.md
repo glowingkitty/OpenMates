@@ -19,7 +19,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | Surface | live | tested | partial | FAIL | not run | impl | wip | planned | ? | — |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Web | 4 | 0 | 21 | 54 | 14 | 19 | 0 | 0 | 0 | 20 |
-| Apple | 0 | 14 | 36 | 5 | 1 | 39 | 7 | 7 | 0 | 23 |
+| Apple | 0 | 14 | 36 | 5 | 2 | 39 | 7 | 6 | 0 | 23 |
 | Watch | 0 | 7 | 3 | 1 | 2 | 0 | 0 | 0 | 0 | 0 |
 | CLI | 0 | 0 | 19 | 8 | 28 | 40 | 2 | 2 | 0 | 33 |
 | TUI | 2 | 0 | 0 | 13 | 3 | 57 | 9 | 0 | 0 | 48 |
@@ -57,7 +57,7 @@ Parity gaps per surface: `python3 scripts/feature_overview.py gaps --surface app
 | &nbsp;&nbsp;↳ Context and direction | partial 1/4 | partial 1/4 | ? | partial 1/4 | ? | partial 1/2 | ? | ? | | | |
 | &nbsp;&nbsp;↳ History layout and hidden chats | **FAIL** 2/3 | partial 2/3 | ? | ? | ? | not run 0/1 | ? | ? | | | |
 | &nbsp;&nbsp;↳ Encryption and surface parity | **FAIL** 0/2 | **FAIL** 0/2 | tested 1/1 | **FAIL** 0/2 | **FAIL** 0/1 | **FAIL** 0/1 | not run 0/2 | not run 0/2 | | | |
-| [Checks](#checks) | partial 5/15 | planned |  | impl | — | partial 11/15 | impl | impl | on (no flag) | on (no flag) | unverified |
+| [Checks](#checks) | partial 5/15 | not run 0/4 |  | impl | — | partial 11/15 | impl | impl | on (no flag) | on (no flag) | unverified |
 | [Concise and Actionable Mixed-Media Answers](#assistant-answer-composition) | impl | impl |  | impl | impl | partial 2/4 | impl | impl | on (no flag) | on (no flag) | unverified |
 | [Consent-Scoped Cross-Chat Awareness](#chat-awareness) | impl | — |  | not run 0/1 | — | planned | — | — | on (no flag) | on (no flag) | unverified |
 | [Continue Carousel](#continue-carousel) | partial 1/4 | partial 2/3 |  | not run 0/2 | **FAIL** 0/1 | — | — | — | on (no flag) | on (no flag) | untagged-main |
@@ -1158,7 +1158,7 @@ Checks are reusable proof definitions that verify Specification Requirements or 
 | Surface | Status | Assertions | Proof |
 |---|---|---|---|
 | Web | partial 5/15 | 5 pass · 0 fail · 0 not run · 10 no test | [check-embed.spec.ts](../../frontend/apps/web_app/tests/components/check-embed.spec.ts)<br>[plan-skill-embeds.spec.ts](../../frontend/apps/web_app/tests/components/plan-skill-embeds.spec.ts)<br>[project-checks-web-flow.spec.ts](../../frontend/apps/web_app/tests/project-checks-web-flow.spec.ts) |
-| Apple | planned | — | — |
+| Apple | not run 0/4 | 0 pass · 0 fail · 4 not run · 0 no test | [ProjectChecksUITests.swift](../../apple/OpenMatesUITests/ProjectChecksUITests.swift)<br>1 unit test file(s), e.g. [ProjectChecksModelTests.swift](../../apple/OpenMatesTests/ProjectChecksModelTests.swift) |
 | CLI | impl | 0 pass · 0 fail · 0 not run · 15 no test | — |
 | TUI | — | — | — |
 | REST API | partial 11/15 | 11 pass · 0 fail · 0 not run · 4 no test | 4 unit test file(s), e.g. [test_user_checks_api.py](../../backend/tests/test_user_checks_api.py), [test_plans_spec_check_skills.py](../../backend/tests/test_plans_spec_check_skills.py) |

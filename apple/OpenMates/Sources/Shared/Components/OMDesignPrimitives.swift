@@ -868,9 +868,10 @@ struct OMSheet<Content: View>: View {
 
                             Spacer()
 
-                            OMIconButton(icon: "x", label: "Close") {
+                            OMIconButton(icon: "close", label: AppStrings.close) {
                                 dismiss()
                             }
+                            .accessibilityIdentifier("om-sheet-close")
                         }
                         .padding(.horizontal, .spacing8)
                         .padding(.bottom, .spacing4)
