@@ -3071,6 +3071,15 @@ def _integration_worktree_path(session_id: str) -> Path:
     return AGENT_WORKTREES_DIR / f"{INTEGRATION_WORKTREE_PREFIX}{safe_session_id}-{secrets.token_hex(6)}"
 
 
+def _integration_checkout_landed(path: Path, target_ref: str) -> bool:
+    """Whether a leftover integration checkout's changes are all pushed (scripts/integration_checkout_expiry.py)."""
+    try:
+        from scripts.integration_checkout_expiry import integration_checkout_landed
+    except ModuleNotFoundError:
+        from integration_checkout_expiry import integration_checkout_landed
+    return integration_checkout_landed(path, target_ref)
+
+
 def _is_integration_worktree_path(path: Path) -> bool:
     """Return whether path is a direct managed disposable integration checkout."""
     if ".." in path.parts:
@@ -5031,9 +5040,16 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     if not path.exists():
         return True, "missing"
     metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    landed = False
     try:
         if _candidate_changed_files(path, metadata):
-            return False, "unique_changes"
+            # A leftover deploy checkout whose patch is on the target branch (or still in
+            # its lane) holds nothing unpushed (TASK-541); everything else is unique work.
+            landed = _is_integration_worktree_path(path) and _integration_checkout_landed(path, target_ref)
+            if not landed:
+                return False, "unique_changes"
         if any(
             Path(name).name not in WORKTREE_EXPIRY_REPRODUCIBLE_DIRS
             or not (path / name).is_dir()
@@ -5046,11 +5062,9 @@ def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
     rc, head, _stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
     if rc != 0 or not head.strip():
         return False, "inspection_failed"
-    session = record.get("session") if isinstance(record.get("session"), dict) else {}
-    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
     if not _git_is_ancestor(head.strip(), target_ref):
         return False, "unmerged_head"
-    return True, "reachable_clean_head"
+    return True, "integration_landed" if landed else "reachable_clean_head"
 
 
 def _expiry_archive_snapshot(path: Path) -> tuple[str, bytes, bytes, list[dict]]:

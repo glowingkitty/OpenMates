@@ -17,6 +17,7 @@ import os
 from pathlib import Path
 import signal
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
@@ -43,6 +44,9 @@ try:
         PROACTIVE_INTERVAL,
         PROACTIVE_PRESSURE_INTERVAL,
         PROACTIVE_PERCENT,
+        PROACTIVE_EMERGENCY_INTERVAL,
+        STATE_RESERVE_BYTES,
+        STATE_RESERVE_NAME,
         PARKED_READY_REASON,
         PARKED_WAIT_EXPIRY,
     )
@@ -66,6 +70,9 @@ except ModuleNotFoundError:
         PROACTIVE_INTERVAL,
         PROACTIVE_PRESSURE_INTERVAL,
         PROACTIVE_PERCENT,
+        PROACTIVE_EMERGENCY_INTERVAL,
+        STATE_RESERVE_BYTES,
+        STATE_RESERVE_NAME,
         PARKED_READY_REASON,
         PARKED_WAIT_EXPIRY,
     )
@@ -250,7 +257,9 @@ class Coordinator(CoordinatorState):
             try:
                 detail = json.loads(result.stdout)
                 report.update(deleted=len(detail["deleted"]), reclaimed_bytes=detail["reclaimed_bytes"],
-                              skipped=detail["skipped"], failures=detail["failures"])
+                              skipped=detail["skipped"], failures=detail["failures"],
+                              free_after=detail.get("free_after"),
+                              floor_breached=bool(detail.get("floor_breached")))
             except (ValueError, TypeError, KeyError):
                 report["error"] = "Host cleanup did not return a valid structured report"
         elif not script:
@@ -377,12 +386,65 @@ class Coordinator(CoordinatorState):
         for repository, kinds in enabled.items():
             usage = self.usage(repository)
             percent = 100 * usage.used / usage.total if usage.total else 100
-            interval = (PROACTIVE_PRESSURE_INTERVAL if percent >= PROACTIVE_PERCENT
+            interval = (PROACTIVE_EMERGENCY_INTERVAL if usage.free < budget.CLEANUP_TARGET_FREE
+                        else PROACTIVE_PRESSURE_INTERVAL if percent >= PROACTIVE_PERCENT
                         else PROACTIVE_INTERVAL)
             if now - last.get(repository, float("-inf")) >= interval:
                 last[repository] = now
                 jobs.extend((repository, kind) for kind in kinds)
         return jobs
+
+    @property
+    def state_reserve(self):
+        return self.root / STATE_RESERVE_NAME
+
+    def keep_state_reserve(self):
+        """Hold STATE_RESERVE_BYTES for the ledger while free space is above the floor."""
+        reserve = self.state_reserve
+        if reserve.exists():
+            return False
+        if shutil.disk_usage(self.root).free < budget.MIN_FREE + STATE_RESERVE_BYTES:
+            return False
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        descriptor = os.open(reserve, os.O_CREAT | os.O_WRONLY, 0o600)
+        try:
+            os.posix_fallocate(descriptor, 0, STATE_RESERVE_BYTES)
+        except OSError:
+            os.close(descriptor)
+            reserve.unlink(missing_ok=True)
+            return False
+        os.close(descriptor)
+        return True
+
+    def release_state_reserve(self):
+        """Free the ledger reserve so the next write and the cleanup it starts can run."""
+        try:
+            self.state_reserve.unlink()
+        except FileNotFoundError:
+            return False
+        return True
+
+    def survive_full_disk(self, run, cleanup_dispatch=None):
+        """Run one ledger step; on a full disk release the reserve and queue every cleanup kind.
+
+        Only SQLITE_FULL is absorbed: any other database error still stops the service.
+        """
+        try:
+            return run()
+        except sqlite3.OperationalError as error:
+            if "full" not in str(error).lower():
+                raise
+            released = self.release_state_reserve()
+            print(f"Disk full during a ledger write; reserve released={released}; cleaning up",
+                  file=sys.stderr)
+            with self.db() as db:
+                enabled = {r["path"]: json.loads(r["maintenance"])
+                           for r in db.execute("SELECT * FROM repositories WHERE enabled=1")}
+            for repository, kinds in enabled.items():
+                for kind in kinds:
+                    if cleanup_dispatch is not None:
+                        cleanup_dispatch(repository, kind, self._cleanup)
+            return None
 
     def tick(self, *, cleaner=None, recovery_margin=RECOVERY_MARGIN, cleanup_dispatch=None,
              proactive=False):
@@ -756,8 +818,15 @@ def main():
             if not elected:
                 return 0
             with coordinator.background_cleanup() as dispatch:
+                reserve_checked = 0.0
                 while not stop:
-                    coordinator.tick(cleanup_dispatch=dispatch, proactive=True)
+                    coordinator.survive_full_disk(
+                        lambda: coordinator.tick(cleanup_dispatch=dispatch, proactive=True),
+                        cleanup_dispatch=dispatch,
+                    )
+                    if time.monotonic() - reserve_checked >= 60:
+                        reserve_checked = time.monotonic()
+                        coordinator.keep_state_reserve()
                     time.sleep(1)
                     if time.monotonic() - checked >= SOURCE_CHECK_SECONDS:
                         checked = time.monotonic()

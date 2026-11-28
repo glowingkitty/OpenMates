@@ -447,7 +447,8 @@ def test_background_cleanup_worker_failure_is_recorded_and_retried_after_backoff
         assert len(calls) == 1
 
 
-def test_proactive_cleanup_runs_all_kinds_on_cadence_without_waiting_requests(tmp_path):
+def test_proactive_cleanup_runs_all_kinds_on_cadence_without_waiting_requests(tmp_path, monkeypatch):
+    monkeypatch.setattr(budget, "CLEANUP_TARGET_FREE", 100)  # fixture bytes stay above the emergency target
     c, root, now, usage = fixture(tmp_path, free=500, used=500, kinds=('managed', 'host'))
     calls = []
     def cleaner(repository, kind):
@@ -589,3 +590,42 @@ def test_worktree_expiry_runs_with_the_24_hour_inactivity_window(tmp_path, monke
     expire = next(cmd for cmd in seen if "expire" in cmd)
     assert expire[expire.index("--max-age-hours") + 1] == "24"
     assert "error" not in report and "reconcile_error" not in report
+
+
+def test_below_the_cleanup_target_every_kind_runs_on_the_emergency_cadence(tmp_path, monkeypatch):
+    """Cleanup acts long before the 10 GiB floor once free space drops under the target (TASK-5181)."""
+    monkeypatch.setattr(budget, "CLEANUP_TARGET_FREE", 300)
+    c, root, now, usage = fixture(tmp_path, free=500, used=500, kinds=('host', 'docker'))
+    calls = []
+    def cleaner(repository, kind):
+        calls.append(kind)
+        return {'deleted': []}
+    with c.leadership():
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 2
+        usage[0] = Usage(1000, 500, 200)  # 50 % used, but below the free-space target
+        now[0] += disk.PROACTIVE_EMERGENCY_INTERVAL + 1
+        c.tick(cleaner=cleaner, recovery_margin=0, proactive=True)
+        assert len(calls) == 4
+
+
+def test_a_full_disk_during_a_ledger_write_releases_the_reserve_and_queues_cleanup(tmp_path):
+    import sqlite3
+
+    c, root, _now, _usage = fixture(tmp_path, kinds=('host', 'docker'))
+    c.state_reserve.parent.mkdir(parents=True, exist_ok=True)
+    c.state_reserve.write_bytes(b"\0" * 1024)
+    queued = []
+
+    def full():
+        raise sqlite3.OperationalError("database or disk is full")
+
+    assert c.survive_full_disk(full, cleanup_dispatch=lambda repo, kind, _fn: queued.append(kind)) is None
+    assert not c.state_reserve.exists()
+    assert sorted(queued) == ['docker', 'host']
+
+    def corrupt():
+        raise sqlite3.OperationalError("no such table: requests")
+
+    with pytest.raises(sqlite3.OperationalError):
+        c.survive_full_disk(corrupt)

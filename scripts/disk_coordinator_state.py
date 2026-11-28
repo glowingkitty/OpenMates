@@ -41,6 +41,14 @@ KINDS = ("managed", "worktrees", "docker", "proof", "host")
 PROACTIVE_INTERVAL = 3600
 PROACTIVE_PRESSURE_INTERVAL = 1800
 PROACTIVE_PERCENT = 75
+# Below the cleanup target (resource_budget.CLEANUP_TARGET_FREE) every kind runs this
+# often, whatever the percentage, so cleanup acts long before the floor (TASK-5181).
+PROACTIVE_EMERGENCY_INTERVAL = 300
+# Space the service keeps for its own ledger: a full disk once crashed it with
+# "database or disk is full" exactly when cleanup was needed most. It is released
+# when a write fails and recreated once free space is back above the floor.
+STATE_RESERVE_BYTES = 256 * 1024**2
+STATE_RESERVE_NAME = "state-reserve.bin"
 # A threaded wait whose owner process exited (the chat checkpointed and yielded) is
 # "parked": the service never grants it, because nobody would claim the grant. Each
 # tick checks whether capacity would admit it and then sets PARKED_READY_REASON, so

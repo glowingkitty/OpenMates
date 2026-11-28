@@ -53,6 +53,8 @@ SESSION_SCRATCH_RE = re.compile(r"^[0-9a-f]{4}-[A-Za-z0-9._-]+$")
 # Sibling folders holding one-off worktree recovery archives (same retention).
 EXTRA_RECOVERY_DIRS = ("OpenMates-worktree-recovery-archives",)
 TERMINAL_JOB_STATES = ("success", "failure", "cancelled")
+# Exit status of an applied pass that still leaves less than the floor free.
+FLOOR_BREACH_EXIT = 2
 JOB_REFERENCE_COLUMNS = ("id", "source", "run_id", "prepared_run_id", "preparation_id",
                          "preparation_key", "candidate_tree", "candidate_base")
 CARGO_COMMANDS = frozenset({"cargo", "rustc", "rustdoc", "clippy-driver", "cargo-clippy"})
@@ -223,7 +225,8 @@ def _candidates(tmp_root: Path, recovery_root: Path, now: float, uid: int) -> li
 def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None = None,
         uid: int | None = None, in_use: list[str] | None = None,
         repository: Path | None = None, cache_root: Path | None = None,
-        cargo_paths: list[str] | None = None, budgets: bool = False) -> dict:
+        cargo_paths: list[str] | None = None, budgets: bool = False,
+        free_bytes: int | None = None) -> dict:
     now = time.time() if now is None else now
     uid = os.getuid() if uid is None else uid
     in_use = _in_use_paths(uid) if in_use is None else in_use
@@ -276,6 +279,21 @@ def run(tmp_root: Path, recovery_root: Path, *, apply: bool, now: float | None =
         report["budgets"] = host_disk_budgets.enforce(repository, apply=apply, in_use=in_use, cargo=cargo,
                                                       references=references, now=now)
         report["reclaimed_bytes"] += report["budgets"]["reclaimed_bytes"]
+    if repository is not None:
+        # The floor check (TASK-5181): a pass that leaves less than the 10 GiB floor
+        # fails, so the coordinator records it, retries after its backoff and shows it.
+        try:
+            from scripts import resource_budget
+        except ModuleNotFoundError:
+            import resource_budget  # main() puts scripts/ on sys.path
+
+        measured = Path(repository)
+        while not measured.exists() and measured != measured.parent:
+            measured = measured.parent  # same filesystem as the repository would be on
+        free = shutil.disk_usage(measured).free if free_bytes is None else free_bytes
+        report["free_after"] = free
+        report["floor_breached"] = free < resource_budget.MIN_FREE
+        report["below_cleanup_target"] = free < resource_budget.CLEANUP_TARGET_FREE
     return report
 
 
@@ -311,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     report = run(args.tmp_root, recovery, apply=args.apply, repository=repository, budgets=True)
     print(json.dumps(report, indent=1))
-    return 0
+    return FLOOR_BREACH_EXIT if args.apply and report.get("floor_breached") else 0
 
 
 if __name__ == "__main__":

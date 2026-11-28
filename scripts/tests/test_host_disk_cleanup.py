@@ -213,3 +213,31 @@ def test_old_runtime_media_expires_but_recent_proof_and_receipts_stay(tmp_path):
     assert [Path(item["path"]) for item in report["deleted"]] == [media]
     assert not media.exists()
     assert all(path.is_file() for path in (receipt, recent, protected))
+
+
+def test_a_pass_that_leaves_less_than_the_floor_is_reported_as_a_breach(tmp_path):
+    """Floor check (TASK-5181): cleanup that cannot get back above 10 GiB must fail, not pass quietly."""
+    from scripts import resource_budget
+
+    repository = tmp_path / "repo"
+    repository.mkdir()
+    breached = cleanup.run(tmp_path / "tmp", tmp_path / "recovery", apply=True, in_use=[],
+                           repository=repository, cargo_paths=[], free_bytes=resource_budget.MIN_FREE - 1)
+    assert breached["floor_breached"] is True and breached["below_cleanup_target"] is True
+    healthy = cleanup.run(tmp_path / "tmp", tmp_path / "recovery", apply=True, in_use=[],
+                          repository=repository, cargo_paths=[],
+                          free_bytes=resource_budget.CLEANUP_TARGET_FREE)
+    assert healthy["floor_breached"] is False and healthy["below_cleanup_target"] is False
+
+
+def test_applied_pass_below_the_floor_exits_nonzero(tmp_path, monkeypatch):
+    from scripts import resource_budget
+
+    monkeypatch.setattr(cleanup, "_coordinated", lambda repository: True)
+    monkeypatch.setattr(cleanup, "run", lambda *a, **k: {"floor_breached": True})
+    assert cleanup.main(["--apply", "--repository", str(Path(__file__).resolve().parents[2]),
+                         "--tmp-root", str(tmp_path)]) == cleanup.FLOOR_BREACH_EXIT
+    monkeypatch.setattr(cleanup, "run", lambda *a, **k: {"floor_breached": False,
+                                                         "free_after": resource_budget.CLEANUP_TARGET_FREE})
+    assert cleanup.main(["--apply", "--repository", str(Path(__file__).resolve().parents[2]),
+                         "--tmp-root", str(tmp_path)]) == 0
